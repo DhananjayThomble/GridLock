@@ -7,28 +7,34 @@ const GameSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    gridSize: {
+        type: Number,
+        default: 3
+    },
     player1: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    player2: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    },
-    board: {
-        type: Array, // Store the grid/lines/boxes state
-        required: true
-    },
-    turn: {
-        type: String, // 'player1' or 'player2'
-        default: 'player1'
-    },
-    winner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String, // Storing socketId or username
         default: null
     },
-    date: {
+    player2: {
+        type: String,
+        default: null
+    },
+    gameState: {
+        horizontalLines: { type: Array, default: [] },
+        verticalLines: { type: Array, default: [] },
+        boxes: { type: Array, default: [] },
+        currentPlayer: { type: String, default: 'player1' },
+        scores: { 
+            player1: { type: Number, default: 0 },
+            player2: { type: Number, default: 0 }
+        },
+        winner: { type: String, default: null }
+    },
+    status: {
+        type: String, // 'waiting', 'playing', 'finished'
+        default: 'waiting'
+    },
+    createdAt: {
         type: Date,
         default: Date.now
     }

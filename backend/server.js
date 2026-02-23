@@ -6,6 +6,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
+const { calculateNewState, initializeGameState } = require('./utils/gameLogic');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -18,28 +20,158 @@ mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('MongoDB connected'))
 .catch(err => console.log(err));
 
-// Routes
-// app.use('/api/games', require('./routes/games'));
-// app.use('/api/users', require('./routes/users'));
-
 // Socket.io Setup
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173", // Frontend URL
+        origin: "*", // Allow all origins for now
         methods: ["GET", "POST"]
     }
 });
 
+// In-memory game store (for MVP)
+const activeGames = new Map();
+
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
 
-    socket.on('join_game', (gameId) => {
+    // Create Game
+    socket.on('create_game', ({ gridSize, username }, callback) => {
+        const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        const initialState = initializeGameState(gridSize);
+        const newGame = {
+            id: gameId,
+            gridSize,
+            players: {
+                player1: { id: socket.id, username },
+                player2: null
+            },
+            gameState: initialState
+        };
+
+        activeGames.set(gameId, newGame);
         socket.join(gameId);
-        console.log(`User joined game: ${gameId}`);
+        
+        // Callback if provided (Ack)
+        if (callback) callback({ gameId, playerId: 'player1' });
+        
+        // Also emit event for consistency
+        socket.emit('game_created', { gameId, playerId: 'player1' });
+        console.log(`Game created: ${gameId} by ${username}`);
+    });
+
+    // Join Game or Reconnect
+    socket.on('join_game', ({ gameId, username }) => {
+        const game = activeGames.get(gameId);
+        
+        if (!game) {
+            socket.emit('error', 'Game not found');
+            return;
+        }
+
+        // Check if user is already Player 1
+        if (game.players.player1.username === username) {
+            // Update socket ID in case of reconnect
+            game.players.player1.id = socket.id;
+            socket.join(gameId);
+            socket.emit('game_started', { 
+                gameId, 
+                gridSize: game.gridSize,
+                players: {
+                    player1: game.players.player1.username,
+                    player2: game.players.player2 ? game.players.player2.username : null
+                },
+                gameState: game.gameState
+            });
+            return;
+        }
+
+        // Check if user is already Player 2
+        if (game.players.player2 && game.players.player2.username === username) {
+            game.players.player2.id = socket.id;
+            socket.join(gameId);
+            socket.emit('game_started', { 
+                gameId, 
+                gridSize: game.gridSize,
+                players: {
+                    player1: game.players.player1.username,
+                    player2: game.players.player2.username
+                },
+                gameState: game.gameState
+            });
+            return;
+        }
+
+        // New Player 2 joining
+        if (game.players.player2) {
+            socket.emit('error', 'Game is full');
+            return;
+        }
+
+        game.players.player2 = { id: socket.id, username };
+        socket.join(gameId);
+        
+        // Notify both players
+        io.to(gameId).emit('game_started', { 
+            gameId, 
+            gridSize: game.gridSize,
+            players: {
+                player1: game.players.player1.username,
+                player2: game.players.player2.username
+            },
+            gameState: game.gameState
+        });
+        
+        console.log(`User ${username} joined game ${gameId}`);
+    });
+
+    // Make Move
+    socket.on('make_move', ({ gameId, playerId, type, r, c }) => {
+        const game = activeGames.get(gameId);
+        if (!game) return;
+
+        // Validate turn
+        const currentTurn = game.gameState.currentPlayer; // 'player1' or 'player2'
+        
+        // Check if the requester is the current player
+        // playerId should be 'player1' or 'player2' (sent from client)
+        if (currentTurn !== playerId) {
+            socket.emit('error', 'Not your turn');
+            return;
+        }
+
+        // Calculate new state
+        try {
+            const newState = calculateNewState(game.gameState, game.gridSize, r, c, type);
+            
+            if (newState.error) {
+                socket.emit('error', newState.error);
+                return;
+            }
+
+            // Update game state
+            game.gameState = newState;
+            activeGames.set(gameId, game);
+
+            // Broadcast update
+            io.to(gameId).emit('game_update', {
+                gameState: game.gameState
+            });
+
+            if (newState.winner) {
+                io.to(gameId).emit('game_over', { winner: newState.winner });
+                activeGames.delete(gameId); // Cleanup
+            }
+
+        } catch (e) {
+            console.error(e);
+            socket.emit('error', 'Invalid move');
+        }
     });
 
     socket.on('disconnect', () => {
-        console.log('Client disconnected');
+        console.log('Client disconnected:', socket.id);
+        // Handle cleanup (optional: notify opponent)
     });
 });
 

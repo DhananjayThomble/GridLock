@@ -1,12 +1,17 @@
 // src/App.jsx
 import React from 'react';
-import GameController from './components/GameController';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Lobby from './components/Lobby';
+import Board from './components/Board';
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <GameController />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Lobby />} />
+        <Route path="/game" element={<Board />} />
+      </Routes>
+    </Router>
   );
 }
 
