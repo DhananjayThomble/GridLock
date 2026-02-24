@@ -260,7 +260,9 @@ io.on('connection', (socket) => {
                 player1Name: game.players.player1.username,
                 player1Avatar: game.players.player1.avatar || '👦',
                 player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
-                player2Avatar: game.players.player2 ? game.players.player2.avatar || '👦' : '⏳'
+                player2Avatar: game.players.player2 ? game.players.player2.avatar || '👦' : '⏳',
+                gameOver: newState.winner ? true : false,
+                winner: newState.winner || null
             };
 
             log.info('Broadcasting game_update', { gameId, currentPlayer: newState.currentPlayer, scores: newState.scores });

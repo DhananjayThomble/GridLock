@@ -27,6 +27,25 @@ const Board = () => {
             console.log('Game update:', data);
             setGameState(data.gameState);
             setStatus(`Turn: ${data.gameState.currentPlayer === 'player1' ? 'Player 1' : 'Player 2'}`);
+            
+            // Check if game is over
+            if (data.gameState.gameOver) {
+                const isPlayer1Winner = data.gameState.winner === 'player1';
+                const winnerName = isPlayer1Winner ? data.gameState.player1Name : data.gameState.player2Name;
+                const winnerAvatar = isPlayer1Winner ? data.gameState.player1Avatar : data.gameState.player2Avatar;
+                const winnerScore = isPlayer1Winner ? data.gameState.scores.player1 : data.gameState.scores.player2;
+                const loserScore = isPlayer1Winner ? data.gameState.scores.player2 : data.gameState.scores.player1;
+                
+                setWinnerData({
+                    name: winnerName,
+                    avatar: winnerAvatar,
+                    score: winnerScore,
+                    loserScore: loserScore,
+                    player: data.gameState.winner
+                });
+                setShowWinnerModal(true);
+                setStatus(`Game Over! Winner: ${winnerName}`);
+            }
         };
 
         const onGameStarted = (data) => {
