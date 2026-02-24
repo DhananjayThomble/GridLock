@@ -49,9 +49,14 @@ const Board = () => {
         socket.on('game_over', onGameOver);
         socket.on('error', onError);
 
-        // Always attempt to join/rejoin to ensure room subscription
-        console.log(`Joining game ${gameId} as ${username}...`);
-        socket.emit('join_game', { gameId, username });
+        // Only emit join_game if we're player 2 (joining an existing game)
+        // Player 1 already joined when they created the game
+        if (role === 'player2') {
+            console.log(`Joining game ${gameId} as ${username}...`);
+            socket.emit('join_game', { gameId, username });
+        } else {
+            console.log(`Already in game ${gameId} as creator (${username})`);
+        }
 
         return () => {
             socket.off('game_update', onGameUpdate);
