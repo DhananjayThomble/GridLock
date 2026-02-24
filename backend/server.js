@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
             id: gameId,
             gridSize,
             players: {
-                player1: { id: socket.id, username, avatar: avatar || '😊' },
+                player1: { id: socket.id, username, avatar: avatar || '👦' },
                 player2: null
             },
             gameState: initialState
@@ -69,7 +69,7 @@ io.on('connection', (socket) => {
         const gameStateWithNames = {
             ...initialState,
             player1Name: username,
-            player1Avatar: avatar || '😊',
+            player1Avatar: avatar || '👦',
             player2Name: 'Waiting for player...',
             player2Avatar: '⏳'
         };
@@ -128,9 +128,9 @@ io.on('connection', (socket) => {
             const gameStateWithNames = {
                 ...game.gameState,
                 player1Name: game.players.player1.username,
-                player1Avatar: game.players.player1.avatar || '😊',
+                player1Avatar: game.players.player1.avatar || '👦',
                 player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
-                player2Avatar: game.players.player2 ? game.players.player2.avatar || '😊' : '⏳'
+                player2Avatar: game.players.player2 ? game.players.player2.avatar || '👦' : '⏳'
             };
             
             log.debug('Emitting game_started to player 1', { gameId, gameState: gameStateWithNames });
@@ -159,9 +159,9 @@ io.on('connection', (socket) => {
             const gameStateWithNames = {
                 ...game.gameState,
                 player1Name: game.players.player1.username,
-                player1Avatar: game.players.player1.avatar || '😊',
+                player1Avatar: game.players.player1.avatar || '👦',
                 player2Name: game.players.player2.username,
-                player2Avatar: game.players.player2.avatar || '😊'
+                player2Avatar: game.players.player2.avatar || '👦'
             };
             
             log.debug('Emitting game_started to player 2', { gameId, gameState: gameStateWithNames });
@@ -187,16 +187,16 @@ io.on('connection', (socket) => {
 
         log.info('Player 2 joining game', { gameId, username, socketId: socket.id });
 
-        game.players.player2 = { id: socket.id, username, avatar: avatar || '😊' };
+        game.players.player2 = { id: socket.id, username, avatar: avatar || '👦' };
         socket.join(gameId);
         
         // Add player names to game state
         const gameStateWithNames = {
             ...game.gameState,
             player1Name: game.players.player1.username,
-            player1Avatar: game.players.player1.avatar || '😊',
+            player1Avatar: game.players.player1.avatar || '👦',
             player2Name: game.players.player2.username,
-            player2Avatar: game.players.player2.avatar || '😊'
+            player2Avatar: game.players.player2.avatar || '👦'
         };
         
         log.debug('Emitting game_started to both players', { gameId, gameState: gameStateWithNames });
@@ -258,9 +258,9 @@ io.on('connection', (socket) => {
             const gameStateWithNames = {
                 ...newState,
                 player1Name: game.players.player1.username,
-                player1Avatar: game.players.player1.avatar || '😊',
+                player1Avatar: game.players.player1.avatar || '👦',
                 player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
-                player2Avatar: game.players.player2 ? game.players.player2.avatar || '😊' : '⏳'
+                player2Avatar: game.players.player2 ? game.players.player2.avatar || '👦' : '⏳'
             };
 
             log.info('Broadcasting game_update', { gameId, currentPlayer: newState.currentPlayer, scores: newState.scores });

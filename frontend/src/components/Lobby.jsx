@@ -9,11 +9,11 @@ const Lobby = () => {
     const [username, setUsername] = useState('');
     const [gridSize, setGridSize] = useState(3);
     const [gameId, setGameId] = useState('');
-    const [selectedAvatar, setSelectedAvatar] = useState('😊');
+    const [selectedAvatar, setSelectedAvatar] = useState('👦');
     const navigate = useNavigate();
 
-    // Available avatars
-    const avatars = ['😊', '🤖', '👾', '🦁', '🐼', '🚀', '⭐', '🎮', '🔥', '💎', '🌟', '🎯'];
+    // Available avatars - more interesting and diverse
+    const avatars = ['👦', '👧', '🤖', '🐱', '🐶', '🦊', '🐻', '🐼', '🦁', '🐯', '🚀', '⚽'];
 
     useEffect(() => {
         socket.on('connect', () => {
@@ -90,9 +90,9 @@ const Lobby = () => {
                             <button
                                 key={avatar}
                                 onClick={() => setSelectedAvatar(avatar)}
-                                className={`text-3xl p-2 rounded-lg transition-all hover:scale-110 ${
+                                className={`text-2xl p-2 rounded-lg transition-all hover:scale-105 ${
                                     selectedAvatar === avatar 
-                                        ? 'bg-blue-500 scale-110 shadow-lg ring-2 ring-blue-600' 
+                                        ? 'bg-blue-500 scale-105 shadow-lg ring-2 ring-blue-600' 
                                         : 'bg-gray-100 hover:bg-gray-200'
                                 }`}
                             >
@@ -100,8 +100,8 @@ const Lobby = () => {
                             </button>
                         ))}
                     </div>
-                    <p className="text-center mt-2 text-sm text-gray-600">
-                        Selected: <span className="text-2xl">{selectedAvatar}</span> {username || 'Player'}
+                    <p className="text-center mt-3 text-sm text-gray-600">
+                        Selected: <span className="text-xl">{selectedAvatar}</span> {username || 'Player'}
                     </p>
                 </div>
 
