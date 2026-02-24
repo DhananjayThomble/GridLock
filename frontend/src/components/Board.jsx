@@ -1,10 +1,9 @@
 // src/components/Board.jsx
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
+import socket from '../socket';
 
-// Initialize socket outside component to prevent multiple connections
-const socket = io(); // Connect to same host/port (Nginx proxies /socket.io to 5000)
+console.log('Board using shared socket connection');
 
 const Board = () => {
     const location = useLocation();
@@ -49,13 +48,15 @@ const Board = () => {
         socket.on('game_over', onGameOver);
         socket.on('error', onError);
 
-        // Only emit join_game if we're player 2 (joining an existing game)
-        // Player 1 already joined when they created the game
-        if (role === 'player2') {
-            console.log(`Joining game ${gameId} as ${username}...`);
+        // Player 1: After creating game, they need to ensure they're in the room
+        // Player 2: Emit join_game to trigger game start
+        if (role === 'player1') {
+            console.log(`Player 1 (${username}) ensuring room subscription for game ${gameId}`);
+            // Re-subscribe to ensure socket is in the room (in case of reconnect/navigation)
             socket.emit('join_game', { gameId, username });
-        } else {
-            console.log(`Already in game ${gameId} as creator (${username})`);
+        } else if (role === 'player2') {
+            console.log(`Player 2 (${username}) joining game ${gameId}...`);
+            socket.emit('join_game', { gameId, username });
         }
 
         return () => {
