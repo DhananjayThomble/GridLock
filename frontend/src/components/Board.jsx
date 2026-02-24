@@ -26,7 +26,12 @@ const Board = () => {
         const onGameUpdate = (data) => {
             console.log('Game update:', data);
             setGameState(data.gameState);
-            setStatus(`Turn: ${data.gameState.currentPlayer === 'player1' ? 'Player 1' : 'Player 2'}`);
+            
+            // Update status with actual player name
+            const currentPlayerName = data.gameState.currentPlayer === 'player1' 
+                ? data.gameState.player1Name 
+                : data.gameState.player2Name;
+            setStatus(`Turn: ${currentPlayerName}`);
             
             // Check if game is over
             if (data.gameState.gameOver) {
