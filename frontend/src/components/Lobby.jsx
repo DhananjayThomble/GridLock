@@ -9,7 +9,11 @@ const Lobby = () => {
     const [username, setUsername] = useState('');
     const [gridSize, setGridSize] = useState(3);
     const [gameId, setGameId] = useState('');
+    const [selectedAvatar, setSelectedAvatar] = useState('😊');
     const navigate = useNavigate();
+
+    // Available avatars
+    const avatars = ['😊', '🤖', '👾', '🦁', '🐼', '🚀', '⭐', '🎮', '🔥', '💎', '🌟', '🎯'];
 
     useEffect(() => {
         socket.on('connect', () => {
@@ -33,7 +37,7 @@ const Lobby = () => {
     }, [navigate, username, gridSize]); // Add dependencies
 
     const handleCreateGame = () => {
-        console.log('Create Game clicked. Username:', username, 'GridSize:', gridSize);
+        console.log('Create Game clicked. Username:', username, 'GridSize:', gridSize, 'Avatar:', selectedAvatar);
         if (!username) return alert('Please enter a username');
         
         if (!socket.connected) {
@@ -42,10 +46,10 @@ const Lobby = () => {
         }
 
         console.log('Emitting create_game with ack...');
-        socket.emit('create_game', { gridSize, username }, (response) => {
+        socket.emit('create_game', { gridSize, username, avatar: selectedAvatar }, (response) => {
             console.log('Server Ack received:', response);
             if (response && response.gameId) {
-                navigate('/game', { state: { username, gridSize, gameId: response.gameId, role: response.playerId } });
+                navigate('/game', { state: { username, gridSize, gameId: response.gameId, role: response.playerId, avatar: selectedAvatar } });
             }
         });
     };
@@ -59,7 +63,7 @@ const Lobby = () => {
         // Let's keep it consistent: Navigate immediately, Board handles 'join_game' emit/verification
         // OR wait for confirmation?
         // Let's navigate immediately for now as per previous logic
-        navigate('/game', { state: { username, gameId, role: 'player2' } });
+        navigate('/game', { state: { username, gameId, role: 'player2', avatar: selectedAvatar } });
     };
 
     return (
@@ -76,6 +80,29 @@ const Lobby = () => {
                         onChange={(e) => setUsername(e.target.value)} 
                         placeholder="Enter your name"
                     />
+                </div>
+
+                {/* Avatar Selection */}
+                <div className="mb-6">
+                    <label className="block text-gray-700 text-sm font-bold mb-2">Choose Your Avatar</label>
+                    <div className="grid grid-cols-6 gap-2">
+                        {avatars.map((avatar) => (
+                            <button
+                                key={avatar}
+                                onClick={() => setSelectedAvatar(avatar)}
+                                className={`text-3xl p-2 rounded-lg transition-all hover:scale-110 ${
+                                    selectedAvatar === avatar 
+                                        ? 'bg-blue-500 scale-110 shadow-lg ring-2 ring-blue-600' 
+                                        : 'bg-gray-100 hover:bg-gray-200'
+                                }`}
+                            >
+                                {avatar}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-center mt-2 text-sm text-gray-600">
+                        Selected: <span className="text-2xl">{selectedAvatar}</span> {username || 'Player'}
+                    </p>
                 </div>
 
                 <div className="flex space-x-4 mb-6">

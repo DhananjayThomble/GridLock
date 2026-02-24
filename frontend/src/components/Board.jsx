@@ -8,7 +8,7 @@ console.log('Board using shared socket connection');
 const Board = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { username, role, gameId, gridSize } = location.state || {}; 
+    const { username, role, gameId, gridSize, avatar } = location.state || {}; 
 
     const [gameState, setGameState] = useState(null);
     const [error, setError] = useState(null);
@@ -53,10 +53,10 @@ const Board = () => {
         if (role === 'player1') {
             console.log(`Player 1 (${username}) ensuring room subscription for game ${gameId}`);
             // Re-subscribe to ensure socket is in the room (in case of reconnect/navigation)
-            socket.emit('join_game', { gameId, username });
+            socket.emit('join_game', { gameId, username, avatar });
         } else if (role === 'player2') {
             console.log(`Player 2 (${username}) joining game ${gameId}...`);
-            socket.emit('join_game', { gameId, username });
+            socket.emit('join_game', { gameId, username, avatar });
         }
 
         return () => {
@@ -186,11 +186,13 @@ const Board = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-12 mb-4 sm:mb-8 text-base sm:text-2xl font-bold w-full max-w-md sm:max-w-none justify-center">
-                <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player1' ? 'bg-blue-100 border-2 border-blue-500 scale-105 sm:scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-blue-600 text-sm sm:text-base">Player 1 ({gameState.player1Name}): {gameState.scores.player1}</span>
+                <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-md transition-all flex items-center gap-2 ${gameState.currentPlayer === 'player1' ? 'bg-blue-100 border-2 border-blue-500 scale-105 sm:scale-110' : 'bg-white text-gray-400'}`}>
+                    <span className="text-2xl sm:text-3xl">{gameState.player1Avatar || '😊'}</span>
+                    <span className="text-blue-600 text-sm sm:text-base">{gameState.player1Name}: {gameState.scores.player1}</span>
                 </div>
-                <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player2' ? 'bg-red-100 border-2 border-red-500 scale-105 sm:scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-red-600 text-sm sm:text-base">Player 2 ({gameState.player2Name}): {gameState.scores.player2}</span>
+                <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-md transition-all flex items-center gap-2 ${gameState.currentPlayer === 'player2' ? 'bg-red-100 border-2 border-red-500 scale-105 sm:scale-110' : 'bg-white text-gray-400'}`}>
+                    <span className="text-2xl sm:text-3xl">{gameState.player2Avatar || '😊'}</span>
+                    <span className="text-red-600 text-sm sm:text-base">{gameState.player2Name}: {gameState.scores.player2}</span>
                 </div>
             </div>
 

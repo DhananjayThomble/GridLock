@@ -44,8 +44,8 @@ io.on('connection', (socket) => {
     log.info('New client connected:', socket.id);
 
     // Create Game
-    socket.on('create_game', ({ gridSize, username }, callback) => {
-        log.debug('create_game event received', { gridSize, username, socketId: socket.id });
+    socket.on('create_game', ({ gridSize, username, avatar }, callback) => {
+        log.debug('create_game event received', { gridSize, username, avatar, socketId: socket.id });
         
         const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
         
@@ -54,7 +54,7 @@ io.on('connection', (socket) => {
             id: gameId,
             gridSize,
             players: {
-                player1: { id: socket.id, username },
+                player1: { id: socket.id, username, avatar: avatar || '😊' },
                 player2: null
             },
             gameState: initialState
@@ -63,13 +63,15 @@ io.on('connection', (socket) => {
         activeGames.set(gameId, newGame);
         socket.join(gameId);
         
-        log.info(`Game created: ${gameId} by ${username}`, { gameId, username, socketId: socket.id });
+        log.info(`Game created: ${gameId} by ${username}`, { gameId, username, avatar, socketId: socket.id });
         
         // Send initial game state to player 1 (waiting for player 2)
         const gameStateWithNames = {
             ...initialState,
             player1Name: username,
-            player2Name: 'Waiting for player...'
+            player1Avatar: avatar || '😊',
+            player2Name: 'Waiting for player...',
+            player2Avatar: '⏳'
         };
         
         socket.emit('game_started', {
@@ -96,8 +98,8 @@ io.on('connection', (socket) => {
     });
 
     // Join Game or Reconnect
-    socket.on('join_game', ({ gameId, username }) => {
-        log.debug('join_game event received', { gameId, username, socketId: socket.id });
+    socket.on('join_game', ({ gameId, username, avatar }) => {
+        log.debug('join_game event received', { gameId, username, avatar, socketId: socket.id });
         
         const game = activeGames.get(gameId);
         
@@ -119,13 +121,16 @@ io.on('connection', (socket) => {
             
             // Update socket ID in case of reconnect
             game.players.player1.id = socket.id;
+            if (avatar) game.players.player1.avatar = avatar;
             socket.join(gameId);
             
             // Add player names to game state
             const gameStateWithNames = {
                 ...game.gameState,
                 player1Name: game.players.player1.username,
-                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...'
+                player1Avatar: game.players.player1.avatar || '😊',
+                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
+                player2Avatar: game.players.player2 ? game.players.player2.avatar || '😊' : '⏳'
             };
             
             log.debug('Emitting game_started to player 1', { gameId, gameState: gameStateWithNames });
@@ -147,13 +152,16 @@ io.on('connection', (socket) => {
             log.info('Player 2 reconnecting', { gameId, username, socketId: socket.id });
             
             game.players.player2.id = socket.id;
+            if (avatar) game.players.player2.avatar = avatar;
             socket.join(gameId);
             
             // Add player names to game state
             const gameStateWithNames = {
                 ...game.gameState,
                 player1Name: game.players.player1.username,
-                player2Name: game.players.player2.username
+                player1Avatar: game.players.player1.avatar || '😊',
+                player2Name: game.players.player2.username,
+                player2Avatar: game.players.player2.avatar || '😊'
             };
             
             log.debug('Emitting game_started to player 2', { gameId, gameState: gameStateWithNames });
@@ -179,14 +187,16 @@ io.on('connection', (socket) => {
 
         log.info('Player 2 joining game', { gameId, username, socketId: socket.id });
 
-        game.players.player2 = { id: socket.id, username };
+        game.players.player2 = { id: socket.id, username, avatar: avatar || '😊' };
         socket.join(gameId);
         
         // Add player names to game state
         const gameStateWithNames = {
             ...game.gameState,
             player1Name: game.players.player1.username,
-            player2Name: game.players.player2.username
+            player1Avatar: game.players.player1.avatar || '😊',
+            player2Name: game.players.player2.username,
+            player2Avatar: game.players.player2.avatar || '😊'
         };
         
         log.debug('Emitting game_started to both players', { gameId, gameState: gameStateWithNames });
@@ -248,7 +258,9 @@ io.on('connection', (socket) => {
             const gameStateWithNames = {
                 ...newState,
                 player1Name: game.players.player1.username,
-                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...'
+                player1Avatar: game.players.player1.avatar || '😊',
+                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
+                player2Avatar: game.players.player2 ? game.players.player2.avatar || '😊' : '⏳'
             };
 
             log.info('Broadcasting game_update', { gameId, currentPlayer: newState.currentPlayer, scores: newState.scores });
