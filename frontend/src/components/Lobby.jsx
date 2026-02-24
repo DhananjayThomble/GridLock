@@ -1,13 +1,9 @@
 // src/components/Lobby.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
+import socket from '../socket';
 
-console.log('Initializing socket connection...');
-const socket = io({
-    path: '/socket.io/', // Explicit path
-    transports: ['websocket', 'polling'] // Force transports
-});
+console.log('Lobby using shared socket connection');
 
 const Lobby = () => {
     const [username, setUsername] = useState('');

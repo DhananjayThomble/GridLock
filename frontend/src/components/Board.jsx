@@ -1,10 +1,9 @@
 // src/components/Board.jsx
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
+import socket from '../socket';
 
-// Initialize socket outside component to prevent multiple connections
-const socket = io(); // Connect to same host/port (Nginx proxies /socket.io to 5000)
+console.log('Board using shared socket connection');
 
 const Board = () => {
     const location = useLocation();
@@ -49,9 +48,16 @@ const Board = () => {
         socket.on('game_over', onGameOver);
         socket.on('error', onError);
 
-        // Always attempt to join/rejoin to ensure room subscription
-        console.log(`Joining game ${gameId} as ${username}...`);
-        socket.emit('join_game', { gameId, username });
+        // Player 1: After creating game, they need to ensure they're in the room
+        // Player 2: Emit join_game to trigger game start
+        if (role === 'player1') {
+            console.log(`Player 1 (${username}) ensuring room subscription for game ${gameId}`);
+            // Re-subscribe to ensure socket is in the room (in case of reconnect/navigation)
+            socket.emit('join_game', { gameId, username });
+        } else if (role === 'player2') {
+            console.log(`Player 2 (${username}) joining game ${gameId}...`);
+            socket.emit('join_game', { gameId, username });
+        }
 
         return () => {
             socket.off('game_update', onGameUpdate);
@@ -156,10 +162,10 @@ const Board = () => {
 
             <div className="flex space-x-12 mb-8 text-2xl font-bold">
                 <div className={`px-6 py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player1' ? 'bg-blue-100 border-2 border-blue-500 scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-blue-600">Player 1: {gameState.scores.player1}</span>
+                    <span className="text-blue-600">Player 1 ({gameState.player1Name}): {gameState.scores.player1}</span>
                 </div>
                 <div className={`px-6 py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player2' ? 'bg-red-100 border-2 border-red-500 scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-red-600">Player 2: {gameState.scores.player2}</span>
+                    <span className="text-red-600">Player 2 ({gameState.player2Name}): {gameState.scores.player2}</span>
                 </div>
             </div>
 

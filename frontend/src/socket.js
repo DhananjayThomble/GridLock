@@ -1,8 +1,11 @@
 // src/socket.js
-import { io } from 'socket.io-client';
+// Singleton socket instance shared across all components
+import io from 'socket.io-client';
 
-const URL = process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5000';
-
-export const socket = io(URL, {
-    autoConnect: false
+// Initialize socket once and export it
+const socket = io({
+    path: '/socket.io/',
+    transports: ['websocket', 'polling']
 });
+
+export default socket;
