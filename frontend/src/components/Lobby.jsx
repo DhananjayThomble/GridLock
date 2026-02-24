@@ -90,9 +90,9 @@ const Lobby = () => {
                             <button
                                 key={avatar}
                                 onClick={() => setSelectedAvatar(avatar)}
-                                className={`text-2xl p-2 rounded-lg transition-all hover:scale-105 ${
+                                className={`text-2xl p-2 rounded-lg transition-colors overflow-hidden ${
                                     selectedAvatar === avatar 
-                                        ? 'bg-blue-500 scale-105 shadow-lg ring-2 ring-blue-600' 
+                                        ? 'bg-blue-500 shadow-lg ring-2 ring-blue-600' 
                                         : 'bg-gray-100 hover:bg-gray-200'
                                 }`}
                             >
