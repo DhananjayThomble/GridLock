@@ -1,4 +1,4 @@
-// server.js
+// server.js - Production-ready multiplayer game server (2-4 players)
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -11,8 +11,8 @@ const { calculateNewState, initializeGameState } = require('./utils/gameLogic');
 const app = express();
 const server = http.createServer(app);
 
-// Logging utility
-const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG'; // DEBUG, INFO, WARN, ERROR
+// Logging utility with levels
+const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG';
 const log = {
     debug: (...args) => ['DEBUG', 'INFO', 'WARN', 'ERROR'].includes(LOG_LEVEL) && console.log('[DEBUG]', new Date().toISOString(), ...args),
     info: (...args) => ['INFO', 'WARN', 'ERROR'].includes(LOG_LEVEL) && console.log('[INFO]', new Date().toISOString(), ...args),
@@ -32,214 +32,213 @@ mongoose.connect(process.env.MONGO_URI)
 // Socket.io Setup
 const io = new Server(server, {
     cors: {
-        origin: "*", // Allow all origins for now
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
 
-// In-memory game store (for MVP)
+// In-memory game store
 const activeGames = new Map();
+
+// Player colors for UI
+const PLAYER_COLORS = {
+    player1: '#3B82F6', // Blue
+    player2: '#EF4444', // Red
+    player3: '#10B981', // Green
+    player4: '#A855F7'  // Purple
+};
 
 io.on('connection', (socket) => {
     log.info('New client connected:', socket.id);
 
-    // Create Game
-    socket.on('create_game', ({ gridSize, username, avatar }, callback) => {
-        log.debug('create_game event received', { gridSize, username, avatar, socketId: socket.id });
-        
-        const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
-        
-        const initialState = initializeGameState(gridSize);
-        const newGame = {
-            id: gameId,
-            gridSize,
-            players: {
-                player1: { id: socket.id, username, avatar: avatar || '👦' },
-                player2: null
-            },
-            gameState: initialState
-        };
-
-        activeGames.set(gameId, newGame);
-        socket.join(gameId);
-        
-        log.info(`Game created: ${gameId} by ${username}`, { gameId, username, avatar, socketId: socket.id });
-        
-        // Send initial game state to player 1 (waiting for player 2)
-        const gameStateWithNames = {
-            ...initialState,
-            player1Name: username,
-            player1Avatar: avatar || '👦',
-            player2Name: 'Waiting for player...',
-            player2Avatar: '⏳'
-        };
-        
-        socket.emit('game_started', {
-            gameId,
-            gridSize,
-            players: {
-                player1: username,
-                player2: null
-            },
-            gameState: gameStateWithNames
-        });
-        
-        log.debug('Initial game state sent to player 1', { gameId, gameState: gameStateWithNames });
-        
-        // Callback if provided (Ack)
-        if (callback) {
-            log.debug('Sending callback to client', { gameId, playerId: 'player1' });
-            callback({ gameId, playerId: 'player1' });
-        }
-        
-        // Also emit event for consistency
-        socket.emit('game_created', { gameId, playerId: 'player1' });
-        log.debug('game_created event emitted', { gameId, playerId: 'player1' });
-    });
-
-    // Join Game or Reconnect
-    socket.on('join_game', ({ gameId, username, avatar }) => {
-        log.debug('join_game event received', { gameId, username, avatar, socketId: socket.id });
-        
-        const game = activeGames.get(gameId);
-        
-        if (!game) {
-            log.warn('Game not found', { gameId, username });
-            socket.emit('error', 'Game not found');
-            return;
-        }
-
-        log.debug('Game found', { 
-            gameId, 
-            player1: game.players.player1.username, 
-            player2: game.players.player2 ? game.players.player2.username : null 
-        });
-
-        // Check if user is already Player 1
-        if (game.players.player1.username === username) {
-            log.info('Player 1 reconnecting', { gameId, username, socketId: socket.id });
-            
-            // Update socket ID in case of reconnect
-            game.players.player1.id = socket.id;
-            if (avatar) game.players.player1.avatar = avatar;
-            socket.join(gameId);
-            
-            // Add player names to game state
-            const gameStateWithNames = {
-                ...game.gameState,
-                player1Name: game.players.player1.username,
-                player1Avatar: game.players.player1.avatar || '👦',
-                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
-                player2Avatar: game.players.player2 ? game.players.player2.avatar || '👦' : '⏳'
-            };
-            
-            log.debug('Emitting game_started to player 1', { gameId, gameState: gameStateWithNames });
-            
-            socket.emit('game_started', { 
-                gameId, 
-                gridSize: game.gridSize,
-                players: {
-                    player1: game.players.player1.username,
-                    player2: game.players.player2 ? game.players.player2.username : null
-                },
-                gameState: gameStateWithNames
-            });
-            return;
-        }
-
-        // Check if user is already Player 2
-        if (game.players.player2 && game.players.player2.username === username) {
-            log.info('Player 2 reconnecting', { gameId, username, socketId: socket.id });
-            
-            game.players.player2.id = socket.id;
-            if (avatar) game.players.player2.avatar = avatar;
-            socket.join(gameId);
-            
-            // Add player names to game state
-            const gameStateWithNames = {
-                ...game.gameState,
-                player1Name: game.players.player1.username,
-                player1Avatar: game.players.player1.avatar || '👦',
-                player2Name: game.players.player2.username,
-                player2Avatar: game.players.player2.avatar || '👦'
-            };
-            
-            log.debug('Emitting game_started to player 2', { gameId, gameState: gameStateWithNames });
-            
-            socket.emit('game_started', { 
-                gameId, 
-                gridSize: game.gridSize,
-                players: {
-                    player1: game.players.player1.username,
-                    player2: game.players.player2.username
-                },
-                gameState: gameStateWithNames
-            });
-            return;
-        }
-
-        // New Player 2 joining
-        if (game.players.player2) {
-            log.warn('Game is full', { gameId, username });
-            socket.emit('error', 'Game is full');
-            return;
-        }
-
-        log.info('Player 2 joining game', { gameId, username, socketId: socket.id });
-
-        game.players.player2 = { id: socket.id, username, avatar: avatar || '👦' };
-        socket.join(gameId);
-        
-        // Add player names to game state
-        const gameStateWithNames = {
-            ...game.gameState,
-            player1Name: game.players.player1.username,
-            player1Avatar: game.players.player1.avatar || '👦',
-            player2Name: game.players.player2.username,
-            player2Avatar: game.players.player2.avatar || '👦'
-        };
-        
-        log.debug('Emitting game_started to both players', { gameId, gameState: gameStateWithNames });
-        
-        // Notify both players
-        io.to(gameId).emit('game_started', { 
-            gameId, 
-            gridSize: game.gridSize,
-            players: {
-                player1: game.players.player1.username,
-                player2: game.players.player2.username
-            },
-            gameState: gameStateWithNames
-        });
-        
-        log.info(`User ${username} joined game ${gameId}. Game started!`);
-    });
-
-    // Make Move
-    socket.on('make_move', ({ gameId, playerId, type, r, c }) => {
-        log.debug('make_move event received', { gameId, playerId, type, r, c, socketId: socket.id });
-        
-        const game = activeGames.get(gameId);
-        if (!game) {
-            log.warn('Game not found for move', { gameId });
-            return;
-        }
-
-        // Validate turn
-        const currentTurn = game.gameState.currentPlayer; // 'player1' or 'player2'
-        
-        log.debug('Validating turn', { currentTurn, playerId, match: currentTurn === playerId });
-        
-        // Check if the requester is the current player
-        // playerId should be 'player1' or 'player2' (sent from client)
-        if (currentTurn !== playerId) {
-            log.warn('Not player turn', { gameId, currentTurn, attemptedBy: playerId });
-            socket.emit('error', 'Not your turn');
-            return;
-        }
-
-        // Calculate new state
+    /**
+     * Create new game
+     * Supports 2-4 players
+     */
+    socket.on('create_game', ({ gridSize, username, avatar, playerCount = 2 }, callback) => {
         try {
+            log.debug('create_game event', { gridSize, username, avatar, playerCount, socketId: socket.id });
+            
+            // Validation
+            if (!username || username.trim().length === 0) {
+                socket.emit('error', 'Username required');
+                return;
+            }
+            if (gridSize < 2 || gridSize > 10) {
+                socket.emit('error', 'Grid size must be between 2 and 10');
+                return;
+            }
+            if (playerCount < 2 || playerCount > 4) {
+                socket.emit('error', 'Player count must be between 2 and 4');
+                return;
+            }
+            
+            const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const initialState = initializeGameState(gridSize, playerCount);
+            
+            const newGame = {
+                id: gameId,
+                gridSize,
+                playerCount,
+                players: {},
+                gameState: initialState,
+                createdAt: Date.now()
+            };
+
+            // Add player 1
+            newGame.players.player1 = { 
+                id: socket.id, 
+                username: username.trim(), 
+                avatar: avatar || '👦',
+                color: PLAYER_COLORS.player1
+            };
+
+            activeGames.set(gameId, newGame);
+            socket.join(gameId);
+            
+            log.info(`Game created: ${gameId} by ${username}, ${playerCount} players`, { gameId, username, playerCount });
+            
+            // Build game state with player info
+            const gameStateWithPlayers = buildGameStateWithPlayers(newGame);
+            
+            socket.emit('game_created', { gameId, playerId: 'player1' });
+            socket.emit('game_started', {
+                gameId,
+                gridSize,
+                playerCount,
+                players: getPlayersList(newGame),
+                gameState: gameStateWithPlayers
+            });
+            
+            if (callback) callback({ gameId, playerId: 'player1' });
+            
+        } catch (error) {
+            log.error('Error creating game', { error: error.message, stack: error.stack });
+            socket.emit('error', 'Failed to create game');
+        }
+    });
+
+    /**
+     * Join existing game
+     */
+    socket.on('join_game', ({ gameId, username, avatar }) => {
+        try {
+            log.debug('join_game event', { gameId, username, avatar, socketId: socket.id });
+            
+            if (!gameId || !username) {
+                socket.emit('error', 'Game ID and username required');
+                return;
+            }
+
+            const game = activeGames.get(gameId);
+            
+            if (!game) {
+                log.warn('Game not found', { gameId });
+                socket.emit('error', 'Game not found');
+                return;
+            }
+
+            // Check if reconnecting
+            for (let i = 1; i <= game.playerCount; i++) {
+                const playerId = `player${i}`;
+                const player = game.players[playerId];
+                
+                if (player && player.username === username.trim()) {
+                    log.info('Player reconnecting', { gameId, playerId, username });
+                    
+                    // Update socket ID
+                    player.id = socket.id;
+                    if (avatar) player.avatar = avatar;
+                    socket.join(gameId);
+                    
+                    const gameStateWithPlayers = buildGameStateWithPlayers(game);
+                    socket.emit('game_started', {
+                        gameId,
+                        gridSize: game.gridSize,
+                        playerCount: game.playerCount,
+                        players: getPlayersList(game),
+                        gameState: gameStateWithPlayers
+                    });
+                    return;
+                }
+            }
+
+            // Find empty slot
+            let assignedSlot = null;
+            for (let i = 1; i <= game.playerCount; i++) {
+                const playerId = `player${i}`;
+                if (!game.players[playerId]) {
+                    assignedSlot = playerId;
+                    break;
+                }
+            }
+
+            if (!assignedSlot) {
+                log.warn('Game is full', { gameId, username });
+                socket.emit('error', 'Game is full');
+                return;
+            }
+
+            log.info('New player joining', { gameId, playerId: assignedSlot, username });
+
+            // Add new player
+            game.players[assignedSlot] = {
+                id: socket.id,
+                username: username.trim(),
+                avatar: avatar || '👦',
+                color: PLAYER_COLORS[assignedSlot]
+            };
+            
+            socket.join(gameId);
+
+            // Build updated game state
+            const gameStateWithPlayers = buildGameStateWithPlayers(game);
+            
+            // Notify all players
+            io.to(gameId).emit('game_started', {
+                gameId,
+                gridSize: game.gridSize,
+                playerCount: game.playerCount,
+                players: getPlayersList(game),
+                gameState: gameStateWithPlayers
+            });
+
+            // Check if game is ready to start
+            const playersFilled = Object.keys(game.players).length;
+            if (playersFilled === game.playerCount) {
+                log.info('Game ready - all players joined', { gameId, playerCount: game.playerCount });
+                io.to(gameId).emit('all_players_joined', { gameId });
+            }
+
+        } catch (error) {
+            log.error('Error joining game', { error: error.message, stack: error.stack });
+            socket.emit('error', 'Failed to join game');
+        }
+    });
+
+    /**
+     * Handle player move
+     */
+    socket.on('make_move', ({ gameId, playerId, type, r, c }) => {
+        try {
+            log.debug('make_move event', { gameId, playerId, type, r, c, socketId: socket.id });
+            
+            const game = activeGames.get(gameId);
+            if (!game) {
+                log.warn('Game not found for move', { gameId });
+                socket.emit('error', 'Game not found');
+                return;
+            }
+
+            // Validate turn
+            const currentTurn = game.gameState.currentPlayer;
+            if (currentTurn !== playerId) {
+                log.warn('Not player turn', { gameId, currentTurn, attemptedBy: playerId });
+                socket.emit('error', 'Not your turn');
+                return;
+            }
+
+            // Calculate new state
             const newState = calculateNewState(game.gameState, game.gridSize, r, c, type);
             
             if (newState.error) {
@@ -248,47 +247,102 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            log.debug('Move successful, updating state', { gameId, newState });
+            log.debug('Move successful', { gameId, currentPlayer: newState.currentPlayer, scores: newState.scores });
 
             // Update game state
             game.gameState = newState;
             activeGames.set(gameId, game);
 
-            // Add player names to game state for broadcast
-            const gameStateWithNames = {
-                ...newState,
-                player1Name: game.players.player1.username,
-                player1Avatar: game.players.player1.avatar || '👦',
-                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...',
-                player2Avatar: game.players.player2 ? game.players.player2.avatar || '👦' : '⏳',
-                gameOver: newState.winner ? true : false,
-                winner: newState.winner || null
-            };
+            // Build game state with player info
+            const gameStateWithPlayers = buildGameStateWithPlayers(game);
 
             log.info('Broadcasting game_update', { gameId, currentPlayer: newState.currentPlayer, scores: newState.scores });
 
             // Broadcast update
             io.to(gameId).emit('game_update', {
-                gameState: gameStateWithNames
+                gameState: gameStateWithPlayers
             });
 
+            // Check for game over
             if (newState.winner) {
-                log.info('Game over', { gameId, winner: newState.winner });
-                io.to(gameId).emit('game_over', { winner: newState.winner });
-                activeGames.delete(gameId); // Cleanup
+                log.info('Game over', { gameId, winner: newState.winner, scores: newState.scores });
+                io.to(gameId).emit('game_over', { 
+                    winner: newState.winner,
+                    scores: newState.scores 
+                });
+                
+                // Cleanup after delay (optional)
+                setTimeout(() => {
+                    activeGames.delete(gameId);
+                    log.info('Game cleaned up', { gameId });
+                }, 60000); // 1 minute
             }
 
-        } catch (e) {
-            log.error('Error processing move', { gameId, error: e.message, stack: e.stack });
+        } catch (error) {
+            log.error('Error processing move', { gameId, error: error.message, stack: error.stack });
             socket.emit('error', 'Invalid move');
         }
     });
 
+    /**
+     * Handle disconnect
+     */
     socket.on('disconnect', () => {
         log.info('Client disconnected:', socket.id);
-        // Handle cleanup (optional: notify opponent)
+        // TODO: Handle player disconnect notifications
     });
 });
 
+/**
+ * Build game state with all player information
+ */
+function buildGameStateWithPlayers(game) {
+    const state = { ...game.gameState };
+    
+    // Add player info for each slot
+    for (let i = 1; i <= game.playerCount; i++) {
+        const playerId = `player${i}`;
+        const player = game.players[playerId];
+        
+        if (player) {
+            state[`${playerId}Name`] = player.username;
+            state[`${playerId}Avatar`] = player.avatar;
+            state[`${playerId}Color`] = player.color;
+        } else {
+            state[`${playerId}Name`] = `Waiting for Player ${i}...`;
+            state[`${playerId}Avatar`] = '⏳';
+            state[`${playerId}Color`] = PLAYER_COLORS[playerId];
+        }
+    }
+    
+    return state;
+}
+
+/**
+ * Get simplified players list
+ */
+function getPlayersList(game) {
+    const players = {};
+    for (let i = 1; i <= game.playerCount; i++) {
+        const playerId = `player${i}`;
+        players[playerId] = game.players[playerId] ? game.players[playerId].username : null;
+    }
+    return players;
+}
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        activeGames: activeGames.size,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Start server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => log.info(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+    log.info(`Server running on port ${PORT}`);
+    log.info('Environment:', process.env.NODE_ENV || 'development');
+    log.info('Log level:', LOG_LEVEL);
+});
