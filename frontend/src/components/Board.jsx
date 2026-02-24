@@ -13,6 +13,8 @@ const Board = () => {
     const [gameState, setGameState] = useState(null);
     const [error, setError] = useState(null);
     const [status, setStatus] = useState('Connecting...');
+    const [showWinnerModal, setShowWinnerModal] = useState(false);
+    const [winnerData, setWinnerData] = useState(null);
 
     useEffect(() => {
         if (!gameId || !username) {
@@ -35,7 +37,22 @@ const Board = () => {
         
         const onGameOver = ({ winner }) => {
             setStatus(`Game Over! Winner: ${winner}`);
-            alert(`Game Over! Winner: ${winner}`);
+            
+            // Prepare winner data
+            const isPlayer1Winner = winner === 'player1';
+            const winnerName = isPlayer1Winner ? gameState.player1Name : gameState.player2Name;
+            const winnerAvatar = isPlayer1Winner ? gameState.player1Avatar : gameState.player2Avatar;
+            const winnerScore = isPlayer1Winner ? gameState.scores.player1 : gameState.scores.player2;
+            const loserScore = isPlayer1Winner ? gameState.scores.player2 : gameState.scores.player1;
+            
+            setWinnerData({
+                name: winnerName,
+                avatar: winnerAvatar,
+                score: winnerScore,
+                loserScore: loserScore,
+                player: winner
+            });
+            setShowWinnerModal(true);
         };
 
         const onError = (msg) => {
@@ -178,6 +195,75 @@ const Board = () => {
 
     return (
         <div className="flex flex-col items-center p-4 sm:p-8 min-h-screen bg-gray-50 overflow-x-auto">
+            {/* Winner Modal */}
+            {showWinnerModal && winnerData && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-bounce-in">
+                        {/* Confetti effect */}
+                        <div className="text-center mb-6">
+                            <div className="text-6xl mb-4 animate-pulse">🎉</div>
+                            <h2 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-2">
+                                WINNER!
+                            </h2>
+                        </div>
+                        
+                        {/* Winner Avatar & Name */}
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="text-8xl mb-4 animate-bounce">{winnerData.avatar}</div>
+                            <h3 className="text-2xl sm:text-3xl font-bold text-gray-800">{winnerData.name}</h3>
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="text-xl">🏆</span>
+                                <span className="text-gray-600">Champion</span>
+                            </div>
+                        </div>
+
+                        {/* Final Score */}
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-6">
+                            <h4 className="text-center font-bold text-gray-700 mb-3">Final Score</h4>
+                            <div className="flex justify-around text-center">
+                                <div>
+                                    <div className="text-3xl font-bold text-green-600">{winnerData.score}</div>
+                                    <div className="text-sm text-gray-600">Winner</div>
+                                </div>
+                                <div className="text-2xl text-gray-400">-</div>
+                                <div>
+                                    <div className="text-3xl font-bold text-gray-400">{winnerData.loserScore}</div>
+                                    <div className="text-sm text-gray-600">Opponent</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowWinnerModal(false);
+                                    navigate('/');
+                                }}
+                                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg"
+                            >
+                                🎮 New Game
+                            </button>
+                            <button
+                                onClick={() => navigate('/')}
+                                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-all"
+                            >
+                                Leave
+                            </button>
+                        </div>
+
+                        {/* Celebration emojis */}
+                        <div className="text-center mt-4 text-2xl space-x-2">
+                            <span className="inline-block animate-bounce" style={{animationDelay: '0s'}}>🎊</span>
+                            <span className="inline-block animate-bounce" style={{animationDelay: '0.1s'}}>✨</span>
+                            <span className="inline-block animate-bounce" style={{animationDelay: '0.2s'}}>🎉</span>
+                            <span className="inline-block animate-bounce" style={{animationDelay: '0.3s'}}>🏆</span>
+                            <span className="inline-block animate-bounce" style={{animationDelay: '0.4s'}}>🎊</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="mb-4 sm:mb-8 text-center w-full">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2">Game Room: {gameId}</h1>
                 <p className="text-sm sm:text-base text-gray-600">You are: <span className="font-bold uppercase">{role}</span> ({username})</p>
