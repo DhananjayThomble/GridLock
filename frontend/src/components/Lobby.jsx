@@ -67,9 +67,9 @@ const Lobby = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 pt-8">
             <div className="w-full max-w-md">
-                <h1 className="text-3xl font-bold mb-4 text-blue-600 text-center">Dots and Boxes</h1>
+                <h1 className="text-3xl font-bold mb-3 text-blue-600 text-center">Dots and Boxes</h1>
                 
                 <div className="bg-white p-4 rounded-lg shadow-lg">
                     <div className="mb-3">
