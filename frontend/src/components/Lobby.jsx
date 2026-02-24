@@ -8,6 +8,7 @@ console.log('Lobby using shared socket connection');
 const Lobby = () => {
     const [username, setUsername] = useState('');
     const [gridSize, setGridSize] = useState(3);
+    const [playerCount, setPlayerCount] = useState(2); // NEW: Player count
     const [gameId, setGameId] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState('👦');
     const navigate = useNavigate();
@@ -37,7 +38,7 @@ const Lobby = () => {
     }, [navigate, username, gridSize]); // Add dependencies
 
     const handleCreateGame = () => {
-        console.log('Create Game clicked. Username:', username, 'GridSize:', gridSize, 'Avatar:', selectedAvatar);
+        console.log('Create Game clicked. Username:', username, 'GridSize:', gridSize, 'PlayerCount:', playerCount, 'Avatar:', selectedAvatar);
         if (!username) return alert('Please enter a username');
         
         if (!socket.connected) {
@@ -46,10 +47,10 @@ const Lobby = () => {
         }
 
         console.log('Emitting create_game with ack...');
-        socket.emit('create_game', { gridSize, username, avatar: selectedAvatar }, (response) => {
+        socket.emit('create_game', { gridSize, username, avatar: selectedAvatar, playerCount }, (response) => {
             console.log('Server Ack received:', response);
             if (response && response.gameId) {
-                navigate('/game', { state: { username, gridSize, gameId: response.gameId, role: response.playerId, avatar: selectedAvatar } });
+                navigate('/game', { state: { username, gridSize, gameId: response.gameId, role: response.playerId, avatar: selectedAvatar, playerCount } });
             }
         });
     };
@@ -121,19 +122,35 @@ const Lobby = () => {
                     <div className="flex space-x-2 mb-3">
                         <button 
                             onClick={handleCreateGame}
-                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded focus:outline-none focus:shadow-outline w-1/2 text-sm"
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded focus:outline-none focus:shadow-outline w-full text-sm"
                         >
                             Create Game
                         </button>
-                        <div className="w-1/2">
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                            <label className="block text-gray-700 text-xs font-bold mb-1">Grid Size</label>
                             <select 
-                                className="shadow border rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-full text-sm"
+                                className="shadow border rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline text-sm"
                                 value={gridSize}
                                 onChange={(e) => setGridSize(parseInt(e.target.value))}
                             >
-                                <option value={3}>3x3 Grid</option>
-                                <option value={4}>4x4 Grid</option>
-                                <option value={5}>5x5 Grid</option>
+                                <option value={3}>3x3</option>
+                                <option value={4}>4x4</option>
+                                <option value={5}>5x5</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 text-xs font-bold mb-1">Players</label>
+                            <select 
+                                className="shadow border rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline text-sm"
+                                value={playerCount}
+                                onChange={(e) => setPlayerCount(parseInt(e.target.value))}
+                            >
+                                <option value={2}>2 Players</option>
+                                <option value={3}>3 Players</option>
+                                <option value={4}>4 Players</option>
                             </select>
                         </div>
                     </div>
