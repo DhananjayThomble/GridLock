@@ -74,6 +74,14 @@ io.on('connection', (socket) => {
             // Update socket ID in case of reconnect
             game.players.player1.id = socket.id;
             socket.join(gameId);
+            
+            // Add player names to game state
+            const gameStateWithNames = {
+                ...game.gameState,
+                player1Name: game.players.player1.username,
+                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...'
+            };
+            
             socket.emit('game_started', { 
                 gameId, 
                 gridSize: game.gridSize,
@@ -81,7 +89,7 @@ io.on('connection', (socket) => {
                     player1: game.players.player1.username,
                     player2: game.players.player2 ? game.players.player2.username : null
                 },
-                gameState: game.gameState
+                gameState: gameStateWithNames
             });
             return;
         }
@@ -90,6 +98,14 @@ io.on('connection', (socket) => {
         if (game.players.player2 && game.players.player2.username === username) {
             game.players.player2.id = socket.id;
             socket.join(gameId);
+            
+            // Add player names to game state
+            const gameStateWithNames = {
+                ...game.gameState,
+                player1Name: game.players.player1.username,
+                player2Name: game.players.player2.username
+            };
+            
             socket.emit('game_started', { 
                 gameId, 
                 gridSize: game.gridSize,
@@ -97,7 +113,7 @@ io.on('connection', (socket) => {
                     player1: game.players.player1.username,
                     player2: game.players.player2.username
                 },
-                gameState: game.gameState
+                gameState: gameStateWithNames
             });
             return;
         }
@@ -111,6 +127,13 @@ io.on('connection', (socket) => {
         game.players.player2 = { id: socket.id, username };
         socket.join(gameId);
         
+        // Add player names to game state
+        const gameStateWithNames = {
+            ...game.gameState,
+            player1Name: game.players.player1.username,
+            player2Name: game.players.player2.username
+        };
+        
         // Notify both players
         io.to(gameId).emit('game_started', { 
             gameId, 
@@ -119,7 +142,7 @@ io.on('connection', (socket) => {
                 player1: game.players.player1.username,
                 player2: game.players.player2.username
             },
-            gameState: game.gameState
+            gameState: gameStateWithNames
         });
         
         console.log(`User ${username} joined game ${gameId}`);
@@ -153,9 +176,16 @@ io.on('connection', (socket) => {
             game.gameState = newState;
             activeGames.set(gameId, game);
 
+            // Add player names to game state for broadcast
+            const gameStateWithNames = {
+                ...newState,
+                player1Name: game.players.player1.username,
+                player2Name: game.players.player2 ? game.players.player2.username : 'Waiting...'
+            };
+
             // Broadcast update
             io.to(gameId).emit('game_update', {
-                gameState: game.gameState
+                gameState: gameStateWithNames
             });
 
             if (newState.winner) {
