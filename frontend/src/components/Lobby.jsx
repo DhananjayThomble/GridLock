@@ -69,7 +69,19 @@ const Lobby = () => {
     return (
         <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 pt-8">
             <div className="w-full max-w-md">
-                <h1 className="text-3xl font-bold mb-3 text-blue-600 text-center">Dots and Boxes</h1>
+                {/* Attractive Title with gradient and icons */}
+                <div className="mb-3 text-center">
+                    <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent drop-shadow-lg mb-1">
+                        Dots & Boxes
+                    </h1>
+                    <div className="flex items-center justify-center gap-2 text-2xl">
+                        <span className="animate-bounce">•</span>
+                        <span className="text-gray-400">━</span>
+                        <span className="animate-bounce" style={{animationDelay: '0.1s'}}>•</span>
+                        <span className="text-gray-400">━</span>
+                        <span className="animate-bounce" style={{animationDelay: '0.2s'}}>•</span>
+                    </div>
+                </div>
                 
                 <div className="bg-white p-4 rounded-lg shadow-lg">
                     <div className="mb-3">
