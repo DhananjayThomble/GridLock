@@ -114,23 +114,25 @@ try {
 }
 console.log('');
 
-// Test 9: Complete game simulation (3 players)
-console.log('Test 9: Complete 2x2 game with 3 players');
+// Test 9: 3-player game — extra turn after box completion
+console.log('Test 9: 3-player game — extra turn after box completion');
 let sim = initializeGameState(2, 3);
-// Fill all boxes systematically
-sim = calculateNewState(sim, 2, 0, 0, 'horizontal'); // P1
-sim = calculateNewState(sim, 2, 0, 1, 'horizontal'); // P2
-sim = calculateNewState(sim, 2, 1, 0, 'horizontal'); // P3
-sim = calculateNewState(sim, 2, 1, 1, 'horizontal'); // P1
-sim = calculateNewState(sim, 2, 2, 0, 'horizontal'); // P2
-sim = calculateNewState(sim, 2, 2, 1, 'horizontal'); // P3
-sim = calculateNewState(sim, 2, 0, 0, 'vertical');   // P1
-sim = calculateNewState(sim, 2, 0, 1, 'vertical');   // P2
-sim = calculateNewState(sim, 2, 0, 2, 'vertical');   // P3
-sim = calculateNewState(sim, 2, 1, 0, 'vertical');   // P1
-sim = calculateNewState(sim, 2, 1, 1, 'vertical');   // P2 - completes box!
-assert(sim.scores.player2 > 0, 'Player completed a box');
-assert(sim.currentPlayer === 'player2', 'Player gets extra turn after box');
+// Move sequence: P1→P2→P3→P1→P2→P3→P1 then P2 draws 4th side → completes box
+const simMoves = [
+  [2, 0, 0, 'horizontal'], // P1
+  [2, 0, 1, 'horizontal'], // P2
+  [2, 1, 0, 'horizontal'], // P3
+  [2, 1, 1, 'horizontal'], // P1
+  [2, 2, 0, 'horizontal'], // P2
+  [2, 2, 1, 'horizontal'], // P3
+  [2, 0, 0, 'vertical'],   // P1
+  [2, 0, 1, 'vertical'],   // P2 completes box[0][0] → scores, stays P2
+];
+simMoves.forEach(([g, r, c, t]) => { sim = calculateNewState(sim, g, r, c, t); });
+console.log('  Scores after box:', sim.scores);
+console.log('  Current player:', sim.currentPlayer);
+assert(sim.scores.player2 === 1, 'Player 2 scored a box');
+assert(sim.currentPlayer === 'player2', 'Player 2 gets extra turn after box');
 console.log('');
 
 // Summary

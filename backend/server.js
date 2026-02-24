@@ -315,6 +315,8 @@ function buildGameStateWithPlayers(game) {
         }
     }
     
+    // Ensure gameOver flag is always present
+    state.gameOver = !!state.winner;
     return state;
 }
 
