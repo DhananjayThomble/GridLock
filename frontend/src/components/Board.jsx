@@ -8,7 +8,7 @@ console.log('Board using shared socket connection');
 const Board = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { username, role, gameId, gridSize } = location.state || {}; 
+    const { username, role, gameId, gridSize, avatar } = location.state || {}; 
 
     const [gameState, setGameState] = useState(null);
     const [error, setError] = useState(null);
@@ -53,10 +53,10 @@ const Board = () => {
         if (role === 'player1') {
             console.log(`Player 1 (${username}) ensuring room subscription for game ${gameId}`);
             // Re-subscribe to ensure socket is in the room (in case of reconnect/navigation)
-            socket.emit('join_game', { gameId, username });
+            socket.emit('join_game', { gameId, username, avatar });
         } else if (role === 'player2') {
             console.log(`Player 2 (${username}) joining game ${gameId}...`);
-            socket.emit('join_game', { gameId, username });
+            socket.emit('join_game', { gameId, username, avatar });
         }
 
         return () => {
@@ -84,11 +84,34 @@ const Board = () => {
         });
     };
 
-    // Rendering helpers (Fixed Layout)
-    const DOT_WRAPPER = "w-6 h-6 flex-none flex items-center justify-center";
-    const H_LINE_WRAPPER = "w-16 h-6 flex-none flex items-center justify-center";
-    const V_LINE_WRAPPER = "w-6 h-16 flex-none flex justify-center items-center";
-    const BOX_WRAPPER = "w-16 h-16 flex-none flex items-center justify-center";
+    // Rendering helpers (Responsive Layout)
+    // Calculate size based on grid and viewport
+    const getResponsiveSize = () => {
+        if (typeof window === 'undefined') return { dot: 6, line: 16, box: 16 };
+        
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        const maxWidth = Math.min(screenWidth - 64, 600); // padding + max width
+        const maxHeight = screenHeight - 400; // reserve space for header/footer
+        
+        const gridCells = gridSize || 3;
+        const totalUnits = gridCells * 2 + 1; // dots + boxes
+        
+        // Calculate optimal size
+        const maxBoxWidth = Math.floor(maxWidth / totalUnits);
+        const maxBoxHeight = Math.floor(maxHeight / totalUnits);
+        const boxSize = Math.min(Math.max(maxBoxWidth, maxBoxHeight, 40), 80); // min 40px, max 80px
+        const lineSize = boxSize;
+        const dotSize = Math.max(Math.floor(boxSize * 0.25), 4); // dot is 25% of box, min 4px
+        
+        return { dot: dotSize, line: lineSize, box: boxSize };
+    };
+    
+    const sizes = getResponsiveSize();
+    const DOT_WRAPPER = `flex-none flex items-center justify-center`;
+    const H_LINE_WRAPPER = `flex-none flex items-center justify-center`;
+    const V_LINE_WRAPPER = `flex-none flex justify-center items-center`;
+    const BOX_WRAPPER = `flex-none flex items-center justify-center`;
 
     const renderHorizontalLine = (r, c) => {
         const owner = gameState.horizontalLines[r]?.[c]; 
@@ -97,10 +120,11 @@ const Board = () => {
         if (owner === 'player2') colorClass = 'bg-red-500';
 
         return (
-            <div key={`h-wrap-${r}-${c}`} className={H_LINE_WRAPPER}>
+            <div key={`h-wrap-${r}-${c}`} className={H_LINE_WRAPPER} style={{ width: `${sizes.line}px`, height: `${sizes.dot}px` }}>
                 <div 
                     className={`h-2 w-full cursor-pointer transition-colors duration-200 rounded-sm ${colorClass}`}
                     onClick={() => handleLineClick('horizontal', r, c)}
+                    style={{ maxHeight: '8px' }}
                 />
             </div>
         );
@@ -113,10 +137,11 @@ const Board = () => {
         if (owner === 'player2') colorClass = 'bg-red-500';
 
         return (
-            <div key={`v-wrap-${r}-${c}`} className={V_LINE_WRAPPER}>
+            <div key={`v-wrap-${r}-${c}`} className={V_LINE_WRAPPER} style={{ width: `${sizes.dot}px`, height: `${sizes.line}px` }}>
                 <div 
                     className={`w-2 h-full cursor-pointer transition-colors duration-200 rounded-sm ${colorClass}`}
                     onClick={() => handleLineClick('vertical', r, c)}
+                    style={{ maxWidth: '8px' }}
                 />
             </div>
         );
@@ -136,8 +161,8 @@ const Board = () => {
         }
 
         return (
-            <div key={`b-wrap-${r}-${c}`} className={BOX_WRAPPER}>
-                <div className={`w-full h-full flex items-center justify-center transition-all duration-300 rounded-md ${bgClass}`}>
+            <div key={`b-wrap-${r}-${c}`} className={BOX_WRAPPER} style={{ width: `${sizes.box}px`, height: `${sizes.box}px` }}>
+                <div className={`w-full h-full flex items-center justify-center transition-all duration-300 rounded-md ${bgClass}`} style={{ fontSize: `${Math.max(sizes.box * 0.3, 10)}px` }}>
                     {content}
                 </div>
             </div>
@@ -152,36 +177,38 @@ const Board = () => {
     );
 
     return (
-        <div className="flex flex-col items-center p-8 min-h-screen bg-gray-50">
-            <div className="mb-8 text-center">
-                <h1 className="text-3xl font-bold mb-2">Game Room: {gameId}</h1>
-                <p className="text-gray-600">You are: <span className="font-bold uppercase">{role}</span> ({username})</p>
-                <p className="text-lg font-semibold mt-2 text-purple-600">{status}</p>
-                {error && <p className="text-red-500 mt-2">{error}</p>}
+        <div className="flex flex-col items-center p-4 sm:p-8 min-h-screen bg-gray-50 overflow-x-auto">
+            <div className="mb-4 sm:mb-8 text-center w-full">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2">Game Room: {gameId}</h1>
+                <p className="text-sm sm:text-base text-gray-600">You are: <span className="font-bold uppercase">{role}</span> ({username})</p>
+                <p className="text-base sm:text-lg font-semibold mt-2 text-purple-600">{status}</p>
+                {error && <p className="text-red-500 mt-2 text-sm">{error}</p>}
             </div>
 
-            <div className="flex space-x-12 mb-8 text-2xl font-bold">
-                <div className={`px-6 py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player1' ? 'bg-blue-100 border-2 border-blue-500 scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-blue-600">Player 1 ({gameState.player1Name}): {gameState.scores.player1}</span>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-12 mb-4 sm:mb-8 text-base sm:text-2xl font-bold w-full max-w-md sm:max-w-none justify-center">
+                <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-md transition-all flex items-center gap-2 ${gameState.currentPlayer === 'player1' ? 'bg-blue-100 border-2 border-blue-500 scale-105 sm:scale-110' : 'bg-white text-gray-400'}`}>
+                    <span className="text-2xl sm:text-3xl">{gameState.player1Avatar || '😊'}</span>
+                    <span className="text-blue-600 text-sm sm:text-base">{gameState.player1Name}: {gameState.scores.player1}</span>
                 </div>
-                <div className={`px-6 py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player2' ? 'bg-red-100 border-2 border-red-500 scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-red-600">Player 2 ({gameState.player2Name}): {gameState.scores.player2}</span>
+                <div className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg shadow-md transition-all flex items-center gap-2 ${gameState.currentPlayer === 'player2' ? 'bg-red-100 border-2 border-red-500 scale-105 sm:scale-110' : 'bg-white text-gray-400'}`}>
+                    <span className="text-2xl sm:text-3xl">{gameState.player2Avatar || '😊'}</span>
+                    <span className="text-red-600 text-sm sm:text-base">{gameState.player2Name}: {gameState.scores.player2}</span>
                 </div>
             </div>
 
-            <div className="inline-block bg-white p-8 rounded-xl shadow-2xl select-none border border-gray-100">
+            <div className="inline-block bg-white p-2 sm:p-8 rounded-xl shadow-2xl select-none border border-gray-100 overflow-auto max-w-full">
                 {gameState.horizontalLines.map((row, r) => (
                     <div key={`row-${r}`} className="flex flex-col">
                         <div className="flex items-center">
                             {row.map((_, c) => (
                                 <React.Fragment key={`hr-${c}`}>
-                                    <div className={DOT_WRAPPER}>
-                                        <div className="w-4 h-4 bg-gray-800 rounded-full z-10 shadow-sm" /> 
+                                    <div className={DOT_WRAPPER} style={{ width: `${sizes.dot}px`, height: `${sizes.dot}px` }}>
+                                        <div className="bg-gray-800 rounded-full z-10 shadow-sm" style={{ width: `${Math.max(sizes.dot - 2, 2)}px`, height: `${Math.max(sizes.dot - 2, 2)}px` }} /> 
                                     </div>
                                     {renderHorizontalLine(r, c)}
                                     {c === row.length - 1 && (
-                                        <div className={DOT_WRAPPER}>
-                                            <div className="w-4 h-4 bg-gray-800 rounded-full z-10 shadow-sm" />
+                                        <div className={DOT_WRAPPER} style={{ width: `${sizes.dot}px`, height: `${sizes.dot}px` }}>
+                                            <div className="bg-gray-800 rounded-full z-10 shadow-sm" style={{ width: `${Math.max(sizes.dot - 2, 2)}px`, height: `${Math.max(sizes.dot - 2, 2)}px` }} />
                                         </div>
                                     )}
                                 </React.Fragment>
@@ -205,7 +232,7 @@ const Board = () => {
             
             <button 
                 onClick={() => navigate('/')}
-                className="mt-12 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
+                className="mt-6 sm:mt-12 px-4 sm:px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition text-sm sm:text-base"
             >
                 Leave Game
             </button>
