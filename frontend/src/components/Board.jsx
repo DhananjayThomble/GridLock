@@ -156,10 +156,10 @@ const Board = () => {
 
             <div className="flex space-x-12 mb-8 text-2xl font-bold">
                 <div className={`px-6 py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player1' ? 'bg-blue-100 border-2 border-blue-500 scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-blue-600">Player 1: {gameState.scores.player1}</span>
+                    <span className="text-blue-600">Player 1 ({gameState.player1Name}): {gameState.scores.player1}</span>
                 </div>
                 <div className={`px-6 py-3 rounded-lg shadow-md transition-all ${gameState.currentPlayer === 'player2' ? 'bg-red-100 border-2 border-red-500 scale-110' : 'bg-white text-gray-400'}`}>
-                    <span className="text-red-600">Player 2: {gameState.scores.player2}</span>
+                    <span className="text-red-600">Player 2 ({gameState.player2Name}): {gameState.scores.player2}</span>
                 </div>
             </div>
 
