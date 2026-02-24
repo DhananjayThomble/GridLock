@@ -68,80 +68,82 @@ const Lobby = () => {
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-            <h1 className="text-3xl font-bold mb-4 text-blue-600">Dots and Boxes</h1>
-            
-            <div className="bg-white p-4 rounded-lg shadow-lg w-full max-w-md">
-                <div className="mb-3">
-                    <label className="block text-gray-700 text-xs font-bold mb-1">Username</label>
-                    <input 
-                        type="text" 
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 text-sm leading-tight focus:outline-none focus:shadow-outline" 
-                        value={username} 
-                        onChange={(e) => setUsername(e.target.value)} 
-                        placeholder="Enter your name"
-                    />
-                </div>
-
-                {/* Avatar Selection */}
-                <div className="mb-3">
-                    <label className="block text-gray-700 text-xs font-bold mb-1">Choose Your Avatar</label>
-                    <div className="grid grid-cols-6 gap-1.5">
-                        {avatars.map((avatar) => (
-                            <button
-                                key={avatar}
-                                onClick={() => setSelectedAvatar(avatar)}
-                                className={`text-lg p-1.5 rounded-lg transition-colors flex items-center justify-center aspect-square ${
-                                    selectedAvatar === avatar 
-                                        ? 'bg-blue-500 shadow-lg ring-2 ring-blue-600' 
-                                        : 'bg-gray-100 hover:bg-gray-200'
-                                }`}
-                            >
-                                {avatar}
-                            </button>
-                        ))}
+            <div className="w-full max-w-md">
+                <h1 className="text-3xl font-bold mb-4 text-blue-600 text-center">Dots and Boxes</h1>
+                
+                <div className="bg-white p-4 rounded-lg shadow-lg">
+                    <div className="mb-3">
+                        <label className="block text-gray-700 text-xs font-bold mb-1">Username</label>
+                        <input 
+                            type="text" 
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 text-sm leading-tight focus:outline-none focus:shadow-outline" 
+                            value={username} 
+                            onChange={(e) => setUsername(e.target.value)} 
+                            placeholder="Enter your name"
+                        />
                     </div>
-                    <p className="text-center mt-2 text-xs text-gray-600">
-                        Selected: <span className="text-base">{selectedAvatar}</span> {username || 'Player'}
-                    </p>
-                </div>
 
-                <div className="flex space-x-2 mb-3">
-                    <button 
-                        onClick={handleCreateGame}
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded focus:outline-none focus:shadow-outline w-1/2 text-sm"
-                    >
-                        Create Game
-                    </button>
-                    <div className="w-1/2">
-                        <select 
-                            className="shadow border rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-full text-sm"
-                            value={gridSize}
-                            onChange={(e) => setGridSize(parseInt(e.target.value))}
+                    {/* Avatar Selection */}
+                    <div className="mb-3">
+                        <label className="block text-gray-700 text-xs font-bold mb-1">Choose Your Avatar</label>
+                        <div className="grid grid-cols-6 gap-1.5">
+                            {avatars.map((avatar) => (
+                                <button
+                                    key={avatar}
+                                    onClick={() => setSelectedAvatar(avatar)}
+                                    className={`text-lg p-1.5 rounded-lg transition-colors flex items-center justify-center aspect-square ${
+                                        selectedAvatar === avatar 
+                                            ? 'bg-blue-500 shadow-lg ring-2 ring-blue-600' 
+                                            : 'bg-gray-100 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {avatar}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-center mt-2 text-xs text-gray-600">
+                            Selected: <span className="text-base">{selectedAvatar}</span> {username || 'Player'}
+                        </p>
+                    </div>
+
+                    <div className="flex space-x-2 mb-3">
+                        <button 
+                            onClick={handleCreateGame}
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded focus:outline-none focus:shadow-outline w-1/2 text-sm"
                         >
-                            <option value={3}>3x3 Grid</option>
-                            <option value={4}>4x4 Grid</option>
-                            <option value={5}>5x5 Grid</option>
-                        </select>
+                            Create Game
+                        </button>
+                        <div className="w-1/2">
+                            <select 
+                                className="shadow border rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:shadow-outline h-full text-sm"
+                                value={gridSize}
+                                onChange={(e) => setGridSize(parseInt(e.target.value))}
+                            >
+                                <option value={3}>3x3 Grid</option>
+                                <option value={4}>4x4 Grid</option>
+                                <option value={5}>5x5 Grid</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div className="border-t border-gray-200 my-3"></div>
+                    <div className="border-t border-gray-200 my-3"></div>
 
-                <div className="mb-3">
-                    <label className="block text-gray-700 text-xs font-bold mb-1">Join Existing Game</label>
-                    <input 
-                        type="text" 
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 text-sm leading-tight focus:outline-none focus:shadow-outline mb-2" 
-                        value={gameId} 
-                        onChange={(e) => setGameId(e.target.value)} 
-                        placeholder="Enter Game ID"
-                    />
-                    <button 
-                        onClick={handleJoinGame}
-                        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-3 rounded focus:outline-none focus:shadow-outline w-full text-sm"
-                    >
-                        Join Game
-                    </button>
+                    <div className="mb-3">
+                        <label className="block text-gray-700 text-xs font-bold mb-1">Join Existing Game</label>
+                        <input 
+                            type="text" 
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 text-sm leading-tight focus:outline-none focus:shadow-outline mb-2" 
+                            value={gameId} 
+                            onChange={(e) => setGameId(e.target.value)} 
+                            placeholder="Enter Game ID"
+                        />
+                        <button 
+                            onClick={handleJoinGame}
+                            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-3 rounded focus:outline-none focus:shadow-outline w-full text-sm"
+                        >
+                            Join Game
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
