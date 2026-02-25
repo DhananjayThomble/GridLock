@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
-import { recordGame } from '../utils/sessionStats';
+import ScoreBar from './ScoreBar';
 
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
@@ -235,7 +235,7 @@ const Board = () => {
         className="flex items-center justify-center"
       >
         <div
-          className={`grid-cell w-full h-full flex items-center justify-center rounded transition-all duration-300 ${
+          className={`w-full h-full flex items-center justify-center rounded transition-all duration-300 ${
             cfg ? cfg.light : ''
           }`}
         >
@@ -317,7 +317,7 @@ const Board = () => {
           ) : (
             <>
               <div className="text-6xl mb-2 animate-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1 winner-pulse" style={{ color: winnerData.color }}>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: winnerData.color }}>
                 {winnerData.name} Wins!
               </h2>
               <p className="text-gray-500 mb-4">🏆 Champion!</p>
@@ -433,21 +433,34 @@ const Board = () => {
         )}
       </div>
 
+      {/* ── Live ScoreBar (fixed top, shows when game active) ── */}
+      {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
+        const count = gameState.playerCount || 2;
+        const players = Array.from({ length: count }, (_, i) => {
+          const pid = `player${i + 1}`;
+          const cfg = getConfig(pid);
+          return {
+            id: pid,
+            username: gameState[`${pid}Username`] || cfg.label,
+            avatar: gameState[`${pid}Avatar`] || cfg.label,
+            color: cfg.color,
+          };
+        });
+        return (
+          <ScoreBar
+            players={players}
+            scores={gameState.scores || {}}
+            gridSize={gridSize || 3}
+            currentPlayer={gameState.currentPlayer}
+          />
+        );
+      })()}
+
       {/* ── Scoreboard ── */}
       {renderScoreboard()}
 
       {/* ── Board ── */}
-      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
-        {/* Mute button - top-right corner */}
-        <button
-          onClick={handleToggleMute}
-          className="absolute top-2 right-2 z-20 w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-xl transition-all active:scale-95 shadow-sm"
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
-        
+      <div className="bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
         {gameState.horizontalLines.map((row, r) => (
           <div key={`row-${r}`}>
             {/* Dot-HLine-Dot row */}
