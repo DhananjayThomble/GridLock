@@ -34,11 +34,6 @@ const Lobby = () => {
   const [stats,         setStats]         = useState(getStats());
   const navigate = useNavigate();
 
-  // Refresh stats when panel opens
-  useEffect(() => {
-    if (showStats) setStats(getStats());
-  }, [showStats]);
-
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId }) => {
@@ -273,7 +268,7 @@ const Lobby = () => {
         {/* ── Session Stats Panel ── */}
         <div className="mt-3">
           <button
-            onClick={() => setShowStats(v => !v)}
+            onClick={() => { const next = !showStats; if (next) setStats(getStats()); setShowStats(next); }}
             className="w-full py-2 text-xs font-semibold text-white/40 hover:text-white/70 transition-all flex items-center justify-center gap-2"
           >
             <span>📊 Your Stats</span>

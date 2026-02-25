@@ -2,7 +2,7 @@
 // Production-ready Board for GridLock - supports 2-4 players
 // Adaptive layout: mobile / tablet / desktop
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
@@ -54,7 +54,7 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { username, role, gameId, gridSize, avatar, playerCount } = location.state || {};
+  const { username, role, gameId, gridSize, avatar } = location.state || {};
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
@@ -63,6 +63,8 @@ const Board = () => {
   const [winnerData,     setWinnerData]     = useState(null);
   const [waitingCount,   setWaitingCount]   = useState(0);
   const [showCopied,     setShowCopied]     = useState(false);
+
+  const gameOverRecorded = useRef(false);
 
   const sizes = useGridSizes(gridSize);
 
@@ -101,16 +103,15 @@ const Board = () => {
 
       if (gs.gameOver || gs.winner) {
         const winner = gs.winner;
-        
-        // Record game stats
-        const myScore = gs.scores?.[role] || 0;
-        const totalBoxes = (gridSize || 3) * (gridSize || 3);
-        const territoryPct = Math.round((myScore / totalBoxes) * 100);
-        const outcome = winner === role ? 'win' : 'loss';
-        const players = gs.playerCount || 2;
-        
-        // Only record if not a draw (in a draw, nobody "wins")
-        if (winner !== 'draw') {
+
+        // Record game stats once per game
+        if (!gameOverRecorded.current) {
+          gameOverRecorded.current = true;
+          const myScore = gs.scores?.[role] || 0;
+          const totalBoxes = (gridSize || 3) * (gridSize || 3);
+          const territoryPct = Math.round((myScore / totalBoxes) * 100);
+          const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
+          const players = gs.playerCount || 2;
           recordGame(outcome, territoryPct, players, gridSize || 3);
         }
         
@@ -451,15 +452,6 @@ const Board = () => {
 
       {/* ── Board ── */}
       <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
-        {/* Mute button - top-right corner */}
-        <button
-          onClick={handleToggleMute}
-          className="absolute top-2 right-2 z-20 w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-xl transition-all active:scale-95 shadow-sm"
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
         
         {gameState.horizontalLines.map((row, r) => (
           <div key={`row-${r}`}>
