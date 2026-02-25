@@ -101,19 +101,14 @@ const Board = () => {
 
       if (gs.gameOver || gs.winner) {
         const winner = gs.winner;
-        
-        // Record game stats
+
+        // Record session stats — always record including draws
         const myScore = gs.scores?.[role] || 0;
         const totalBoxes = (gridSize || 3) * (gridSize || 3);
         const territoryPct = Math.round((myScore / totalBoxes) * 100);
-        const outcome = winner === role ? 'win' : 'loss';
-        const players = gs.playerCount || 2;
-        
-        // Only record if not a draw (in a draw, nobody "wins")
-        if (winner !== 'draw') {
-          recordGame(outcome, territoryPct, players, gridSize || 3);
-        }
-        
+        const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
+        recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+
         if (winner === 'draw') {
           setWinnerData({ isDraw: true, scores: gs.scores, playerCount: gs.playerCount || 2 });
         } else {
@@ -330,7 +325,7 @@ const Board = () => {
           ) : (
             <>
               <div className="text-6xl mb-2 animate-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1 winner-pulse" style={{ color: winnerData.color }}>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: winnerData.color }}>
                 {winnerData.name} Wins!
               </h2>
               <p className="text-gray-500 mb-4">🏆 Champion!</p>
@@ -450,17 +445,7 @@ const Board = () => {
       {renderScoreboard()}
 
       {/* ── Board ── */}
-      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
-        {/* Mute button - top-right corner */}
-        <button
-          onClick={handleToggleMute}
-          className="absolute top-2 right-2 z-20 w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-xl transition-all active:scale-95 shadow-sm"
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
-        
+      <div className="bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
         {gameState.horizontalLines.map((row, r) => (
           <div key={`row-${r}`}>
             {/* Dot-HLine-Dot row */}
