@@ -55,7 +55,7 @@ jobs:
         run: npm run build
 
       - name: Build (beta)
-        run: npx vite build --base=/beta/
+        run: npx vite build --base=/beta/ --outDir=dist-beta --emptyOutDir
         env:
           NODE_ENV: production
 

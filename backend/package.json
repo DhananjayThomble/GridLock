@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test-4player-logic.js && node test-5x5-grid.js && node test-game-flow.js",
+    "test:all": "node test-4player-logic.js && node test-5x5-grid.js && node test-game-flow.js && node test-avatars.js && node test-e2e-flow.js"
   },
   "keywords": [],
   "author": "",
