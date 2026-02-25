@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
+import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -29,7 +30,14 @@ const Lobby = () => {
   const [creating,      setCreating]      = useState(false);
   const [joining,       setJoining]       = useState(false);
   const [tab,           setTab]           = useState('create'); // 'create' | 'join'
+  const [showStats,     setShowStats]     = useState(false);
+  const [stats,         setStats]         = useState(getStats());
   const navigate = useNavigate();
+
+  // Refresh stats when panel opens
+  useEffect(() => {
+    if (showStats) setStats(getStats());
+  }, [showStats]);
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
@@ -261,6 +269,94 @@ const Lobby = () => {
         </div>
 
         <p className="text-center text-white/20 text-xs mt-4">GridLock Beta · Real-time Multiplayer</p>
+
+        {/* ── Session Stats Panel ── */}
+        <div className="mt-3">
+          <button
+            onClick={() => setShowStats(v => !v)}
+            className="w-full py-2 text-xs font-semibold text-white/40 hover:text-white/70 transition-all flex items-center justify-center gap-2"
+          >
+            <span>📊 Your Stats</span>
+            <span>{showStats ? '▲' : '▼'}</span>
+          </button>
+
+          {showStats && (
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-4 mt-1 space-y-3">
+              {stats.gamesPlayed === 0 ? (
+                <p className="text-center text-white/30 text-xs py-2">No games played yet this session.</p>
+              ) : (
+                <>
+                  {/* Summary row */}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                      { label: 'Games', value: stats.gamesPlayed },
+                      { label: 'Wins', value: stats.wins },
+                      { label: 'Win Rate', value: getWinRate() },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white/10 rounded-xl py-2">
+                        <div className="text-white font-bold text-lg">{value}</div>
+                        <div className="text-white/40 text-xs">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                      { label: 'Avg Territory', value: getAvgTerritory() },
+                      { label: 'Best Territory', value: `${stats.bestTerritory}%` },
+                      { label: 'Best Streak', value: `${stats.bestStreak} 🔥` },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white/10 rounded-xl py-2">
+                        <div className="text-white font-bold text-sm">{value}</div>
+                        <div className="text-white/40 text-xs">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Current streak */}
+                  {stats.currentStreak > 0 && (
+                    <div className="text-center text-yellow-400 text-sm font-bold">
+                      🔥 {stats.currentStreak} game win streak!
+                    </div>
+                  )}
+
+                  {/* Last 5 games */}
+                  {stats.history.length > 0 && (
+                    <div>
+                      <p className="text-white/40 text-xs mb-1.5 uppercase tracking-wider">Last {Math.min(stats.history.length, 5)} Games</p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {stats.history.slice(0, 5).map((g, i) => (
+                          <div
+                            key={i}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                              g.outcome === 'win'
+                                ? 'bg-green-500/30 text-green-300 border border-green-500/30'
+                                : g.outcome === 'draw'
+                                ? 'bg-yellow-500/30 text-yellow-300 border border-yellow-500/30'
+                                : 'bg-red-500/30 text-red-300 border border-red-500/30'
+                            }`}
+                            title={`${g.gridSize}×${g.gridSize} · ${g.players}P`}
+                          >
+                            {g.outcome === 'win' ? 'W' : g.outcome === 'draw' ? 'D' : 'L'} {g.territoryPct}%
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reset */}
+                  <button
+                    onClick={() => { resetStats(); setStats(getStats()); }}
+                    className="w-full text-xs text-white/20 hover:text-white/50 transition-all py-1"
+                  >
+                    Reset stats
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );

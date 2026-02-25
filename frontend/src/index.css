@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* GridLock - Game Polish */
+
+/* Smooth color transitions for grid cells */
+.grid-cell {
+  transition: background-color 0.15s ease;
+}
+
+/* Pulse animation for winner name */
+@keyframes winner-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.winner-pulse {
+  animation: winner-pulse 1.5s ease-in-out infinite;
+}
