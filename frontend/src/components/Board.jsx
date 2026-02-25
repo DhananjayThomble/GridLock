@@ -2,9 +2,10 @@
 // Production-ready Board for GridLock - supports 2-4 players
 // Adaptive layout: mobile / tablet / desktop
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
+import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
 
 // ─── Player config ────────────────────────────────────────────────────────────
@@ -64,6 +65,9 @@ const Board = () => {
   const [waitingCount,   setWaitingCount]   = useState(0);
   const [showCopied,     setShowCopied]     = useState(false);
 
+  // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
+  const gameOverRecorded = useRef(false);
+
   const sizes = useGridSizes(gridSize);
 
   // ── Status helper ────────────────────────────────────────────────────────────
@@ -101,6 +105,17 @@ const Board = () => {
 
       if (gs.gameOver || gs.winner) {
         const winner = gs.winner;
+
+        // Record session stats exactly once (guard against reconnect re-fires)
+        if (!gameOverRecorded.current) {
+          gameOverRecorded.current = true;
+          const myScore = gs.scores?.[role] || 0;
+          const totalBoxes = (gridSize || 3) * (gridSize || 3);
+          const territoryPct = Math.round((myScore / totalBoxes) * 100);
+          const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
+          recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+        }
+
         if (winner === 'draw') {
           setWinnerData({ isDraw: true, scores: gs.scores, playerCount: gs.playerCount || 2 });
         } else {
