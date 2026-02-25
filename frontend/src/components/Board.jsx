@@ -441,7 +441,7 @@ const Board = () => {
           const cfg = getConfig(pid);
           return {
             id: pid,
-            username: gameState[`${pid}Username`] || cfg.label,
+            username: gameState[`${pid}Name`] || cfg.label,
             avatar: gameState[`${pid}Avatar`] || cfg.label,
             color: cfg.color,
           };

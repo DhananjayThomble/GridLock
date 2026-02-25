@@ -4,7 +4,6 @@ import Board from './Board';
 
 const GameController = () => {
     const [gridSize, setGridSize] = useState(3);
-    const [turn, setTurn] = useState('player1'); // Managed by Board, can lift state up later if needed for global display
 
     const handleGridSizeChange = (size) => {
         setGridSize(size);

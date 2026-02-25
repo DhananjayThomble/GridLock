@@ -4,17 +4,15 @@
 import React from 'react';
 
 /**
- * ScoreBar Component
- * 
- * Shows all players' territory % as colored progress bars
- * 
- * @param {Array} players - Array of player objects [{id, username, avatar, color}]
- * @param {Object} scores - Object mapping player IDs to tile counts {player1: 5, player2: 8, ...}
- * @param {number} gridSize - Total number of tiles (e.g., 100 for 10x10)
- * @param {string} currentPlayer - ID of the current player (e.g., 'player1')
+ * ScoreBar Component — wrapped with React.memo to prevent re-renders
+ * when parent re-renders but props haven't changed.
+ *
+ * @param {Array} players - [{id, username, avatar, color}]
+ * @param {Object} scores - {player1: 5, player2: 8, ...}
+ * @param {number} gridSize - Grid dimension (e.g. 3 for 3×3 = 9 total boxes)
+ * @param {string} currentPlayer - ID of the current player
  */
-const ScoreBar = ({ players, scores, gridSize, currentPlayer }) => {
-  // Calculate total tiles (boxes in the grid)
+const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
   const totalTiles = gridSize * gridSize;
 
   return (
@@ -89,6 +87,8 @@ const ScoreBar = ({ players, scores, gridSize, currentPlayer }) => {
       </div>
     </div>
   );
-};
+});
+
+ScoreBar.displayName = 'ScoreBar';
 
 export default ScoreBar;
