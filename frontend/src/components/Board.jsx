@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
+import ScoreBar from './ScoreBar';
 
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
@@ -431,6 +432,29 @@ const Board = () => {
           </div>
         )}
       </div>
+
+      {/* ── Live ScoreBar (fixed top, shows when game active) ── */}
+      {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
+        const count = gameState.playerCount || 2;
+        const players = Array.from({ length: count }, (_, i) => {
+          const pid = `player${i + 1}`;
+          const cfg = getConfig(pid);
+          return {
+            id: pid,
+            username: gameState[`${pid}Name`] || cfg.label,
+            avatar: gameState[`${pid}Avatar`] || cfg.label,
+            color: cfg.color,
+          };
+        });
+        return (
+          <ScoreBar
+            players={players}
+            scores={gameState.scores || {}}
+            gridSize={gridSize || 3}
+            currentPlayer={gameState.currentPlayer}
+          />
+        );
+      })()}
 
       {/* ── Scoreboard ── */}
       {renderScoreboard()}
