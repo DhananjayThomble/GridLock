@@ -1,7 +1,7 @@
 // src/components/Lobby.jsx
 // Production-ready lobby — mobile-first, fully adaptive
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
@@ -33,11 +33,6 @@ const Lobby = () => {
   const [showStats,     setShowStats]     = useState(false);
   const [stats,         setStats]         = useState(getStats());
   const navigate = useNavigate();
-
-  // Refresh stats when panel opens
-  useEffect(() => {
-    if (showStats) setStats(getStats());
-  }, [showStats]);
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
@@ -273,7 +268,11 @@ const Lobby = () => {
         {/* ── Session Stats Panel ── */}
         <div className="mt-3">
           <button
-            onClick={() => setShowStats(v => !v)}
+            onClick={() => {
+              const next = !showStats;
+              if (next) setStats(getStats()); // refresh on open, not via useEffect
+              setShowStats(next);
+            }}
             className="w-full py-2 text-xs font-semibold text-white/40 hover:text-white/70 transition-all flex items-center justify-center gap-2"
           >
             <span>📊 Your Stats</span>
