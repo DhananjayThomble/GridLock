@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
-import { recordGame } from '../utils/sessionStats';
+import ScoreBar from './ScoreBar';
 
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
@@ -54,7 +54,7 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { username, role, gameId, gridSize, avatar, playerCount } = location.state || {};
+  const { username, role, gameId, gridSize, avatar } = location.state || {};
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
@@ -436,18 +436,31 @@ const Board = () => {
       {/* ── Scoreboard ── */}
       {renderScoreboard()}
 
+      {/* ── Live ScoreBar (fixed top, shows when game active) ── */}
+      {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
+        const count = gameState.playerCount || 2;
+        const players = Array.from({ length: count }, (_, i) => {
+          const pid = `player${i + 1}`;
+          const cfg = getConfig(pid);
+          return {
+            id: pid,
+            username: gameState[`${pid}Name`] || cfg.label,
+            avatar: gameState[`${pid}Avatar`] || cfg.label,
+            color: cfg.color,
+          };
+        });
+        return (
+          <ScoreBar
+            players={players}
+            scores={gameState.scores || {}}
+            gridSize={gridSize || 3}
+            currentPlayer={gameState.currentPlayer}
+          />
+        );
+      })()}
+
       {/* ── Board ── */}
-      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
-        {/* Mute button - top-right corner */}
-        <button
-          onClick={handleToggleMute}
-          className="absolute top-2 right-2 z-20 w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-xl transition-all active:scale-95 shadow-sm"
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
-        
+      <div className="bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
         {gameState.horizontalLines.map((row, r) => (
           <div key={`row-${r}`}>
             {/* Dot-HLine-Dot row */}

@@ -13,7 +13,7 @@ import React from 'react';
  * @param {number} gridSize - Total number of tiles (e.g., 100 for 10x10)
  * @param {string} currentPlayer - ID of the current player (e.g., 'player1')
  */
-const ScoreBar = ({ players, scores, gridSize, currentPlayer }) => {
+const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
   // Calculate total tiles (boxes in the grid)
   const totalTiles = gridSize * gridSize;
 
@@ -89,6 +89,6 @@ const ScoreBar = ({ players, scores, gridSize, currentPlayer }) => {
       </div>
     </div>
   );
-};
+});
 
 export default ScoreBar;
