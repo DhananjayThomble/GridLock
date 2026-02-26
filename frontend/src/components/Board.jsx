@@ -66,6 +66,8 @@ const Board = () => {
   const [waitingCount,   setWaitingCount]   = useState(0);
   const [showCopied,     setShowCopied]     = useState(false);
   const [muted,          setMuted]          = useState(() => isMuted());
+  const [rematchRequested, setRematchRequested] = useState(false);
+  const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
 
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
@@ -169,10 +171,24 @@ const Board = () => {
 
     const onError = (msg) => { setError(typeof msg === 'string' ? msg : JSON.stringify(msg)); };
 
+    const onRematchCount = (data) => {
+      setRematchCount({ count: data.count, total: data.total });
+    };
+
+    const onRematchReady = (data) => {
+      const newGameId = data.newGameId;
+      // Navigate all players to the new game
+      navigate(`/game/${newGameId}`, {
+        state: { username, role, gameId: newGameId, gridSize, avatar, playerCount }
+      });
+    };
+
     socket.on('game_started',      onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',       onGameUpdate);
     socket.on('error',             onError);
+    socket.on('rematch_count',     onRematchCount);
+    socket.on('rematch_ready',     onRematchReady);
 
     // Join / re-join room
     socket.emit('join_game', { gameId, username, avatar });
@@ -182,6 +198,8 @@ const Board = () => {
       socket.off('all_players_joined', onAllJoined);
       socket.off('game_update',        onGameUpdate);
       socket.off('error',              onError);
+      socket.off('rematch_count',      onRematchCount);
+      socket.off('rematch_ready',      onRematchReady);
     };
   }, [gameId, username, navigate, role, avatar, getStatusFromState]);
 
@@ -199,6 +217,19 @@ const Board = () => {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
     });
+  };
+
+  // ── Rematch handlers ──────────────────────────────────────────────────────────
+  const handlePlayAgain = () => {
+    initAudio();
+    setRematchRequested(true);
+    socket.emit('request_rematch', { gameId });
+  };
+
+  const handleLeaveGame = () => {
+    initAudio();
+    const basename = window.location.pathname.includes('/beta') ? '/beta' : '/';
+    navigate(basename);
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
@@ -391,19 +422,41 @@ const Board = () => {
 
           <div className="flex gap-2">
             <button
-              onClick={() => { setShowWinner(false); navigate('/'); }}
-              className="flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all active:scale-95"
-              style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}
+              onClick={handlePlayAgain}
+              disabled={rematchRequested}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
+                rematchRequested 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'active:scale-95 hover:shadow-lg'
+              }`}
+              style={{ 
+                background: rematchRequested 
+                  ? undefined 
+                  : 'linear-gradient(135deg,#3B82F6,#2563EB)' 
+              }}
             >
-              🎮 New Game
+              {rematchRequested ? (
+                <>⏳ Waiting...</>
+              ) : (
+                <>🔄 Play Again</>
+              )}
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={handleLeaveGame}
               className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
             >
-              Leave
+              👋 Leave Game
             </button>
           </div>
+
+          {/* Rematch counter */}
+          {rematchCount.count > 0 && (
+            <div className="mt-3 text-sm text-gray-600">
+              <span className="font-semibold">
+                {rematchCount.count} / {rematchCount.total}
+              </span> players ready for rematch
+            </div>
+          )}
 
           <div className="mt-4 text-xl space-x-1">
             {['🎉','✨','🎊','🏆','🎉'].map((e, i) => (
