@@ -184,8 +184,8 @@ const Board = () => {
 
     const onRematchReady = (data) => {
       const newGameId = data.newGameId;
-      // Navigate all players to the new game
-      navigate(`/game/${newGameId}`, {
+      // Navigate to /game (not /game/:id — gameId is passed via router state)
+      navigate('/game', {
         state: { username, role, gameId: newGameId, gridSize, avatar, playerCount }
       });
     };
@@ -235,8 +235,7 @@ const Board = () => {
 
   const handleLeaveGame = () => {
     initAudio();
-    const basename = window.location.pathname.includes('/beta') ? '/beta' : '/';
-    navigate(basename);
+    navigate('/');  // router basename handles /beta prefix automatically
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────

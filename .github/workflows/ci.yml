@@ -2,11 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ develop, 'feature/**', 'bugfix/**', 'hotfix/**' ]
+    branches: [ develop, 'feature/**', 'bugfix/**', 'hotfix/**', 'fix/**' ]
   pull_request:
     branches: [ develop, main ]
 
 jobs:
+  # ── Job 1: Backend unit tests ───────────────────────────────────────────────
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -26,14 +27,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test --if-present
+      - name: Run unit + integration tests
+        run: npm run test:all
 
-      - name: Lint
-        run: npm run lint --if-present
-
+  # ── Job 2: Frontend build + lint ────────────────────────────────────────────
   frontend-build:
-    name: Frontend Build
+    name: Frontend Build & Lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build (production)
+      - name: Build (production baseline)
         run: npm run build
 
       - name: Build (beta)
@@ -62,26 +61,81 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
 
-      - name: Smoke test (Playwright)
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: |
+            frontend/dist
+            frontend/dist-beta
+          retention-days: 1
+
+  # ── Job 3: E2E tests (browser interaction) ──────────────────────────────────
+  e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [ backend-test, frontend-build ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install root dependencies (Playwright runner)
+        run: npm ci
+
+      - name: Install Playwright + Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Start backend server
+        run: node server.js &
+        working-directory: backend
+        env:
+          PORT: 5000
+          NODE_ENV: test
+
+      - name: Wait for backend to be ready
         run: |
-          npm install --save-dev playwright
-          npx playwright install chromium --with-deps
-          npx vite preview --port 4173 &
-          sleep 4
-          node -e "
-          const { chromium } = require('playwright');
-          (async () => {
-            const browser = await chromium.launch({ headless: true });
-            const page = await browser.newPage();
-            const errors = [];
-            page.on('pageerror', e => errors.push(e.message));
-            await page.goto('http://localhost:4173/', { waitUntil: 'networkidle', timeout: 15000 });
-            const root = await page.locator('#root').innerHTML().catch(() => '');
-            const text = await page.locator('body').innerText().catch(() => '');
-            await browser.close();
-            if (root.trim().length < 10 || errors.length > 0 || !text.includes('Dots')) {
-              console.error('SMOKE FAILED — blank screen or JS errors:', errors.join('; '));
-              process.exit(1);
-            }
-            console.log('✅ Smoke test passed — lobby renders correctly');
-          })();"
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:5000/health && break
+            echo "Waiting for backend... ($i)"
+            sleep 2
+          done
+
+      - name: Build frontend for E2E (vite preview)
+        run: npm run build
+        working-directory: frontend
+
+      - name: Run E2E tests
+        run: npx playwright test --config=playwright.config.js
+        env:
+          CI: true
+          TEST_BASE_URL: http://localhost:4173
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: test-results/
+          retention-days: 7
