@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
+import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
 
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
@@ -64,9 +65,17 @@ const Board = () => {
   const [winnerData,     setWinnerData]     = useState(null);
   const [waitingCount,   setWaitingCount]   = useState(0);
   const [showCopied,     setShowCopied]     = useState(false);
+  const [muted,          setMuted]          = useState(() => isMuted());
 
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
+  const gameStarted      = useRef(false);
+
+  // Mute toggle handler
+  const handleToggleMute = () => {
+    const nowMuted = toggleMute();
+    setMuted(nowMuted);
+  };
 
   const sizes = useGridSizes(gridSize);
 
@@ -96,11 +105,29 @@ const Board = () => {
 
     const onAllJoined = () => {
       setWaitingCount(0);
+      // Game start sound — once
+      if (!gameStarted.current) {
+        gameStarted.current = true;
+        sounds.gameStart();
+      }
     };
 
     const onGameUpdate = (data) => {
       const gs = data.gameState;
-      setGameState(gs);
+
+      // Tile capture sounds (compare scores to detect new captures)
+      setGameState(prev => {
+        if (prev && gs.scores) {
+          Object.keys(gs.scores).forEach(pid => {
+            if ((gs.scores[pid] || 0) > (prev.scores?.[pid] || 0)) {
+              if (pid === role) sounds.tileCaptured();
+              else sounds.opponentCapture();
+            }
+          });
+        }
+        return gs;
+      });
+
       setWaitingCount(0);
 
       if (gs.gameOver || gs.winner) {
@@ -114,6 +141,9 @@ const Board = () => {
           const territoryPct = Math.round((myScore / totalBoxes) * 100);
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+          // Win/lose sound
+          if (winner === role) sounds.gameWin();
+          else if (winner !== 'draw') sounds.gameLose();
         }
 
         if (winner === 'draw') {
@@ -157,12 +187,14 @@ const Board = () => {
 
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
+    initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || gameState.currentPlayer !== role) return;
     socket.emit('make_move', { gameId, playerId: role, type, r, c });
   }, [gameState, role, gameId]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {
+    initAudio(); // unlock AudioContext on first user interaction
     navigator.clipboard?.writeText(gameId).then(() => {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
@@ -475,7 +507,16 @@ const Board = () => {
       {renderScoreboard()}
 
       {/* ── Board ── */}
-      <div className="bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
+      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
+        {/* Mute toggle — top-right of board */}
+        <button
+          onClick={() => { initAudio(); handleToggleMute(); }}
+          className="absolute top-2 right-2 z-20 w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-lg transition-all active:scale-90 shadow-sm"
+          title={muted ? 'Unmute sounds' : 'Mute sounds'}
+          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
         {gameState.horizontalLines.map((row, r) => (
           <div key={`row-${r}`}>
             {/* Dot-HLine-Dot row */}
