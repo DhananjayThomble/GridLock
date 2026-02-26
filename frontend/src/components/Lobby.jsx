@@ -1,7 +1,7 @@
 // src/components/Lobby.jsx
 // Production-ready lobby — mobile-first, fully adaptive
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
