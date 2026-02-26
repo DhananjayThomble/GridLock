@@ -61,3 +61,27 @@ jobs:
 
       - name: Lint
         run: npm run lint --if-present
+
+      - name: Smoke test (Playwright)
+        run: |
+          npm install --save-dev playwright
+          npx playwright install chromium --with-deps
+          npx vite preview --port 4173 &
+          sleep 4
+          node -e "
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage();
+            const errors = [];
+            page.on('pageerror', e => errors.push(e.message));
+            await page.goto('http://localhost:4173/', { waitUntil: 'networkidle', timeout: 15000 });
+            const root = await page.locator('#root').innerHTML().catch(() => '');
+            const text = await page.locator('body').innerText().catch(() => '');
+            await browser.close();
+            if (root.trim().length < 10 || errors.length > 0 || !text.includes('Dots')) {
+              console.error('SMOKE FAILED — blank screen or JS errors:', errors.join('; '));
+              process.exit(1);
+            }
+            console.log('✅ Smoke test passed — lobby renders correctly');
+          })();"
