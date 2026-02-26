@@ -40,6 +40,9 @@ const io = new Server(server, {
 // In-memory game store
 const activeGames = new Map();
 
+// Rematch tracking: { gameId -> Set of playerIds who requested rematch }
+const rematchRequests = new Map();
+
 // Player colors for UI
 const PLAYER_COLORS = {
     player1: '#3B82F6', // Blue
@@ -285,11 +288,143 @@ io.on('connection', (socket) => {
     });
 
     /**
+     * Handle rematch request
+     */
+    socket.on('request_rematch', ({ gameId }) => {
+        try {
+            log.debug('request_rematch event', { gameId, socketId: socket.id });
+            
+            const game = activeGames.get(gameId);
+            if (!game) {
+                log.warn('Game not found for rematch', { gameId });
+                socket.emit('error', 'Game not found');
+                return;
+            }
+
+            // Find which player this socket belongs to
+            let requestingPlayerId = null;
+            for (let i = 1; i <= game.playerCount; i++) {
+                const playerId = `player${i}`;
+                if (game.players[playerId]?.id === socket.id) {
+                    requestingPlayerId = playerId;
+                    break;
+                }
+            }
+
+            if (!requestingPlayerId) {
+                log.warn('Player not found in game for rematch', { gameId, socketId: socket.id });
+                socket.emit('error', 'Player not found in game');
+                return;
+            }
+
+            // Initialize rematch tracking for this game if needed
+            if (!rematchRequests.has(gameId)) {
+                rematchRequests.set(gameId, new Set());
+            }
+
+            const requests = rematchRequests.get(gameId);
+            requests.add(requestingPlayerId);
+
+            log.info('Rematch requested', { 
+                gameId, 
+                playerId: requestingPlayerId, 
+                totalRequests: requests.size,
+                playerCount: game.playerCount
+            });
+
+            // Broadcast rematch count to all players in the game
+            io.to(gameId).emit('rematch_count', { 
+                count: requests.size,
+                total: game.playerCount
+            });
+
+            // Check if all players have requested rematch
+            if (requests.size === game.playerCount) {
+                log.info('All players requested rematch, creating new game', { gameId });
+
+                // Create new game with same settings
+                const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const initialState = initializeGameState(game.gridSize, game.playerCount);
+                
+                const newGame = {
+                    id: newGameId,
+                    gridSize: game.gridSize,
+                    playerCount: game.playerCount,
+                    players: {},
+                    gameState: initialState,
+                    createdAt: Date.now()
+                };
+
+                // Add all players from old game to new game
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const playerId = `player${i}`;
+                    const oldPlayer = game.players[playerId];
+                    if (oldPlayer) {
+                        newGame.players[playerId] = {
+                            id: oldPlayer.id,
+                            username: oldPlayer.username,
+                            avatar: oldPlayer.avatar,
+                            color: PLAYER_COLORS[playerId]
+                        };
+                    }
+                }
+
+                activeGames.set(newGameId, newGame);
+                
+                // Clean up old rematch requests
+                rematchRequests.delete(gameId);
+
+                log.info('New rematch game created', { 
+                    oldGameId: gameId, 
+                    newGameId, 
+                    playerCount: game.playerCount 
+                });
+
+                // Notify all players in the old game room
+                io.to(gameId).emit('rematch_ready', { newGameId });
+                
+            }
+
+        } catch (error) {
+            log.error('Error processing rematch request', { gameId, error: error.message, stack: error.stack });
+            socket.emit('error', 'Failed to process rematch request');
+        }
+    });
+
+    /**
      * Handle disconnect
      */
     socket.on('disconnect', () => {
         log.info('Client disconnected:', socket.id);
-        // TODO: Handle player disconnect notifications
+        
+        // Clean up rematch requests for disconnected player
+        for (const [gameId, requests] of rematchRequests.entries()) {
+            const game = activeGames.get(gameId);
+            if (game) {
+                // Find player by socket ID and remove their rematch request
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const playerId = `player${i}`;
+                    if (game.players[playerId]?.id === socket.id) {
+                        requests.delete(playerId);
+                        log.debug('Removed rematch request for disconnected player', { gameId, playerId });
+                        
+                        // Broadcast updated count if there are still requests
+                        if (requests.size > 0) {
+                            io.to(gameId).emit('rematch_count', { 
+                                count: requests.size,
+                                total: game.playerCount
+                            });
+                        }
+                        break;
+                    }
+                }
+                
+                // Clean up empty request sets
+                if (requests.size === 0) {
+                    rematchRequests.delete(gameId);
+                }
+            }
+        }
     });
 });
 
