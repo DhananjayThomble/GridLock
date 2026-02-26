@@ -56,7 +56,10 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { username, role, gameId, gridSize, avatar, playerCount } = location.state || {};
+  const { username, role: initialRole, gameId, gridSize, avatar, playerCount } = location.state || {};
+
+  // role can be 'player_joining' until server assigns a slot; use state so it updates
+  const [role, setRole] = useState(initialRole);
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
@@ -95,6 +98,10 @@ const Board = () => {
     const onGameStarted = (data) => {
       const gs = data.gameState;
       setGameState(gs);
+      // If server assigned us a playerId (happens when joining via invite code), update role
+      if (data.playerId) {
+        setRole(data.playerId);
+      }
       // Count how many slots are still waiting
       const count = data.playerCount || 2;
       let filled = 0;

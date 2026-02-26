@@ -197,8 +197,17 @@ io.on('connection', (socket) => {
             // Build updated game state
             const gameStateWithPlayers = buildGameStateWithPlayers(game);
             
-            // Notify all players
-            io.to(gameId).emit('game_started', {
+            // Notify the joining player with their assigned playerId
+            socket.emit('game_started', {
+                gameId,
+                playerId: assignedSlot,
+                gridSize: game.gridSize,
+                playerCount: game.playerCount,
+                players: getPlayersList(game),
+                gameState: gameStateWithPlayers
+            });
+            // Notify other players in the room (they already know their role)
+            socket.to(gameId).emit('game_started', {
                 gameId,
                 gridSize: game.gridSize,
                 playerCount: game.playerCount,
