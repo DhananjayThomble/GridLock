@@ -22,7 +22,7 @@ test.describe('4-Player Game Flow', () => {
     // 1. P1 creates game
     await goToLobby(p1);
     const roomCode = await createGame(p1, { username: 'Alice', playerCount: 4, gridSize: '3×3' });
-    expect(roomCode).toBeTruthy();
+    expect(roomCode).toMatch(/^[A-Z0-9]{4,8}$/);
 
     // 2. P2, P3, P4 join
     await joinGame(p2, { username: 'Bob', roomCode });
@@ -45,8 +45,11 @@ test.describe('4-Player Game Flow', () => {
         try {
           const text = await page.locator('body').innerText().catch(() => '');
           if (text.includes('Your turn')) {
+            const moveSucceeded = await makeMove(page);
+            if (!moveSucceeded) {
+              throw new Error(`makeMove did not perform a move for ${name} while it was their turn`);
+            }
             hadTurn.add(name);
-            await makeMove(page);
             break;
           }
         } catch { continue; }
