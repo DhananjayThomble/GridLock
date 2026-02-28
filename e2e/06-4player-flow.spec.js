@@ -38,8 +38,8 @@ test.describe('4-Player Game Flow', () => {
       expect(text, `${name} stuck as player_joining`).not.toContain('player_joining');
     }
 
-    // 5. Play moves and verify turn rotates through ALL 4 players
-    const hadTurn = new Set();
+    // 5. Play moves and verify turn rotates through ALL 4 players in sequence
+    const turnSequence = [];
     for (let round = 0; round < 24; round++) {
       for (const [name, page] of [['Alice', p1], ['Bob', p2], ['Carol', p3], ['Dave', p4]]) {
         try {
@@ -49,19 +49,18 @@ test.describe('4-Player Game Flow', () => {
             if (!moveSucceeded) {
               throw new Error(`makeMove did not perform a move for ${name} while it was their turn`);
             }
-            hadTurn.add(name);
+            if (turnSequence[turnSequence.length - 1] !== name) {
+              turnSequence.push(name);
+            }
             break;
           }
         } catch { continue; }
       }
       await p1.waitForTimeout(300);
-      if (hadTurn.size === 4) break;
+      if (turnSequence.length >= 4) break;
     }
 
-    expect(hadTurn.has('Alice')).toBe(true);
-    expect(hadTurn.has('Bob')).toBe(true);
-    expect(hadTurn.has('Carol')).toBe(true);
-    expect(hadTurn.has('Dave')).toBe(true);
+    expect(turnSequence.slice(0, 4)).toEqual(['Alice', 'Bob', 'Carol', 'Dave']);
 
     // 6. No JS errors
     expect(errors).toHaveLength(0);
