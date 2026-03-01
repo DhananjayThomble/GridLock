@@ -68,6 +68,7 @@ const Board = () => {
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
   const [role, setRole] = useState(initialRole);
+  const roleRef = useRef(initialRole); // always-current ref avoids stale closure in handlers
   const [sessionToken, setSessionToken] = useState(() => {
     if (initialSessionToken) return initialSessionToken;
     if (!gameId || !username) return null;
@@ -85,9 +86,15 @@ const Board = () => {
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
 
+  // Track previous scores in a ref so we can compute sound effects outside of
+  // a React state-updater (where side effects are an anti-pattern — updaters
+  // may be called more than once in Strict Mode).
+  const prevScoresRef = useRef(null);
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
   const gameStarted      = useRef(false);
+  // Prevent duplicate join emits for the same room/user/token tuple.
+  const lastJoinKeyRef   = useRef(null);
 
   // Mute toggle handler
   const handleToggleMute = () => {
@@ -96,6 +103,10 @@ const Board = () => {
   };
 
   const sizes = useGridSizes(gridSize);
+
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
 
   // ── Status helper ────────────────────────────────────────────────────────────
   const getStatusFromState = useCallback((gs) => {
@@ -111,10 +122,12 @@ const Board = () => {
     const onGameStarted = (data) => {
       const gs = data.gameState;
       setGameState(gs);
+      prevScoresRef.current = gs?.scores || null;
 
       // If server assigned us a playerId (happens when joining via invite code), update role
       if (data.playerId) {
         setRole(data.playerId);
+        roleRef.current = data.playerId;
       }
 
       // Save auth token when provided by server (create/join/reconnect)
@@ -147,18 +160,19 @@ const Board = () => {
     const onGameUpdate = (data) => {
       const gs = data.gameState;
 
-      // Tile capture sounds (compare scores to detect new captures)
-      setGameState(prev => {
-        if (prev && gs.scores) {
-          Object.keys(gs.scores).forEach(pid => {
-            if ((gs.scores[pid] || 0) > (prev.scores?.[pid] || 0)) {
-              if (pid === role) sounds.tileCaptured();
-              else sounds.opponentCapture();
-            }
-          });
-        }
-        return gs;
-      });
+      // Tile capture sounds: compare score deltas outside React state updater.
+      const prevScores = prevScoresRef.current || {};
+      if (gs.scores) {
+        Object.keys(gs.scores).forEach(pid => {
+          if ((gs.scores[pid] || 0) > (prevScores[pid] || 0)) {
+            if (pid === roleRef.current) sounds.tileCaptured();
+            else sounds.opponentCapture();
+          }
+        });
+      }
+
+      setGameState(gs);
+      prevScoresRef.current = gs?.scores || null;
 
       setWaitingCount(0);
 
@@ -207,9 +221,10 @@ const Board = () => {
 
     const onRematchReady = (data) => {
       const newGameId = data.newGameId;
-      // Keep token continuity across rematch
+      // Keep token continuity across rematch; omit role so UI waits for
+      // authoritative server assignment via game_started.
       navigate('/game', {
-        state: { username, role, gameId: newGameId, gridSize, avatar, playerCount, sessionToken }
+        state: { username, gameId: newGameId, gridSize, avatar, playerCount, sessionToken }
       });
     };
 
@@ -236,7 +251,12 @@ const Board = () => {
     socket.on('player_forfeited',    onPlayerForfeited);
 
     // Join / re-join room (with optional session token for secure reconnect)
-    socket.emit('join_game', { gameId, username, avatar, sessionToken });
+    // Guard emit so role/session state updates don't re-send join_game.
+    const joinKey = `${gameId}:${username}:${sessionToken || ''}`;
+    if (lastJoinKeyRef.current !== joinKey) {
+      socket.emit('join_game', { gameId, username, avatar, sessionToken });
+      lastJoinKeyRef.current = joinKey;
+    }
 
     return () => {
       socket.off('game_started',        onGameStarted);

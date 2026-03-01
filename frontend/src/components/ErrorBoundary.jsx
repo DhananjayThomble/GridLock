@@ -59,9 +59,9 @@ function ErrorBoundary({ children }) {
   const navigate = useNavigate();
 
   const handleReturnToLobby = () => {
-    const basePath = import.meta.env.BASE_URL || '/';
+    // navigate() is sufficient for SPA routing — avoid the unnecessary full-page
+    // reload that window.location.assign() would trigger.
     navigate('/', { replace: true });
-    window.location.assign(basePath);
   };
 
   return (

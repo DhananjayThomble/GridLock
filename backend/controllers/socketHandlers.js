@@ -504,6 +504,11 @@ module.exports = function attachSocketHandlers(io, log) {
 
                         await gameStore.setGame(gameId, currentGame);
                         io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+                        io.to(gameId).emit('player_forfeited', {
+                            playerId,
+                            username: currentPlayer.username,
+                            reason: 'disconnect_timeout',
+                        });
                         io.to(gameId).emit('game_over', {
                             winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected',
                         });

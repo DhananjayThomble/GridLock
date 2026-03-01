@@ -72,10 +72,18 @@ async function getAllActiveGames() {
     }
 
     try {
-        const keys = await redis.keys(`${REDIS_KEY_PREFIX}*`);
+        // Use SCAN instead of KEYS to avoid blocking Redis in production
+        let cursor = 0;
+        const allKeys = [];
+        do {
+            const result = await redis.scan(cursor, { MATCH: `${REDIS_KEY_PREFIX}*`, COUNT: 100 });
+            cursor = result.cursor;
+            allKeys.push(...result.keys);
+        } while (cursor !== 0);
+
         const games = new Map();
 
-        for (const key of keys) {
+        for (const key of allKeys) {
             try {
                 const raw = await redis.get(key);
                 if (!raw) continue;
@@ -104,8 +112,15 @@ async function gameCount() {
     }
 
     try {
-        const keys = await redis.keys(`${REDIS_KEY_PREFIX}*`);
-        return keys.length;
+        // Use SCAN instead of KEYS to avoid blocking Redis in production
+        let cursor = 0;
+        let total = 0;
+        do {
+            const result = await redis.scan(cursor, { MATCH: `${REDIS_KEY_PREFIX}*`, COUNT: 100 });
+            cursor = result.cursor;
+            total += result.keys.length;
+        } while (cursor !== 0);
+        return total;
     } catch (error) {
         console.error('[gameStore] Failed to count games in Redis:', error.message);
         return localGames.size;

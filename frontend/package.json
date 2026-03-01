@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "smoke": "NODE_PATH=/tmp/pw/node_modules node ../scripts/smoke-test.js",
+    "smoke": "node ../scripts/smoke-test.js",
     "deploy:check": "npm run build && npm run smoke"
   },
   "dependencies": {
