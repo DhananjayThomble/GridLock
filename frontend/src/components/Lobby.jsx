@@ -105,7 +105,7 @@ const Lobby = () => {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-start justify-center p-4 pt-8 sm:items-center sm:pt-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-8 sm:items-center safe-bottom">
       <div className="w-full max-w-lg">
 
         {/* ── Title ── */}
@@ -134,7 +134,13 @@ const Lobby = () => {
               onKeyDown={(e) => e.key === 'Enter' && (tab === 'create' ? handleCreate() : handleJoin())}
               placeholder="Enter your name…"
               maxLength={20}
-              className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              autoComplete="nickname"
+              autoCorrect="off"
+              autoCapitalize="words"
+              spellCheck={false}
+              inputMode="text"
+              enterKeyHint={tab === 'create' ? 'done' : 'next'}
+              className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
             />
 
             <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mt-3 mb-1.5">Pick Avatar</label>
@@ -256,7 +262,13 @@ const Lobby = () => {
                   onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                   placeholder="e.g. AB3XYZ"
                   maxLength={8}
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-2.5 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  inputMode="text"
+                  enterKeyHint="join"
+                  className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-green-400 transition"
                 />
               </div>
 

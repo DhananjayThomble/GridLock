@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const Game = require('../models/Game');
+const Leaderboard = require('../models/Leaderboard');
 const { calculateNewState, initializeGameState } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter } = require('../middleware/rateLimiter');
@@ -97,6 +98,84 @@ async function markGameFinished(gameId, reason = null) {
     const patch = { status: 'finished', finishedAt: new Date(), updatedAt: new Date(), lastActivityAt: new Date() };
     if (reason) patch['metadata.reason'] = reason;
     await Game.findOneAndUpdate({ gameId }, { $set: patch }, { new: false });
+}
+
+/**
+ * Auto-submit game results to the leaderboard after a game ends.
+ * Runs fire-and-forget (errors are logged but don't affect game flow).
+ *
+ * @param {object} game   - The game object with players and gameState
+ * @param {string} winner - The winning playerId ('player1', 'player2', etc.) or 'draw'
+ * @param {object} log    - Logger instance
+ */
+async function updateLeaderboard(game, winner, log) {
+    try {
+        // Collect all player usernames for cross-ELO lookup
+        const playerEntries = [];
+        for (let i = 1; i <= game.playerCount; i++) {
+            const pid = `player${i}`;
+            const player = game.players[pid];
+            if (player && player.username) {
+                playerEntries.push({ pid, username: player.username });
+            }
+        }
+
+        if (playerEntries.length === 0) return;
+
+        // Fetch current ELO values for all participants
+        const usernames = playerEntries.map((p) => p.username);
+        const existingRecords = await Leaderboard.find({ username: { $in: usernames } }).lean();
+        const eloMap = {};
+        for (const rec of existingRecords) {
+            eloMap[rec.username] = rec.elo;
+        }
+
+        // Update each player's record
+        for (const { pid, username } of playerEntries) {
+            const isWinner = pid === winner;
+            const isDraw = winner === 'draw';
+            const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
+            const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
+
+            // Compute average opponent ELO
+            const opponentElos = playerEntries
+                .filter((p) => p.username !== username)
+                .map((p) => eloMap[p.username] || 1000);
+            const avgOpponentElo =
+                opponentElos.length > 0
+                    ? Math.round(opponentElos.reduce((a, b) => a + b, 0) / opponentElos.length)
+                    : 1000;
+
+            let record = await Leaderboard.findOne({ username });
+            if (!record) {
+                record = new Leaderboard({ username });
+            }
+
+            const newElo = Leaderboard.calculateElo(record.elo, avgOpponentElo, eloScore);
+            record.elo = newElo;
+            record.gamesPlayed += 1;
+            record.lastPlayedAt = new Date();
+
+            if (result === 'win') {
+                record.wins += 1;
+                record.currentStreak += 1;
+                if (record.currentStreak > record.bestStreak) {
+                    record.bestStreak = record.currentStreak;
+                }
+            } else if (result === 'loss') {
+                record.losses += 1;
+                record.currentStreak = 0;
+            } else {
+                record.draws += 1;
+            }
+
+            await record.save();
+        }
+
+        log.info('Leaderboard updated for game', { gameId: game.id, winner, players: usernames });
+    } catch (err) {
+        log.error('Failed to update leaderboard', { gameId: game.id, error: err.message });
+    }
 }
 
 async function loadGameFromDB(cleanGameId, log) {
@@ -363,6 +442,8 @@ module.exports = function attachSocketHandlers(io, log) {
 
                 if (newState.winner) {
                     io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                    // Fire-and-forget leaderboard update
+                    updateLeaderboard(game, newState.winner, log);
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
@@ -512,6 +593,8 @@ module.exports = function attachSocketHandlers(io, log) {
                         io.to(gameId).emit('game_over', {
                             winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected',
                         });
+                        // Fire-and-forget leaderboard update for forfeit
+                        updateLeaderboard(currentGame, winner, log);
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
                         setTimeout(async () => {
