@@ -1,43 +1,89 @@
-// models/Game.js
+// backend/models/Game.js
+// Persistent game storage for active and completed sessions
+
 const mongoose = require('mongoose');
+
+const PlayerSchema = new mongoose.Schema({
+    id: { type: String, default: null },          // current socket id
+    username: { type: String, required: true },
+    avatar: { type: String, default: '👦' },
+    color: { type: String, required: true },
+    token: { type: String, required: true },      // auth token for reconnect/auth
+    disconnectedAt: { type: Date, default: null },
+}, { _id: false });
 
 const GameSchema = new mongoose.Schema({
     gameId: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        index: true,
     },
     gridSize: {
         type: Number,
-        default: 3
+        required: true,
+        min: 2,
+        max: 10,
     },
-    player1: {
-        type: String, // Storing socketId or username
-        default: null
+    playerCount: {
+        type: Number,
+        required: true,
+        min: 2,
+        max: 4,
     },
-    player2: {
-        type: String,
-        default: null
+
+    // Flexible players object: { player1: {...}, player2: {...}, ... }
+    players: {
+        type: Map,
+        of: PlayerSchema,
+        default: {},
     },
+
+    // Full game state blob (lines, boxes, scores, current player, etc.)
     gameState: {
-        horizontalLines: { type: Array, default: [] },
-        verticalLines: { type: Array, default: [] },
-        boxes: { type: Array, default: [] },
-        currentPlayer: { type: String, default: 'player1' },
-        scores: { 
-            player1: { type: Number, default: 0 },
-            player2: { type: Number, default: 0 }
-        },
-        winner: { type: String, default: null }
+        type: mongoose.Schema.Types.Mixed,
+        required: true,
     },
+
     status: {
-        type: String, // 'waiting', 'playing', 'finished'
-        default: 'waiting'
+        type: String,
+        enum: ['waiting', 'playing', 'finished', 'abandoned'],
+        default: 'waiting',
+        index: true,
     },
+
     createdAt: {
         type: Date,
-        default: Date.now
-    }
+        default: Date.now,
+        index: true,
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now,
+        index: true,
+    },
+    lastActivityAt: {
+        type: Date,
+        default: Date.now,
+        index: true,
+    },
+    finishedAt: {
+        type: Date,
+        default: null,
+    },
+
+    metadata: {
+        reason: { type: String, default: null },
+        reconnectWindowMs: { type: Number, default: 60000 },
+    },
+}, {
+    versionKey: false,
+});
+
+GameSchema.pre('save', function(next) {
+    this.updatedAt = new Date();
+    if (!this.lastActivityAt) this.lastActivityAt = this.updatedAt;
+    next();
 });
 
 module.exports = mongoose.model('Game', GameSchema);
