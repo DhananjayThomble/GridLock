@@ -606,6 +606,20 @@ module.exports = function attachSocketHandlers(io, log) {
 
                 // If already finished, no forfeit workflow needed
                 if (game.gameState?.winner) {
+                    // If player had voted for rematch, remove stale vote to avoid starting
+                    // a rematch that includes an offline participant.
+                    const requests = rematchRequests.get(gameId);
+                    if (requests?.has(playerId)) {
+                        requests.delete(playerId);
+                        io.to(gameId).emit('rematch_count', {
+                            count: requests.size,
+                            total: game.playerCount,
+                        });
+                        if (requests.size === 0) {
+                            rematchRequests.delete(gameId);
+                        }
+                    }
+
                     persistGame(game, 'finished').catch((err) => {
                         log.error('Persist after disconnect failed', { gameId, error: err.message });
                     });
@@ -628,6 +642,11 @@ module.exports = function attachSocketHandlers(io, log) {
 
                         // If player reconnected, socket id won't match old socket id
                         if (currentPlayer.id !== socket.id || !currentPlayer.disconnectedAt) {
+                            return;
+                        }
+
+                        // If the game already ended while this timer was pending, do nothing.
+                        if (currentGame.gameState?.winner) {
                             return;
                         }
 
