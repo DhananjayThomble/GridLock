@@ -5,12 +5,17 @@ const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = req
 const { socketLimiter } = require('../middleware/rateLimiter');
 
 // In-memory game store (hot state)
+// TODO [multi-node]: Replace with Redis-backed shared game store when running
+// multiple instances. Currently safe for single-instance deployments.
+// See: https://github.com/DhananjayThomble/GridLock/issues/24#multi-node
 const activeGames = new Map();
 
 // Rematch tracking: { gameId -> Set of playerIds who requested rematch }
+// TODO [multi-node]: Move to Redis Set so votes are visible across all nodes
 const rematchRequests = new Map();
 
 // Disconnect timeout tracking: { `${gameId}:${playerId}` -> { timer, socketId } }
+// TODO [multi-node]: Use Redis key expiry + pub/sub for cross-node timer cancellation
 const disconnectTimers = new Map();
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
