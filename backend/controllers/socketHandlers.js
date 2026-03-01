@@ -1,4 +1,6 @@
 const { calculateNewState, initializeGameState } = require('../utils/gameLogic');
+const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
+const { socketLimiter } = require('../middleware/rateLimiter');
 
 // In-memory game store
 const activeGames = new Map();
@@ -13,6 +15,10 @@ const PLAYER_COLORS = {
     player3: '#10B981', // Green
     player4: '#A855F7'  // Purple
 };
+
+// Disconnect timeout tracking: { gameId:playerId -> timeoutHandle }
+const disconnectTimers = new Map();
+const DISCONNECT_TIMEOUT_MS = 60_000; // 60 seconds to reconnect
 
 /**
  * Build game state with all player information
@@ -58,34 +64,54 @@ module.exports = function(io, log) {
         log.info('New client connected:', socket.id);
 
         /**
+         * Rate-limit guard helper
+         */
+        const rateLimited = (eventName) => {
+            if (!socketLimiter.allow(socket.id, eventName)) {
+                log.warn('Rate limited', { socketId: socket.id, event: eventName });
+                socket.emit('error', 'Too many requests. Please slow down.');
+                return true;
+            }
+            return false;
+        };
+
+        /**
          * Create new game
          * Supports 2-4 players
          */
         socket.on('create_game', ({ gridSize, username, avatar, playerCount = 2 }, callback) => {
             try {
+                if (rateLimited('create_game')) return;
+
                 log.debug('create_game event', { gridSize, username, avatar, playerCount, socketId: socket.id });
                 
-                // Validation
-                if (!username || username.trim().length === 0) {
-                    socket.emit('error', 'Username required');
+                // Sanitize inputs
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) {
+                    socket.emit('error', uResult.error);
                     return;
                 }
-                if (gridSize < 2 || gridSize > 10) {
-                    socket.emit('error', 'Grid size must be between 2 and 10');
+                const cleanUsername = uResult.value;
+                const cleanAvatar = sanitizeAvatar(avatar);
+
+                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                if (!gridResult.valid) {
+                    socket.emit('error', gridResult.error);
                     return;
                 }
-                if (playerCount < 2 || playerCount > 4) {
-                    socket.emit('error', 'Player count must be between 2 and 4');
+                const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
+                if (!pcResult.valid) {
+                    socket.emit('error', pcResult.error);
                     return;
                 }
                 
                 const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                const initialState = initializeGameState(gridSize, playerCount);
+                const initialState = initializeGameState(gridResult.value, pcResult.value);
                 
                 const newGame = {
                     id: gameId,
-                    gridSize,
-                    playerCount,
+                    gridSize: gridResult.value,
+                    playerCount: pcResult.value,
                     players: {},
                     gameState: initialState,
                     createdAt: Date.now()
@@ -94,8 +120,8 @@ module.exports = function(io, log) {
                 // Add player 1
                 newGame.players.player1 = { 
                     id: socket.id, 
-                    username: username.trim(), 
-                    avatar: avatar || '👦',
+                    username: cleanUsername, 
+                    avatar: cleanAvatar,
                     color: PLAYER_COLORS.player1
                 };
 
@@ -129,17 +155,29 @@ module.exports = function(io, log) {
          */
         socket.on('join_game', ({ gameId, username, avatar }) => {
             try {
+                if (rateLimited('join_game')) return;
+
                 log.debug('join_game event', { gameId, username, avatar, socketId: socket.id });
                 
-                if (!gameId || !username) {
-                    socket.emit('error', 'Game ID and username required');
+                // Sanitize inputs
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) {
+                    socket.emit('error', uResult.error);
+                    return;
+                }
+                const cleanUsername = uResult.value;
+                const cleanAvatar = sanitizeAvatar(avatar);
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) {
+                    socket.emit('error', gidResult.error);
                     return;
                 }
 
-                const game = activeGames.get(gameId);
+                const game = activeGames.get(gidResult.value);
                 
                 if (!game) {
-                    log.warn('Game not found', { gameId });
+                    log.warn('Game not found', { gameId: gidResult.value });
                     socket.emit('error', 'Game not found');
                     return;
                 }
@@ -149,17 +187,28 @@ module.exports = function(io, log) {
                     const playerId = `player${i}`;
                     const player = game.players[playerId];
                     
-                    if (player && player.username === username.trim()) {
-                        log.info('Player reconnecting', { gameId, playerId, username });
+                    if (player && player.username === cleanUsername) {
+                        log.info('Player reconnecting', { gameId: gidResult.value, playerId, username: cleanUsername });
+                        
+                        // Cancel any pending disconnect timer
+                        const timerKey = `${gidResult.value}:${playerId}`;
+                        if (disconnectTimers.has(timerKey)) {
+                            clearTimeout(disconnectTimers.get(timerKey));
+                            disconnectTimers.delete(timerKey);
+                            log.info('Cancelled disconnect timer for reconnecting player', { timerKey });
+                            // Notify others that player is back
+                            socket.to(gidResult.value).emit('player_reconnected', { playerId, username: cleanUsername });
+                        }
                         
                         // Update socket ID
                         player.id = socket.id;
-                        if (avatar) player.avatar = avatar;
-                        socket.join(gameId);
+                        if (avatar) player.avatar = cleanAvatar;
+                        socket.join(gidResult.value);
                         
                         const gameStateWithPlayers = buildGameStateWithPlayers(game);
                         socket.emit('game_started', {
-                            gameId,
+                            gameId: gidResult.value,
+                            playerId,
                             gridSize: game.gridSize,
                             playerCount: game.playerCount,
                             players: getPlayersList(game),
@@ -172,46 +221,46 @@ module.exports = function(io, log) {
                 // Find empty slot
                 let assignedSlot = null;
                 for (let i = 1; i <= game.playerCount; i++) {
-                    const playerId = `player${i}`;
-                    if (!game.players[playerId]) {
-                        assignedSlot = playerId;
+                    const pid = `player${i}`;
+                    if (!game.players[pid]) {
+                        assignedSlot = pid;
                         break;
                     }
                 }
 
                 if (!assignedSlot) {
-                    log.warn('Game is full', { gameId, username });
+                    log.warn('Game is full', { gameId: gidResult.value, username: cleanUsername });
                     socket.emit('error', 'Game is full');
                     return;
                 }
 
-                log.info('New player joining', { gameId, playerId: assignedSlot, username });
+                log.info('New player joining', { gameId: gidResult.value, playerId: assignedSlot, username: cleanUsername });
 
                 // Add new player
                 game.players[assignedSlot] = {
                     id: socket.id,
-                    username: username.trim(),
-                    avatar: avatar || '👦',
+                    username: cleanUsername,
+                    avatar: cleanAvatar,
                     color: PLAYER_COLORS[assignedSlot]
                 };
                 
-                socket.join(gameId);
+                socket.join(gidResult.value);
 
                 // Build updated game state
                 const gameStateWithPlayers = buildGameStateWithPlayers(game);
                 
                 // Notify the joining player with their assigned playerId
                 socket.emit('game_started', {
-                    gameId,
+                    gameId: gidResult.value,
                     playerId: assignedSlot,
                     gridSize: game.gridSize,
                     playerCount: game.playerCount,
                     players: getPlayersList(game),
                     gameState: gameStateWithPlayers
                 });
-                // Notify other players in the room (they already know their role)
-                socket.to(gameId).emit('game_started', {
-                    gameId,
+                // Notify other players in the room
+                socket.to(gidResult.value).emit('game_started', {
+                    gameId: gidResult.value,
                     gridSize: game.gridSize,
                     playerCount: game.playerCount,
                     players: getPlayersList(game),
@@ -221,8 +270,8 @@ module.exports = function(io, log) {
                 // Check if game is ready to start
                 const playersFilled = Object.keys(game.players).length;
                 if (playersFilled === game.playerCount) {
-                    log.info('Game ready - all players joined', { gameId, playerCount: game.playerCount });
-                    io.to(gameId).emit('all_players_joined', { gameId });
+                    log.info('Game ready - all players joined', { gameId: gidResult.value, playerCount: game.playerCount });
+                    io.to(gidResult.value).emit('all_players_joined', { gameId: gidResult.value });
                 }
 
             } catch (error) {
@@ -236,6 +285,8 @@ module.exports = function(io, log) {
          */
         socket.on('make_move', ({ gameId, playerId, type, r, c }) => {
             try {
+                if (rateLimited('make_move')) return;
+
                 log.debug('make_move event', { gameId, playerId, type, r, c, socketId: socket.id });
                 
                 const game = activeGames.get(gameId);
@@ -304,6 +355,8 @@ module.exports = function(io, log) {
          */
         socket.on('request_rematch', ({ gameId }) => {
             try {
+                if (rateLimited('request_rematch')) return;
+
                 log.debug('request_rematch event', { gameId, socketId: socket.id });
                 
                 const game = activeGames.get(gameId);
@@ -404,36 +457,99 @@ module.exports = function(io, log) {
         });
 
         /**
-         * Handle disconnect
+         * Handle disconnect — start grace period for reconnection
          */
         socket.on('disconnect', () => {
             log.info('Client disconnected:', socket.id);
             
-            // Clean up rematch requests for disconnected player
-            for (const [gameId, requests] of rematchRequests.entries()) {
-                const game = activeGames.get(gameId);
-                if (game) {
-                    // Find player by socket ID and remove their rematch request
-                    for (let i = 1; i <= game.playerCount; i++) {
-                        const playerId = `player${i}`;
-                        if (game.players[playerId]?.id === socket.id) {
-                            requests.delete(playerId);
-                            log.debug('Removed rematch request for disconnected player', { gameId, playerId });
-                            
-                            // Broadcast updated count if there are still requests
-                            if (requests.size > 0) {
-                                io.to(gameId).emit('rematch_count', { 
-                                    count: requests.size,
-                                    total: game.playerCount
-                                });
+            // Clean up rate limiter tracking
+            socketLimiter.cleanup(socket.id);
+            
+            // Find which games this socket was in
+            for (const [gameId, game] of activeGames.entries()) {
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const playerId = `player${i}`;
+                    if (game.players[playerId]?.id === socket.id) {
+                        const timerKey = `${gameId}:${playerId}`;
+                        const playerName = game.players[playerId].username;
+                        
+                        // If game is already over, just clean up rematch requests
+                        if (game.gameState.winner) {
+                            // Clean up rematch request
+                            const requests = rematchRequests.get(gameId);
+                            if (requests) {
+                                requests.delete(playerId);
+                                if (requests.size > 0) {
+                                    io.to(gameId).emit('rematch_count', { count: requests.size, total: game.playerCount });
+                                } else {
+                                    rematchRequests.delete(gameId);
+                                }
                             }
                             break;
                         }
-                    }
-                    
-                    // Clean up empty request sets
-                    if (requests.size === 0) {
-                        rematchRequests.delete(gameId);
+                        
+                        // Notify others that player disconnected (with grace period)
+                        io.to(gameId).emit('player_disconnected', { 
+                            playerId, 
+                            username: playerName,
+                            reconnectWindowMs: DISCONNECT_TIMEOUT_MS 
+                        });
+                        
+                        log.info('Starting disconnect timer', { gameId, playerId, timeoutMs: DISCONNECT_TIMEOUT_MS });
+                        
+                        // Start grace period timer
+                        const timer = setTimeout(() => {
+                            disconnectTimers.delete(timerKey);
+                            const currentGame = activeGames.get(gameId);
+                            if (!currentGame) return;
+                            
+                            // Check if player reconnected (socket.id would have changed)
+                            const player = currentGame.players[playerId];
+                            if (player && player.id === socket.id) {
+                                // Still disconnected after timeout — forfeit
+                                log.info('Player forfeited due to disconnect timeout', { gameId, playerId, username: playerName });
+                                
+                                io.to(gameId).emit('player_forfeited', { 
+                                    playerId, 
+                                    username: playerName 
+                                });
+                                
+                                // Remove player from game
+                                delete currentGame.players[playerId];
+                                
+                                // If only 1 player left, they win
+                                const remainingPlayers = Object.keys(currentGame.players).filter(
+                                    pid => currentGame.players[pid] !== undefined
+                                );
+                                
+                                if (remainingPlayers.length === 1) {
+                                    const winner = remainingPlayers[0];
+                                    currentGame.gameState.winner = winner;
+                                    const gameStateWithPlayers = buildGameStateWithPlayers(currentGame);
+                                    io.to(gameId).emit('game_update', { gameState: gameStateWithPlayers });
+                                    io.to(gameId).emit('game_over', { 
+                                        winner, 
+                                        scores: currentGame.gameState.scores,
+                                        reason: 'opponent_disconnected'
+                                    });
+                                    
+                                    // Clean up
+                                    setTimeout(() => activeGames.delete(gameId), 60_000);
+                                } else if (currentGame.gameState.currentPlayer === playerId) {
+                                    // Skip to next player's turn
+                                    const { getNextPlayer } = require('../utils/gameLogic');
+                                    currentGame.gameState.currentPlayer = getNextPlayer(
+                                        playerId, 
+                                        currentGame.gameState.players
+                                    );
+                                    const gameStateWithPlayers = buildGameStateWithPlayers(currentGame);
+                                    io.to(gameId).emit('game_update', { gameState: gameStateWithPlayers });
+                                }
+                            }
+                        }, DISCONNECT_TIMEOUT_MS);
+                        
+                        disconnectTimers.set(timerKey, timer);
+                        break;
                     }
                 }
             }

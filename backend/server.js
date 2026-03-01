@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const socketHandlers = require('./controllers/socketHandlers');
+const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +24,7 @@ const log = {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(httpLimiter); // Global HTTP rate limiting
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock')
@@ -41,10 +43,28 @@ const io = new Server(server, {
 const { activeGames } = socketHandlers(io, log);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', healthLimiter, (req, res) => {
     res.json({ 
         status: 'ok', 
         activeGames: activeGames ? activeGames.size : 0,
+        connectedSockets: io.engine?.clientsCount || 0,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Metrics endpoint (for monitoring)
+app.get('/metrics', healthLimiter, (req, res) => {
+    const memUsage = process.memoryUsage();
+    res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        activeGames: activeGames ? activeGames.size : 0,
+        connectedSockets: io.engine?.clientsCount || 0,
+        memory: {
+            rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB',
+            heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
+            heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+        },
         timestamp: new Date().toISOString()
     });
 });
