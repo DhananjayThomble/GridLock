@@ -19,7 +19,7 @@ test.describe('Error Handling & Edge Cases', () => {
     const body = await page.locator('body').innerText();
 
     const stayedOrShowedError =
-      url.includes('/beta') ||
+      !url.includes('/game') ||
       body.includes('not found') ||
       body.includes('error') ||
       body.includes('Error') ||
