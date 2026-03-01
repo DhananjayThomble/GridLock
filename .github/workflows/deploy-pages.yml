@@ -41,22 +41,19 @@ jobs:
         run: npm run build
         working-directory: frontend
         env:
-          GITHUB_ACTIONS: true
+          VITE_BASE_PATH: /GridLock/
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
 
       - name: Build beta (base /GridLock/beta/)
         run: npx vite build --base=/GridLock/beta/ --outDir=dist-beta --emptyOutDir
         working-directory: frontend
         env:
-          GITHUB_ACTIONS: true
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
 
       - name: Assemble Pages artifact
         run: |
           mkdir -p pages-out/beta
-          # Production build → /GridLock/ (root of Pages site)
           cp -r frontend/dist/. pages-out/
-          # Beta build → /GridLock/beta/
           cp -r frontend/dist-beta/. pages-out/beta/
 
       - name: Upload Pages artifact

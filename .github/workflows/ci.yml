@@ -56,13 +56,12 @@ jobs:
       - name: Build (production — /GridLock/ base for GitHub Pages)
         run: npm run build
         env:
-          GITHUB_ACTIONS: true
+          VITE_BASE_PATH: /GridLock/
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
 
       - name: Build (beta — /GridLock/beta/ base for GitHub Pages)
         run: npx vite build --base=/GridLock/beta/ --outDir=dist-beta --emptyOutDir
         env:
-          GITHUB_ACTIONS: true
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
 
       - name: Upload build artifacts
@@ -121,10 +120,6 @@ jobs:
       - name: Build frontend for E2E (base=/ for vite preview)
         run: npm run build
         working-directory: frontend
-        env:
-          # Do NOT set GITHUB_ACTIONS here — E2E uses base='/' so vite preview works correctly
-          GITHUB_ACTIONS: ""
-          VITE_SOCKET_URL: ""
 
       - name: Run E2E tests
         run: npx playwright test --config=playwright.config.js
