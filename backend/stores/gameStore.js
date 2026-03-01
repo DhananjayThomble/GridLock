@@ -11,8 +11,7 @@ function getRedisKey(gameId) {
 
 async function getRedisIfAvailable() {
     try {
-        if (!isRedisAvailable()) return null;
-        return await getRedisClient();
+        return await getRedisClient(); // getRedisClient() returns null if REDIS_URL not set or connect fails
     } catch (error) {
         console.error('[gameStore] Redis unavailable:', error.message);
         return null;
