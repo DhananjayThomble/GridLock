@@ -124,7 +124,13 @@ test.describe('Game UI & Mechanics', () => {
       const leaveBtn = p1.locator('button:has-text("Leave Game")');
       if (await leaveBtn.isVisible()) {
         await leaveBtn.click();
-        await p1.waitForURL(/\/beta\/?$|\/beta\/?\?/, { timeout: 10_000 });
+        // In CI: URL returns to http://localhost:4173/ (base=/)
+        // Locally: URL returns to http://localhost/beta
+        // Either way: we should NOT be on /game anymore
+        await p1.waitForFunction(
+          () => !window.location.href.includes('/game'),
+          { timeout: 10_000 }
+        );
         await expect(p1.locator('body')).toContainText('Dots & Boxes');
       }
     }
