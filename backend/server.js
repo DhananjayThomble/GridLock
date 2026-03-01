@@ -71,16 +71,16 @@ async function setupRedisAdapter() {
 
 setupRedisAdapter();
 
-// Attach socket handlers and get activeGames for health check
-const { activeGames, rematchRequests, disconnectTimers } = socketHandlers(io, log);
+// Attach socket handlers
+const { gameStore, rematchStore, disconnectStore, localTimers } = socketHandlers(io, log);
 
 // Health check endpoint
-app.get('/health', healthLimiter, (req, res) => {
+app.get('/health', healthLimiter, async (req, res) => {
     res.json({
         status: 'ok',
-        activeGames: activeGames ? activeGames.size : 0,
-        pendingRematches: rematchRequests ? rematchRequests.size : 0,
-        pendingDisconnectTimers: disconnectTimers ? disconnectTimers.size : 0,
+        activeGames: await gameStore.gameCount(),
+        pendingRematches: await rematchStore.storeCount(),
+        pendingDisconnectTimers: localTimers.size,
         connectedSockets: io.engine?.clientsCount || 0,
         redisAdapter: redisEnabled,
         timestamp: new Date().toISOString(),
@@ -88,14 +88,14 @@ app.get('/health', healthLimiter, (req, res) => {
 });
 
 // Metrics endpoint (for monitoring)
-app.get('/metrics', healthLimiter, (req, res) => {
+app.get('/metrics', healthLimiter, async (req, res) => {
     const memUsage = process.memoryUsage();
     res.json({
         status: 'ok',
         uptimeSeconds: Math.round(process.uptime()),
-        activeGames: activeGames ? activeGames.size : 0,
-        pendingRematches: rematchRequests ? rematchRequests.size : 0,
-        pendingDisconnectTimers: disconnectTimers ? disconnectTimers.size : 0,
+        activeGames: await gameStore.gameCount(),
+        pendingRematches: await rematchStore.storeCount(),
+        pendingDisconnectTimers: localTimers.size,
         connectedSockets: io.engine?.clientsCount || 0,
         redisAdapter: redisEnabled,
         memory: {
