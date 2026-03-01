@@ -27,9 +27,11 @@ function useGridSizes(gridSize) {
     function calculate() {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      // Reserve space: header ~160px mobile, ~200px desktop; footer ~80px
-      const reservedH = w < 640 ? 260 : 280;
-      const reservedW = w < 640 ? 32 : 64;
+
+      // On mobile: reserve less vertical space so board is bigger
+      const reservedH = w < 640 ? 200 : 280;
+      // On mobile: minimal horizontal padding
+      const reservedW = w < 640 ? 16 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -39,9 +41,13 @@ function useGridSizes(gridSize) {
       const fromW = Math.floor(availW / units);
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
-      box = Math.max(28, Math.min(box, 80)); // clamp 28–80
 
-      const dot = Math.max(6, Math.round(box * 0.18));
+      // On mobile, use a larger minimum so lines are finger-friendly (≥44px touch)
+      const minBox = w < 640 ? 44 : 28;
+      const maxBox = w < 640 ? 72 : 80;
+      box = Math.max(minBox, Math.min(box, maxBox));
+
+      const dot = Math.max(8, Math.round(box * 0.18));
       setSizes({ dot, line: box, box });
     }
     calculate();
@@ -434,14 +440,14 @@ const Board = () => {
     );
   };
 
-  // ── Scoreboard ────────────────────────────────────────────────────────────────
+  // ── Scoreboard (desktop/tablet only — hidden on mobile via CSS) ───────────────
   const renderScoreboard = () => {
     if (!gameState) return null;
     const count = gameState.playerCount || 2;
     const ids   = Array.from({ length: count }, (_, i) => `player${i + 1}`);
 
     return (
-      <div className={`grid gap-2 w-full max-w-2xl mb-4 ${
+      <div className={`scoreboard-cards grid gap-2 w-full max-w-2xl mb-4 ${
         count === 2 ? 'grid-cols-2' :
         count === 3 ? 'grid-cols-3' :
                       'grid-cols-2 sm:grid-cols-4'
@@ -592,55 +598,13 @@ const Board = () => {
   }
 
   // ── Main render ───────────────────────────────────────────────────────────────
+  const isMyTurnNow = gameState.currentPlayer === role;
+
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-50 p-3 sm:p-6">
+    <div className="game-layout flex flex-col items-center bg-gray-50" style={{ minHeight: '100dvh' }}>
       {renderWinnerModal()}
 
-      {/* ── Header ── */}
-      <div className="w-full max-w-2xl mb-3 text-center">
-        {/* Game ID bar */}
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <span className="text-xs text-gray-400 uppercase tracking-wide">Room</span>
-          <button
-            onClick={handleCopyId}
-            className="font-mono text-sm font-bold bg-gray-100 hover:bg-gray-200 px-3 py-0.5 rounded-full transition-colors"
-            title="Copy game ID"
-          >
-            {gameId}
-          </button>
-          {showCopied && <span className="text-xs text-green-500 animate-pulse">Copied!</span>}
-        </div>
-
-        {/* You are */}
-        <p className="text-xs text-gray-400 mb-1">
-          You are <span className="font-bold" style={{ color: getConfig(role).color }}>{username}</span>
-        </p>
-
-        {/* Status pill */}
-        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ${
-          gameState.currentPlayer === role
-            ? 'bg-green-100 text-green-700'
-            : 'bg-gray-100 text-gray-600'
-        }`}>
-          {status}
-        </div>
-
-        {/* Waiting banner */}
-        {waitingCount > 0 && (
-          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-amber-700 text-xs">
-            ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
-            Share the room code: <strong>{gameId}</strong>
-          </div>
-        )}
-
-        {error && (
-          <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-red-600 text-xs">
-            ⚠️ {error}
-          </div>
-        )}
-      </div>
-
-      {/* ── Live ScoreBar (fixed top, shows when game active) ── */}
+      {/* ── Live ScoreBar (fixed top) ── */}
       {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
         const count = gameState.playerCount || 2;
         const players = Array.from({ length: count }, (_, i) => {
@@ -663,56 +627,117 @@ const Board = () => {
         );
       })()}
 
-      {/* ── Scoreboard ── */}
-      {renderScoreboard()}
+      {/* ── Main content area (pushes below fixed ScoreBar) ── */}
+      <div className="game-content w-full flex flex-col items-center px-2 sm:px-6 pb-4">
 
-      {/* ── Board ── */}
-      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none board-container" style={{ touchAction: 'pan-y' }}>
-        {/* Mute toggle — top-right of board */}
-        <button
-          onClick={() => { initAudio(); handleToggleMute(); }}
-          className="absolute top-2 right-2 z-20 w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-lg transition-all active:scale-90 shadow-sm"
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
-          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
-        {gameState.horizontalLines.map((row, r) => (
-          <div key={`row-${r}`}>
-            {/* Dot-HLine-Dot row */}
-            <div className="flex items-center">
-              {row.map((_, c) => (
-                <React.Fragment key={`top-${c}`}>
-                  {renderDot(`d-${r}-${c}`)}
-                  {renderHLine(r, c)}
-                </React.Fragment>
-              ))}
-              {renderDot(`d-${r}-end`)}
+        {/* ── Header: Room code + You are + Status ── */}
+        <div className="w-full max-w-2xl mb-2 sm:mb-3">
+          {/* Room code badge — always visible, copyable */}
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <span className="text-xs text-gray-400 uppercase tracking-wide">Room</span>
+            <button
+              onClick={handleCopyId}
+              className="font-mono text-sm font-bold bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full transition-colors border border-gray-200"
+              title="Tap to copy room code"
+              aria-label="Copy room code"
+            >
+              {gameId}
+            </button>
+            {showCopied && <span className="text-xs text-green-500 animate-pulse">Copied!</span>}
+          </div>
+
+          {/* You are */}
+          <p className="text-xs text-gray-400 text-center mb-1">
+            You are <span className="font-bold" style={{ color: getConfig(role).color }}>{username}</span>
+          </p>
+
+          {/* Status pill */}
+          <div className="flex justify-center">
+            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ${
+              isMyTurnNow
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {status}
             </div>
+          </div>
 
-            {/* VLine-Box row */}
-            {r < gameState.boxes.length && (
+          {/* Waiting banner */}
+          {waitingCount > 0 && (
+            <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-amber-700 text-xs text-center">
+              ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
+              Share the room code: <strong>{gameId}</strong>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-red-600 text-xs">
+              ⚠️ {error}
+            </div>
+          )}
+        </div>
+
+        {/* ── Scoreboard cards (hidden on mobile — ScoreBar handles it there) ── */}
+        {renderScoreboard()}
+
+        {/* ── Board ── */}
+        <div
+          className="relative bg-white rounded-2xl shadow-xl border border-gray-100 select-none board-container"
+          style={{ touchAction: 'pan-y', padding: '12px' }}
+        >
+          {gameState.horizontalLines.map((row, r) => (
+            <div key={`row-${r}`}>
+              {/* Dot-HLine-Dot row */}
               <div className="flex items-center">
-                {gameState.boxes[r].map((_, c) => (
-                  <React.Fragment key={`mid-${c}`}>
-                    {renderVLine(r, c)}
-                    {renderBox(r, c)}
+                {row.map((_, c) => (
+                  <React.Fragment key={`top-${c}`}>
+                    {renderDot(`d-${r}-${c}`)}
+                    {renderHLine(r, c)}
                   </React.Fragment>
                 ))}
-                {renderVLine(r, gameState.boxes[r].length)}
+                {renderDot(`d-${r}-end`)}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
 
-      {/* ── Leave button ── */}
-      <button
-        onClick={() => navigate('/')}
-        className="mt-5 px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm font-semibold transition-all active:scale-95"
-      >
-        ← Leave Game
-      </button>
+              {/* VLine-Box row */}
+              {r < gameState.boxes.length && (
+                <div className="flex items-center">
+                  {gameState.boxes[r].map((_, c) => (
+                    <React.Fragment key={`mid-${c}`}>
+                      {renderVLine(r, c)}
+                      {renderBox(r, c)}
+                    </React.Fragment>
+                  ))}
+                  {renderVLine(r, gameState.boxes[r].length)}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
+        <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
+          {/* Mute button — moved OUT of board */}
+          <button
+            onClick={() => { initAudio(); handleToggleMute(); }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm"
+            title={muted ? 'Unmute sounds' : 'Mute sounds'}
+            aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+            style={{ minHeight: '44px', minWidth: '44px' }}
+          >
+            <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
+            <span className="text-xs text-gray-600 hidden sm:inline">{muted ? 'Unmute' : 'Mute'}</span>
+          </button>
+
+          {/* Leave button */}
+          <button
+            onClick={() => navigate('/')}
+            className="flex-1 px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm font-semibold transition-all active:scale-95"
+            style={{ minHeight: '44px' }}
+          >
+            ← Leave Game
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

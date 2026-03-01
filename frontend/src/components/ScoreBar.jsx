@@ -17,6 +17,12 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
   // On mobile with 3-4 players, split into two rows of 2
   const splitIntoRows = players.length > 2;
 
+  // Truncate long usernames gracefully
+  const truncateName = (name, maxLen = 12) => {
+    if (!name) return '';
+    return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
+  };
+
   return (
     <div className="fixed top-0 left-0 right-0 z-40 bg-gray-900/85 backdrop-blur-sm border-b border-gray-700/50 shadow-lg score-bar">
       <div className="max-w-6xl mx-auto px-2 sm:px-3 py-1.5 sm:py-2">
@@ -39,11 +45,13 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <span
-                        className={`text-xs font-bold truncate max-w-[60px] sm:max-w-none ${
+                        className={`text-xs font-bold truncate ${
                           isCurrent ? 'text-white' : 'text-gray-300'
                         }`}
+                        style={{ maxWidth: '70px' }}
+                        title={player.username}
                       >
-                        {player.username}
+                        {truncateName(player.username, 10)}
                       </span>
                       <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
                         {percentage.toFixed(0)}%
@@ -90,14 +98,15 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                     <span className="text-lg leading-none">{player.avatar}</span>
                   </div>
 
-                  {/* Name */}
-                  <div className="flex-shrink-0 w-16 sm:w-24">
+                  {/* Name — wider on mobile, truncated with ellipsis */}
+                  <div className="flex-shrink-0" style={{ width: 'clamp(64px, 20vw, 96px)' }}>
                     <span
                       className={`text-xs font-bold truncate block ${
                         isCurrent ? 'text-white' : 'text-gray-300'
                       }`}
+                      title={player.username}
                     >
-                      {player.username}
+                      {truncateName(player.username, 14)}
                     </span>
                   </div>
 

@@ -33,21 +33,46 @@
   overscroll-behavior: contain;
 }
 
-/* Make board grid scale with viewport on mobile */
-@media (max-width: 480px) {
+/* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
+.game-layout {
+  min-height: 100dvh;
+}
+
+/* Game content: add top padding to clear fixed ScoreBar (~80px) */
+.game-content {
+  padding-top: 88px;
+}
+
+/* On mobile: board fills nearly full viewport width */
+@media (max-width: 640px) {
   .board-container {
+    width: calc(100vw - 1.5rem);
     max-width: calc(100vw - 1.5rem);
     margin-left: auto;
     margin-right: auto;
+    /* Remove excessive padding on mobile */
+    padding: 8px !important;
+    overflow: hidden;
+  }
+
+  /* Hide duplicate scoreboard cards on mobile — ScoreBar handles scoring */
+  .scoreboard-cards {
+    display: none !important;
+  }
+
+  /* Game toolbar: side-by-side mute + leave */
+  .game-toolbar {
+    max-width: calc(100vw - 1.5rem);
+    width: 100%;
   }
 }
 
-/* Ensure line hit-targets are finger-friendly (min 44px touch target) */
+/* Ensure line hit-targets are finger-friendly (min 44px touch target per Apple HIG) */
 @media (pointer: coarse) {
   .board-container [role="button"] {
     /* Expand touch area beyond visual bounds */
-    padding: 10px;
-    margin: -10px;
+    padding: 14px;
+    margin: -14px;
     position: relative;
     z-index: 1;
   }
@@ -75,6 +100,10 @@
 /* Safe area insets for notched devices (iPhone X+) */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Also apply safe-area to game layout bottom */
+  .game-layout {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
