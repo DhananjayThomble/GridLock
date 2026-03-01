@@ -289,10 +289,28 @@ module.exports = function attachSocketHandlers(io, log) {
                 const cleanUsername = uResult.value;
                 const cleanAvatar = sanitizeAvatar(avatar);
 
-                const game = activeGames.get(cleanGameId);
+                let game = activeGames.get(cleanGameId);
                 if (!game) {
-                    socket.emit('error', 'Game not found');
-                    return;
+                    // DB fallback: handles cross-node cache miss in scaled deployments
+                    const doc = await Game.findOne({ gameId: cleanGameId, status: { $in: ['waiting', 'playing'] } }).lean();
+                    if (!doc) {
+                        socket.emit('error', 'Game not found');
+                        return;
+                    }
+                    const players = doc.players
+                        ? (doc.players instanceof Map ? Object.fromEntries(doc.players) : doc.players)
+                        : {};
+                    game = {
+                        id: doc.gameId,
+                        gridSize: doc.gridSize,
+                        playerCount: doc.playerCount,
+                        players,
+                        gameState: doc.gameState,
+                        createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
+                        metadata: doc.metadata || {},
+                    };
+                    activeGames.set(cleanGameId, game);
+                    log.info('Loaded game from DB on join cache-miss', { gameId: cleanGameId });
                 }
 
                 // Reconnect path: username already in game

@@ -271,7 +271,7 @@ const Board = () => {
   const handlePlayAgain = () => {
     initAudio();
     setRematchRequested(true);
-    socket.emit('request_rematch', { gameId });
+    socket.emit('request_rematch', { gameId, sessionToken });
   };
 
   const handleLeaveGame = () => {
