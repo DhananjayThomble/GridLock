@@ -56,10 +56,23 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { username, role: initialRole, gameId, gridSize, avatar, playerCount } = location.state || {};
+  const {
+    username,
+    role: initialRole,
+    gameId,
+    gridSize,
+    avatar,
+    playerCount,
+    sessionToken: initialSessionToken,
+  } = location.state || {};
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
   const [role, setRole] = useState(initialRole);
+  const [sessionToken, setSessionToken] = useState(() => {
+    if (initialSessionToken) return initialSessionToken;
+    if (!gameId || !username) return null;
+    return localStorage.getItem(`gridlock:session:${gameId}:${username}`) || null;
+  });
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
@@ -98,10 +111,20 @@ const Board = () => {
     const onGameStarted = (data) => {
       const gs = data.gameState;
       setGameState(gs);
+
       // If server assigned us a playerId (happens when joining via invite code), update role
       if (data.playerId) {
         setRole(data.playerId);
       }
+
+      // Save auth token when provided by server (create/join/reconnect)
+      if (data.sessionToken) {
+        setSessionToken(data.sessionToken);
+        if (gameId && username) {
+          localStorage.setItem(`gridlock:session:${gameId}:${username}`, data.sessionToken);
+        }
+      }
+
       // Count how many slots are still waiting
       const count = data.playerCount || 2;
       let filled = 0;
@@ -184,38 +207,56 @@ const Board = () => {
 
     const onRematchReady = (data) => {
       const newGameId = data.newGameId;
-      // Navigate to /game (not /game/:id — gameId is passed via router state)
+      // Keep token continuity across rematch
       navigate('/game', {
-        state: { username, role, gameId: newGameId, gridSize, avatar, playerCount }
+        state: { username, role, gameId: newGameId, gridSize, avatar, playerCount, sessionToken }
       });
     };
 
-    socket.on('game_started',      onGameStarted);
-    socket.on('all_players_joined', onAllJoined);
-    socket.on('game_update',       onGameUpdate);
-    socket.on('error',             onError);
-    socket.on('rematch_count',     onRematchCount);
-    socket.on('rematch_ready',     onRematchReady);
+    const onPlayerDisconnected = (data) => {
+      setError(`${data.username || 'A player'} disconnected. Waiting ${Math.round((data.reconnectWindowMs || 60000) / 1000)}s for reconnect...`);
+    };
 
-    // Join / re-join room
-    socket.emit('join_game', { gameId, username, avatar });
+    const onPlayerReconnected = () => {
+      setError(null);
+    };
+
+    const onPlayerForfeited = (data) => {
+      setError(`${data.username || 'A player'} forfeited due to disconnect.`);
+    };
+
+    socket.on('game_started',       onGameStarted);
+    socket.on('all_players_joined', onAllJoined);
+    socket.on('game_update',        onGameUpdate);
+    socket.on('error',              onError);
+    socket.on('rematch_count',      onRematchCount);
+    socket.on('rematch_ready',      onRematchReady);
+    socket.on('player_disconnected', onPlayerDisconnected);
+    socket.on('player_reconnected',  onPlayerReconnected);
+    socket.on('player_forfeited',    onPlayerForfeited);
+
+    // Join / re-join room (with optional session token for secure reconnect)
+    socket.emit('join_game', { gameId, username, avatar, sessionToken });
 
     return () => {
-      socket.off('game_started',       onGameStarted);
-      socket.off('all_players_joined', onAllJoined);
-      socket.off('game_update',        onGameUpdate);
-      socket.off('error',              onError);
-      socket.off('rematch_count',      onRematchCount);
-      socket.off('rematch_ready',      onRematchReady);
+      socket.off('game_started',        onGameStarted);
+      socket.off('all_players_joined',  onAllJoined);
+      socket.off('game_update',         onGameUpdate);
+      socket.off('error',               onError);
+      socket.off('rematch_count',       onRematchCount);
+      socket.off('rematch_ready',       onRematchReady);
+      socket.off('player_disconnected', onPlayerDisconnected);
+      socket.off('player_reconnected',  onPlayerReconnected);
+      socket.off('player_forfeited',    onPlayerForfeited);
     };
-  }, [gameId, username, navigate, role, avatar, getStatusFromState]);
+  }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState]);
 
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || gameState.currentPlayer !== role) return;
-    socket.emit('make_move', { gameId, playerId: role, type, r, c });
-  }, [gameState, role, gameId]);
+    socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
+  }, [gameState, role, gameId, sessionToken]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {

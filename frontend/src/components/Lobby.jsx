@@ -36,10 +36,10 @@ const Lobby = () => {
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
-    const onCreated = ({ gameId: gid, playerId }) => {
+    const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
       setCreating(false);
       navigate('/game', {
-        state: { username, gridSize, gameId: gid, role: playerId, avatar: selectedAvatar, playerCount },
+        state: { username, gridSize, gameId: gid, role: playerId, avatar: selectedAvatar, playerCount, sessionToken },
       });
     };
 
@@ -67,7 +67,15 @@ const Lobby = () => {
       if (res?.gameId) {
         setCreating(false);
         navigate('/game', {
-          state: { username: name, gridSize, gameId: res.gameId, role: res.playerId, avatar: selectedAvatar, playerCount },
+          state: {
+            username: name,
+            gridSize,
+            gameId: res.gameId,
+            role: res.playerId,
+            avatar: selectedAvatar,
+            playerCount,
+            sessionToken: res.sessionToken,
+          },
         });
       }
     });
@@ -79,9 +87,19 @@ const Lobby = () => {
     const id   = gameId.trim().toUpperCase();
     if (!name) return alert('Please enter a username');
     if (!id)   return alert('Please enter a Game ID');
+
+    const tokenKey = `gridlock:session:${id}:${name}`;
+    const existingToken = localStorage.getItem(tokenKey) || null;
+
     setJoining(true);
     navigate('/game', {
-      state: { username: name, gameId: id, role: 'player_joining', avatar: selectedAvatar },
+      state: {
+        username: name,
+        gameId: id,
+        role: 'player_joining',
+        avatar: selectedAvatar,
+        sessionToken: existingToken,
+      },
     });
   };
 

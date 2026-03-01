@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const helmet = require('helmet');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 require('dotenv').config();
 
 const socketHandlers = require('./controllers/socketHandlers');
@@ -22,6 +25,11 @@ const log = {
 };
 
 // Middleware
+app.set('trust proxy', 1);
+app.use(helmet({
+    contentSecurityPolicy: false, // frontend served separately; keep API/socket compatible
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors());
 app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
@@ -35,20 +43,47 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock')
 const io = new Server(server, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+    },
 });
 
+// Optional horizontal scaling via Redis adapter
+let redisEnabled = false;
+async function setupRedisAdapter() {
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) {
+        log.warn('REDIS_URL not set; running in single-instance mode (no horizontal scaling)');
+        return;
+    }
+
+    try {
+        const pubClient = createClient({ url: redisUrl });
+        const subClient = pubClient.duplicate();
+
+        await Promise.all([pubClient.connect(), subClient.connect()]);
+        io.adapter(createAdapter(pubClient, subClient));
+        redisEnabled = true;
+        log.info('Socket.IO Redis adapter enabled');
+    } catch (err) {
+        log.error('Failed to enable Redis adapter; continuing in single-instance mode', { error: err.message });
+    }
+}
+
+setupRedisAdapter();
+
 // Attach socket handlers and get activeGames for health check
-const { activeGames } = socketHandlers(io, log);
+const { activeGames, rematchRequests, disconnectTimers } = socketHandlers(io, log);
 
 // Health check endpoint
 app.get('/health', healthLimiter, (req, res) => {
-    res.json({ 
-        status: 'ok', 
+    res.json({
+        status: 'ok',
         activeGames: activeGames ? activeGames.size : 0,
+        pendingRematches: rematchRequests ? rematchRequests.size : 0,
+        pendingDisconnectTimers: disconnectTimers ? disconnectTimers.size : 0,
         connectedSockets: io.engine?.clientsCount || 0,
-        timestamp: new Date().toISOString()
+        redisAdapter: redisEnabled,
+        timestamp: new Date().toISOString(),
     });
 });
 
@@ -57,15 +92,19 @@ app.get('/metrics', healthLimiter, (req, res) => {
     const memUsage = process.memoryUsage();
     res.json({
         status: 'ok',
-        uptime: process.uptime(),
+        uptimeSeconds: Math.round(process.uptime()),
         activeGames: activeGames ? activeGames.size : 0,
+        pendingRematches: rematchRequests ? rematchRequests.size : 0,
+        pendingDisconnectTimers: disconnectTimers ? disconnectTimers.size : 0,
         connectedSockets: io.engine?.clientsCount || 0,
+        redisAdapter: redisEnabled,
         memory: {
-            rss: Math.round(memUsage.rss / 1024 / 1024) + 'MB',
-            heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + 'MB',
-            heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + 'MB',
+            rssMB: Math.round(memUsage.rss / 1024 / 1024),
+            heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+            heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+            externalMB: Math.round(memUsage.external / 1024 / 1024),
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
     });
 });
 
