@@ -2,9 +2,12 @@
 // Production-ready Board for GridLock - supports 2-4 players
 // Adaptive layout: mobile / tablet / desktop
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
+import { recordGame } from '../utils/sessionStats';
+import ScoreBar from './ScoreBar';
+import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
 
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
@@ -53,7 +56,24 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { username, role, gameId, gridSize, avatar, playerCount } = location.state || {};
+  const {
+    username,
+    role: initialRole,
+    gameId,
+    gridSize,
+    avatar,
+    playerCount,
+    sessionToken: initialSessionToken,
+  } = location.state || {};
+
+  // role can be 'player_joining' until server assigns a slot; use state so it updates
+  const [role, setRole] = useState(initialRole);
+  const roleRef = useRef(initialRole); // always-current ref avoids stale closure in handlers
+  const [sessionToken, setSessionToken] = useState(() => {
+    if (initialSessionToken) return initialSessionToken;
+    if (!gameId || !username) return null;
+    return localStorage.getItem(`gridlock:session:${gameId}:${username}`) || null;
+  });
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
@@ -62,8 +82,31 @@ const Board = () => {
   const [winnerData,     setWinnerData]     = useState(null);
   const [waitingCount,   setWaitingCount]   = useState(0);
   const [showCopied,     setShowCopied]     = useState(false);
+  const [muted,          setMuted]          = useState(() => isMuted());
+  const [rematchRequested, setRematchRequested] = useState(false);
+  const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+
+  // Track previous scores in a ref so we can compute sound effects outside of
+  // a React state-updater (where side effects are an anti-pattern — updaters
+  // may be called more than once in Strict Mode).
+  const prevScoresRef = useRef(null);
+  // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
+  const gameOverRecorded = useRef(false);
+  const gameStarted      = useRef(false);
+  // Prevent duplicate join emits for the same room/user/token tuple.
+  const lastJoinKeyRef   = useRef(null);
+
+  // Mute toggle handler
+  const handleToggleMute = () => {
+    const nowMuted = toggleMute();
+    setMuted(nowMuted);
+  };
 
   const sizes = useGridSizes(gridSize);
+
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
 
   // ── Status helper ────────────────────────────────────────────────────────────
   const getStatusFromState = useCallback((gs) => {
@@ -79,6 +122,22 @@ const Board = () => {
     const onGameStarted = (data) => {
       const gs = data.gameState;
       setGameState(gs);
+      prevScoresRef.current = gs?.scores || null;
+
+      // If server assigned us a playerId (happens when joining via invite code), update role
+      if (data.playerId) {
+        setRole(data.playerId);
+        roleRef.current = data.playerId;
+      }
+
+      // Save auth token when provided by server (create/join/reconnect)
+      if (data.sessionToken) {
+        setSessionToken(data.sessionToken);
+        if (gameId && username) {
+          localStorage.setItem(`gridlock:session:${gameId}:${username}`, data.sessionToken);
+        }
+      }
+
       // Count how many slots are still waiting
       const count = data.playerCount || 2;
       let filled = 0;
@@ -91,15 +150,48 @@ const Board = () => {
 
     const onAllJoined = () => {
       setWaitingCount(0);
+      // Game start sound — once
+      if (!gameStarted.current) {
+        gameStarted.current = true;
+        sounds.gameStart();
+      }
     };
 
     const onGameUpdate = (data) => {
       const gs = data.gameState;
+
+      // Tile capture sounds: compare score deltas outside React state updater.
+      const prevScores = prevScoresRef.current || {};
+      if (gs.scores) {
+        Object.keys(gs.scores).forEach(pid => {
+          if ((gs.scores[pid] || 0) > (prevScores[pid] || 0)) {
+            if (pid === roleRef.current) sounds.tileCaptured();
+            else sounds.opponentCapture();
+          }
+        });
+      }
+
       setGameState(gs);
+      prevScoresRef.current = gs?.scores || null;
+
       setWaitingCount(0);
 
       if (gs.gameOver || gs.winner) {
         const winner = gs.winner;
+
+        // Record session stats exactly once (guard against reconnect re-fires)
+        if (!gameOverRecorded.current) {
+          gameOverRecorded.current = true;
+          const myScore = gs.scores?.[role] || 0;
+          const totalBoxes = (gridSize || 3) * (gridSize || 3);
+          const territoryPct = Math.round((myScore / totalBoxes) * 100);
+          const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
+          recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+          // Win/lose sound
+          if (winner === role) sounds.gameWin();
+          else if (winner !== 'draw') sounds.gameLose();
+        }
+
         if (winner === 'draw') {
           setWinnerData({ isDraw: true, scores: gs.scores, playerCount: gs.playerCount || 2 });
         } else {
@@ -123,34 +215,88 @@ const Board = () => {
 
     const onError = (msg) => { setError(typeof msg === 'string' ? msg : JSON.stringify(msg)); };
 
-    socket.on('game_started',      onGameStarted);
-    socket.on('all_players_joined', onAllJoined);
-    socket.on('game_update',       onGameUpdate);
-    socket.on('error',             onError);
+    const onRematchCount = (data) => {
+      setRematchCount({ count: data.count, total: data.total });
+    };
 
-    // Join / re-join room
-    socket.emit('join_game', { gameId, username, avatar });
+    const onRematchReady = (data) => {
+      const newGameId = data.newGameId;
+      // Keep token continuity across rematch; omit role so UI waits for
+      // authoritative server assignment via game_started.
+      navigate('/game', {
+        state: { username, gameId: newGameId, gridSize, avatar, playerCount, sessionToken }
+      });
+    };
+
+    const onPlayerDisconnected = (data) => {
+      setError(`${data.username || 'A player'} disconnected. Waiting ${Math.round((data.reconnectWindowMs || 60000) / 1000)}s for reconnect...`);
+    };
+
+    const onPlayerReconnected = () => {
+      setError(null);
+    };
+
+    const onPlayerForfeited = (data) => {
+      setError(`${data.username || 'A player'} forfeited due to disconnect.`);
+    };
+
+    socket.on('game_started',       onGameStarted);
+    socket.on('all_players_joined', onAllJoined);
+    socket.on('game_update',        onGameUpdate);
+    socket.on('error',              onError);
+    socket.on('rematch_count',      onRematchCount);
+    socket.on('rematch_ready',      onRematchReady);
+    socket.on('player_disconnected', onPlayerDisconnected);
+    socket.on('player_reconnected',  onPlayerReconnected);
+    socket.on('player_forfeited',    onPlayerForfeited);
+
+    // Join / re-join room (with optional session token for secure reconnect)
+    // Guard emit so role/session state updates don't re-send join_game.
+    const joinKey = `${gameId}:${username}:${sessionToken || ''}`;
+    if (lastJoinKeyRef.current !== joinKey) {
+      socket.emit('join_game', { gameId, username, avatar, sessionToken });
+      lastJoinKeyRef.current = joinKey;
+    }
 
     return () => {
-      socket.off('game_started',       onGameStarted);
-      socket.off('all_players_joined', onAllJoined);
-      socket.off('game_update',        onGameUpdate);
-      socket.off('error',              onError);
+      socket.off('game_started',        onGameStarted);
+      socket.off('all_players_joined',  onAllJoined);
+      socket.off('game_update',         onGameUpdate);
+      socket.off('error',               onError);
+      socket.off('rematch_count',       onRematchCount);
+      socket.off('rematch_ready',       onRematchReady);
+      socket.off('player_disconnected', onPlayerDisconnected);
+      socket.off('player_reconnected',  onPlayerReconnected);
+      socket.off('player_forfeited',    onPlayerForfeited);
     };
-  }, [gameId, username, navigate, role, avatar, getStatusFromState]);
+  }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState]);
 
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
+    initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || gameState.currentPlayer !== role) return;
-    socket.emit('make_move', { gameId, playerId: role, type, r, c });
-  }, [gameState, role, gameId]);
+    socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
+  }, [gameState, role, gameId, sessionToken]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {
+    initAudio(); // unlock AudioContext on first user interaction
     navigator.clipboard?.writeText(gameId).then(() => {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2000);
     });
+  };
+
+  // ── Rematch handlers ──────────────────────────────────────────────────────────
+  const handlePlayAgain = () => {
+    initAudio();
+    setRematchRequested(true);
+    socket.emit('request_rematch', { gameId, sessionToken });
+  };
+
+  const handleLeaveGame = () => {
+    initAudio();
+    navigate('/');  // router basename handles /beta prefix automatically
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
@@ -343,19 +489,41 @@ const Board = () => {
 
           <div className="flex gap-2">
             <button
-              onClick={() => { setShowWinner(false); navigate('/'); }}
-              className="flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all active:scale-95"
-              style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}
+              onClick={handlePlayAgain}
+              disabled={rematchRequested}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
+                rematchRequested 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'active:scale-95 hover:shadow-lg'
+              }`}
+              style={{ 
+                background: rematchRequested 
+                  ? undefined 
+                  : 'linear-gradient(135deg,#3B82F6,#2563EB)' 
+              }}
             >
-              🎮 New Game
+              {rematchRequested ? (
+                <>⏳ Waiting...</>
+              ) : (
+                <>🔄 Play Again</>
+              )}
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={handleLeaveGame}
               className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
             >
-              Leave
+              👋 Leave Game
             </button>
           </div>
+
+          {/* Rematch counter */}
+          {rematchCount.count > 0 && (
+            <div className="mt-3 text-sm text-gray-600">
+              <span className="font-semibold">
+                {rematchCount.count} / {rematchCount.total}
+              </span> players ready for rematch
+            </div>
+          )}
 
           <div className="mt-4 text-xl space-x-1">
             {['🎉','✨','🎊','🏆','🎉'].map((e, i) => (
@@ -432,11 +600,43 @@ const Board = () => {
         )}
       </div>
 
+      {/* ── Live ScoreBar (fixed top, shows when game active) ── */}
+      {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
+        const count = gameState.playerCount || 2;
+        const players = Array.from({ length: count }, (_, i) => {
+          const pid = `player${i + 1}`;
+          const cfg = getConfig(pid);
+          return {
+            id: pid,
+            username: gameState[`${pid}Name`] || cfg.label,
+            avatar: gameState[`${pid}Avatar`] || cfg.label,
+            color: cfg.color,
+          };
+        });
+        return (
+          <ScoreBar
+            players={players}
+            scores={gameState.scores || {}}
+            gridSize={gridSize || 3}
+            currentPlayer={gameState.currentPlayer}
+          />
+        );
+      })()}
+
       {/* ── Scoreboard ── */}
       {renderScoreboard()}
 
       {/* ── Board ── */}
-      <div className="bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
+      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
+        {/* Mute toggle — top-right of board */}
+        <button
+          onClick={() => { initAudio(); handleToggleMute(); }}
+          className="absolute top-2 right-2 z-20 w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-lg transition-all active:scale-90 shadow-sm"
+          title={muted ? 'Unmute sounds' : 'Mute sounds'}
+          aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
         {gameState.horizontalLines.map((row, r) => (
           <div key={`row-${r}`}>
             {/* Dot-HLine-Dot row */}
