@@ -118,9 +118,13 @@ jobs:
             sleep 2
           done
 
-      - name: Build frontend for E2E (vite preview)
+      - name: Build frontend for E2E (base=/ for vite preview)
         run: npm run build
         working-directory: frontend
+        env:
+          # Do NOT set GITHUB_ACTIONS here — E2E uses base='/' so vite preview works correctly
+          GITHUB_ACTIONS: ""
+          VITE_SOCKET_URL: ""
 
       - name: Run E2E tests
         run: npx playwright test --config=playwright.config.js
