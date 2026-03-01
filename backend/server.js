@@ -30,7 +30,7 @@ app.use(helmet({
     contentSecurityPolicy: false, // frontend served separately; keep API/socket compatible
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-app.use(cors());
+app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*" }));
 app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
 
@@ -42,7 +42,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock')
 // Socket.io Setup
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
         methods: ["GET", "POST"],
     },
 });
