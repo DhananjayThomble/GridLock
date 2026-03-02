@@ -93,6 +93,9 @@ const Lobby = () => {
     const existingToken = localStorage.getItem(tokenKey) || null;
 
     setJoining(true);
+    if (!socket.connected) {
+      socket.connect();
+    }
     navigate('/game', {
       state: {
         username: name,

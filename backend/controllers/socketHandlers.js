@@ -319,6 +319,8 @@ function attachSocketHandlers(io, log) {
 
                 await gameStore.setGame(gameId, game);
                 socket.join(gameId);
+                socket.data.gameId = gameId;
+                socket.data.playerId = 'player1';
                 await persistGame(game, 'waiting');
                 log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername });
 
@@ -398,6 +400,8 @@ function attachSocketHandlers(io, log) {
                         player.disconnectedAt = null;
                         await gameStore.setGame(cleanGameId, game);
                         socket.join(cleanGameId);
+                        socket.data.gameId = cleanGameId;
+                        socket.data.playerId = playerId;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -431,6 +435,8 @@ function attachSocketHandlers(io, log) {
                 };
 
                 socket.join(cleanGameId);
+                socket.data.gameId = cleanGameId;
+                socket.data.playerId = assignedSlot;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -533,6 +539,12 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
+                const gameFinished = game.gameState?.winner != null;
+                if (!gameFinished) {
+                    socket.emit('error', 'Rematch can only be requested after the game has finished');
+                    return;
+                }
+
                 // Add vote to shared Redis store — visible across ALL nodes
                 const { count } = await rematchStore.addVote(cleanGameId, requestingPlayerId);
                 io.to(cleanGameId).emit('rematch_count', { count, total: game.playerCount });
@@ -577,29 +589,26 @@ function attachSocketHandlers(io, log) {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
 
-            const allGames = await gameStore.getAllActiveGames();
-
-            for (const [gameId, game] of allGames.entries()) {
-                const playerId = findPlayerBySocket(game, socket.id);
-                if (!playerId) continue;
-
+            const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
+                if (!player) return;
+
                 player.disconnectedAt = new Date();
 
                 io.to(gameId).emit('player_disconnected', {
-                    playerId, username: player.username,
+                    playerId,
+                    username: player.username,
                     reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
                 });
 
                 // If game already finished, just persist and skip forfeit flow
                 if (game.gameState?.winner) {
-                    // Clear any stale rematch votes for this game
                     await rematchStore.clearVotes(gameId);
                     await gameStore.setGame(gameId, game);
                     persistGame(game, 'finished').catch((err) =>
                         log.error('Persist after disconnect failed', { gameId, error: err.message })
                     );
-                    continue;
+                    return;
                 }
 
                 // Mark disconnect state in Redis (TTL = reconnect window; expiry = forfeit)
@@ -646,7 +655,9 @@ function attachSocketHandlers(io, log) {
                             reason: 'disconnect_timeout',
                         });
                         io.to(gameId).emit('game_over', {
-                            winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected',
+                            winner,
+                            scores: currentGame.gameState.scores,
+                            reason: 'opponent_disconnected',
                         });
                         // Fire-and-forget leaderboard update for forfeit
                         updateLeaderboard(currentGame, winner, log);
@@ -666,6 +677,33 @@ function attachSocketHandlers(io, log) {
                 persistGame(game).catch((err) =>
                     log.error('Persist after disconnect failed', { gameId, error: err.message })
                 );
+            };
+
+            try {
+                // Fast path: use socket-attached game context to avoid scanning all active games.
+                const hintedGameId = socket.data?.gameId;
+                const hintedPlayerId = socket.data?.playerId;
+                if (hintedGameId && hintedPlayerId) {
+                    const hintedGame = await gameStore.getGame(hintedGameId);
+                    if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
+                        await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);
+                        return;
+                    }
+                }
+
+                // Fallback path for legacy sockets / missing hints.
+                const allGames = await gameStore.getAllActiveGames();
+                for (const [gameId, game] of allGames.entries()) {
+                    const playerId = findPlayerBySocket(game, socket.id);
+                    if (!playerId) continue;
+                    await processPlayerDisconnect(gameId, game, playerId);
+                    break;
+                }
+            } catch (error) {
+                log.error('Error handling disconnect', { socketId: socket.id, error: error.message });
+            } finally {
+                socket.data.gameId = undefined;
+                socket.data.playerId = undefined;
             }
         });
     });

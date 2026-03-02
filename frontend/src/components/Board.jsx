@@ -262,7 +262,7 @@ const Board = () => {
 
     // Join / re-join room (with optional session token for secure reconnect)
     // Guard emit so role/session state updates don't re-send join_game.
-    const joinKey = `${gameId}:${username}:${sessionToken || ''}`;
+    const joinKey = `${gameId}:${username}`;
     if (lastJoinKeyRef.current !== joinKey) {
       socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
       lastJoinKeyRef.current = joinKey;
