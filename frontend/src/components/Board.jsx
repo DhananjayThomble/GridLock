@@ -70,11 +70,12 @@ const Board = () => {
     avatar,
     playerCount,
     sessionToken: initialSessionToken,
+    joinMode: initialJoinMode,
   } = location.state || {};
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
-  const [role, setRole] = useState(initialRole);
-  const roleRef = useRef(initialRole); // always-current ref avoids stale closure in handlers
+  const [role, setRole] = useState(initialRole || (initialJoinMode === 'spectator' ? 'spectator' : initialRole));
+  const roleRef = useRef(initialRole || (initialJoinMode === 'spectator' ? 'spectator' : initialRole)); // always-current ref avoids stale closure in handlers
   const [sessionToken, setSessionToken] = useState(() => {
     if (initialSessionToken) return initialSessionToken;
     if (!gameId || !username) return null;
@@ -108,6 +109,8 @@ const Board = () => {
     setMuted(nowMuted);
   };
 
+  const joinMode = location.state?.joinMode || (role === 'spectator' ? 'spectator' : 'player');
+  const isSpectator = role === 'spectator';
   const sizes = useGridSizes(gridSize);
 
   useEffect(() => {
@@ -118,6 +121,7 @@ const Board = () => {
   const getStatusFromState = useCallback((gs) => {
     if (!gs) return 'Waiting…';
     const name = gs[`${gs.currentPlayer}Name`] || gs.currentPlayer;
+    if (role === 'spectator') return `👀 Spectating · ${name}'s turn`;
     return gs.currentPlayer === role ? '⚡ Your turn!' : `⏳ ${name}'s turn`;
   }, [role]);
 
@@ -186,7 +190,7 @@ const Board = () => {
         const winner = gs.winner;
 
         // Record session stats exactly once (guard against reconnect re-fires)
-        if (!gameOverRecorded.current) {
+        if (!gameOverRecorded.current && roleRef.current !== 'spectator') {
           gameOverRecorded.current = true;
           const myScore = gs.scores?.[role] || 0;
           const totalBoxes = (gridSize || 3) * (gridSize || 3);
@@ -260,7 +264,7 @@ const Board = () => {
     // Guard emit so role/session state updates don't re-send join_game.
     const joinKey = `${gameId}:${username}:${sessionToken || ''}`;
     if (lastJoinKeyRef.current !== joinKey) {
-      socket.emit('join_game', { gameId, username, avatar, sessionToken });
+      socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
       lastJoinKeyRef.current = joinKey;
     }
 
@@ -275,14 +279,14 @@ const Board = () => {
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
     };
-  }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState]);
+  }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
 
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
-    if (!gameState || gameState.currentPlayer !== role) return;
+    if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
-  }, [gameState, role, gameId, sessionToken]);
+  }, [gameState, role, gameId, sessionToken, isSpectator]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {
@@ -363,7 +367,7 @@ const Board = () => {
 
   const renderHLine = (r, c) => {
     const owner = gameState.horizontalLines[r]?.[c];
-    const isMyTurn = gameState.currentPlayer === role && !owner;
+    const isMyTurn = !isSpectator && gameState.currentPlayer === role && !owner;
     const lineColor = getLineColor(owner);
     const touchHandlers = makeTouchHandler('horizontal', r, c);
 
@@ -397,7 +401,7 @@ const Board = () => {
 
   const renderVLine = (r, c) => {
     const owner = gameState.verticalLines[r]?.[c];
-    const isMyTurn = gameState.currentPlayer === role && !owner;
+    const isMyTurn = !isSpectator && gameState.currentPlayer === role && !owner;
     const lineColor = getLineColor(owner);
     const touchHandlers = makeTouchHandler('vertical', r, c);
 
@@ -549,26 +553,28 @@ const Board = () => {
           </div>
 
           <div className="flex gap-2">
-            <button
-              onClick={handlePlayAgain}
-              disabled={rematchRequested}
-              className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
-                rematchRequested 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'active:scale-95 hover:shadow-lg'
-              }`}
-              style={{ 
-                background: rematchRequested 
-                  ? undefined 
-                  : 'linear-gradient(135deg,#3B82F6,#2563EB)' 
-              }}
-            >
-              {rematchRequested ? (
-                <>⏳ Waiting...</>
-              ) : (
-                <>🔄 Play Again</>
-              )}
-            </button>
+            {!isSpectator && (
+              <button
+                onClick={handlePlayAgain}
+                disabled={rematchRequested}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
+                  rematchRequested 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'active:scale-95 hover:shadow-lg'
+                }`}
+                style={{ 
+                  background: rematchRequested 
+                    ? undefined 
+                    : 'linear-gradient(135deg,#3B82F6,#2563EB)' 
+                }}
+              >
+                {rematchRequested ? (
+                  <>⏳ Waiting...</>
+                ) : (
+                  <>🔄 Play Again</>
+                )}
+              </button>
+            )}
             <button
               onClick={handleLeaveGame}
               className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
@@ -613,7 +619,7 @@ const Board = () => {
   }
 
   // ── Main render ───────────────────────────────────────────────────────────────
-  const isMyTurnNow = gameState.currentPlayer === role;
+  const isMyTurnNow = !isSpectator && gameState.currentPlayer === role;
 
   return (
     <div className="game-layout flex flex-col items-center bg-gray-50" style={{ minHeight: '100dvh' }}>
@@ -663,7 +669,7 @@ const Board = () => {
 
           {/* You are */}
           <p className="text-xs text-gray-400 text-center mb-1">
-            You are <span className="font-bold" style={{ color: getConfig(role).color }}>{username}</span>
+            You are <span className="font-bold" style={{ color: isSpectator ? '#4F46E5' : getConfig(role).color }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
           </p>
 
           {/* Status pill */}

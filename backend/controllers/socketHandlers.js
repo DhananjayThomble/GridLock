@@ -28,6 +28,10 @@ function countFilledPlayers(game) {
     return Object.keys(game.players).filter((pid) => !!game.players[pid]).length;
 }
 
+function isSpectatorJoinRequest(joinMode) {
+    return typeof joinMode === 'string' && joinMode.toLowerCase() === 'spectator';
+}
+
 function gameStatusFromPlayers(game) {
     const filled = countFilledPlayers(game);
     if (game.gameState?.winner) return 'finished';
@@ -259,7 +263,7 @@ async function restoreActiveGames(log) {
     }
 }
 
-module.exports = function attachSocketHandlers(io, log) {
+function attachSocketHandlers(io, log) {
     restoreActiveGames(log);
 
     io.on('connection', (socket) => {
@@ -333,7 +337,7 @@ module.exports = function attachSocketHandlers(io, log) {
         });
 
         // ── join_game ──────────────────────────────────────────────────────────
-        socket.on('join_game', async ({ gameId, username, avatar, sessionToken }) => {
+        socket.on('join_game', async ({ gameId, username, avatar, sessionToken, joinMode }) => {
             try {
                 if (rateLimited('join_game')) return;
 
@@ -351,6 +355,22 @@ module.exports = function attachSocketHandlers(io, log) {
                 if (!game) {
                     game = await loadGameFromDB(cleanGameId, log);
                     if (!game) { socket.emit('error', 'Game not found'); return; }
+                }
+
+                // Spectator path: join room read-only and receive live updates
+                if (isSpectatorJoinRequest(joinMode)) {
+                    socket.join(cleanGameId);
+                    socket.emit('game_started', {
+                        gameId: cleanGameId,
+                        playerId: 'spectator',
+                        role: 'spectator',
+                        gridSize: game.gridSize,
+                        playerCount: game.playerCount,
+                        players: getPlayersList(game),
+                        gameState: buildGameStateWithPlayers(game),
+                    });
+                    socket.to(cleanGameId).emit('spectator_joined', { username: cleanUsername });
+                    return;
                 }
 
                 // Reconnect path: username already in game
@@ -435,6 +455,7 @@ module.exports = function attachSocketHandlers(io, log) {
                 socket.emit('error', 'Failed to join game');
             }
         });
+
 
         // ── make_move ──────────────────────────────────────────────────────────
         socket.on('make_move', async ({ gameId, playerId, sessionToken, type, r, c }) => {
@@ -651,3 +672,6 @@ module.exports = function attachSocketHandlers(io, log) {
 
     return { gameStore, rematchStore, disconnectStore, localTimers };
 };
+
+module.exports = attachSocketHandlers;
+module.exports._internal = { isSpectatorJoinRequest };
