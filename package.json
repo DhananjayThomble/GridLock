@@ -10,7 +10,7 @@
     "test:e2e:debug":   "TEST_BASE_URL=http://localhost/beta npx playwright test --config=playwright.config.js --debug",
     "test:backend":     "cd backend && npm test",
     "test:backend:all": "cd backend && npm run test:all",
-    "test:all":         "npm run test:backend && npm run test:e2e:local",
+    "test:all":         "npm run test:backend && npm run test:e2e",
     "smoke":            "node scripts/smoke-test.js"
   },
   "devDependencies": {
