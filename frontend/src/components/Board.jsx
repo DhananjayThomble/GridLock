@@ -42,10 +42,11 @@ function useGridSizes(gridSize) {
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // On mobile, use a larger minimum so lines are finger-friendly (≥44px touch)
-      const minBox = w < 640 ? 44 : 28;
+      // On mobile, keep controls finger-friendly but never exceed what fits the viewport.
+      const baseMinBox = w < 640 ? 44 : 28;
       const maxBox = w < 640 ? 72 : 80;
-      box = Math.max(minBox, Math.min(box, maxBox));
+      const effectiveMinBox = Math.min(baseMinBox, fromW, fromH);
+      box = Math.max(effectiveMinBox, Math.min(box, maxBox));
 
       const dot = Math.max(8, Math.round(box * 0.18));
       setSizes({ dot, line: box, box });
@@ -99,7 +100,7 @@ const Board = () => {
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
   const gameStarted      = useRef(false);
-  // Prevent duplicate join emits for the same room/user/token tuple.
+  // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
 
   // Mute toggle handler
@@ -256,8 +257,8 @@ const Board = () => {
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
 
-    // Join / re-join room (with optional session token for secure reconnect)
-    // Guard emit so role/session state updates don't re-send join_game.
+    // Join / re-join room (session token still sent for secure reconnect)
+    // Guard emit by room+username so token/role state changes don't re-send join_game.
     const joinKey = `${gameId}:${username}`;
     if (lastJoinKeyRef.current !== joinKey) {
       socket.emit('join_game', { gameId, username, avatar, sessionToken });

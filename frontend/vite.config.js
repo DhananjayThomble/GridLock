@@ -14,6 +14,9 @@ export default defineConfig({
         target: 'http://localhost:5000',
         ws: true,
       },
+      '/api': {
+        target: 'http://localhost:5000',
+      },
     },
   },
 })

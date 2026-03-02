@@ -52,7 +52,7 @@
     margin-right: auto;
     /* Remove excessive padding on mobile */
     padding: 8px !important;
-    overflow: hidden;
+    overflow: auto;
   }
 
   /* Hide duplicate scoreboard cards on mobile — ScoreBar handles scoring */
