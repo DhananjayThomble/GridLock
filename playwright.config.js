@@ -1,11 +1,24 @@
 // playwright.config.js
-// Runs against a live server (backend on :5000, frontend served by Nginx or vite preview)
-// In CI: uses vite preview on :4173 (base=/), backend on :5000
-// Locally: uses http://localhost/beta (via Nginx) or override with TEST_BASE_URL
+// Runs against a live server (backend on :5000 in CI, backend on :5105 locally via test-e2e-local.sh)
+//
+// PORT ISOLATION STRATEGY
+// -----------------------
+// PM2 owns port 5000 on this host permanently. If a test backend tries to bind :5000 it
+// crashes silently and the frontend ends up talking to the PM2 instance (stale game state).
+// Multiplayer/spectator tests fail because games already have wrong players.
+//
+// Solution: scripts/test-e2e-local.sh starts an isolated backend on :5105 and a Vite
+// preview on :4175, then sets TEST_BASE_URL before launching Playwright. This means:
+//
+//   npm run test:e2e:local     → uses isolated ports (safe, always works)
+//   npm run test:e2e           → uses http://localhost/beta (Nginx, needs PM2 running)
+//   CI (process.env.CI=true)   → backend starts fresh on :5000 (no PM2 in CI runners)
+//
+// Never override TEST_BASE_URL to :5000 locally — you'll hit PM2 stale state.
 
 const { defineConfig, devices } = require('@playwright/test');
 
-// Locally default to /beta (Nginx). In CI, vite preview runs at root /.
+// CI: vite preview at root /:4173 | Local (via test-e2e-local.sh): :4175 | Raw: /beta
 const DEFAULT_URL = process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta';
 const BASE_URL    = process.env.TEST_BASE_URL || DEFAULT_URL;
 

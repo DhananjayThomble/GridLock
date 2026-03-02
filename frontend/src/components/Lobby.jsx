@@ -29,6 +29,7 @@ const Lobby = () => {
   const [gameId,        setGameId]        = useState('');
   const [creating,      setCreating]      = useState(false);
   const [joining,       setJoining]       = useState(false);
+  const [joinMode,      setJoinMode]      = useState('player'); // 'player' | 'spectator'
   const [tab,           setTab]           = useState('create'); // 'create' | 'join'
   const [showStats,     setShowStats]     = useState(false);
   const [stats,         setStats]         = useState(getStats());
@@ -99,9 +100,10 @@ const Lobby = () => {
       state: {
         username: name,
         gameId: id,
-        role: 'player_joining',
+        role: joinMode === 'spectator' ? 'spectator' : 'player_joining',
         avatar: selectedAvatar,
         sessionToken: existingToken,
+        joinMode,
       },
     });
   };
@@ -275,6 +277,26 @@ const Lobby = () => {
                 />
               </div>
 
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setJoinMode('player')}
+                  className={`py-2 rounded-xl border text-sm font-semibold transition-all ${joinMode === 'player'
+                    ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg'
+                    : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'}`}
+                >
+                  🎮 Join as Player
+                </button>
+                <button
+                  onClick={() => setJoinMode('spectator')}
+                  className={`py-2 rounded-xl border text-sm font-semibold transition-all ${joinMode === 'spectator'
+                    ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg'
+                    : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'}`}
+                >
+                  👀 Join as Spectator
+                </button>
+              </div>
+
               <button
                 onClick={handleJoin}
                 disabled={joining}
@@ -286,7 +308,7 @@ const Lobby = () => {
                     <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                     Joining…
                   </span>
-                ) : '🔗 Join Game'}
+                ) : (joinMode === 'spectator' ? '👀 Spectate Game' : '🔗 Join Game')}
               </button>
 
               <p className="text-white/40 text-xs text-center">
