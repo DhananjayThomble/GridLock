@@ -637,7 +637,9 @@ function attachSocketHandlers(io, log) {
             };
 
             try {
-                // Fast path: use socket-attached game context to avoid scanning all active games.
+                const processedGameIds = new Set();
+
+                // Fast path: use socket-attached game context first.
                 const hintedGameId = socket.data?.gameId;
                 const hintedPlayerId = socket.data?.playerId;
                 const hintedIsSpectator = socket.data?.isSpectator === true || hintedPlayerId === 'spectator';
@@ -646,17 +648,17 @@ function attachSocketHandlers(io, log) {
                     const hintedGame = await gameStore.getGame(hintedGameId);
                     if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
                         await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);
-                        return;
+                        processedGameIds.add(hintedGameId);
                     }
                 }
 
-                // Fallback path for legacy sockets / missing hints.
+                // Fallback path for legacy sockets / missing hints, or multi-game cleanup.
                 const allGames = await gameStore.getAllActiveGames();
                 for (const [gameId, game] of allGames.entries()) {
+                    if (processedGameIds.has(gameId)) continue;
                     const playerId = findPlayerBySocket(game, socket.id);
                     if (!playerId) continue;
                     await processPlayerDisconnect(gameId, game, playerId);
-                    break;
                 }
             } catch (error) {
                 log.error('Error handling disconnect', { socketId: socket.id, error: error.message });
