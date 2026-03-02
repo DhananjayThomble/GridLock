@@ -11,6 +11,7 @@ import Lobby from './components/Lobby';
 import Board from './components/Board';
 import Leaderboard from './components/Leaderboard';
 import ErrorBoundary from './components/ErrorBoundary';
+import './App.css';
 
 // Support /beta sub-path deployment via Vite's BASE_URL
 const basePath = import.meta.env.BASE_URL || '/';
@@ -32,32 +33,34 @@ const AppLayout = () => {
         </nav>
       )}
 
-      <Routes>
-        <Route
-          path="/"
-          element={(
-            <ErrorBoundary>
-              <Lobby />
-            </ErrorBoundary>
-          )}
-        />
-        <Route
-          path="/game"
-          element={(
-            <ErrorBoundary>
-              <Board />
-            </ErrorBoundary>
-          )}
-        />
-        <Route
-          path="/leaderboard"
-          element={(
-            <ErrorBoundary>
-              <Leaderboard />
-            </ErrorBoundary>
-          )}
-        />
-      </Routes>
+      <div className={hideNav ? '' : 'app-content-with-nav'}>
+        <Routes>
+          <Route
+            path="/"
+            element={(
+              <ErrorBoundary>
+                <Lobby />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/game"
+            element={(
+              <ErrorBoundary>
+                <Board />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/leaderboard"
+            element={(
+              <ErrorBoundary>
+                <Leaderboard />
+              </ErrorBoundary>
+            )}
+          />
+        </Routes>
+      </div>
     </>
   );
 };

@@ -1,12 +1,34 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const DEFAULT_LIMIT = 20;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
+const apiUrl = (path) => `${API_BASE}${path}`;
 
 const formatDate = (value) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+};
+
+const parseApiResponse = async (res) => {
+  const contentType = res.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    await res.text();
+  } catch {
+    // ignore body read failures and fall back to generic errors
+  }
+  return null;
 };
 
 const Leaderboard = () => {
@@ -19,6 +41,8 @@ const Leaderboard = () => {
   const [playerLoading, setPlayerLoading] = useState(false);
   const [playerError, setPlayerError] = useState('');
 
+  const lookupAbortRef = useRef(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -26,8 +50,8 @@ const Leaderboard = () => {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`/api/leaderboard?limit=${DEFAULT_LIMIT}`);
-        const data = await res.json();
+        const res = await fetch(apiUrl(`/api/leaderboard?limit=${DEFAULT_LIMIT}`));
+        const data = await parseApiResponse(res);
 
         if (!res.ok || !data?.success) {
           throw new Error(data?.error || 'Unable to load leaderboard');
@@ -47,7 +71,11 @@ const Leaderboard = () => {
     };
 
     loadLeaderboard();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+      if (lookupAbortRef.current) lookupAbortRef.current.abort();
+    };
   }, []);
 
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
@@ -62,23 +90,35 @@ const Leaderboard = () => {
       return;
     }
 
+    if (lookupAbortRef.current) lookupAbortRef.current.abort();
+    const controller = new AbortController();
+    lookupAbortRef.current = controller;
+
     setPlayerLoading(true);
     setPlayerError('');
     setPlayer(null);
 
     try {
-      const res = await fetch(`/api/leaderboard/${encodeURIComponent(username)}`);
-      const data = await res.json();
+      const res = await fetch(apiUrl(`/api/leaderboard/${encodeURIComponent(username)}`), {
+        signal: controller.signal,
+      });
+      const data = await parseApiResponse(res);
 
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || 'Unable to find player');
       }
 
-      setPlayer(data.player || null);
+      if (!controller.signal.aborted) {
+        setPlayer(data.player || null);
+      }
     } catch (err) {
-      setPlayerError(err?.message || 'Unable to find player');
+      if (err?.name !== 'AbortError' && !controller.signal.aborted) {
+        setPlayerError(err?.message || 'Unable to find player');
+      }
     } finally {
-      setPlayerLoading(false);
+      if (!controller.signal.aborted) {
+        setPlayerLoading(false);
+      }
     }
   };
 
