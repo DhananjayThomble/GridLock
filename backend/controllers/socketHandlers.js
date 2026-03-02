@@ -122,7 +122,7 @@ async function updateLeaderboard(game, winner, log) {
 
         if (playerEntries.length === 0) return;
 
-        // Fetch current ELO values for all participants
+        // Fetch current ELO values for all participants once (snapshot per match)
         const usernames = playerEntries.map((p) => p.username);
         const existingRecords = await Leaderboard.find({ username: { $in: usernames } }).lean();
         const eloMap = {};
@@ -130,46 +130,80 @@ async function updateLeaderboard(game, winner, log) {
             eloMap[rec.username] = rec.elo;
         }
 
-        // Update each player's record
+        const now = new Date();
+
         for (const { pid, username } of playerEntries) {
             const isWinner = pid === winner;
             const isDraw = winner === 'draw';
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
             const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
 
-            // Compute average opponent ELO
             const opponentElos = playerEntries
                 .filter((p) => p.username !== username)
-                .map((p) => eloMap[p.username] || 1000);
+                .map((p) => (Number.isFinite(eloMap[p.username]) ? eloMap[p.username] : 1000));
             const avgOpponentElo =
                 opponentElos.length > 0
                     ? Math.round(opponentElos.reduce((a, b) => a + b, 0) / opponentElos.length)
                     : 1000;
 
-            let record = await Leaderboard.findOne({ username });
-            if (!record) {
-                record = new Leaderboard({ username });
-            }
+            const baseElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
+            const newElo = Leaderboard.calculateElo(baseElo, avgOpponentElo, eloScore);
 
-            const newElo = Leaderboard.calculateElo(record.elo, avgOpponentElo, eloScore);
-            record.elo = newElo;
-            record.gamesPlayed += 1;
-            record.lastPlayedAt = new Date();
+            const winInc = result === 'win' ? 1 : 0;
+            const lossInc = result === 'loss' ? 1 : 0;
+            const drawInc = result === 'draw' ? 1 : 0;
 
-            if (result === 'win') {
-                record.wins += 1;
-                record.currentStreak += 1;
-                if (record.currentStreak > record.bestStreak) {
-                    record.bestStreak = record.currentStreak;
-                }
-            } else if (result === 'loss') {
-                record.losses += 1;
-                record.currentStreak = 0;
-            } else {
-                record.draws += 1;
-            }
-
-            await record.save();
+            // Atomic per-player update to avoid read-modify-write race losses.
+            await Leaderboard.updateOne(
+                { username },
+                [
+                    {
+                        $set: {
+                            username,
+                            elo: newElo,
+                            lastPlayedAt: now,
+                            updatedAt: now,
+                            createdAt: { $ifNull: ['$createdAt', now] },
+                            gamesPlayed: { $add: [{ $ifNull: ['$gamesPlayed', 0] }, 1] },
+                            wins: { $add: [{ $ifNull: ['$wins', 0] }, winInc] },
+                            losses: { $add: [{ $ifNull: ['$losses', 0] }, lossInc] },
+                            draws: { $add: [{ $ifNull: ['$draws', 0] }, drawInc] },
+                            currentStreak:
+                                result === 'win'
+                                    ? { $add: [{ $ifNull: ['$currentStreak', 0] }, 1] }
+                                    : result === 'loss'
+                                        ? 0
+                                        : { $ifNull: ['$currentStreak', 0] },
+                            bestStreak: { $ifNull: ['$bestStreak', 0] },
+                        },
+                    },
+                    {
+                        $set: {
+                            bestStreak:
+                                result === 'win'
+                                    ? { $max: ['$bestStreak', '$currentStreak'] }
+                                    : '$bestStreak',
+                        },
+                    },
+                    {
+                        $set: {
+                            winRate: {
+                                $cond: [
+                                    { $gt: ['$gamesPlayed', 0] },
+                                    {
+                                        $round: [
+                                            { $multiply: [{ $divide: ['$wins', '$gamesPlayed'] }, 100] },
+                                            2,
+                                        ],
+                                    },
+                                    0,
+                                ],
+                            },
+                        },
+                    },
+                ],
+                { upsert: true }
+            );
         }
 
         log.info('Leaderboard updated for game', { gameId: game.id, winner, players: usernames });

@@ -57,9 +57,12 @@ const LeaderboardSchema = new mongoose.Schema(
         },
     },
     {
-        timestamps: true, // adds createdAt and updatedAt
+        timestamps: true,
     }
 );
+
+// Support leaderboard sorting at scale.
+LeaderboardSchema.index({ wins: -1, winRate: -1, elo: -1 });
 
 /**
  * Compute winRate before saving (wins / gamesPlayed * 100, rounded to 2dp).
@@ -74,19 +77,6 @@ LeaderboardSchema.pre('save', function (next) {
 });
 
 /**
- * Same recalculation for findOneAndUpdate operations.
- */
-LeaderboardSchema.pre('findOneAndUpdate', function (next) {
-    const update = this.getUpdate();
-    const inc = update.$inc || {};
-    const set = update.$set || {};
-
-    // We'll recalculate winRate in the route after the update, using the returned doc.
-    // This hook is a no-op placeholder kept for future middleware expansion.
-    next();
-});
-
-/**
  * Calculate new ELO rating.
  * @param {number} currentElo - Current player ELO
  * @param {number} opponentElo - Opponent ELO (average for multi-player)
@@ -95,9 +85,11 @@ LeaderboardSchema.pre('findOneAndUpdate', function (next) {
  * @returns {number} New ELO rating
  */
 LeaderboardSchema.statics.calculateElo = function (currentElo, opponentElo, score, kFactor = 32) {
-    const expectedScore = 1 / (1 + Math.pow(10, (opponentElo - currentElo) / 400));
-    const newElo = Math.round(currentElo + kFactor * (score - expectedScore));
-    return Math.max(0, newElo); // ELO floor at 0
+    const safeCurrent = Number.isFinite(currentElo) ? currentElo : 1000;
+    const safeOpponent = Number.isFinite(opponentElo) && opponentElo >= 0 ? opponentElo : 1000;
+    const expectedScore = 1 / (1 + Math.pow(10, (safeOpponent - safeCurrent) / 400));
+    const newElo = Math.round(safeCurrent + kFactor * (score - expectedScore));
+    return Math.max(0, newElo);
 };
 
 module.exports = mongoose.model('Leaderboard', LeaderboardSchema);

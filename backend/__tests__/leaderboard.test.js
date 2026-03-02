@@ -1,23 +1,16 @@
 /**
  * backend/__tests__/leaderboard.test.js
  *
- * Unit tests for the leaderboard logic.
- * These tests exercise the business logic (ELO calculation, stat updates)
- * without requiring a live MongoDB connection by mocking the Mongoose model.
+ * Unit tests for leaderboard business logic.
  */
 
+const Leaderboard = require('../models/Leaderboard');
+
 // ---------------------------------------------------------------------------
-// ELO calculation (pure function — no mocking needed)
+// ELO calculation (exercise production static helper)
 // ---------------------------------------------------------------------------
 describe('Leaderboard.calculateElo (ELO algorithm)', () => {
-    // We test the static helper directly by importing its logic inline.
-    // The formula: newElo = currentElo + K * (score - expectedScore)
-    // expectedScore = 1 / (1 + 10^((opponentElo - currentElo) / 400))
-    function calculateElo(currentElo, opponentElo, score, kFactor = 32) {
-        const expectedScore = 1 / (1 + Math.pow(10, (opponentElo - currentElo) / 400));
-        const newElo = Math.round(currentElo + kFactor * (score - expectedScore));
-        return Math.max(0, newElo);
-    }
+    const { calculateElo } = Leaderboard;
 
     test('equal players: winner gains ~16 ELO', () => {
         const newElo = calculateElo(1000, 1000, 1);

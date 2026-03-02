@@ -318,35 +318,10 @@ const Board = () => {
     </div>
   );
 
-  // ── Touch handler factory ─────────────────────────────────────────────────────
-  // Returns onTouchEnd that fires the move only when the finger lifted inside
-  // the same element it started on (no-swipe guard).
-  const makeTouchHandler = useCallback((type, r, c) => {
-    let startX = 0;
-    let startY = 0;
-    return {
-      onTouchStart: (e) => {
-        initAudio();
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-      },
-      onTouchEnd: (e) => {
-        const dx = Math.abs(e.changedTouches[0].clientX - startX);
-        const dy = Math.abs(e.changedTouches[0].clientY - startY);
-        // Only treat as a tap (not a swipe / scroll)
-        if (dx < 10 && dy < 10) {
-          e.preventDefault();
-          handleLineClick(type, r, c);
-        }
-      },
-    };
-  }, [handleLineClick]);
-
   const renderHLine = (r, c) => {
     const owner = gameState.horizontalLines[r]?.[c];
     const isMyTurn = gameState.currentPlayer === role && !owner;
     const lineColor = getLineColor(owner);
-    const touchHandlers = makeTouchHandler('horizontal', r, c);
 
     return (
       <div
@@ -356,20 +331,12 @@ const Board = () => {
       >
         <div
           onClick={() => handleLineClick('horizontal', r, c)}
-          onTouchStart={touchHandlers.onTouchStart}
-          onTouchEnd={touchHandlers.onTouchEnd}
-          role="button"
-          aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => e.key === 'Enter' && handleLineClick('horizontal', r, c)}
           className={`h-2 w-full rounded transition-all duration-150 ${
-            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
+            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80' : 'cursor-default'
           }`}
           style={{
             backgroundColor: lineColor || '#E5E7EB',
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            // Increase touch target without changing visual size
-            touchAction: 'none',
           }}
         />
       </div>
@@ -380,7 +347,6 @@ const Board = () => {
     const owner = gameState.verticalLines[r]?.[c];
     const isMyTurn = gameState.currentPlayer === role && !owner;
     const lineColor = getLineColor(owner);
-    const touchHandlers = makeTouchHandler('vertical', r, c);
 
     return (
       <div
@@ -390,19 +356,12 @@ const Board = () => {
       >
         <div
           onClick={() => handleLineClick('vertical', r, c)}
-          onTouchStart={touchHandlers.onTouchStart}
-          onTouchEnd={touchHandlers.onTouchEnd}
-          role="button"
-          aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => e.key === 'Enter' && handleLineClick('vertical', r, c)}
           className={`w-2 h-full rounded transition-all duration-150 ${
-            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
+            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80' : 'cursor-default'
           }`}
           style={{
             backgroundColor: lineColor || '#E5E7EB',
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'none',
           }}
         />
       </div>
@@ -668,7 +627,7 @@ const Board = () => {
       {renderScoreboard()}
 
       {/* ── Board ── */}
-      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none board-container" style={{ touchAction: 'pan-y' }}>
+      <div className="relative bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100 overflow-auto select-none">
         {/* Mute toggle — top-right of board */}
         <button
           onClick={() => { initAudio(); handleToggleMute(); }}
