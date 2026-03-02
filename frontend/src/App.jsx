@@ -1,16 +1,37 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
+import Leaderboard from './components/Leaderboard';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Support /beta sub-path deployment via Vite's BASE_URL
 const basePath = import.meta.env.BASE_URL || '/';
 
-function App() {
+const AppLayout = () => {
+  const location = useLocation();
+  const hideNav = location.pathname === '/game';
+
   return (
-    <Router basename={basePath}>
+    <>
+      {!hideNav && (
+        <nav className="app-nav">
+          <NavLink to="/" end className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            Lobby
+          </NavLink>
+          <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            Leaderboard
+          </NavLink>
+        </nav>
+      )}
+
       <Routes>
         <Route
           path="/"
@@ -28,7 +49,23 @@ function App() {
             </ErrorBoundary>
           )}
         />
+        <Route
+          path="/leaderboard"
+          element={(
+            <ErrorBoundary>
+              <Leaderboard />
+            </ErrorBoundary>
+          )}
+        />
       </Routes>
+    </>
+  );
+};
+
+function App() {
+  return (
+    <Router basename={basePath}>
+      <AppLayout />
     </Router>
   );
 }
