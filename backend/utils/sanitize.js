@@ -6,7 +6,7 @@ const validator = require('validator');
 /**
  * Sanitize a username string
  * - Trim whitespace
- * - Strip HTML tags
+ * - Remove low/control characters and HTML-escape dangerous chars
  * - Limit length
  * - Reject empty after sanitization
  * @param {string} input - Raw username
@@ -19,7 +19,7 @@ function sanitizeUsername(input) {
 
     let cleaned = input.trim();
 
-    // Strip any HTML tags
+    // Remove control characters and HTML-escape dangerous symbols
     cleaned = validator.stripLow(cleaned, /* keep_newlines */ false);
     cleaned = validator.escape(cleaned); // escape &, <, >, ", '
 

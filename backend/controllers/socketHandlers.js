@@ -7,6 +7,7 @@ const { socketLimiter } = require('../middleware/rateLimiter');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
+const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
@@ -136,8 +137,6 @@ async function updateLeaderboard(game, winner, log) {
             const isWinner = pid === winner;
             const isDraw = winner === 'draw';
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
-            const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
-
             const opponentElos = playerEntries
                 .filter((p) => p.username !== username)
                 .map((p) => (Number.isFinite(eloMap[p.username]) ? eloMap[p.username] : 1000));
@@ -146,64 +145,17 @@ async function updateLeaderboard(game, winner, log) {
                     ? Math.round(opponentElos.reduce((a, b) => a + b, 0) / opponentElos.length)
                     : 1000;
 
-            const baseElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
-            const newElo = Leaderboard.calculateElo(baseElo, avgOpponentElo, eloScore);
+            const fallbackElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
 
-            const winInc = result === 'win' ? 1 : 0;
-            const lossInc = result === 'loss' ? 1 : 0;
-            const drawInc = result === 'draw' ? 1 : 0;
+            const updatedDoc = await updateLeaderboardWithOptimisticElo({
+                username,
+                result,
+                avgOpponentElo,
+                fallbackElo,
+                now,
+            });
 
-            // Atomic per-player update to avoid read-modify-write race losses.
-            await Leaderboard.updateOne(
-                { username },
-                [
-                    {
-                        $set: {
-                            username,
-                            elo: newElo,
-                            lastPlayedAt: now,
-                            updatedAt: now,
-                            createdAt: { $ifNull: ['$createdAt', now] },
-                            gamesPlayed: { $add: [{ $ifNull: ['$gamesPlayed', 0] }, 1] },
-                            wins: { $add: [{ $ifNull: ['$wins', 0] }, winInc] },
-                            losses: { $add: [{ $ifNull: ['$losses', 0] }, lossInc] },
-                            draws: { $add: [{ $ifNull: ['$draws', 0] }, drawInc] },
-                            currentStreak:
-                                result === 'win'
-                                    ? { $add: [{ $ifNull: ['$currentStreak', 0] }, 1] }
-                                    : result === 'loss'
-                                        ? 0
-                                        : { $ifNull: ['$currentStreak', 0] },
-                            bestStreak: { $ifNull: ['$bestStreak', 0] },
-                        },
-                    },
-                    {
-                        $set: {
-                            bestStreak:
-                                result === 'win'
-                                    ? { $max: ['$bestStreak', '$currentStreak'] }
-                                    : '$bestStreak',
-                        },
-                    },
-                    {
-                        $set: {
-                            winRate: {
-                                $cond: [
-                                    { $gt: ['$gamesPlayed', 0] },
-                                    {
-                                        $round: [
-                                            { $multiply: [{ $divide: ['$wins', '$gamesPlayed'] }, 100] },
-                                            2,
-                                        ],
-                                    },
-                                    0,
-                                ],
-                            },
-                        },
-                    },
-                ],
-                { upsert: true }
-            );
+            eloMap[username] = updatedDoc.elo;
         }
 
         log.info('Leaderboard updated for game', { gameId: game.id, winner, players: usernames });
@@ -315,6 +267,8 @@ module.exports = function attachSocketHandlers(io, log) {
 
                 await gameStore.setGame(gameId, game);
                 socket.join(gameId);
+                socket.data.gameId = gameId;
+                socket.data.playerId = 'player1';
                 await persistGame(game, 'waiting');
                 log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername });
 
@@ -378,6 +332,8 @@ module.exports = function attachSocketHandlers(io, log) {
                         player.disconnectedAt = null;
                         await gameStore.setGame(cleanGameId, game);
                         socket.join(cleanGameId);
+                        socket.data.gameId = cleanGameId;
+                        socket.data.playerId = playerId;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -411,6 +367,8 @@ module.exports = function attachSocketHandlers(io, log) {
                 };
 
                 socket.join(cleanGameId);
+                socket.data.gameId = cleanGameId;
+                socket.data.playerId = assignedSlot;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -512,6 +470,12 @@ module.exports = function attachSocketHandlers(io, log) {
                     return;
                 }
 
+                const gameFinished = game.gameState?.winner != null;
+                if (!gameFinished) {
+                    socket.emit('error', 'Rematch can only be requested after the game has finished');
+                    return;
+                }
+
                 // Add vote to shared Redis store — visible across ALL nodes
                 const { count } = await rematchStore.addVote(cleanGameId, requestingPlayerId);
                 io.to(cleanGameId).emit('rematch_count', { count, total: game.playerCount });
@@ -556,29 +520,26 @@ module.exports = function attachSocketHandlers(io, log) {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
 
-            const allGames = await gameStore.getAllActiveGames();
-
-            for (const [gameId, game] of allGames.entries()) {
-                const playerId = findPlayerBySocket(game, socket.id);
-                if (!playerId) continue;
-
+            const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
+                if (!player) return;
+
                 player.disconnectedAt = new Date();
 
                 io.to(gameId).emit('player_disconnected', {
-                    playerId, username: player.username,
+                    playerId,
+                    username: player.username,
                     reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
                 });
 
                 // If game already finished, just persist and skip forfeit flow
                 if (game.gameState?.winner) {
-                    // Clear any stale rematch votes for this game
                     await rematchStore.clearVotes(gameId);
                     await gameStore.setGame(gameId, game);
                     persistGame(game, 'finished').catch((err) =>
                         log.error('Persist after disconnect failed', { gameId, error: err.message })
                     );
-                    continue;
+                    return;
                 }
 
                 // Mark disconnect state in Redis (TTL = reconnect window; expiry = forfeit)
@@ -625,7 +586,9 @@ module.exports = function attachSocketHandlers(io, log) {
                             reason: 'disconnect_timeout',
                         });
                         io.to(gameId).emit('game_over', {
-                            winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected',
+                            winner,
+                            scores: currentGame.gameState.scores,
+                            reason: 'opponent_disconnected',
                         });
                         // Fire-and-forget leaderboard update for forfeit
                         updateLeaderboard(currentGame, winner, log);
@@ -645,6 +608,33 @@ module.exports = function attachSocketHandlers(io, log) {
                 persistGame(game).catch((err) =>
                     log.error('Persist after disconnect failed', { gameId, error: err.message })
                 );
+            };
+
+            try {
+                // Fast path: use socket-attached game context to avoid scanning all active games.
+                const hintedGameId = socket.data?.gameId;
+                const hintedPlayerId = socket.data?.playerId;
+                if (hintedGameId && hintedPlayerId) {
+                    const hintedGame = await gameStore.getGame(hintedGameId);
+                    if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
+                        await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);
+                        return;
+                    }
+                }
+
+                // Fallback path for legacy sockets / missing hints.
+                const allGames = await gameStore.getAllActiveGames();
+                for (const [gameId, game] of allGames.entries()) {
+                    const playerId = findPlayerBySocket(game, socket.id);
+                    if (!playerId) continue;
+                    await processPlayerDisconnect(gameId, game, playerId);
+                    break;
+                }
+            } catch (error) {
+                log.error('Error handling disconnect', { socketId: socket.id, error: error.message });
+            } finally {
+                socket.data.gameId = undefined;
+                socket.data.playerId = undefined;
             }
         });
     });
