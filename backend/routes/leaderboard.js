@@ -3,60 +3,10 @@ const express = require('express');
 const router = express.Router();
 const Leaderboard = require('../models/Leaderboard');
 const { sanitizeUsername } = require('../utils/sanitize');
-
-function buildAtomicLeaderboardUpdate({ username, result, newElo, now = new Date() }) {
-    const winInc = result === 'win' ? 1 : 0;
-    const lossInc = result === 'loss' ? 1 : 0;
-    const drawInc = result === 'draw' ? 1 : 0;
-
-    return [
-        {
-            $set: {
-                username,
-                elo: newElo,
-                lastPlayedAt: now,
-                updatedAt: now,
-                createdAt: { $ifNull: ['$createdAt', now] },
-                gamesPlayed: { $add: [{ $ifNull: ['$gamesPlayed', 0] }, 1] },
-                wins: { $add: [{ $ifNull: ['$wins', 0] }, winInc] },
-                losses: { $add: [{ $ifNull: ['$losses', 0] }, lossInc] },
-                draws: { $add: [{ $ifNull: ['$draws', 0] }, drawInc] },
-                currentStreak:
-                    result === 'win'
-                        ? { $add: [{ $ifNull: ['$currentStreak', 0] }, 1] }
-                        : result === 'loss'
-                            ? 0
-                            : { $ifNull: ['$currentStreak', 0] },
-                bestStreak: { $ifNull: ['$bestStreak', 0] },
-            },
-        },
-        {
-            // For win updates, keep bestStreak in sync with the incremented currentStreak.
-            $set: {
-                bestStreak:
-                    result === 'win'
-                        ? { $max: ['$bestStreak', '$currentStreak'] }
-                        : '$bestStreak',
-            },
-        },
-        {
-            $set: {
-                winRate: {
-                    $cond: [
-                        { $gt: ['$gamesPlayed', 0] },
-                        {
-                            $round: [
-                                { $multiply: [{ $divide: ['$wins', '$gamesPlayed'] }, 100] },
-                                2,
-                            ],
-                        },
-                        0,
-                    ],
-                },
-            },
-        },
-    ];
-}
+const {
+    buildAtomicLeaderboardUpdate,
+    updateLeaderboardWithOptimisticElo,
+} = require('../services/leaderboardUpdateService');
 
 /**
  * GET /api/leaderboard
@@ -154,9 +104,13 @@ router.post('/', async (req, res) => {
     try {
         const { username, result, opponentElo, opponentUsernames } = req.body;
 
+        if (username === undefined || username === null) {
+            return res.status(400).json({ success: false, error: 'username is required' });
+        }
+
         const san = sanitizeUsername(username);
         if (!san.valid) {
-            return res.status(400).json({ success: false, error: 'username is required' });
+            return res.status(400).json({ success: false, error: san.error || 'invalid username' });
         }
         const cleanUsername = san.value;
 
@@ -205,16 +159,11 @@ router.post('/', async (req, res) => {
             }
         }
 
-        const existing = await Leaderboard.findOne({ username: cleanUsername }).select('elo').lean();
-        const currentElo = existing?.elo ?? 1000;
-        const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
-        const newElo = Leaderboard.calculateElo(currentElo, avgOpponentElo, eloScore);
-
-        const updatedPlayer = await Leaderboard.findOneAndUpdate(
-            { username: cleanUsername },
-            buildAtomicLeaderboardUpdate({ username: cleanUsername, result, newElo }),
-            { upsert: true, new: true }
-        ).lean();
+        const updatedPlayer = await updateLeaderboardWithOptimisticElo({
+            username: cleanUsername,
+            result,
+            avgOpponentElo,
+        });
 
         res.status(200).json({
             success: true,
@@ -240,3 +189,4 @@ router.post('/', async (req, res) => {
 
 module.exports = router;
 module.exports.buildAtomicLeaderboardUpdate = buildAtomicLeaderboardUpdate;
+module.exports.updateLeaderboardWithOptimisticElo = updateLeaderboardWithOptimisticElo;

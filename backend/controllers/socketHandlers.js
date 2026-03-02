@@ -7,6 +7,7 @@ const { socketLimiter } = require('../middleware/rateLimiter');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
+const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
@@ -140,8 +141,6 @@ async function updateLeaderboard(game, winner, log) {
             const isWinner = pid === winner;
             const isDraw = winner === 'draw';
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
-            const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
-
             const opponentElos = playerEntries
                 .filter((p) => p.username !== username)
                 .map((p) => (Number.isFinite(eloMap[p.username]) ? eloMap[p.username] : 1000));
@@ -150,64 +149,17 @@ async function updateLeaderboard(game, winner, log) {
                     ? Math.round(opponentElos.reduce((a, b) => a + b, 0) / opponentElos.length)
                     : 1000;
 
-            const baseElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
-            const newElo = Leaderboard.calculateElo(baseElo, avgOpponentElo, eloScore);
+            const fallbackElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
 
-            const winInc = result === 'win' ? 1 : 0;
-            const lossInc = result === 'loss' ? 1 : 0;
-            const drawInc = result === 'draw' ? 1 : 0;
+            const updatedDoc = await updateLeaderboardWithOptimisticElo({
+                username,
+                result,
+                avgOpponentElo,
+                fallbackElo,
+                now,
+            });
 
-            // Atomic per-player update to avoid read-modify-write race losses.
-            await Leaderboard.updateOne(
-                { username },
-                [
-                    {
-                        $set: {
-                            username,
-                            elo: newElo,
-                            lastPlayedAt: now,
-                            updatedAt: now,
-                            createdAt: { $ifNull: ['$createdAt', now] },
-                            gamesPlayed: { $add: [{ $ifNull: ['$gamesPlayed', 0] }, 1] },
-                            wins: { $add: [{ $ifNull: ['$wins', 0] }, winInc] },
-                            losses: { $add: [{ $ifNull: ['$losses', 0] }, lossInc] },
-                            draws: { $add: [{ $ifNull: ['$draws', 0] }, drawInc] },
-                            currentStreak:
-                                result === 'win'
-                                    ? { $add: [{ $ifNull: ['$currentStreak', 0] }, 1] }
-                                    : result === 'loss'
-                                        ? 0
-                                        : { $ifNull: ['$currentStreak', 0] },
-                            bestStreak: { $ifNull: ['$bestStreak', 0] },
-                        },
-                    },
-                    {
-                        $set: {
-                            bestStreak:
-                                result === 'win'
-                                    ? { $max: ['$bestStreak', '$currentStreak'] }
-                                    : '$bestStreak',
-                        },
-                    },
-                    {
-                        $set: {
-                            winRate: {
-                                $cond: [
-                                    { $gt: ['$gamesPlayed', 0] },
-                                    {
-                                        $round: [
-                                            { $multiply: [{ $divide: ['$wins', '$gamesPlayed'] }, 100] },
-                                            2,
-                                        ],
-                                    },
-                                    0,
-                                ],
-                            },
-                        },
-                    },
-                ],
-                { upsert: true }
-            );
+            eloMap[username] = updatedDoc.elo;
         }
 
         log.info('Leaderboard updated for game', { gameId: game.id, winner, players: usernames });
