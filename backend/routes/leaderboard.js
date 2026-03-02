@@ -58,6 +58,43 @@ function buildAtomicLeaderboardUpdate({ username, result, newElo, now = new Date
     ];
 }
 
+const MAX_ELO_UPDATE_RETRIES = 5;
+
+function isDuplicateKeyError(error) {
+    return !!error && (error.code === 11000 || error.code === 11001);
+}
+
+async function updateLeaderboardWithOptimisticElo({ username, result, avgOpponentElo, fallbackElo = 1000, now = new Date() }) {
+    const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
+
+    for (let attempt = 1; attempt <= MAX_ELO_UPDATE_RETRIES; attempt++) {
+        const existing = await Leaderboard.findOne({ username }).select('_id elo').lean();
+        const currentElo = Number.isFinite(existing?.elo) ? existing.elo : fallbackElo;
+        const newElo = Leaderboard.calculateElo(currentElo, avgOpponentElo, eloScore);
+
+        const filter = existing
+            ? { _id: existing._id, elo: currentElo }
+            : { username, gamesPlayed: { $exists: false } };
+
+        try {
+            const updated = await Leaderboard.findOneAndUpdate(
+                filter,
+                buildAtomicLeaderboardUpdate({ username, result, newElo, now }),
+                { upsert: !existing, new: true }
+            ).lean();
+
+            // `updated` is null when optimistic filter misses due to concurrent writes.
+            if (updated) return updated;
+        } catch (error) {
+            // Upsert races on a unique username can briefly throw duplicate key; retry.
+            if (isDuplicateKeyError(error)) continue;
+            throw error;
+        }
+    }
+
+    throw new Error(`Failed to update leaderboard for '${username}' after ${MAX_ELO_UPDATE_RETRIES} retries`);
+}
+
 /**
  * GET /api/leaderboard
  * Returns top players sorted by wins (desc), then winRate (desc), then elo (desc).
@@ -154,9 +191,13 @@ router.post('/', async (req, res) => {
     try {
         const { username, result, opponentElo, opponentUsernames } = req.body;
 
+        if (username === undefined || username === null) {
+            return res.status(400).json({ success: false, error: 'username is required' });
+        }
+
         const san = sanitizeUsername(username);
         if (!san.valid) {
-            return res.status(400).json({ success: false, error: 'username is required' });
+            return res.status(400).json({ success: false, error: san.error || 'invalid username' });
         }
         const cleanUsername = san.value;
 
@@ -205,16 +246,11 @@ router.post('/', async (req, res) => {
             }
         }
 
-        const existing = await Leaderboard.findOne({ username: cleanUsername }).select('elo').lean();
-        const currentElo = existing?.elo ?? 1000;
-        const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
-        const newElo = Leaderboard.calculateElo(currentElo, avgOpponentElo, eloScore);
-
-        const updatedPlayer = await Leaderboard.findOneAndUpdate(
-            { username: cleanUsername },
-            buildAtomicLeaderboardUpdate({ username: cleanUsername, result, newElo }),
-            { upsert: true, new: true }
-        ).lean();
+        const updatedPlayer = await updateLeaderboardWithOptimisticElo({
+            username: cleanUsername,
+            result,
+            avgOpponentElo,
+        });
 
         res.status(200).json({
             success: true,
@@ -240,3 +276,4 @@ router.post('/', async (req, res) => {
 
 module.exports = router;
 module.exports.buildAtomicLeaderboardUpdate = buildAtomicLeaderboardUpdate;
+module.exports.updateLeaderboardWithOptimisticElo = updateLeaderboardWithOptimisticElo;
