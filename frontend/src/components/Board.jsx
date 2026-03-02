@@ -42,10 +42,11 @@ function useGridSizes(gridSize) {
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // On mobile, use a larger minimum so lines are finger-friendly (≥44px touch)
-      const minBox = w < 640 ? 44 : 28;
+      // On mobile, keep controls finger-friendly but never exceed what fits the viewport.
+      const baseMinBox = w < 640 ? 44 : 28;
       const maxBox = w < 640 ? 72 : 80;
-      box = Math.max(minBox, Math.min(box, maxBox));
+      const effectiveMinBox = Math.min(baseMinBox, fromW, fromH);
+      box = Math.max(effectiveMinBox, Math.min(box, maxBox));
 
       const dot = Math.max(8, Math.round(box * 0.18));
       setSizes({ dot, line: box, box });
@@ -99,7 +100,7 @@ const Board = () => {
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
   const gameStarted      = useRef(false);
-  // Prevent duplicate join emits for the same room/user/token tuple.
+  // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
 
   // Mute toggle handler

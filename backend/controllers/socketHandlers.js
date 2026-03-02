@@ -7,6 +7,7 @@ const { socketLimiter } = require('../middleware/rateLimiter');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
+const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
@@ -136,8 +137,6 @@ async function updateLeaderboard(game, winner, log) {
             const isWinner = pid === winner;
             const isDraw = winner === 'draw';
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
-            const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
-
             const opponentElos = playerEntries
                 .filter((p) => p.username !== username)
                 .map((p) => (Number.isFinite(eloMap[p.username]) ? eloMap[p.username] : 1000));
@@ -148,91 +147,15 @@ async function updateLeaderboard(game, winner, log) {
 
             const fallbackElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
 
-            const winInc = result === 'win' ? 1 : 0;
-            const lossInc = result === 'loss' ? 1 : 0;
-            const drawInc = result === 'draw' ? 1 : 0;
+            const updatedDoc = await updateLeaderboardWithOptimisticElo({
+                username,
+                result,
+                avgOpponentElo,
+                fallbackElo,
+                now,
+            });
 
-            const MAX_ELO_UPDATE_RETRIES = 5;
-            let applied = false;
-
-            // Optimistic concurrency loop: guard update by current stored ELO.
-            for (let attempt = 1; attempt <= MAX_ELO_UPDATE_RETRIES; attempt++) {
-                const existing = await Leaderboard.findOne({ username }).select('_id elo').lean();
-                const baseElo = Number.isFinite(existing?.elo) ? existing.elo : fallbackElo;
-                const newElo = Leaderboard.calculateElo(baseElo, avgOpponentElo, eloScore);
-
-                const filter = existing
-                    ? { _id: existing._id, elo: baseElo }
-                    : { username, gamesPlayed: { $exists: false } };
-
-                try {
-                    const updatedDoc = await Leaderboard.findOneAndUpdate(
-                        filter,
-                        [
-                            {
-                                $set: {
-                                    username,
-                                    elo: newElo,
-                                    lastPlayedAt: now,
-                                    updatedAt: now,
-                                    createdAt: { $ifNull: ['$createdAt', now] },
-                                    gamesPlayed: { $add: [{ $ifNull: ['$gamesPlayed', 0] }, 1] },
-                                    wins: { $add: [{ $ifNull: ['$wins', 0] }, winInc] },
-                                    losses: { $add: [{ $ifNull: ['$losses', 0] }, lossInc] },
-                                    draws: { $add: [{ $ifNull: ['$draws', 0] }, drawInc] },
-                                    currentStreak:
-                                        result === 'win'
-                                            ? { $add: [{ $ifNull: ['$currentStreak', 0] }, 1] }
-                                            : result === 'loss'
-                                                ? 0
-                                                : { $ifNull: ['$currentStreak', 0] },
-                                    bestStreak: { $ifNull: ['$bestStreak', 0] },
-                                },
-                            },
-                            {
-                                $set: {
-                                    bestStreak:
-                                        result === 'win'
-                                            ? { $max: ['$bestStreak', '$currentStreak'] }
-                                            : '$bestStreak',
-                                },
-                            },
-                            {
-                                $set: {
-                                    winRate: {
-                                        $cond: [
-                                            { $gt: ['$gamesPlayed', 0] },
-                                            {
-                                                $round: [
-                                                    { $multiply: [{ $divide: ['$wins', '$gamesPlayed'] }, 100] },
-                                                    2,
-                                                ],
-                                            },
-                                            0,
-                                        ],
-                                    },
-                                },
-                            },
-                        ],
-                        { upsert: !existing, new: true }
-                    ).lean();
-
-                    // Null = optimistic filter miss due to concurrent writer; retry.
-                    if (!updatedDoc) continue;
-
-                    eloMap[username] = updatedDoc.elo;
-                    applied = true;
-                    break;
-                } catch (error) {
-                    // Upsert races against unique username are transient; retry.
-                    if (error?.code === 11000 || error?.code === 11001) continue;
-                    throw error;
-                }
-            }
-
-            if (!applied) {
-                throw new Error(`Failed to update leaderboard for ${username} after ${MAX_ELO_UPDATE_RETRIES} retries`);
-            }
+            eloMap[username] = updatedDoc.elo;
         }
 
         log.info('Leaderboard updated for game', { gameId: game.id, winner, players: usernames });
