@@ -1,50 +1,39 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  /* Remove fixed padding — let individual pages handle their own spacing */
   padding: 0;
   text-align: center;
 }
 
-/* On non-game pages (lobby etc.), restore some padding */
-@media (min-width: 641px) {
-  #root {
-    padding: 1rem;
-  }
+.app-nav {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  z-index: 40;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.app-nav-link {
+  color: rgba(226, 232, 240, 0.8);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.app-nav-link.active {
+  background: rgba(59, 130, 246, 0.35);
+  color: #ffffff;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+.app-content-with-nav {
+  padding-top: 3.75rem;
 }
