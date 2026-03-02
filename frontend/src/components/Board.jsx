@@ -231,6 +231,7 @@ const Board = () => {
     };
 
     const onRematchReady = (data) => {
+      if (roleRef.current === 'spectator') return;
       const newGameId = data.newGameId;
       // Keep token continuity across rematch; omit role so UI waits for
       // authoritative server assignment via game_started.

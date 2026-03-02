@@ -314,6 +314,9 @@ function attachSocketHandlers(io, log) {
                 // Spectator path: join room read-only and receive live updates
                 if (isSpectatorJoinRequest(joinMode)) {
                     socket.join(cleanGameId);
+                    socket.data.gameId = cleanGameId;
+                    socket.data.playerId = 'spectator';
+                    socket.data.isSpectator = true;
                     socket.emit('game_started', {
                         gameId: cleanGameId,
                         playerId: 'spectator',
@@ -354,6 +357,7 @@ function attachSocketHandlers(io, log) {
                         socket.join(cleanGameId);
                         socket.data.gameId = cleanGameId;
                         socket.data.playerId = playerId;
+                        socket.data.isSpectator = false;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -389,6 +393,7 @@ function attachSocketHandlers(io, log) {
                 socket.join(cleanGameId);
                 socket.data.gameId = cleanGameId;
                 socket.data.playerId = assignedSlot;
+                socket.data.isSpectator = false;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -635,7 +640,9 @@ function attachSocketHandlers(io, log) {
                 // Fast path: use socket-attached game context to avoid scanning all active games.
                 const hintedGameId = socket.data?.gameId;
                 const hintedPlayerId = socket.data?.playerId;
+                const hintedIsSpectator = socket.data?.isSpectator === true || hintedPlayerId === 'spectator';
                 if (hintedGameId && hintedPlayerId) {
+                    if (hintedIsSpectator) return;
                     const hintedGame = await gameStore.getGame(hintedGameId);
                     if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
                         await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);
@@ -656,6 +663,7 @@ function attachSocketHandlers(io, log) {
             } finally {
                 socket.data.gameId = undefined;
                 socket.data.playerId = undefined;
+                socket.data.isSpectator = undefined;
             }
         });
     });

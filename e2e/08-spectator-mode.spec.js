@@ -25,16 +25,23 @@ test.describe('Spectator mode', () => {
     // Spectator should not see any interactive move lines.
     await expect(spectator.locator('[class*="cursor-pointer"]')).toHaveCount(0);
 
-    // Make a valid move as active player and confirm spectator sees update.
+    // Capture spectator view before any move.
+    const spectatorTextBefore = await spectator.locator('body').innerText();
+
+    // Make a valid move as active player and confirm spectator sees a live update.
     const { p1HasTurn } = await getTurnState(p1, p2);
     const activePlayer = p1HasTurn ? p1 : p2;
 
     const moveOk = await makeMove(activePlayer);
     expect(moveOk).toBe(true);
 
-    await spectator.waitForTimeout(500);
-    const spectatorText = await spectator.locator('body').innerText();
-    expect(/turn/i.test(spectatorText)).toBe(true);
+    await spectator.waitForFunction(
+      previous => document.body && document.body.innerText !== previous,
+      spectatorTextBefore,
+      { timeout: 5_000 },
+    );
+    const spectatorTextAfter = await spectator.locator('body').innerText();
+    expect(spectatorTextAfter).not.toBe(spectatorTextBefore);
 
     await ctx1.close();
     await ctx2.close();

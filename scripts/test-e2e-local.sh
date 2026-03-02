@@ -8,7 +8,7 @@
 # Spectator/multiplayer tests then fail because games already have wrong players.
 #
 # SOLUTION: Use isolated ports (5105 backend, 4175 frontend preview) that never
-# conflict with PM2. Every run starts with a clean MongoDB test database.
+# conflict with PM2. Uses a dedicated local MongoDB test database name.
 #
 # Usage:
 #   ./scripts/test-e2e-local.sh                   # run all tests
