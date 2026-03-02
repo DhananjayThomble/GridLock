@@ -11,6 +11,7 @@ require('dotenv').config();
 
 const socketHandlers = require('./controllers/socketHandlers');
 const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
+const leaderboardRoutes = require('./routes/leaderboard');
 
 const app = express();
 const server = http.createServer(app);
@@ -73,6 +74,9 @@ setupRedisAdapter();
 
 // Attach socket handlers
 const { gameStore, rematchStore, disconnectStore, localTimers } = socketHandlers(io, log);
+
+// Leaderboard API routes
+app.use('/api/leaderboard', leaderboardRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {

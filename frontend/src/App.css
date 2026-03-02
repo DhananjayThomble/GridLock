@@ -1,8 +1,16 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  /* Remove fixed padding — let individual pages handle their own spacing */
+  padding: 0;
   text-align: center;
+}
+
+/* On non-game pages (lobby etc.), restore some padding */
+@media (min-width: 641px) {
+  #root {
+    padding: 1rem;
+  }
 }
 
 .logo {

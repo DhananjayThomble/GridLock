@@ -24,3 +24,83 @@
 .winner-pulse {
   animation: winner-pulse 1.5s ease-in-out infinite;
 }
+
+/* ── Mobile & Responsive ───────────────────────────────────────────────────── */
+
+/* Prevent iOS Safari rubber-band scroll on the game board */
+.board-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
+.game-layout {
+  min-height: 100dvh;
+}
+
+/* Game content: add top padding to clear fixed ScoreBar (~80px) */
+.game-content {
+  padding-top: 88px;
+}
+
+/* On mobile: board fills nearly full viewport width */
+@media (max-width: 640px) {
+  .board-container {
+    width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
+    margin-left: auto;
+    margin-right: auto;
+    /* Remove excessive padding on mobile */
+    padding: 8px !important;
+    overflow: auto;
+  }
+
+  /* Hide duplicate scoreboard cards on mobile — ScoreBar handles scoring */
+  .scoreboard-cards {
+    display: none !important;
+  }
+
+  /* Game toolbar: side-by-side mute + leave */
+  .game-toolbar {
+    max-width: calc(100vw - 1.5rem);
+    width: 100%;
+  }
+}
+
+/* Keep touch targets stable on coarse pointers (avoid overlap between adjacent lines). */
+@media (pointer: coarse) {
+  .board-container [role="button"] {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+/* ScoreBar — compact on very small screens */
+@media (max-width: 360px) {
+  .score-bar {
+    font-size: 10px;
+  }
+}
+
+/* Lobby form — prevent auto-zoom on iOS (font-size >= 16px on inputs) */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X+) */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Also apply safe-area to game layout bottom */
+  .game-layout {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

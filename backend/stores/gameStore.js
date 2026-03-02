@@ -1,4 +1,4 @@
-const { getRedisClient, isRedisAvailable } = require('./redisClient');
+const { getRedisClient } = require('./redisClient');
 
 const localGames = new Map();
 

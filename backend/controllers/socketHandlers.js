@@ -1,11 +1,13 @@
 const crypto = require('crypto');
 const Game = require('../models/Game');
+const Leaderboard = require('../models/Leaderboard');
 const { calculateNewState, initializeGameState } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter } = require('../middleware/rateLimiter');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
+const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
@@ -97,6 +99,69 @@ async function markGameFinished(gameId, reason = null) {
     const patch = { status: 'finished', finishedAt: new Date(), updatedAt: new Date(), lastActivityAt: new Date() };
     if (reason) patch['metadata.reason'] = reason;
     await Game.findOneAndUpdate({ gameId }, { $set: patch }, { new: false });
+}
+
+/**
+ * Auto-submit game results to the leaderboard after a game ends.
+ * Runs fire-and-forget (errors are logged but don't affect game flow).
+ *
+ * @param {object} game   - The game object with players and gameState
+ * @param {string} winner - The winning playerId ('player1', 'player2', etc.) or 'draw'
+ * @param {object} log    - Logger instance
+ */
+async function updateLeaderboard(game, winner, log) {
+    try {
+        // Collect all player usernames for cross-ELO lookup
+        const playerEntries = [];
+        for (let i = 1; i <= game.playerCount; i++) {
+            const pid = `player${i}`;
+            const player = game.players[pid];
+            if (player && player.username) {
+                playerEntries.push({ pid, username: player.username });
+            }
+        }
+
+        if (playerEntries.length === 0) return;
+
+        // Fetch current ELO values for all participants once (snapshot per match)
+        const usernames = playerEntries.map((p) => p.username);
+        const existingRecords = await Leaderboard.find({ username: { $in: usernames } }).lean();
+        const eloMap = {};
+        for (const rec of existingRecords) {
+            eloMap[rec.username] = rec.elo;
+        }
+
+        const now = new Date();
+
+        for (const { pid, username } of playerEntries) {
+            const isWinner = pid === winner;
+            const isDraw = winner === 'draw';
+            const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
+            const opponentElos = playerEntries
+                .filter((p) => p.username !== username)
+                .map((p) => (Number.isFinite(eloMap[p.username]) ? eloMap[p.username] : 1000));
+            const avgOpponentElo =
+                opponentElos.length > 0
+                    ? Math.round(opponentElos.reduce((a, b) => a + b, 0) / opponentElos.length)
+                    : 1000;
+
+            const fallbackElo = Number.isFinite(eloMap[username]) ? eloMap[username] : 1000;
+
+            const updatedDoc = await updateLeaderboardWithOptimisticElo({
+                username,
+                result,
+                avgOpponentElo,
+                fallbackElo,
+                now,
+            });
+
+            eloMap[username] = updatedDoc.elo;
+        }
+
+        log.info('Leaderboard updated for game', { gameId: game.id, winner, players: usernames });
+    } catch (err) {
+        log.error('Failed to update leaderboard', { gameId: game.id, error: err.message });
+    }
 }
 
 async function loadGameFromDB(cleanGameId, log) {
@@ -202,6 +267,8 @@ module.exports = function attachSocketHandlers(io, log) {
 
                 await gameStore.setGame(gameId, game);
                 socket.join(gameId);
+                socket.data.gameId = gameId;
+                socket.data.playerId = 'player1';
                 await persistGame(game, 'waiting');
                 log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername });
 
@@ -265,6 +332,8 @@ module.exports = function attachSocketHandlers(io, log) {
                         player.disconnectedAt = null;
                         await gameStore.setGame(cleanGameId, game);
                         socket.join(cleanGameId);
+                        socket.data.gameId = cleanGameId;
+                        socket.data.playerId = playerId;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -298,6 +367,8 @@ module.exports = function attachSocketHandlers(io, log) {
                 };
 
                 socket.join(cleanGameId);
+                socket.data.gameId = cleanGameId;
+                socket.data.playerId = assignedSlot;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -363,6 +434,8 @@ module.exports = function attachSocketHandlers(io, log) {
 
                 if (newState.winner) {
                     io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                    // Fire-and-forget leaderboard update
+                    updateLeaderboard(game, newState.winner, log);
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
@@ -394,6 +467,12 @@ module.exports = function attachSocketHandlers(io, log) {
                 const player = game.players[requestingPlayerId];
                 if (!player || player.token !== sessionToken) {
                     socket.emit('error', 'Unauthorized rematch request');
+                    return;
+                }
+
+                const gameFinished = game.gameState?.winner != null;
+                if (!gameFinished) {
+                    socket.emit('error', 'Rematch can only be requested after the game has finished');
                     return;
                 }
 
@@ -441,29 +520,26 @@ module.exports = function attachSocketHandlers(io, log) {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
 
-            const allGames = await gameStore.getAllActiveGames();
-
-            for (const [gameId, game] of allGames.entries()) {
-                const playerId = findPlayerBySocket(game, socket.id);
-                if (!playerId) continue;
-
+            const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
+                if (!player) return;
+
                 player.disconnectedAt = new Date();
 
                 io.to(gameId).emit('player_disconnected', {
-                    playerId, username: player.username,
+                    playerId,
+                    username: player.username,
                     reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
                 });
 
                 // If game already finished, just persist and skip forfeit flow
                 if (game.gameState?.winner) {
-                    // Clear any stale rematch votes for this game
                     await rematchStore.clearVotes(gameId);
                     await gameStore.setGame(gameId, game);
                     persistGame(game, 'finished').catch((err) =>
                         log.error('Persist after disconnect failed', { gameId, error: err.message })
                     );
-                    continue;
+                    return;
                 }
 
                 // Mark disconnect state in Redis (TTL = reconnect window; expiry = forfeit)
@@ -510,8 +586,12 @@ module.exports = function attachSocketHandlers(io, log) {
                             reason: 'disconnect_timeout',
                         });
                         io.to(gameId).emit('game_over', {
-                            winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected',
+                            winner,
+                            scores: currentGame.gameState.scores,
+                            reason: 'opponent_disconnected',
                         });
+                        // Fire-and-forget leaderboard update for forfeit
+                        updateLeaderboard(currentGame, winner, log);
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
                         setTimeout(async () => {
@@ -528,6 +608,33 @@ module.exports = function attachSocketHandlers(io, log) {
                 persistGame(game).catch((err) =>
                     log.error('Persist after disconnect failed', { gameId, error: err.message })
                 );
+            };
+
+            try {
+                // Fast path: use socket-attached game context to avoid scanning all active games.
+                const hintedGameId = socket.data?.gameId;
+                const hintedPlayerId = socket.data?.playerId;
+                if (hintedGameId && hintedPlayerId) {
+                    const hintedGame = await gameStore.getGame(hintedGameId);
+                    if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
+                        await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);
+                        return;
+                    }
+                }
+
+                // Fallback path for legacy sockets / missing hints.
+                const allGames = await gameStore.getAllActiveGames();
+                for (const [gameId, game] of allGames.entries()) {
+                    const playerId = findPlayerBySocket(game, socket.id);
+                    if (!playerId) continue;
+                    await processPlayerDisconnect(gameId, game, playerId);
+                    break;
+                }
+            } catch (error) {
+                log.error('Error handling disconnect', { socketId: socket.id, error: error.message });
+            } finally {
+                socket.data.gameId = undefined;
+                socket.data.playerId = undefined;
             }
         });
     });
