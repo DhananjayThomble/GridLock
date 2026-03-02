@@ -325,8 +325,7 @@ const Board = () => {
   );
 
   // ── Touch handler factory ─────────────────────────────────────────────────────
-  // Returns touch props that fire the move only when the finger lifted inside
-  // the same element it started on (swipe-scroll guard).
+  // Fires a move only for tap-like gestures that end on the same line element.
   const makeTouchHandler = useCallback((type, r, c) => {
     let startX = 0;
     let startY = 0;
@@ -337,15 +336,29 @@ const Board = () => {
         startY = e.touches[0].clientY;
       },
       onTouchEnd: (e) => {
-        const dx = Math.abs(e.changedTouches[0].clientX - startX);
-        const dy = Math.abs(e.changedTouches[0].clientY - startY);
+        const touch = e.changedTouches[0];
+        const dx = Math.abs(touch.clientX - startX);
+        const dy = Math.abs(touch.clientY - startY);
+
         // Only treat as a tap (not a swipe / scroll gesture)
         if (dx < 10 && dy < 10) {
+          const endElement = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (endElement && !e.currentTarget.contains(endElement) && endElement !== e.currentTarget) {
+            return;
+          }
           e.preventDefault();
           handleLineClick(type, r, c);
         }
       },
     };
+  }, [handleLineClick]);
+
+  const handleLineKeyDown = useCallback((e, type, r, c, isMyTurn) => {
+    if (!isMyTurn) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      if (e.key !== 'Enter') e.preventDefault();
+      handleLineClick(type, r, c);
+    }
   }, [handleLineClick]);
 
   const renderHLine = (r, c) => {
@@ -366,15 +379,16 @@ const Board = () => {
           onTouchEnd={touchHandlers.onTouchEnd}
           role="button"
           aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
+          aria-disabled={!isMyTurn}
           tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => e.key === 'Enter' && handleLineClick('horizontal', r, c)}
+          onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
           className={`h-2 w-full rounded transition-all duration-150 ${
             owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
           }`}
           style={{
             backgroundColor: lineColor || '#E5E7EB',
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'none',
+            touchAction: 'manipulation',
           }}
         />
       </div>
@@ -399,15 +413,16 @@ const Board = () => {
           onTouchEnd={touchHandlers.onTouchEnd}
           role="button"
           aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
+          aria-disabled={!isMyTurn}
           tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => e.key === 'Enter' && handleLineClick('vertical', r, c)}
+          onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
           className={`w-2 h-full rounded transition-all duration-150 ${
             owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
           }`}
           style={{
             backgroundColor: lineColor || '#E5E7EB',
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'none',
+            touchAction: 'manipulation',
           }}
         />
       </div>

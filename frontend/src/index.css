@@ -67,12 +67,9 @@
   }
 }
 
-/* Ensure line hit-targets are finger-friendly (min 44px touch target per Apple HIG) */
+/* Keep touch targets stable on coarse pointers (avoid overlap between adjacent lines). */
 @media (pointer: coarse) {
   .board-container [role="button"] {
-    /* Expand touch area beyond visual bounds */
-    padding: 14px;
-    margin: -14px;
     position: relative;
     z-index: 1;
   }
