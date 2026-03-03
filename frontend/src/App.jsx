@@ -2,10 +2,10 @@
 import React from 'react';
 import {
   BrowserRouter as Router,
+  NavLink,
   Route,
   Routes,
   useLocation,
-  useNavigate,
 } from 'react-router-dom';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
@@ -18,34 +18,18 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const hideNav = location.pathname === '/game';
-
-  const navItems = [
-    { to: '/', label: 'Lobby' },
-    { to: '/leaderboard', label: 'Leaderboard' },
-  ];
 
   return (
     <>
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
-          {navItems.map(({ to, label }) => {
-            const isActive = location.pathname === to;
-            return (
-              <a
-                key={to}
-                href={to}
-                className={`app-nav-link ${isActive ? 'active' : ''}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigate(to);
-                }}
-              >
-                {label}
-              </a>
-            );
-          })}
+          <NavLink to="/" end className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            Lobby
+          </NavLink>
+          <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            Leaderboard
+          </NavLink>
         </nav>
       )}
 

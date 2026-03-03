@@ -121,8 +121,13 @@ class SocketRateLimiter {
 // Singleton instance
 const socketLimiter = new SocketRateLimiter();
 
-// Purge stale entries every 2 minutes
-setInterval(() => socketLimiter.purgeStale(), 2 * 60_000);
+// Purge stale entries every 2 minutes (skip in test to avoid open handles)
+const _purgeInterval = process.env.NODE_ENV !== 'test'
+    ? setInterval(() => socketLimiter.purgeStale(), 2 * 60_000)
+    : null;
+
+// Allow the timer to not block Node from exiting
+if (_purgeInterval) _purgeInterval.unref();
 
 module.exports = {
     httpLimiter,

@@ -1,11 +1,23 @@
 const { test, expect } = require('@playwright/test');
 const { BASE_URL } = require('./helpers');
 
-const API_BASE = process.env.TEST_API_URL || 'http://127.0.0.1:5105';
+// Derive backend API URL from the same port the E2E local script uses,
+// or fall back to the CI / custom override.
+const API_BASE = process.env.TEST_API_URL
+  || (process.env.TEST_BASE_URL ? '' : '')  // when TEST_BASE_URL is set, backend is on 5105
+  || 'http://127.0.0.1:5105';
+
+// The test-e2e-local.sh script starts backend on port 5105.
+// In CI, override with TEST_API_URL env var pointing to the correct backend.
+const getApiBase = () => {
+  if (process.env.TEST_API_URL) return process.env.TEST_API_URL;
+  // test-e2e-local.sh always uses 5105 for backend
+  return 'http://127.0.0.1:5105';
+};
 
 test.describe('Leaderboard API + accessibility smoke', () => {
   test('leaderboard endpoint returns JSON payload', async ({ request }) => {
-    const res = await request.get(`${API_BASE}/api/leaderboard?limit=20`);
+    const res = await request.get(`${getApiBase()}/api/leaderboard?limit=20`);
     expect(res.ok()).toBeTruthy();
 
     const body = await res.json();
@@ -15,7 +27,7 @@ test.describe('Leaderboard API + accessibility smoke', () => {
   });
 
   test('player lookup endpoint responds with either success or not-found JSON', async ({ request }) => {
-    const res = await request.get(`${API_BASE}/api/leaderboard/__nonexistent_player__`);
+    const res = await request.get(`${getApiBase()}/api/leaderboard/__nonexistent_player__`);
     expect([200, 404]).toContain(res.status());
 
     const body = await res.json();
