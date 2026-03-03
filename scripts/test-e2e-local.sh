@@ -47,10 +47,10 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
-echo "▶  Building frontend (socket → localhost:$BACKEND_PORT)..."
+echo "▶  Building frontend (socket/api → localhost:$BACKEND_PORT)..."
 (
   cd frontend
-  VITE_SOCKET_URL="http://127.0.0.1:$BACKEND_PORT" npm run build --silent
+  VITE_SOCKET_URL="http://127.0.0.1:$BACKEND_PORT" VITE_API_BASE_URL="http://127.0.0.1:$BACKEND_PORT" npm run build --silent
 )
 echo "   ✓ Frontend built"
 
