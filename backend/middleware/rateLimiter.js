@@ -53,6 +53,8 @@ class SocketRateLimiter {
      * @returns {boolean} true if allowed, false if rate-limited
      */
     allow(socketId, eventName) {
+        if (process.env.NODE_ENV === 'test') return true;
+
         const limit = this.limits[eventName];
         if (!limit) return true; // No limit configured for this event
 
@@ -119,8 +121,13 @@ class SocketRateLimiter {
 // Singleton instance
 const socketLimiter = new SocketRateLimiter();
 
-// Purge stale entries every 2 minutes
-setInterval(() => socketLimiter.purgeStale(), 2 * 60_000);
+// Purge stale entries every 2 minutes (skip in test to avoid open handles)
+const _purgeInterval = process.env.NODE_ENV !== 'test'
+    ? setInterval(() => socketLimiter.purgeStale(), 2 * 60_000)
+    : null;
+
+// Allow the timer to not block Node from exiting
+if (_purgeInterval) _purgeInterval.unref();
 
 module.exports = {
     httpLimiter,

@@ -39,13 +39,22 @@ async function createGame(page, { username = 'Alice', playerCount = 2, gridSize 
 /**
  * Join an existing game using its room code.
  */
-async function joinGame(page, { username = 'Bob', roomCode, baseUrl = BASE_URL } = {}) {
+async function joinGame(page, { username = 'Bob', roomCode, baseUrl = BASE_URL, joinMode = 'player' } = {}) {
   await goToLobby(page, baseUrl);
   await page.click('button:has-text("🔗 Join Game")');
   await page.waitForTimeout(200);
   await page.fill('input[placeholder="Enter your name…"]', username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
-  await page.locator('button:has-text("Join Game")').last().click();
+  if (joinMode === 'spectator') {
+    await page.click('button:has-text("Join as Spectator")');
+  } else {
+    await page.click('button:has-text("Join as Player")');
+  }
+  if (joinMode === 'spectator') {
+    await page.getByRole('button', { name: /Spectate Game/i }).click();
+  } else {
+    await page.getByRole('button', { name: /Join Game/i }).last().click();
+  }
   await page.waitForURL(/\/game/, { timeout: 15_000 });
 }
 
