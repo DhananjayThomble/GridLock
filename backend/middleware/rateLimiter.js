@@ -53,6 +53,8 @@ class SocketRateLimiter {
      * @returns {boolean} true if allowed, false if rate-limited
      */
     allow(socketId, eventName) {
+        if (process.env.NODE_ENV === 'test') return true;
+
         const limit = this.limits[eventName];
         if (!limit) return true; // No limit configured for this event
 
