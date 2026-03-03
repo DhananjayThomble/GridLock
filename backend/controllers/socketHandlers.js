@@ -21,6 +21,81 @@ const PLAYER_COLORS = {
     player4: '#A855F7',
 };
 
+// In-memory tournament state (per-node, as requested by issue #19)
+const tournaments = new Map(); // tournamentId -> tournament
+const tournamentGames = new Map(); // gameId -> { tournamentId, roundIndex, matchIndex }
+
+function sanitizeTournamentId(input) {
+    if (!input || typeof input !== 'string') {
+        return { valid: false, value: '', error: 'Tournament ID is required' };
+    }
+
+    const cleaned = input.trim().toUpperCase();
+    if (!/^T[A-Z0-9]{5}$/.test(cleaned)) {
+        return { valid: false, value: '', error: 'Invalid tournament ID format' };
+    }
+
+    return { valid: true, value: cleaned };
+}
+
+function generateTournamentId(existingTournaments = tournaments, maxAttempts = 16) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const candidate = `T${crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 5)}`;
+        if (!existingTournaments.has(candidate)) return candidate;
+    }
+    return null;
+}
+
+function buildTournamentSnapshot(t) {
+    return {
+        tournamentId: t.tournamentId,
+        status: t.status,
+        tournamentSize: t.tournamentSize,
+        gridSize: t.gridSize,
+        participants: t.participants.map((p) => ({ username: p.username, avatar: p.avatar })),
+        rounds: t.rounds,
+        champion: t.champion || null,
+    };
+}
+
+function initializeBracket(participants) {
+    const rounds = [];
+    const firstRoundMatches = [];
+    for (let i = 0; i < participants.length; i += 2) {
+        firstRoundMatches.push({
+            player1: participants[i]?.username || null,
+            player2: participants[i + 1]?.username || null,
+            winner: null,
+            gameId: null,
+        });
+    }
+    rounds.push({ matches: firstRoundMatches });
+
+    let remaining = firstRoundMatches.length;
+    while (remaining > 1) {
+        remaining = Math.floor(remaining / 2);
+        rounds.push({
+            matches: Array.from({ length: remaining }, () => ({
+                player1: null,
+                player2: null,
+                winner: null,
+                gameId: null,
+            })),
+        });
+    }
+
+    return rounds;
+}
+
+function getTournamentJoinError(tournament, username, socketId) {
+    if (!tournament) return 'Tournament not found';
+    if (tournament.status !== 'waiting') return 'Tournament already started';
+    if (tournament.participants.length >= tournament.tournamentSize) return 'Tournament is full';
+    if (tournament.participants.some((p) => p.username === username)) return 'Username already joined this tournament';
+    if (tournament.participants.some((p) => p.socketId === socketId)) return 'You have already joined this tournament';
+    return null;
+}
+
 function generateSessionToken() {
     return crypto.randomBytes(24).toString('hex');
 }
@@ -103,6 +178,53 @@ async function markGameFinished(gameId, reason = null) {
     const patch = { status: 'finished', finishedAt: new Date(), updatedAt: new Date(), lastActivityAt: new Date() };
     if (reason) patch['metadata.reason'] = reason;
     await Game.findOneAndUpdate({ gameId }, { $set: patch }, { new: false });
+}
+
+async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p1, p2 }) {
+    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const p1Token = generateSessionToken();
+    const p2Token = generateSessionToken();
+
+    const game = {
+        id: gameId,
+        gridSize: tournament.gridSize,
+        playerCount: 2,
+        players: {
+            player1: {
+                id: p1.socketId,
+                username: p1.username,
+                avatar: p1.avatar,
+                color: PLAYER_COLORS.player1,
+                token: p1Token,
+                disconnectedAt: null,
+            },
+            player2: {
+                id: p2.socketId,
+                username: p2.username,
+                avatar: p2.avatar,
+                color: PLAYER_COLORS.player2,
+                token: p2Token,
+                disconnectedAt: null,
+            },
+        },
+        gameState: initializeGameState(tournament.gridSize, 2),
+        createdAt: Date.now(),
+        metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS, tournamentId: tournament.tournamentId },
+    };
+
+    await gameStore.setGame(gameId, game);
+    await persistGame(game, 'playing', { tournamentId: tournament.tournamentId, roundIndex, matchIndex });
+
+    tournamentGames.set(gameId, { tournamentId: tournament.tournamentId, roundIndex, matchIndex });
+    tournament.rounds[roundIndex].matches[matchIndex].gameId = gameId;
+
+    return {
+        gameId,
+        assignments: [
+            { socketId: p1.socketId, playerId: 'player1', sessionToken: p1Token, username: p1.username },
+            { socketId: p2.socketId, playerId: 'player2', sessionToken: p2Token, username: p2.username },
+        ],
+    };
 }
 
 /**
@@ -215,6 +337,107 @@ async function restoreActiveGames(log) {
     }
 }
 
+async function maybeStartTournamentRound(io, tournament, roundIndex) {
+    const round = tournament.rounds[roundIndex];
+    if (!round) return;
+
+    for (let i = 0; i < round.matches.length; i++) {
+        const match = round.matches[i];
+        if (match.gameId || !match.player1 || !match.player2) continue;
+
+        const p1 = tournament.participants.find((p) => p.username === match.player1);
+        const p2 = tournament.participants.find((p) => p.username === match.player2);
+        if (!p1 || !p2) continue;
+
+        const { gameId, assignments } = await createTournamentMatchGame({
+            tournament,
+            roundIndex,
+            matchIndex: i,
+            p1,
+            p2,
+        });
+
+        for (const assignment of assignments) {
+            io.to(assignment.socketId).emit('tournament_game_assigned', {
+                tournamentId: tournament.tournamentId,
+                gameId,
+                playerId: assignment.playerId,
+                sessionToken: assignment.sessionToken,
+                gridSize: tournament.gridSize,
+                playerCount: 2,
+            });
+        }
+    }
+}
+
+function applyTournamentMatchResult(tournament, roundIndex, matchIndex, winnerUsername) {
+    const round = tournament.rounds?.[roundIndex];
+    const match = round?.matches?.[matchIndex];
+    if (!match || match.winner || !winnerUsername) {
+        return { advancedRoundIndex: null, tournamentCompleted: false };
+    }
+
+    match.winner = winnerUsername;
+    const isFinalRound = roundIndex === tournament.rounds.length - 1;
+
+    if (isFinalRound) {
+        tournament.status = 'finished';
+        tournament.champion = winnerUsername;
+        return { advancedRoundIndex: null, tournamentCompleted: true };
+    }
+
+    const nextRoundIndex = roundIndex + 1;
+    const nextRound = tournament.rounds[nextRoundIndex];
+    const nextMatchIndex = Math.floor(matchIndex / 2);
+    const nextMatch = nextRound?.matches?.[nextMatchIndex];
+
+    if (!nextMatch) {
+        return { advancedRoundIndex: null, tournamentCompleted: false };
+    }
+
+    if (matchIndex % 2 === 0) nextMatch.player1 = winnerUsername;
+    else nextMatch.player2 = winnerUsername;
+
+    return { advancedRoundIndex: nextRoundIndex, tournamentCompleted: false };
+}
+
+async function handleTournamentGameCompletion(io, log, gameId, game, winnerPlayerId) {
+    const index = tournamentGames.get(gameId);
+    if (!index) return;
+
+    const tournament = tournaments.get(index.tournamentId);
+    if (!tournament) return;
+
+    const winnerUsername = winnerPlayerId === 'draw'
+        ? game.players.player1?.username
+        : game.players[winnerPlayerId]?.username;
+
+    const progression = applyTournamentMatchResult(
+        tournament,
+        index.roundIndex,
+        index.matchIndex,
+        winnerUsername
+    );
+    if (!winnerUsername || (!progression.tournamentCompleted && progression.advancedRoundIndex === null)) return;
+
+    if (progression.tournamentCompleted) {
+        io.to(`tournament:${tournament.tournamentId}`).emit('tournament_completed', {
+            tournamentId: tournament.tournamentId,
+            champion: winnerUsername,
+        });
+    } else if (progression.advancedRoundIndex !== null) {
+        await maybeStartTournamentRound(io, tournament, progression.advancedRoundIndex);
+    }
+
+    io.to(`tournament:${tournament.tournamentId}`).emit('tournament_update', {
+        tournament: buildTournamentSnapshot(tournament),
+    });
+
+    if (tournament.status === 'finished') {
+        log.info('Tournament completed', { tournamentId: tournament.tournamentId, champion: tournament.champion });
+    }
+}
+
 function attachSocketHandlers(io, log) {
     restoreActiveGames(log);
 
@@ -229,6 +452,90 @@ function attachSocketHandlers(io, log) {
             }
             return false;
         };
+
+        // ── create_tournament ─────────────────────────────────────────────────
+        socket.on('create_tournament', async ({ username, avatar, tournamentSize = 4, gridSize = 3 }) => {
+            try {
+                if (rateLimited('create_tournament')) return;
+
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) { socket.emit('error', uResult.error); return; }
+
+                const size = Number(tournamentSize);
+                if (![4, 8].includes(size)) { socket.emit('error', 'Tournament size must be 4 or 8'); return; }
+
+                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
+
+                const tournamentId = generateTournamentId();
+                if (!tournamentId) {
+                    socket.emit('error', 'Failed to generate tournament ID. Please try again.');
+                    return;
+                }
+
+                const tournament = {
+                    tournamentId,
+                    status: 'waiting',
+                    tournamentSize: size,
+                    gridSize: gridResult.value,
+                    participants: [{ username: uResult.value, avatar: sanitizeAvatar(avatar), socketId: socket.id }],
+                    rounds: [],
+                    champion: null,
+                };
+
+                tournaments.set(tournamentId, tournament);
+                socket.join(`tournament:${tournamentId}`);
+                socket.data.tournamentId = tournamentId;
+                socket.emit('tournament_created', { tournament: buildTournamentSnapshot(tournament) });
+            } catch (error) {
+                log.error('Error creating tournament', { error: error.message });
+                socket.emit('error', 'Failed to create tournament');
+            }
+        });
+
+        // ── join_tournament ───────────────────────────────────────────────────
+        socket.on('join_tournament', async ({ tournamentId, username, avatar }) => {
+            try {
+                if (rateLimited('join_tournament')) return;
+
+                const tidResult = sanitizeTournamentId(tournamentId);
+                if (!tidResult.valid) { socket.emit('error', tidResult.error); return; }
+                const cleanTournamentId = tidResult.value;
+
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) { socket.emit('error', uResult.error); return; }
+                const cleanUsername = uResult.value;
+
+                const tournament = tournaments.get(cleanTournamentId);
+                const joinError = getTournamentJoinError(tournament, cleanUsername, socket.id);
+                if (joinError) { socket.emit('error', joinError); return; }
+
+                tournament.participants.push({
+                    username: cleanUsername,
+                    avatar: sanitizeAvatar(avatar),
+                    socketId: socket.id,
+                });
+                socket.join(`tournament:${cleanTournamentId}`);
+                socket.data.tournamentId = cleanTournamentId;
+
+                io.to(`tournament:${cleanTournamentId}`).emit('tournament_update', {
+                    tournament: buildTournamentSnapshot(tournament),
+                });
+                socket.emit('tournament_joined', { tournament: buildTournamentSnapshot(tournament) });
+
+                if (tournament.participants.length === tournament.tournamentSize) {
+                    tournament.status = 'in_progress';
+                    tournament.rounds = initializeBracket(tournament.participants);
+                    await maybeStartTournamentRound(io, tournament, 0);
+                    io.to(`tournament:${cleanTournamentId}`).emit('tournament_update', {
+                        tournament: buildTournamentSnapshot(tournament),
+                    });
+                }
+            } catch (error) {
+                log.error('Error joining tournament', { error: error.message });
+                socket.emit('error', 'Failed to join tournament');
+            }
+        });
 
         // ── create_game ────────────────────────────────────────────────────────
         socket.on('create_game', async ({ gridSize, username, avatar, playerCount = 2 }, callback) => {
@@ -462,6 +769,7 @@ function attachSocketHandlers(io, log) {
                     io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
+                    await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
@@ -618,6 +926,7 @@ function attachSocketHandlers(io, log) {
                         });
                         // Fire-and-forget leaderboard update for forfeit
                         updateLeaderboard(currentGame, winner, log);
+                        await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
                         setTimeout(async () => {
@@ -666,6 +975,7 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = undefined;
                 socket.data.playerId = undefined;
                 socket.data.isSpectator = undefined;
+                socket.data.tournamentId = undefined;
             }
         });
     });
@@ -674,4 +984,12 @@ function attachSocketHandlers(io, log) {
 };
 
 module.exports = attachSocketHandlers;
-module.exports._internal = { isSpectatorJoinRequest };
+module.exports._internal = {
+    isSpectatorJoinRequest,
+    initializeBracket,
+    buildTournamentSnapshot,
+    sanitizeTournamentId,
+    generateTournamentId,
+    getTournamentJoinError,
+    applyTournamentMatchResult,
+};
