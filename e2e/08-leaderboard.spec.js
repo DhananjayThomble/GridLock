@@ -1,17 +1,13 @@
 const { test, expect } = require('@playwright/test');
 const { BASE_URL } = require('./helpers');
 
-// Derive backend API URL from the same port the E2E local script uses,
-// or fall back to the CI / custom override.
-const API_BASE = process.env.TEST_API_URL
-  || (process.env.TEST_BASE_URL ? '' : '')  // when TEST_BASE_URL is set, backend is on 5105
-  || 'http://127.0.0.1:5105';
-
-// The test-e2e-local.sh script starts backend on port 5105.
-// In CI, override with TEST_API_URL env var pointing to the correct backend.
+// API base resolution strategy:
+// 1) Explicit TEST_API_URL wins
+// 2) In CI, default backend is 5000 (see .github/workflows/ci.yml)
+// 3) Local e2e helper script backend is 5105
 const getApiBase = () => {
   if (process.env.TEST_API_URL) return process.env.TEST_API_URL;
-  // test-e2e-local.sh always uses 5105 for backend
+  if (process.env.CI) return 'http://127.0.0.1:5000';
   return 'http://127.0.0.1:5105';
 };
 
