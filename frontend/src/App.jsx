@@ -23,7 +23,7 @@ const AppLayout = () => {
   return (
     <>
       {!hideNav && (
-        <nav className="app-nav">
+        <nav className="app-nav" aria-label="Main navigation">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             Lobby
           </NavLink>

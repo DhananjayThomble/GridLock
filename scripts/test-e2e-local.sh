@@ -70,5 +70,5 @@ for i in $(seq 1 20); do
 done
 
 echo "▶  Running Playwright tests..."
-TEST_BASE_URL="http://127.0.0.1:$FRONTEND_PORT" npx playwright test \
+TEST_BASE_URL="http://127.0.0.1:$FRONTEND_PORT" TEST_API_URL="http://127.0.0.1:$BACKEND_PORT" npx playwright test \
   --config=playwright.config.js "$@"
