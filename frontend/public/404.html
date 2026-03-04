@@ -5,8 +5,6 @@
     <title>GridLock</title>
     <script>
       (function () {
-        // Keep /GridLock/ when deployed to GitHub Pages project site.
-        // Keep /GridLock/beta/ for beta deploy URLs.
         var pathSegmentsToKeep = 1;
         var loc = window.location;
         var pathSegments = loc.pathname.split('/');
@@ -22,10 +20,14 @@
         }
 
         var route = routePath + loc.search + loc.hash;
-        var target = basePath + '?p=' + encodeURIComponent(route);
+        var target = basePath + '?__spa_redirect=' + encodeURIComponent(route);
         loc.replace(target);
       })();
     </script>
   </head>
-  <body></body>
+  <body>
+    <noscript>
+      <p>Redirecting… <a href="/GridLock/">Go to GridLock</a></p>
+    </noscript>
+  </body>
 </html>

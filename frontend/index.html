@@ -16,7 +16,7 @@
     <script>
       (function () {
         var currentUrl = new URL(window.location.href);
-        var redirectedPath = currentUrl.searchParams.get('p');
+        var redirectedPath = currentUrl.searchParams.get('__spa_redirect');
 
         if (redirectedPath === null) {
           return;
