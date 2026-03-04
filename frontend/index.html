@@ -27,6 +27,20 @@
     <link rel="manifest" href="%BASE_URL%manifest.json" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/icon-192.png" />
     <title>GridLock – Dots &amp; Boxes Multiplayer</title>
+    <script>
+      (function () {
+        var currentUrl = new URL(window.location.href);
+        var redirectedPath = currentUrl.searchParams.get('__spa_redirect');
+
+        if (redirectedPath === null) {
+          return;
+        }
+
+        var basePath = currentUrl.pathname.replace(/\/+$/, '');
+        var nextUrl = redirectedPath ? basePath + redirectedPath : currentUrl.pathname;
+        window.history.replaceState(null, '', nextUrl);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
