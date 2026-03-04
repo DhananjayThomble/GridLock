@@ -48,9 +48,9 @@ cd ../frontend
 npm install
 cp .env.example .env
 ```
-Set `VITE_SOCKET_URL` only when frontend and backend are on different origins.
-- Local same-origin/proxy setup: keep empty
-- Hosted frontend (e.g. GitHub Pages): set to your backend URL
+After copying `.env.example` to `.env`, open `.env` and review `VITE_SOCKET_URL`:
+- Local same-origin/proxy setup: leave `VITE_SOCKET_URL` unset/empty (`VITE_SOCKET_URL=`) so you do **not** hit any production URL.
+- Hosted frontend (e.g. GitHub Pages): set `VITE_SOCKET_URL` to your backend URL.
 
 Start the development server:
 ```bash
@@ -83,11 +83,16 @@ location /socket.io/ {
   proxy_set_header Upgrade $http_upgrade;
   proxy_set_header Connection "upgrade";
   proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_read_timeout 3600s;
 }
 
 location /api/ {
   proxy_pass http://127.0.0.1:5000/api/;
   proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
 

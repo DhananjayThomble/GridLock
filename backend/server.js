@@ -28,8 +28,8 @@ const log = {
 // Middleware
 app.set('trust proxy', 1);
 app.use(helmet({
-    // API backend only (frontend served separately). Keep Socket.IO compatible while
-    // still emitting a restrictive default CSP header for API responses.
+    // API backend only (frontend served separately). Keep Socket.IO compatible.
+    // Disable Helmet's CSP so the custom middleware below can set a restrictive CSP for API responses.
     contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
