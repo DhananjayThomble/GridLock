@@ -33,12 +33,10 @@ cd GridLock
 ```bash
 cd backend
 npm install
+cp .env.example .env
 ```
-Create a `.env` file in the `backend` directory:
-```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/gridlock
-```
+Edit `.env` as needed (Mongo is required for persistence; Redis is optional but recommended for scaling).
+
 Start the server:
 ```bash
 npm start
@@ -48,8 +46,11 @@ npm start
 ```bash
 cd ../frontend
 npm install
+cp .env.example .env
 ```
-Update the Socket connection URL in `src/components/Board.jsx` and `src/components/Lobby.jsx` if necessary (defaults to relative `/socket.io/` for Nginx proxy, but for local dev you may need `http://localhost:5000`).
+After copying `.env.example` to `.env`, open `.env` and review `VITE_SOCKET_URL`:
+- Local same-origin/proxy setup: leave `VITE_SOCKET_URL` unset/empty (`VITE_SOCKET_URL=`) so you do **not** hit any production URL.
+- Hosted frontend (e.g. GitHub Pages): set `VITE_SOCKET_URL` to your backend URL.
 
 Start the development server:
 ```bash
@@ -65,6 +66,35 @@ npm run dev
 5. The game begins! Click on the faint grey lines to draw a solid line.
 6. When you draw the 4th line of a 1x1 square, you capture the box, earn a point, and get a bonus turn.
 7. The game ends when all boxes are claimed. The player with the highest score wins!
+
+## 🔐 Production Deployment Notes (HTTPS / WSS)
+
+- Terminate TLS at reverse proxy (Nginx/Caddy) and expose only `443` publicly.
+- Proxy Socket.IO traffic over **WSS** to backend (`/socket.io/`).
+- Set `VITE_SOCKET_URL=https://<your-api-domain>` for cross-origin deployments.
+- Set `CORS_ORIGIN` in backend `.env` to allowed origins only (comma-separated).
+- Backend emits security headers via `helmet`, plus a restrictive API CSP header.
+
+Minimal Nginx sketch:
+```nginx
+location /socket.io/ {
+  proxy_pass http://127.0.0.1:5000/socket.io/;
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_read_timeout 3600s;
+}
+
+location /api/ {
+  proxy_pass http://127.0.0.1:5000/api/;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
 
 ## 📝 License
 

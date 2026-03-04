@@ -28,9 +28,16 @@ const log = {
 // Middleware
 app.set('trust proxy', 1);
 app.use(helmet({
-    contentSecurityPolicy: false, // frontend served separately; keep API/socket compatible
+    // API backend only (frontend served separately). Keep Socket.IO compatible.
+    // Disable Helmet's CSP so the custom middleware below can set a restrictive CSP for API responses.
+    contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
+app.use((req, res, next) => {
+    // Explicit CSP for API responses. Frontend CSP is handled at the reverse proxy / frontend host.
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+    next();
+});
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*" }));
 app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
