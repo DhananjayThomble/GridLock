@@ -55,7 +55,7 @@ echo "▶  Building frontend (socket/api → localhost:$BACKEND_PORT)..."
 echo "   ✓ Frontend built"
 
 echo "▶  Starting Vite preview on port $FRONTEND_PORT..."
-npx --prefix frontend vite preview --port "$FRONTEND_PORT" --base=/ \
+cd frontend && npx vite preview --port "$FRONTEND_PORT" --base=/ \
   > /tmp/gridlock_e2e_frontend.log 2>&1 &
 FRONTEND_PID=$!
 
