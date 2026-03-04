@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GridLock</title>
+    <script>
+      (function () {
+        var pathSegmentsToKeep = 1;
+        var loc = window.location;
+        var pathSegments = loc.pathname.split('/');
+        var keepSegments =
+          pathSegments.length > 2 && pathSegments[2] === 'beta'
+            ? pathSegmentsToKeep + 1
+            : pathSegmentsToKeep;
+
+        var basePath = pathSegments.slice(0, keepSegments + 1).join('/') + '/';
+        var routePath = '/' + pathSegments.slice(keepSegments + 1).join('/');
+        if (routePath === '/') {
+          routePath = '';
+        }
+
+        var route = routePath + loc.search + loc.hash;
+        var target = basePath + '?__spa_redirect=' + encodeURIComponent(route);
+        loc.replace(target);
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <p>Redirecting… <a href="/GridLock/">Go to GridLock</a></p>
+    </noscript>
+  </body>
+</html>
