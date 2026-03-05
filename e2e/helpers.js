@@ -10,7 +10,7 @@ const BASE_URL = process.env.TEST_BASE_URL
  */
 async function goToLobby(page, baseUrl = BASE_URL) {
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
-  await expect(page.locator('body')).toContainText('Dots & Boxes');
+  await expect(page.locator('body')).toContainText('GridLock');
 }
 
 /**

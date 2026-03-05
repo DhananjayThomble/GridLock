@@ -131,7 +131,7 @@ test.describe('Game UI & Mechanics', () => {
           () => !window.location.href.includes('/game'),
           { timeout: 10_000 }
         );
-        await expect(p1.locator('body')).toContainText('Dots & Boxes');
+        await expect(p1.locator('body')).toContainText('GridLock');
       }
     }
 
