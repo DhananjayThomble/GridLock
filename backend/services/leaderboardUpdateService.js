@@ -83,7 +83,7 @@ async function updateLeaderboardWithOptimisticElo({
             const updated = await Leaderboard.findOneAndUpdate(
                 filter,
                 buildAtomicLeaderboardUpdate({ username, result, newElo, now }),
-                { upsert: !existing, new: true }
+                { upsert: !existing, new: true, updatePipeline: true }
             ).lean();
 
             // `updated` is null when optimistic filter misses due to concurrent writes.
