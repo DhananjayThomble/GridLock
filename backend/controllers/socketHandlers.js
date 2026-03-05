@@ -458,7 +458,6 @@ function scheduleCPUMove(io, log, gameId, delay) {
             if (!game) {
                 game = await loadGameFromDB(gameId, log);
                 if (!game) return;
-                await gameStore.setGame(gameId, game);
             }
             if (game.gameState.winner) return;
 

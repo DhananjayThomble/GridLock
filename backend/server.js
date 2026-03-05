@@ -103,7 +103,6 @@ app.get('/health', healthLimiter, async (req, res) => {
             heapTotal: Math.round((mem.heapTotal / 1024 / 1024) * 10) / 10,
         },
         uptime: Math.round(process.uptime()),
-        nodeVersion: process.version,
         timestamp: new Date().toISOString(),
     });
 });
@@ -131,6 +130,10 @@ app.get('/metrics', healthLimiter, async (req, res) => {
         '# HELP gridlock_memory_heap_used_bytes Heap used in bytes',
         '# TYPE gridlock_memory_heap_used_bytes gauge',
         `gridlock_memory_heap_used_bytes ${mem.heapUsed}`,
+        '',
+        '# HELP gridlock_memory_heap_total_bytes Heap total in bytes',
+        '# TYPE gridlock_memory_heap_total_bytes gauge',
+        `gridlock_memory_heap_total_bytes ${mem.heapTotal}`,
         '',
         '# HELP gridlock_uptime_seconds Server uptime in seconds',
         '# TYPE gridlock_uptime_seconds gauge',
