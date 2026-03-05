@@ -21,6 +21,12 @@ const GRID_OPTIONS = [
   { value: 6, label: '6×6', desc: 'Epic' },
 ];
 
+const DIFFICULTY_OPTIONS = [
+  { value: 'easy',   label: 'Easy',   icon: '😊', desc: 'Random moves' },
+  { value: 'medium', label: 'Medium', icon: '🧐', desc: 'Smart plays' },
+  { value: 'hard',   label: 'Hard',   icon: '🧠', desc: 'Chain strategy' },
+];
+
 const Lobby = () => {
   const [username,      setUsername]      = useState('');
   const [gridSize,      setGridSize]      = useState(3);
@@ -33,6 +39,9 @@ const Lobby = () => {
   const [tab,           setTab]           = useState('create'); // 'create' | 'join'
   const [showStats,     setShowStats]     = useState(false);
   const [stats,         setStats]         = useState(getStats());
+  const [cpuEnabled,    setCpuEnabled]    = useState(false);
+  const [cpuCount,      setCpuCount]      = useState(1);
+  const [cpuDifficulty, setCpuDifficulty] = useState('medium');
   const navigate = useNavigate();
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
@@ -64,7 +73,8 @@ const Lobby = () => {
     if (!name) return alert('Please enter a username');
     if (!socket.connected) socket.connect();
     setCreating(true);
-    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount }, (res) => {
+    const cpuPlayers = cpuEnabled ? cpuCount : 0;
+    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers, cpuDifficulty }, (res) => {
       if (res?.gameId) {
         setCreating(false);
         navigate('/game', {
@@ -76,6 +86,7 @@ const Lobby = () => {
             avatar: selectedAvatar,
             playerCount,
             sessionToken: res.sessionToken,
+            cpuDifficulty: cpuEnabled ? cpuDifficulty : null,
           },
         });
       }
@@ -236,6 +247,77 @@ const Lobby = () => {
                   ))}
                 </div>
               </div>
+
+              {/* CPU Toggle */}
+              <div>
+                <button
+                  onClick={() => setCpuEnabled(!cpuEnabled)}
+                  className={`w-full py-2.5 px-4 rounded-xl border text-left transition-all active:scale-[0.98] flex items-center justify-between ${
+                    cpuEnabled
+                      ? 'bg-amber-500/20 border-amber-400/50 text-amber-200'
+                      : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-lg">🤖</span>
+                    <span className="text-sm font-semibold">Play vs CPU</span>
+                  </span>
+                  <span className={`w-10 h-5 rounded-full transition-all flex items-center ${
+                    cpuEnabled ? 'bg-amber-400 justify-end' : 'bg-white/20 justify-start'
+                  }`}>
+                    <span className="w-4 h-4 rounded-full bg-white shadow mx-0.5 transition-all" />
+                  </span>
+                </button>
+              </div>
+
+              {/* CPU Settings (visible when enabled) */}
+              {cpuEnabled && (
+                <div className="space-y-3 bg-white/5 rounded-xl p-3 border border-white/10">
+                  {/* CPU count */}
+                  <div>
+                    <label className="block text-amber-200 text-xs font-bold uppercase tracking-wider mb-2">
+                      CPU Opponents ({cpuCount})
+                    </label>
+                    <div className="flex gap-2">
+                      {Array.from({ length: playerCount - 1 }, (_, i) => i + 1).map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setCpuCount(n)}
+                          className={`flex-1 py-2 rounded-xl border text-center text-sm font-bold transition-all active:scale-95 ${
+                            cpuCount === n
+                              ? 'bg-amber-500 border-amber-400 text-white shadow-lg'
+                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          {n} 🤖
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Difficulty selector */}
+                  <div>
+                    <label className="block text-amber-200 text-xs font-bold uppercase tracking-wider mb-2">Difficulty</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {DIFFICULTY_OPTIONS.map(({ value, label, icon, desc }) => (
+                        <button
+                          key={value}
+                          onClick={() => setCpuDifficulty(value)}
+                          className={`py-2 px-2 rounded-xl border text-center transition-all active:scale-95 ${
+                            cpuDifficulty === value
+                              ? 'bg-amber-500 border-amber-400 text-white shadow-lg'
+                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className="text-lg">{icon}</div>
+                          <div className="text-xs font-bold">{label}</div>
+                          <div className="text-xs opacity-70">{desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleCreate}

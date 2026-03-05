@@ -17,12 +17,14 @@ const app = express();
 const server = http.createServer(app);
 
 // Logging utility with levels
+const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
 const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG';
+const currentLevel = LOG_LEVELS[LOG_LEVEL] ?? 0;
 const log = {
-    debug: (...args) => ['DEBUG', 'INFO', 'WARN', 'ERROR'].includes(LOG_LEVEL) && console.log('[DEBUG]', new Date().toISOString(), ...args),
-    info: (...args) => ['INFO', 'WARN', 'ERROR'].includes(LOG_LEVEL) && console.log('[INFO]', new Date().toISOString(), ...args),
-    warn: (...args) => ['WARN', 'ERROR'].includes(LOG_LEVEL) && console.warn('[WARN]', new Date().toISOString(), ...args),
-    error: (...args) => ['ERROR'].includes(LOG_LEVEL) && console.error('[ERROR]', new Date().toISOString(), ...args)
+    debug: (...args) => currentLevel <= 0 && console.log('[DEBUG]', new Date().toISOString(), ...args),
+    info: (...args) => currentLevel <= 1 && console.log('[INFO]', new Date().toISOString(), ...args),
+    warn: (...args) => currentLevel <= 2 && console.warn('[WARN]', new Date().toISOString(), ...args),
+    error: (...args) => currentLevel <= 3 && console.error('[ERROR]', new Date().toISOString(), ...args)
 };
 
 // Middleware

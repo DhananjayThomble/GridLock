@@ -481,6 +481,7 @@ const Board = () => {
           const isCurrent = gameState.currentPlayer === pid;
           const isMe      = pid === role;
           const waiting   = name.startsWith('Waiting');
+          const isCPU     = !!gameState[`${pid}IsCPU`];
 
           return (
             <div
@@ -495,6 +496,7 @@ const Board = () => {
               <div className="min-w-0 flex-1">
                 <div className={`font-bold text-xs truncate ${isCurrent ? cfg.text : 'text-gray-700'}`}>
                   {waiting ? `P${pid.slice(6)} waiting…` : name}
+                  {isCPU && <span className="ml-1">🤖</span>}
                   {isMe && <span className="ml-1 text-gray-400">(you)</span>}
                 </div>
                 <div className="text-lg font-extrabold leading-none" style={{ color: cfg.color }}>
@@ -543,10 +545,11 @@ const Board = () => {
               const name = gameState?.[`${pid}Name`] || `Player ${pid.slice(6)}`;
               const score = winnerData.scores?.[pid] ?? 0;
               const isWin = !winnerData.isDraw && winnerData.winner === pid;
+              const isCPU = !!gameState?.[`${pid}IsCPU`];
               return (
                 <div key={pid} className={`flex justify-between items-center px-2 py-1 rounded-lg ${isWin ? cfg.light : ''}`}>
                   <span className={`font-semibold text-sm ${isWin ? cfg.text : 'text-gray-600'}`}>
-                    {name} {isWin && '🏆'}
+                    {name} {isCPU && '🤖'} {isWin && '🏆'}
                   </span>
                   <span className="font-extrabold text-base" style={{ color: cfg.color }}>{score}</span>
                 </div>
@@ -672,6 +675,7 @@ const Board = () => {
           {/* You are */}
           <p className="text-xs text-gray-400 text-center mb-1">
             You are <span className="font-bold" style={{ color: isSpectator ? '#4F46E5' : getConfig(role).color }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
+            {gameState?.hasCPU && <span className="ml-2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-semibold">vs CPU</span>}
           </p>
 
           {/* Status pill */}
