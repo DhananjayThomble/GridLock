@@ -18,7 +18,7 @@ const server = http.createServer(app);
 
 // Logging utility with levels
 const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
-const LOG_LEVEL = process.env.LOG_LEVEL || 'DEBUG';
+const LOG_LEVEL = (process.env.LOG_LEVEL || 'DEBUG').toUpperCase();
 const currentLevel = LOG_LEVELS[LOG_LEVEL] ?? 0;
 const log = {
     debug: (...args) => currentLevel <= 0 && console.log('[DEBUG]', new Date().toISOString(), ...args),

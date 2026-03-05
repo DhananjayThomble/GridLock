@@ -44,6 +44,14 @@ const Lobby = () => {
   const [cpuDifficulty, setCpuDifficulty] = useState('medium');
   const navigate = useNavigate();
 
+  // Clamp cpuCount when playerCount shrinks (e.g. 4P→2P keeps cpuCount=3)
+  useEffect(() => {
+    if (!cpuEnabled) return;
+    const maxCpu = Math.max(1, playerCount - 1);
+    if (cpuCount > maxCpu) setCpuCount(maxCpu);
+    else if (cpuCount < 1) setCpuCount(1);
+  }, [playerCount, cpuEnabled, cpuCount]);
+
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
