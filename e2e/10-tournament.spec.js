@@ -45,8 +45,8 @@ test.describe('Tournament', () => {
 
     // Tournament lobby should display
     await expect(page.locator('h1:has-text("Tournament")')).toBeVisible();
-    // Should show tournament ID
-    await expect(page.locator('text=Tournament ID')).toBeVisible();
+    // Should show tournament ID label
+    await expect(page.locator('label:has-text("Tournament ID"), [class*="text-xs"]:has-text("Tournament ID")').first()).toBeVisible();
     // Should show the host as a participant
     await expect(page.locator('text=TourneyHost')).toBeVisible();
     // Should show waiting status
