@@ -51,7 +51,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            cd ~/GridLock
+            cd ~/projects/GridLock
             git fetch origin main
             git checkout main
             git pull origin main
