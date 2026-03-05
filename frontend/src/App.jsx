@@ -10,6 +10,7 @@ import {
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import Leaderboard from './components/Leaderboard';
+import TournamentLobby from './components/TournamentLobby';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -18,7 +19,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game';
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament';
 
   return (
     <>
@@ -56,6 +57,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <Leaderboard />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/tournament"
+            element={(
+              <ErrorBoundary>
+                <TournamentLobby />
               </ErrorBoundary>
             )}
           />
