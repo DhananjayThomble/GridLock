@@ -116,7 +116,7 @@ const Lobby = () => {
         {/* ── Title ── */}
         <div className="text-center mb-6">
           <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
-            Dots &amp; Boxes
+            GridLock
           </h1>
           <p className="text-blue-300 text-sm mt-1 tracking-widest uppercase">Multiplayer · 2–4 Players</p>
           <div className="flex justify-center gap-3 mt-3 text-xl">
