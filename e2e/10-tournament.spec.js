@@ -44,7 +44,7 @@ test.describe('Tournament', () => {
     await page.waitForURL(/\/tournament/, { timeout: 15_000 });
 
     // Tournament lobby should display
-    await expect(page.locator('text=Tournament')).toBeVisible();
+    await expect(page.locator('h1:has-text("Tournament")')).toBeVisible();
     // Should show tournament ID
     await expect(page.locator('text=Tournament ID')).toBeVisible();
     // Should show the host as a participant
