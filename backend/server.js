@@ -89,6 +89,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {
+    const mem = process.memoryUsage();
     res.json({
         status: 'ok',
         activeGames: await gameStore.gameCount(),
@@ -96,29 +97,48 @@ app.get('/health', healthLimiter, async (req, res) => {
         pendingDisconnectTimers: localTimers.size,
         connectedSockets: io.engine?.clientsCount || 0,
         redisAdapter: redisEnabled,
+        memoryUsage: {
+            rss: Math.round((mem.rss / 1024 / 1024) * 10) / 10,
+            heapUsed: Math.round((mem.heapUsed / 1024 / 1024) * 10) / 10,
+            heapTotal: Math.round((mem.heapTotal / 1024 / 1024) * 10) / 10,
+        },
+        uptime: Math.round(process.uptime()),
+        nodeVersion: process.version,
         timestamp: new Date().toISOString(),
     });
 });
 
-// Metrics endpoint (for monitoring)
+// Metrics endpoint (Prometheus format)
 app.get('/metrics', healthLimiter, async (req, res) => {
-    const memUsage = process.memoryUsage();
-    res.json({
-        status: 'ok',
-        uptimeSeconds: Math.round(process.uptime()),
-        activeGames: await gameStore.gameCount(),
-        pendingRematches: await rematchStore.storeCount(),
-        pendingDisconnectTimers: localTimers.size,
-        connectedSockets: io.engine?.clientsCount || 0,
-        redisAdapter: redisEnabled,
-        memory: {
-            rssMB: Math.round(memUsage.rss / 1024 / 1024),
-            heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
-            heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
-            externalMB: Math.round(memUsage.external / 1024 / 1024),
-        },
-        timestamp: new Date().toISOString(),
-    });
+    const mem = process.memoryUsage();
+    const activeGames = await gameStore.gameCount();
+    const connectedSockets = io.engine?.clientsCount || 0;
+    const uptimeSeconds = Math.round(process.uptime());
+
+    const lines = [
+        '# HELP gridlock_active_games Number of active games',
+        '# TYPE gridlock_active_games gauge',
+        `gridlock_active_games ${activeGames}`,
+        '',
+        '# HELP gridlock_connected_sockets Number of connected sockets',
+        '# TYPE gridlock_connected_sockets gauge',
+        `gridlock_connected_sockets ${connectedSockets}`,
+        '',
+        '# HELP gridlock_memory_rss_bytes Resident set size in bytes',
+        '# TYPE gridlock_memory_rss_bytes gauge',
+        `gridlock_memory_rss_bytes ${mem.rss}`,
+        '',
+        '# HELP gridlock_memory_heap_used_bytes Heap used in bytes',
+        '# TYPE gridlock_memory_heap_used_bytes gauge',
+        `gridlock_memory_heap_used_bytes ${mem.heapUsed}`,
+        '',
+        '# HELP gridlock_uptime_seconds Server uptime in seconds',
+        '# TYPE gridlock_uptime_seconds gauge',
+        `gridlock_uptime_seconds ${uptimeSeconds}`,
+        '',
+    ];
+
+    res.set('Content-Type', 'text/plain; version=0.0.4').send(lines.join('\n'));
 });
 
 // Start server
