@@ -57,7 +57,7 @@ test.describe('Error Handling & Edge Cases', () => {
     await page.goto(`${BASE_URL}`, { waitUntil: 'networkidle' });
 
     expect(errors, `JS errors after rapid nav: ${errors.join('; ')}`).toHaveLength(0);
-    await expect(page.locator('body')).toContainText('Dots & Boxes');
+    await expect(page.locator('body')).toContainText('GridLock');
   });
 
   test('unknown SPA routes fall back to lobby', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('Error Handling & Edge Cases', () => {
     // If this shows blank, it indicates a missing Nginx try_files config for /beta.
     await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle' });
     const bodyText = await page.locator('body').innerText().catch(() => '');
-    expect(bodyText).toContain('Dots & Boxes'); // lobby is the fallback
+    expect(bodyText).toContain('GridLock'); // lobby is the fallback
   });
 
   test('health endpoint responds', async ({ request }) => {

@@ -107,10 +107,10 @@ test.describe('Rematch Flow — 2 Player', () => {
 
     await activePage.click('button:has-text("Leave Game")');
     await activePage.waitForFunction(
-      () => document.querySelector('body')?.innerText?.includes('Dots & Boxes'),
+      () => document.querySelector('body')?.innerText?.includes('GridLock'),
       { timeout: 10_000 }
     );
-    await expect(activePage.locator('body')).toContainText('Dots & Boxes');
+    await expect(activePage.locator('body')).toContainText('GridLock');
 
     await ctx1.close();
     await ctx2.close();

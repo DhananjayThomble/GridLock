@@ -12,7 +12,7 @@ test.describe('Lobby', () => {
     await goToLobby(page);
 
     expect(errors, `JS errors: ${errors.join('; ')}`).toHaveLength(0);
-    await expect(page.locator('body')).toContainText('Dots & Boxes');
+    await expect(page.locator('body')).toContainText('GridLock');
   });
 
   test('shows Create and Join tabs', async ({ page }) => {
