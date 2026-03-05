@@ -8,6 +8,7 @@ const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
 const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
+const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
@@ -116,6 +117,7 @@ function gameStatusFromPlayers(game) {
 
 function buildGameStateWithPlayers(game) {
     const state = { ...game.gameState };
+    let hasCPU = false;
     for (let i = 1; i <= game.playerCount; i++) {
         const playerId = `player${i}`;
         const player = game.players[playerId];
@@ -123,6 +125,10 @@ function buildGameStateWithPlayers(game) {
             state[`${playerId}Name`] = player.username;
             state[`${playerId}Avatar`] = player.avatar;
             state[`${playerId}Color`] = player.color;
+            if (player.isCPU) {
+                state[`${playerId}IsCPU`] = true;
+                hasCPU = true;
+            }
         } else {
             state[`${playerId}Name`] = `Waiting for Player ${i}...`;
             state[`${playerId}Avatar`] = '⏳';
@@ -130,6 +136,8 @@ function buildGameStateWithPlayers(game) {
         }
     }
     state.gameOver = !!state.winner;
+    state.hasCPU = hasCPU;
+    if (game.cpuDifficulty) state.cpuDifficulty = game.cpuDifficulty;
     return state;
 }
 
@@ -242,7 +250,7 @@ async function updateLeaderboard(game, winner, log) {
         for (let i = 1; i <= game.playerCount; i++) {
             const pid = `player${i}`;
             const player = game.players[pid];
-            if (player && player.username) {
+            if (player && player.username && !player.isCPU) {
                 playerEntries.push({ pid, username: player.username });
             }
         }
@@ -438,6 +446,63 @@ async function handleTournamentGameCompletion(io, log, gameId, game, winnerPlaye
     }
 }
 
+/**
+ * Schedule a CPU move if the current player is a CPU.
+ * Checks game state, computes move, applies it via calculateNewState,
+ * persists, broadcasts, and recurses if the CPU still has the turn.
+ */
+async function scheduleCPUMove(io, log, gameId, delay) {
+    setTimeout(async () => {
+        try {
+            const game = await gameStore.getGame(gameId);
+            if (!game || game.gameState.winner) return;
+
+            const currentPlayerId = game.gameState.currentPlayer;
+            const currentPlayer = game.players[currentPlayerId];
+            if (!currentPlayer || !currentPlayer.isCPU) return;
+
+            const difficulty = game.cpuDifficulty || 'medium';
+            const move = chooseCPUMove(game.gameState, difficulty);
+            if (!move) return;
+
+            const newState = calculateNewState(game.gameState, game.gridSize, move.r, move.c, move.type);
+            if (newState.error) {
+                log.error('CPU move error', { gameId, error: newState.error });
+                return;
+            }
+
+            game.gameState = newState;
+            await gameStore.setGame(gameId, game);
+
+            const status = newState.winner ? 'finished' : 'playing';
+            await persistGame(game, status, newState.winner ? { reason: 'normal' } : null);
+
+            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+
+            if (newState.winner) {
+                io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                updateLeaderboard(game, newState.winner, log);
+                await handleTournamentGameCompletion(io, log, gameId, game, newState.winner);
+                setTimeout(async () => {
+                    await gameStore.deleteGame(gameId);
+                    await rematchStore.clearVotes(gameId);
+                    await markGameFinished(gameId, 'normal');
+                }, 60_000);
+            } else {
+                // Check if next player is also CPU
+                const nextPlayerId = newState.currentPlayer;
+                const nextPlayer = game.players[nextPlayerId];
+                if (nextPlayer && nextPlayer.isCPU) {
+                    const nextDelay = CPU_DELAYS[difficulty] || 1200;
+                    await scheduleCPUMove(io, log, gameId, nextDelay);
+                }
+            }
+        } catch (err) {
+            log.error('CPU move scheduling failed', { gameId, error: err.message });
+        }
+    }, delay);
+}
+
 function attachSocketHandlers(io, log) {
     restoreActiveGames(log);
 
@@ -538,7 +603,7 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── create_game ────────────────────────────────────────────────────────
-        socket.on('create_game', async ({ gridSize, username, avatar, playerCount = 2 }, callback) => {
+        socket.on('create_game', async ({ gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium' }, callback) => {
             try {
                 if (rateLimited('create_game')) return;
 
@@ -552,6 +617,11 @@ function attachSocketHandlers(io, log) {
 
                 const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
                 if (!pcResult.valid) { socket.emit('error', pcResult.error); return; }
+
+                // Validate CPU params
+                const cpuCount = Math.max(0, Math.min(Math.floor(Number(cpuPlayers) || 0), pcResult.value - 1));
+                const validDifficulties = ['easy', 'medium', 'hard'];
+                const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
                 const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
@@ -574,14 +644,32 @@ function attachSocketHandlers(io, log) {
                     gameState: initialState,
                     createdAt: Date.now(),
                     metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                    cpuDifficulty: cpuCount > 0 ? cleanDifficulty : null,
                 };
+
+                // Add CPU players immediately
+                for (let i = 0; i < cpuCount; i++) {
+                    const cpuSlot = `player${i + 2}`;
+                    game.players[cpuSlot] = {
+                        id: `cpu-${gameId}-${i}`,
+                        username: CPU_NAMES[i] || `Bot-${i + 1}`,
+                        avatar: CPU_AVATARS[i] || '🤖',
+                        color: PLAYER_COLORS[cpuSlot],
+                        token: `cpu-token-${gameId}-${i}`,
+                        disconnectedAt: null,
+                        isCPU: true,
+                    };
+                }
 
                 await gameStore.setGame(gameId, game);
                 socket.join(gameId);
                 socket.data.gameId = gameId;
                 socket.data.playerId = 'player1';
-                await persistGame(game, 'waiting');
-                log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername });
+
+                const filled = countFilledPlayers(game);
+                const isFull = filled === game.playerCount;
+                await persistGame(game, isFull ? 'playing' : 'waiting');
+                log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername, cpuPlayers: cpuCount });
 
                 const gameStateWithPlayers = buildGameStateWithPlayers(game);
                 socket.emit('game_created', { gameId, playerId: 'player1', sessionToken });
@@ -589,7 +677,19 @@ function attachSocketHandlers(io, log) {
                     gameId, playerId: 'player1', sessionToken,
                     gridSize: game.gridSize, playerCount: game.playerCount,
                     players: getPlayersList(game), gameState: gameStateWithPlayers,
+                    cpuDifficulty: game.cpuDifficulty,
                 });
+
+                if (isFull) {
+                    io.to(gameId).emit('all_players_joined', { gameId });
+                    // If first turn belongs to a CPU, trigger it
+                    const firstPlayer = game.players[game.gameState.currentPlayer];
+                    if (firstPlayer && firstPlayer.isCPU) {
+                        const delay = CPU_DELAYS[cleanDifficulty] || 1200;
+                        await scheduleCPUMove(io, log, gameId, delay);
+                    }
+                }
+
                 if (callback) callback({ gameId, playerId: 'player1', sessionToken });
             } catch (error) {
                 log.error('Error creating game', { error: error.message, stack: error.stack });
@@ -776,6 +876,15 @@ function attachSocketHandlers(io, log) {
                         await markGameFinished(cleanGameId, 'normal');
                         log.info('Game cleaned up', { gameId: cleanGameId });
                     }, 60_000);
+                } else {
+                    // Check if next turn belongs to a CPU player
+                    const nextPlayerId = newState.currentPlayer;
+                    const nextPlayer = game.players[nextPlayerId];
+                    if (nextPlayer && nextPlayer.isCPU) {
+                        const difficulty = game.cpuDifficulty || 'medium';
+                        const delay = CPU_DELAYS[difficulty] || 1200;
+                        await scheduleCPUMove(io, log, cleanGameId, delay);
+                    }
                 }
             } catch (error) {
                 log.error('Error processing move', { error: error.message, stack: error.stack });
@@ -825,15 +934,19 @@ function attachSocketHandlers(io, log) {
                         gameState: initialState,
                         createdAt: Date.now(),
                         metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                        cpuDifficulty: game.cpuDifficulty || null,
                     };
                     for (let i = 1; i <= game.playerCount; i++) {
                         const pid = `player${i}`;
                         const oldPlayer = game.players[pid];
                         if (oldPlayer) {
                             newGame.players[pid] = {
-                                id: oldPlayer.id, username: oldPlayer.username,
+                                id: oldPlayer.isCPU ? `cpu-${newGameId}-${i}` : oldPlayer.id,
+                                username: oldPlayer.username,
                                 avatar: oldPlayer.avatar, color: PLAYER_COLORS[pid],
-                                token: oldPlayer.token, disconnectedAt: null,
+                                token: oldPlayer.isCPU ? `cpu-token-${newGameId}-${i}` : oldPlayer.token,
+                                disconnectedAt: null,
+                                ...(oldPlayer.isCPU ? { isCPU: true } : {}),
                             };
                         }
                     }
@@ -842,6 +955,13 @@ function attachSocketHandlers(io, log) {
                     await persistGame(newGame, 'playing');
                     await markGameFinished(cleanGameId, 'rematch_started');
                     io.to(cleanGameId).emit('rematch_ready', { newGameId });
+
+                    // Trigger CPU move if first turn is CPU in rematch
+                    const firstPlayer = newGame.players[newGame.gameState.currentPlayer];
+                    if (firstPlayer && firstPlayer.isCPU && newGame.cpuDifficulty) {
+                        const delay = CPU_DELAYS[newGame.cpuDifficulty] || 1200;
+                        await scheduleCPUMove(io, log, newGameId, delay);
+                    }
                 }
             } catch (error) {
                 log.error('Error processing rematch request', { error: error.message, stack: error.stack });
@@ -992,4 +1112,5 @@ module.exports._internal = {
     generateTournamentId,
     getTournamentJoinError,
     applyTournamentMatchResult,
+    scheduleCPUMove,
 };
