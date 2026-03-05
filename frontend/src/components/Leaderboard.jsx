@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const DEFAULT_LIMIT = 20;
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_SOCKET_URL ||
+  ''
+).replace(/\/$/, '');
 
 const apiUrl = (path) => `${API_BASE}${path}`;
 
