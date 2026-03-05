@@ -37,24 +37,18 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Build production (base /GridLock/)
+      - name: Build production (custom domain — base /)
         run: npm run build
         working-directory: frontend
         env:
-          VITE_BASE_PATH: /GridLock/
+          VITE_BASE_PATH: /
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
-
-      - name: Build beta (base /GridLock/beta/)
-        run: npx vite build --base=/GridLock/beta/ --outDir=dist-beta --emptyOutDir
-        working-directory: frontend
-        env:
-          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_SOCKET_URL }}
+          VITE_SITE_URL: https://gridlock.snapurl.in
 
       - name: Assemble Pages artifact
         run: |
-          mkdir -p pages-out/beta
           cp -r frontend/dist/. pages-out/
-          cp -r frontend/dist-beta/. pages-out/beta/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

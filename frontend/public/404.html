@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>GridLock</title>
+    <script>
+      (function () {
+        var loc = window.location;
+        var routePath = loc.pathname;
+        if (routePath === '/') {
+          routePath = '';
+        }
+
+        var route = routePath + loc.search + loc.hash;
+        var target = '/?__spa_redirect=' + encodeURIComponent(route);
+        loc.replace(target);
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <p>Redirecting… <a href="./">Go to GridLock</a></p>
+    </noscript>
+  </body>
+</html>
