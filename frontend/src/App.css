@@ -4,33 +4,40 @@
 
 .app-nav {
   position: fixed;
-  top: 0.75rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.35rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(6px);
+  padding: 0.6rem 1rem;
+  background: rgba(15, 23, 42, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 40;
 }
 
 .app-nav-link {
-  color: rgba(226, 232, 240, 0.8);
+  color: rgba(226, 232, 240, 0.7);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 600;
-  padding: 0.4rem 0.9rem;
+  padding: 0.4rem 1.2rem;
   border-radius: 999px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.app-nav-link:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .app-nav-link.active {
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.3);
   color: #ffffff;
 }
 
 .app-content-with-nav {
-  padding-top: 3.75rem;
+  padding-top: 3.25rem;
 }

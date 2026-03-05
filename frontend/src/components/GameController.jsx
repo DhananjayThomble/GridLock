@@ -11,7 +11,7 @@ const GameController = () => {
 
     return (
         <div className="flex flex-col items-center justify-center p-8 bg-white shadow-xl rounded-lg">
-            <h1 className="text-4xl font-bold mb-8 text-gray-800">Dots and Boxes</h1>
+            <h1 className="text-4xl font-bold mb-8 text-gray-800">GridLock</h1>
             
             <div className="mb-6 flex items-center space-x-4">
                 <label htmlFor="gridSize" className="text-lg font-medium text-gray-700">Grid Size:</label>
