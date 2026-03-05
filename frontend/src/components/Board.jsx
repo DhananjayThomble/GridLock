@@ -9,6 +9,22 @@ import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
 
+// ─── Turn toast component ─────────────────────────────────────────────────────
+const TurnToast = ({ visible, color }) => (
+  <div
+    className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none ${
+      visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-4 scale-90'
+    }`}
+  >
+    <div
+      className="px-5 py-2.5 rounded-full font-extrabold text-white text-sm shadow-lg"
+      style={{ background: color || '#10B981' }}
+    >
+      ⚡ YOUR TURN!
+    </div>
+  </div>
+);
+
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
   player1: { color: '#3B82F6', bg: 'bg-blue-500',   light: 'bg-blue-100',   border: 'border-blue-500',   text: 'text-blue-600',   label: 'P1' },
@@ -28,27 +44,29 @@ function useGridSizes(gridSize) {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      // On mobile: reserve less vertical space so board is bigger
-      const reservedH = w < 640 ? 200 : 280;
-      // On mobile: minimal horizontal padding
-      const reservedW = w < 640 ? 16 : 64;
+      // Reserve space for ScoreBar + header + toolbar
+      const reservedH = w < 640 ? 220 : 280;
+      // Horizontal padding: board-container padding (8px mobile) + outer margin
+      const reservedW = w < 640 ? 40 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
       const cells = gridSize || 3;
-      const units = cells * 2 + 1; // grid units (dots + lines/boxes)
+
+      // Total grid units: (cells+1) dots + cells lines/boxes per axis
+      // Each dot ≈ 0.18 * box, so effective unit ≈ box + 0.18*box = 1.18*box
+      // Simpler: treat as (cells * 2 + 1) uniform units
+      const units = cells * 2 + 1;
 
       const fromW = Math.floor(availW / units);
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // On mobile, keep controls finger-friendly but never exceed what fits the viewport.
-      const baseMinBox = w < 640 ? 44 : 28;
+      // Clamp: minimum 20px so it's tappable, max 80px for desktop
       const maxBox = w < 640 ? 72 : 80;
-      const effectiveMinBox = Math.min(baseMinBox, fromW, fromH);
-      box = Math.max(effectiveMinBox, Math.min(box, maxBox));
+      box = Math.max(20, Math.min(box, maxBox));
 
-      const dot = Math.max(8, Math.round(box * 0.18));
+      const dot = Math.max(6, Math.round(box * 0.18));
       setSizes({ dot, line: box, box });
     }
     calculate();
@@ -94,6 +112,12 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+  const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
+
+  // ── Turn indicator state ──────────────────────────────────────────────────────
+  const [showTurnToast, setShowTurnToast] = useState(false);
+  const [boardPulse, setBoardPulse] = useState(false);
+  const prevPlayerRef = useRef(null);
 
   // Track previous scores in a ref so we can compute sound effects outside of
   // a React state-updater (where side effects are an anti-pattern — updaters
@@ -118,6 +142,37 @@ const Board = () => {
   useEffect(() => {
     roleRef.current = role;
   }, [role]);
+
+  // ── Turn change detection → haptic + visual + audio ───────────────────────────
+  useEffect(() => {
+    if (!gameState || gameState.gameOver || isSpectator) return;
+    const current = gameState.currentPlayer;
+    const prev = prevPlayerRef.current;
+    prevPlayerRef.current = current;
+
+    // Only trigger on actual turn *changes* (not initial load)
+    if (prev && prev !== current && current === role) {
+      // Haptic feedback
+      if ('vibrate' in navigator) navigator.vibrate(200);
+
+      // Turn notification sound
+      sounds.turnNotify();
+
+      // Show "YOUR TURN" toast + board glow pulse (deferred to avoid sync setState in effect)
+      const toastTimer = setTimeout(() => {
+        setShowTurnToast(true);
+        setBoardPulse(true);
+      }, 0);
+      const hideToastTimer = setTimeout(() => setShowTurnToast(false), 1500);
+      const hidePulseTimer = setTimeout(() => setBoardPulse(false), 1200);
+
+      return () => {
+        clearTimeout(toastTimer);
+        clearTimeout(hideToastTimer);
+        clearTimeout(hidePulseTimer);
+      };
+    }
+  }, [gameState?.currentPlayer, gameState?.gameOver, role, isSpectator]);
 
   // ── Status helper ────────────────────────────────────────────────────────────
   const getStatusFromState = useCallback((gs) => {
@@ -289,31 +344,30 @@ const Board = () => {
   useEffect(() => {
     if (!tournamentId) return;
 
-    const onTournamentGameAssigned = ({ gameId: nextGameId, opponentName, roundIndex, matchIndex, gridSize: nextGridSize }) => {
+    const onTournamentGameAssigned = ({ gameId: nextGameId, playerId: nextPlayerId, sessionToken: nextToken, gridSize: nextGridSize, playerCount: nextPlayerCount }) => {
       if (tournamentNavRef.current) return;
       tournamentNavRef.current = true;
       navigate('/game', {
         state: {
           username,
           gameId: nextGameId,
-          role: 'player_joining',
+          role: nextPlayerId,
           avatar,
-          playerCount: 2,
+          playerCount: nextPlayerCount || 2,
           gridSize: nextGridSize || gridSize,
+          sessionToken: nextToken,
           tournamentId,
-          tournamentRound: roundIndex,
-          tournamentMatch: matchIndex,
-          opponentName,
         },
       });
     };
 
-    const onTournamentCompleted = ({ tournament }) => {
+    const onTournamentCompleted = () => {
       if (tournamentNavRef.current) return;
       tournamentNavRef.current = true;
+      // Use the latest tournament snapshot stored from tournament_update events
       navigate('/tournament', {
         state: {
-          tournament,
+          tournament: tournamentSnapshot,
           tournamentId,
           username,
           avatar,
@@ -321,11 +375,8 @@ const Board = () => {
       });
     };
 
-    const onTournamentUpdate = ({ tournament }) => {
-      // If the game is over and we haven't navigated yet, go back to tournament lobby
-      if (showWinner && !tournamentNavRef.current && tournament.status !== 'finished') {
-        // Stay — a game_assigned event should come soon
-      }
+    const onTournamentUpdate = ({ tournament: t }) => {
+      setTournamentSnapshot(t);
     };
 
     socket.on('tournament_game_assigned', onTournamentGameAssigned);
@@ -337,7 +388,7 @@ const Board = () => {
       socket.off('tournament_completed', onTournamentCompleted);
       socket.off('tournament_update', onTournamentUpdate);
     };
-  }, [tournamentId, username, avatar, gridSize, navigate, showWinner]);
+  }, [tournamentId, username, avatar, gridSize, navigate, showWinner, tournamentSnapshot]);
 
   // Reset tournament nav guard when gameId changes
   useEffect(() => {
@@ -547,11 +598,12 @@ const Board = () => {
           return (
             <div
               key={pid}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-300 ${
                 isCurrent
-                  ? `${cfg.light} ${cfg.border} scale-105 shadow-md`
+                  ? `${cfg.light} ${cfg.border} scale-110 shadow-lg ring-2 ring-offset-1`
                   : 'bg-white border-gray-200'
               } ${waiting ? 'opacity-50' : ''}`}
+              style={isCurrent ? { ringColor: cfg.color, '--tw-ring-color': cfg.color } : undefined}
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
               <div className="min-w-0 flex-1">
@@ -565,7 +617,7 @@ const Board = () => {
                 </div>
               </div>
               {isCurrent && !waiting && (
-                <span className="text-xs animate-pulse">▶</span>
+                <span className="text-sm font-bold animate-pulse" style={{ color: cfg.color }}>▶</span>
               )}
             </div>
           );
@@ -648,7 +700,7 @@ const Board = () => {
               </div>
             )}
             <button
-              onClick={tournamentId ? () => navigate('/tournament', { state: { tournamentId, username, avatar } }) : handleLeaveGame}
+              onClick={tournamentId ? () => navigate('/tournament', { state: { tournament: tournamentSnapshot, tournamentId, username, avatar } }) : handleLeaveGame}
               className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
             >
               {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
@@ -696,6 +748,7 @@ const Board = () => {
   return (
     <div className="game-layout flex flex-col items-center bg-gray-50" style={{ minHeight: '100dvh' }}>
       {renderWinnerModal()}
+      <TurnToast visible={showTurnToast} color={getConfig(role).color} />
 
       {/* ── Live ScoreBar (fixed top) ── */}
       {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
@@ -748,9 +801,9 @@ const Board = () => {
 
           {/* Status pill */}
           <div className="flex justify-center">
-            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold ${
+            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300 ${
               isMyTurnNow
-                ? 'bg-green-100 text-green-700'
+                ? 'bg-green-100 text-green-700 scale-105 shadow-md ring-2 ring-green-300'
                 : 'bg-gray-100 text-gray-600'
             }`}>
               {status}
@@ -777,8 +830,15 @@ const Board = () => {
 
         {/* ── Board ── */}
         <div
-          className="relative bg-white rounded-2xl shadow-xl border border-gray-100 select-none board-container"
-          style={{ touchAction: 'pan-y', padding: '12px' }}
+          className={`relative bg-white rounded-2xl shadow-xl border select-none board-container mx-auto transition-shadow duration-300 ${
+            boardPulse ? 'board-glow' : 'border-gray-100'
+          }`}
+          style={{
+            touchAction: 'pan-y',
+            padding: '12px',
+            maxWidth: '500px',
+            ...(boardPulse ? { borderColor: getConfig(role).color } : {}),
+          }}
         >
           {gameState.horizontalLines.map((row, r) => (
             <div key={`row-${r}`}>

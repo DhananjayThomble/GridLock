@@ -19,6 +19,9 @@ const TournamentLobby = () => {
 
   const tournamentId = tournament?.tournamentId || initialTournamentId;
 
+  // Track whether we're re-requesting tournament data (to suppress expected errors)
+  const reRequestingRef = useRef(false);
+
   // ── Socket events ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!tournamentId) {
@@ -30,44 +33,50 @@ const TournamentLobby = () => {
       setTournament(t);
     };
 
-    const onTournamentGameAssigned = ({ gameId, opponentName, roundIndex, matchIndex, gridSize }) => {
+    const onTournamentGameAssigned = ({ tournamentId: tid, gameId, playerId, sessionToken, gridSize: assignedGridSize, playerCount: assignedPlayerCount }) => {
       if (navigatedRef.current) return;
       navigatedRef.current = true;
       navigate('/game', {
         state: {
           username,
           gameId,
-          role: 'player_joining',
+          role: playerId,
           avatar,
-          playerCount: 2,
-          gridSize,
-          tournamentId,
-          tournamentRound: roundIndex,
-          tournamentMatch: matchIndex,
-          opponentName,
+          playerCount: assignedPlayerCount || 2,
+          gridSize: assignedGridSize,
+          sessionToken,
+          tournamentId: tid || tournamentId,
         },
       });
     };
 
-    const onTournamentCompleted = ({ tournament: t, winner: w }) => {
-      setTournament(t);
-      setWinner(w);
+    const onTournamentCompleted = ({ champion }) => {
+      // The tournament snapshot comes via a separate tournament_update event.
+      // Use the latest snapshot already in state.
+      setWinner(champion);
       setCompleted(true);
     };
 
     const onError = (msg) => {
+      // Suppress expected errors from re-joining tournament to fetch state
+      if (reRequestingRef.current) {
+        reRequestingRef.current = false;
+        return;
+      }
       alert(typeof msg === 'string' ? msg : 'Something went wrong');
     };
 
     socket.on('tournament_update', onTournamentUpdate);
     socket.on('tournament_game_assigned', onTournamentGameAssigned);
     socket.on('tournament_completed', onTournamentCompleted);
+    socket.on('tournament_joined', onTournamentUpdate); // Also handles re-join snapshot
     socket.on('error', onError);
 
     return () => {
       socket.off('tournament_update', onTournamentUpdate);
       socket.off('tournament_game_assigned', onTournamentGameAssigned);
       socket.off('tournament_completed', onTournamentCompleted);
+      socket.off('tournament_joined', onTournamentUpdate);
       socket.off('error', onError);
     };
   }, [tournamentId, username, avatar, navigate]);
@@ -76,6 +85,17 @@ const TournamentLobby = () => {
   useEffect(() => {
     navigatedRef.current = false;
   }, [tournamentId]);
+
+  // ── Request tournament data when navigating back without snapshot ────────────
+  useEffect(() => {
+    if (!tournamentId || tournament) return;
+    // We have a tournamentId but no snapshot (e.g., "View Bracket" from Board).
+    // Re-join the tournament room so we receive tournament_update events.
+    // The backend will reject with "already joined" but also sends tournament_update
+    // to the room. Mark reRequesting so we suppress the expected error.
+    reRequestingRef.current = true;
+    socket.emit('join_tournament', { tournamentId, username, avatar });
+  }, [tournamentId, tournament, username, avatar]);
 
   // ── Copy tournament ID ────────────────────────────────────────────────────────
   const handleCopyId = () => {

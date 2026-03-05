@@ -43,16 +43,14 @@
   padding-top: 88px;
 }
 
-/* On mobile: board fills nearly full viewport width */
+/* On mobile: board centers and fits within viewport width */
 @media (max-width: 640px) {
   .board-container {
-    width: calc(100vw - 1.5rem);
-    max-width: calc(100vw - 1.5rem);
+    max-width: calc(100vw - 2rem);
     margin-left: auto;
     margin-right: auto;
     /* Remove excessive padding on mobile */
     padding: 8px !important;
-    overflow: auto;
   }
 
   /* Hide duplicate scoreboard cards on mobile — ScoreBar handles scoring */
@@ -65,6 +63,18 @@
     max-width: calc(100vw - 1.5rem);
     width: 100%;
   }
+}
+
+/* ── Board glow pulse for turn indicator ───────────────────────────────────── */
+@keyframes board-glow-pulse {
+  0% { box-shadow: 0 0 8px 2px rgba(var(--glow-rgb, 59,130,246), 0.5); }
+  50% { box-shadow: 0 0 20px 6px rgba(var(--glow-rgb, 59,130,246), 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--glow-rgb, 59,130,246), 0); }
+}
+
+.board-glow {
+  animation: board-glow-pulse 1.2s ease-out;
+  border-width: 2px;
 }
 
 /* Keep touch targets stable on coarse pointers (avoid overlap between adjacent lines). */
