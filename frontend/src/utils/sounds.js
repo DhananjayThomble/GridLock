@@ -129,6 +129,17 @@ export const gameLose = () => {
   ]);
 };
 
+/**
+ * Turn notification - played when it becomes the player's turn
+ * ~200ms, bright two-note ping
+ */
+export const turnNotify = () => {
+  playSequence([
+    { freq: 660, duration: 0.08, volume: 0.25 }, // E5
+    { freq: 880, duration: 0.12, volume: 0.3 },  // A5
+  ]);
+};
+
 // Export all sounds as a single object for convenience
 export const sounds = {
   tileCaptured,
@@ -136,6 +147,7 @@ export const sounds = {
   gameStart,
   gameWin,
   gameLose,
+  turnNotify,
 };
 
 export default sounds;
