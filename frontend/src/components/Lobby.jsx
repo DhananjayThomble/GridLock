@@ -67,6 +67,8 @@ const Lobby = () => {
     const onError = (msg) => {
       setCreating(false);
       setJoining(false);
+      setCreatingTournament(false);
+      setJoiningTournament(false);
       alert(typeof msg === 'string' ? msg : 'Something went wrong');
     };
 

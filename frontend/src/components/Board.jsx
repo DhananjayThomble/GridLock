@@ -94,6 +94,7 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+  const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
 
   // Track previous scores in a ref so we can compute sound effects outside of
   // a React state-updater (where side effects are an anti-pattern — updaters
@@ -289,31 +290,30 @@ const Board = () => {
   useEffect(() => {
     if (!tournamentId) return;
 
-    const onTournamentGameAssigned = ({ gameId: nextGameId, opponentName, roundIndex, matchIndex, gridSize: nextGridSize }) => {
+    const onTournamentGameAssigned = ({ gameId: nextGameId, playerId: nextPlayerId, sessionToken: nextToken, gridSize: nextGridSize, playerCount: nextPlayerCount }) => {
       if (tournamentNavRef.current) return;
       tournamentNavRef.current = true;
       navigate('/game', {
         state: {
           username,
           gameId: nextGameId,
-          role: 'player_joining',
+          role: nextPlayerId,
           avatar,
-          playerCount: 2,
+          playerCount: nextPlayerCount || 2,
           gridSize: nextGridSize || gridSize,
+          sessionToken: nextToken,
           tournamentId,
-          tournamentRound: roundIndex,
-          tournamentMatch: matchIndex,
-          opponentName,
         },
       });
     };
 
-    const onTournamentCompleted = ({ tournament }) => {
+    const onTournamentCompleted = () => {
       if (tournamentNavRef.current) return;
       tournamentNavRef.current = true;
+      // Use the latest tournament snapshot stored from tournament_update events
       navigate('/tournament', {
         state: {
-          tournament,
+          tournament: tournamentSnapshot,
           tournamentId,
           username,
           avatar,
@@ -321,11 +321,8 @@ const Board = () => {
       });
     };
 
-    const onTournamentUpdate = ({ tournament }) => {
-      // If the game is over and we haven't navigated yet, go back to tournament lobby
-      if (showWinner && !tournamentNavRef.current && tournament.status !== 'finished') {
-        // Stay — a game_assigned event should come soon
-      }
+    const onTournamentUpdate = ({ tournament: t }) => {
+      setTournamentSnapshot(t);
     };
 
     socket.on('tournament_game_assigned', onTournamentGameAssigned);
@@ -337,7 +334,7 @@ const Board = () => {
       socket.off('tournament_completed', onTournamentCompleted);
       socket.off('tournament_update', onTournamentUpdate);
     };
-  }, [tournamentId, username, avatar, gridSize, navigate, showWinner]);
+  }, [tournamentId, username, avatar, gridSize, navigate, showWinner, tournamentSnapshot]);
 
   // Reset tournament nav guard when gameId changes
   useEffect(() => {
@@ -648,7 +645,7 @@ const Board = () => {
               </div>
             )}
             <button
-              onClick={tournamentId ? () => navigate('/tournament', { state: { tournamentId, username, avatar } }) : handleLeaveGame}
+              onClick={tournamentId ? () => navigate('/tournament', { state: { tournament: tournamentSnapshot, tournamentId, username, avatar } }) : handleLeaveGame}
               className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
             >
               {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
