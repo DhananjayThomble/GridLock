@@ -44,6 +44,7 @@ const Lobby = () => {
   const [cpuDifficulty, setCpuDifficulty] = useState('medium');
   const navigate = useNavigate();
 
+
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
@@ -212,7 +213,12 @@ const Lobby = () => {
                   {PLAYER_COUNT_OPTIONS.map(({ value, label, icon, desc }) => (
                     <button
                       key={value}
-                      onClick={() => setPlayerCount(value)}
+                      onClick={() => {
+                        setPlayerCount(value);
+                        // Clamp cpuCount when playerCount shrinks
+                        const maxCpu = Math.max(1, value - 1);
+                        if (cpuCount > maxCpu) setCpuCount(maxCpu);
+                      }}
                       className={`py-2.5 px-2 rounded-xl border text-center transition-all active:scale-95 ${
                         playerCount === value
                           ? 'bg-blue-500 border-blue-400 text-white shadow-lg'

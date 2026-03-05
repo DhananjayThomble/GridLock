@@ -206,8 +206,8 @@ function chooseHardMove(gameState) {
     }
 
     if (safe.length > 0) {
-        // Among safe moves, prefer those that create 1-side boxes (building pressure)
-        // over 0-side boxes.  This is a minor heuristic.
+        // Among safe moves, pick one at random. (No additional heuristic
+        // between different safe moves is applied.)
         return safe[Math.floor(Math.random() * safe.length)];
     }
 

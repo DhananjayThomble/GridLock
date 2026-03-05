@@ -451,11 +451,16 @@ async function handleTournamentGameCompletion(io, log, gameId, game, winnerPlaye
  * Checks game state, computes move, applies it via calculateNewState,
  * persists, broadcasts, and recurses if the CPU still has the turn.
  */
-async function scheduleCPUMove(io, log, gameId, delay) {
+function scheduleCPUMove(io, log, gameId, delay) {
     setTimeout(async () => {
         try {
-            const game = await gameStore.getGame(gameId);
-            if (!game || game.gameState.winner) return;
+            let game = await gameStore.getGame(gameId);
+            if (!game) {
+                game = await loadGameFromDB(gameId, log);
+                if (!game) return;
+                await gameStore.setGame(gameId, game);
+            }
+            if (game.gameState.winner) return;
 
             const currentPlayerId = game.gameState.currentPlayer;
             const currentPlayer = game.players[currentPlayerId];
@@ -494,7 +499,7 @@ async function scheduleCPUMove(io, log, gameId, delay) {
                 const nextPlayer = game.players[nextPlayerId];
                 if (nextPlayer && nextPlayer.isCPU) {
                     const nextDelay = CPU_DELAYS[difficulty] || 1200;
-                    await scheduleCPUMove(io, log, gameId, nextDelay);
+                    scheduleCPUMove(io, log, gameId, nextDelay);
                 }
             }
         } catch (err) {
@@ -686,7 +691,7 @@ function attachSocketHandlers(io, log) {
                     const firstPlayer = game.players[game.gameState.currentPlayer];
                     if (firstPlayer && firstPlayer.isCPU) {
                         const delay = CPU_DELAYS[cleanDifficulty] || 1200;
-                        await scheduleCPUMove(io, log, gameId, delay);
+                        scheduleCPUMove(io, log, gameId, delay);
                     }
                 }
 
@@ -883,7 +888,7 @@ function attachSocketHandlers(io, log) {
                     if (nextPlayer && nextPlayer.isCPU) {
                         const difficulty = game.cpuDifficulty || 'medium';
                         const delay = CPU_DELAYS[difficulty] || 1200;
-                        await scheduleCPUMove(io, log, cleanGameId, delay);
+                        scheduleCPUMove(io, log, cleanGameId, delay);
                     }
                 }
             } catch (error) {
@@ -920,10 +925,18 @@ function attachSocketHandlers(io, log) {
                 }
 
                 // Add vote to shared Redis store — visible across ALL nodes
-                const { count } = await rematchStore.addVote(cleanGameId, requestingPlayerId);
-                io.to(cleanGameId).emit('rematch_count', { count, total: game.playerCount });
+                const { count: humanCount } = await rematchStore.addVote(cleanGameId, requestingPlayerId);
 
-                if (count >= game.playerCount) {
+                // Auto-count CPU players as having voted (they can't send request_rematch)
+                let cpuVotes = 0;
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const pid = `player${i}`;
+                    if (game.players[pid]?.isCPU) cpuVotes++;
+                }
+                const totalVotes = humanCount + cpuVotes;
+                io.to(cleanGameId).emit('rematch_count', { count: totalVotes, total: game.playerCount });
+
+                if (totalVotes >= game.playerCount) {
                     const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
                     const initialState = initializeGameState(game.gridSize, game.playerCount);
                     const newGame = {
@@ -960,7 +973,7 @@ function attachSocketHandlers(io, log) {
                     const firstPlayer = newGame.players[newGame.gameState.currentPlayer];
                     if (firstPlayer && firstPlayer.isCPU && newGame.cpuDifficulty) {
                         const delay = CPU_DELAYS[newGame.cpuDifficulty] || 1200;
-                        await scheduleCPUMove(io, log, newGameId, delay);
+                        scheduleCPUMove(io, log, newGameId, delay);
                     }
                 }
             } catch (error) {
