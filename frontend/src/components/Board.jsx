@@ -72,6 +72,7 @@ const Board = () => {
     playerCount,
     sessionToken: initialSessionToken,
     joinMode: initialJoinMode,
+    tournamentId,
   } = location.state || {};
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
@@ -282,6 +283,66 @@ const Board = () => {
       socket.off('player_forfeited',    onPlayerForfeited);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
+
+  // ── Tournament: post-game navigation ──────────────────────────────────────────
+  const tournamentNavRef = useRef(false);
+  useEffect(() => {
+    if (!tournamentId) return;
+
+    const onTournamentGameAssigned = ({ gameId: nextGameId, opponentName, roundIndex, matchIndex, gridSize: nextGridSize }) => {
+      if (tournamentNavRef.current) return;
+      tournamentNavRef.current = true;
+      navigate('/game', {
+        state: {
+          username,
+          gameId: nextGameId,
+          role: 'player_joining',
+          avatar,
+          playerCount: 2,
+          gridSize: nextGridSize || gridSize,
+          tournamentId,
+          tournamentRound: roundIndex,
+          tournamentMatch: matchIndex,
+          opponentName,
+        },
+      });
+    };
+
+    const onTournamentCompleted = ({ tournament }) => {
+      if (tournamentNavRef.current) return;
+      tournamentNavRef.current = true;
+      navigate('/tournament', {
+        state: {
+          tournament,
+          tournamentId,
+          username,
+          avatar,
+        },
+      });
+    };
+
+    const onTournamentUpdate = ({ tournament }) => {
+      // If the game is over and we haven't navigated yet, go back to tournament lobby
+      if (showWinner && !tournamentNavRef.current && tournament.status !== 'finished') {
+        // Stay — a game_assigned event should come soon
+      }
+    };
+
+    socket.on('tournament_game_assigned', onTournamentGameAssigned);
+    socket.on('tournament_completed', onTournamentCompleted);
+    socket.on('tournament_update', onTournamentUpdate);
+
+    return () => {
+      socket.off('tournament_game_assigned', onTournamentGameAssigned);
+      socket.off('tournament_completed', onTournamentCompleted);
+      socket.off('tournament_update', onTournamentUpdate);
+    };
+  }, [tournamentId, username, avatar, gridSize, navigate, showWinner]);
+
+  // Reset tournament nav guard when gameId changes
+  useEffect(() => {
+    tournamentNavRef.current = false;
+  }, [gameId]);
 
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
@@ -558,7 +619,7 @@ const Board = () => {
           </div>
 
           <div className="flex gap-2">
-            {!isSpectator && (
+            {!isSpectator && !tournamentId && (
               <button
                 onClick={handlePlayAgain}
                 disabled={rematchRequested}
@@ -580,11 +641,17 @@ const Board = () => {
                 )}
               </button>
             )}
+            {tournamentId && (
+              <div className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center text-amber-600 bg-amber-50">
+                <span className="w-4 h-4 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin inline-block mr-2 align-middle" />
+                Next match loading…
+              </div>
+            )}
             <button
-              onClick={handleLeaveGame}
+              onClick={tournamentId ? () => navigate('/tournament', { state: { tournamentId, username, avatar } }) : handleLeaveGame}
               className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
             >
-              👋 Leave Game
+              {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
             </button>
           </div>
 
@@ -676,6 +743,7 @@ const Board = () => {
           <p className="text-xs text-gray-400 text-center mb-1">
             You are <span className="font-bold" style={{ color: isSpectator ? '#4F46E5' : getConfig(role).color }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
             {gameState?.hasCPU && <span className="ml-2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-semibold">vs CPU</span>}
+            {tournamentId && <span className="ml-2 bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-semibold">🏆 Tournament Match</span>}
           </p>
 
           {/* Status pill */}

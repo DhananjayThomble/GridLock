@@ -27,6 +27,11 @@ const DIFFICULTY_OPTIONS = [
   { value: 'hard',   label: 'Hard',   icon: '🧠', desc: 'Chain strategy' },
 ];
 
+const TOURNAMENT_SIZE_OPTIONS = [
+  { value: 4, label: '4 Players', icon: '🏟️', desc: 'Quick bracket' },
+  { value: 8, label: '8 Players', icon: '🏆', desc: 'Full bracket' },
+];
+
 const Lobby = () => {
   const [username,      setUsername]      = useState('');
   const [gridSize,      setGridSize]      = useState(3);
@@ -36,12 +41,17 @@ const Lobby = () => {
   const [creating,      setCreating]      = useState(false);
   const [joining,       setJoining]       = useState(false);
   const [joinMode,      setJoinMode]      = useState('player'); // 'player' | 'spectator'
-  const [tab,           setTab]           = useState('create'); // 'create' | 'join'
+  const [tab,           setTab]           = useState('create'); // 'create' | 'join' | 'tournament'
   const [showStats,     setShowStats]     = useState(false);
   const [stats,         setStats]         = useState(getStats());
   const [cpuEnabled,    setCpuEnabled]    = useState(false);
   const [cpuCount,      setCpuCount]      = useState(1);
   const [cpuDifficulty, setCpuDifficulty] = useState('medium');
+  const [tournamentSize, setTournamentSize] = useState(4);
+  const [tournamentGridSize, setTournamentGridSize] = useState(4);
+  const [tournamentId, setTournamentId]   = useState('');
+  const [creatingTournament, setCreatingTournament] = useState(false);
+  const [joiningTournament, setJoiningTournament]   = useState(false);
   const navigate = useNavigate();
 
 
@@ -67,6 +77,50 @@ const Lobby = () => {
       socket.off('error',        onError);
     };
   }, [navigate, username, gridSize, selectedAvatar, playerCount]);
+
+  // ── Socket: tournament events ─────────────────────────────────────────────
+  useEffect(() => {
+    const onTournamentCreated = ({ tournament }) => {
+      setCreatingTournament(false);
+      navigate('/tournament', {
+        state: { tournament, tournamentId: tournament.tournamentId, username: username.trim(), avatar: selectedAvatar },
+      });
+    };
+
+    const onTournamentJoined = ({ tournament }) => {
+      setJoiningTournament(false);
+      navigate('/tournament', {
+        state: { tournament, tournamentId: tournament.tournamentId, username: username.trim(), avatar: selectedAvatar },
+      });
+    };
+
+    socket.on('tournament_created', onTournamentCreated);
+    socket.on('tournament_joined',  onTournamentJoined);
+    return () => {
+      socket.off('tournament_created', onTournamentCreated);
+      socket.off('tournament_joined',  onTournamentJoined);
+    };
+  }, [navigate, username, selectedAvatar]);
+
+  // ── Create Tournament ───────────────────────────────────────────────────────
+  const handleCreateTournament = () => {
+    const name = username.trim();
+    if (!name) return alert('Please enter a username');
+    if (!socket.connected) socket.connect();
+    setCreatingTournament(true);
+    socket.emit('create_tournament', { username: name, avatar: selectedAvatar, tournamentSize, gridSize: tournamentGridSize });
+  };
+
+  // ── Join Tournament ─────────────────────────────────────────────────────────
+  const handleJoinTournament = () => {
+    const name = username.trim();
+    const id = tournamentId.trim().toUpperCase();
+    if (!name) return alert('Please enter a username');
+    if (!id) return alert('Please enter a Tournament ID');
+    if (!socket.connected) socket.connect();
+    setJoiningTournament(true);
+    socket.emit('join_tournament', { tournamentId: id, username: name, avatar: selectedAvatar });
+  };
 
   // ── Create ──────────────────────────────────────────────────────────────────
   const handleCreate = () => {
@@ -188,6 +242,7 @@ const Lobby = () => {
             {[
               { key: 'create', label: '🎮 Create Game' },
               { key: 'join',   label: '🔗 Join Game' },
+              { key: 'tournament', label: '🏆 Tournament' },
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -401,6 +456,117 @@ const Lobby = () => {
 
               <p className="text-white/40 text-xs text-center">
                 Ask the game creator for their room code
+              </p>
+            </div>
+          )}
+
+          {/* ── Tournament Tab ── */}
+          {tab === 'tournament' && (
+            <div className="p-5 space-y-4">
+              {/* Create Tournament Section */}
+              <div>
+                <label className="block text-yellow-200 text-xs font-bold uppercase tracking-wider mb-2">Tournament Size</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {TOURNAMENT_SIZE_OPTIONS.map(({ value, label, icon, desc }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTournamentSize(value)}
+                      className={`py-2.5 px-2 rounded-xl border text-center transition-all active:scale-95 ${
+                        tournamentSize === value
+                          ? 'bg-yellow-500 border-yellow-400 text-white shadow-lg'
+                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="text-lg">{icon}</div>
+                      <div className="text-xs font-bold">{label}</div>
+                      <div className="text-xs opacity-70">{desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grid size for tournament */}
+              <div>
+                <label className="block text-yellow-200 text-xs font-bold uppercase tracking-wider mb-2">Grid Size</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {GRID_OPTIONS.map(({ value, label, desc }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTournamentGridSize(value)}
+                      className={`py-2 rounded-xl border text-center transition-all active:scale-95 ${
+                        tournamentGridSize === value
+                          ? 'bg-purple-500 border-purple-400 text-white shadow-lg'
+                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="text-sm font-bold">{label}</div>
+                      <div className="text-xs opacity-70">{desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleCreateTournament}
+                disabled={creatingTournament}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: creatingTournament ? '#6b7280' : 'linear-gradient(135deg,#F59E0B,#D97706)' }}
+              >
+                {creatingTournament ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Creating…
+                  </span>
+                ) : (
+                  '🏆 Create Tournament'
+                )}
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 border-t border-white/10" />
+                <span className="text-white/30 text-xs font-bold uppercase">or join</span>
+                <div className="flex-1 border-t border-white/10" />
+              </div>
+
+              {/* Join Tournament */}
+              <div>
+                <label className="block text-yellow-200 text-xs font-bold uppercase tracking-wider mb-1.5">Tournament ID</label>
+                <input
+                  type="text"
+                  value={tournamentId}
+                  onChange={(e) => setTournamentId(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinTournament()}
+                  placeholder="e.g. AB3XYZ"
+                  maxLength={8}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  inputMode="text"
+                  enterKeyHint="join"
+                  className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                />
+              </div>
+
+              <button
+                onClick={handleJoinTournament}
+                disabled={joiningTournament}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: joiningTournament ? '#6b7280' : 'linear-gradient(135deg,#10B981,#059669)' }}
+              >
+                {joiningTournament ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    Joining…
+                  </span>
+                ) : (
+                  '🔗 Join Tournament'
+                )}
+              </button>
+
+              <p className="text-white/40 text-xs text-center">
+                Single-elimination bracket · Winner takes all 🏆
               </p>
             </div>
           )}
