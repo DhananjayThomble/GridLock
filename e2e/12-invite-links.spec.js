@@ -23,6 +23,7 @@ test.describe('Invite Links', () => {
     const page2 = await ctx2.newPage();
 
     // Player 1: create game via Lobby
+    await goToLobby(page1);
     const roomCode = await createGame(page1, { username: 'InviteHost', playerCount: 2, gridSize: '3×3' });
     expect(roomCode).toBeTruthy();
 
@@ -50,8 +51,8 @@ test.describe('Invite Links', () => {
     await page.fill('input[placeholder="Enter your name…"]', 'ErrorTest');
     await page.getByRole('button', { name: /Join Game/i }).click();
 
-    // Should show an error message
-    await expect(page.locator('text=Game not found').or(page.locator('text=Something went wrong').or(page.locator('text=Invalid')))).toBeVisible({ timeout: 10_000 });
+    // Should show an error message (use .first() to avoid strict mode violation)
+    await expect(page.locator('text=Game not found').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('Copy invite link from Board', async ({ browser }) => {
@@ -61,6 +62,7 @@ test.describe('Invite Links', () => {
     // Grant clipboard permissions
     await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
 
+    await goToLobby(page);
     const roomCode = await createGame(page, { username: 'CopyHost', playerCount: 2, gridSize: '3×3' });
     expect(roomCode).toBeTruthy();
 
