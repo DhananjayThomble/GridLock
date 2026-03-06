@@ -53,6 +53,7 @@ const Lobby = () => {
   const [tournamentId, setTournamentId]   = useState('');
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
   const navigate = useNavigate();
 
 
@@ -104,6 +105,26 @@ const Lobby = () => {
       socket.off('tournament_joined',  onTournamentJoined);
     };
   }, [navigate, username, selectedAvatar]);
+
+  // ── PWA Install Prompt ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) return;
+
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
 
   // ── Create Tournament ───────────────────────────────────────────────────────
   const handleCreateTournament = () => {
@@ -580,6 +601,16 @@ const Lobby = () => {
         </div>
 
         <p className="text-center text-white/20 text-xs mt-4">GridLock Beta · Real-time Multiplayer</p>
+
+        {/* ── PWA Install Button ── */}
+        {installPrompt && (
+          <button
+            onClick={handleInstall}
+            className="w-full mt-2 py-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+          >
+            📲 Install App
+          </button>
+        )}
 
         {/* ── Session Stats Panel ── */}
         <div className="mt-3">
