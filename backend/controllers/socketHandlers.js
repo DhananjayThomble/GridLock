@@ -831,7 +831,7 @@ function attachSocketHandlers(io, log) {
                             sendPushToUser(creator.username, {
                                 title: '🎮 Player Joined!',
                                 body: `${cleanUsername} joined your game`,
-                                url: '/game',
+                                url: `/join/${cleanGameId}`,
                                 tag: `join-${cleanGameId}`,
                             }).catch(() => {});
                         }
@@ -912,7 +912,7 @@ function attachSocketHandlers(io, log) {
                                 sendPushToUser(nextPlayer.username, {
                                     title: '⚡ Your Turn!',
                                     body: "It's your move in GridLock",
-                                    url: '/game',
+                                    url: `/join/${cleanGameId}`,
                                     tag: `turn-${cleanGameId}`,
                                 }).catch(() => {});
                             }
@@ -975,7 +975,7 @@ function attachSocketHandlers(io, log) {
                                 sendPushToUser(p.username, {
                                     title: '🔄 Rematch?',
                                     body: `${requestingUsername} wants a rematch!`,
-                                    url: '/game',
+                                    url: `/join/${cleanGameId}`,
                                     tag: `rematch-${cleanGameId}`,
                                 }).catch(() => {});
                             }

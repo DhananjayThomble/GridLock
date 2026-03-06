@@ -17,7 +17,7 @@ const formatDate = (value) => {
 };
 
 const formatDuration = (seconds) => {
-  if (!seconds) return '—';
+  if (seconds == null) return '—';
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
@@ -249,12 +249,13 @@ const Profile = () => {
               <StatCard
                 label="Rival"
                 value={
-                  <span
-                    className="cursor-pointer hover:underline"
+                  <button
+                    type="button"
+                    className="cursor-pointer hover:underline bg-transparent border-none p-0 text-white text-xl font-bold"
                     onClick={() => handlePlayerClick(p.computed.mostPlayedOpponent)}
                   >
                     {p.computed.mostPlayedOpponent}
-                  </span>
+                  </button>
                 }
               />
             )}

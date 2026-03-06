@@ -114,6 +114,7 @@ const Board = () => {
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
+  const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
 
@@ -342,6 +343,7 @@ const Board = () => {
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
+      if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
 
@@ -446,7 +448,8 @@ const Board = () => {
     } catch {
       setShareStatus(null);
     }
-    setTimeout(() => setShareStatus(null), 2000);
+    if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
+    shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
