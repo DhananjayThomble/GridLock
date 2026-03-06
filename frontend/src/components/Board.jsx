@@ -859,6 +859,20 @@ const Board = () => {
             <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-amber-700 text-xs text-center">
               ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
               Share the room code: <strong>{gameId}</strong>
+              <button
+                onClick={() => {
+                  const url = `https://gridlock.snapurl.in/join/${gameId}`;
+                  navigator.clipboard?.writeText(url).then(() => {
+                    setShowCopied(true);
+                    setTimeout(() => setShowCopied(false), 2000);
+                  });
+                }}
+                className="ml-2 inline-flex items-center gap-1 bg-amber-200 hover:bg-amber-300 text-amber-800 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
+                title="Copy invite link"
+                aria-label="Copy invite link"
+              >
+                📎 Copy Invite Link
+              </button>
             </div>
           )}
 

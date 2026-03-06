@@ -34,7 +34,7 @@ const TOURNAMENT_SIZE_OPTIONS = [
 ];
 
 const Lobby = () => {
-  const [username,      setUsername]      = useState('');
+  const [username,      setUsername]      = useState(() => localStorage.getItem('gridlock_username') || '');
   const [gridSize,      setGridSize]      = useState(3);
   const [playerCount,   setPlayerCount]   = useState(2);
   const [selectedAvatar, setSelectedAvatar] = useState('👦');
@@ -132,6 +132,7 @@ const Lobby = () => {
     if (!name) return alert('Please enter a username');
     if (!socket.connected) socket.connect();
     setCreating(true);
+    localStorage.setItem('gridlock_username', name);
     const cpuPlayers = cpuEnabled ? cpuCount : 0;
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers, cpuDifficulty }, (res) => {
       if (res?.gameId) {
@@ -164,6 +165,7 @@ const Lobby = () => {
     const existingToken = localStorage.getItem(tokenKey) || null;
 
     setJoining(true);
+    localStorage.setItem('gridlock_username', name);
     if (!socket.connected) {
       socket.connect();
     }
