@@ -64,3 +64,36 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() || {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'GridLock', {
+      body: data.body || '',
+      icon: '/logo192.png',
+      badge: '/badge72.png',
+      data: { url: data.url || '/' },
+      tag: data.tag || 'gridlock',
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // Focus existing tab if found
+        for (const client of windowClients) {
+          if (new URL(client.url).origin === self.location.origin) {
+            return client.focus();
+          }
+        }
+        return clients.openWindow(url);
+      })
+  );
+});

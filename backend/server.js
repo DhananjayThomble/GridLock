@@ -12,6 +12,7 @@ require('dotenv').config();
 const socketHandlers = require('./controllers/socketHandlers');
 const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
 const leaderboardRoutes = require('./routes/leaderboard');
+const pushRoutes = require('./routes/push');
 
 const app = express();
 const server = http.createServer(app);
@@ -86,6 +87,9 @@ const { gameStore, rematchStore, disconnectStore, localTimers } = socketHandlers
 
 // Leaderboard API routes
 app.use('/api/leaderboard', leaderboardRoutes);
+
+// Push notification API routes
+app.use('/api/push', pushRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {
