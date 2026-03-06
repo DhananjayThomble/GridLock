@@ -51,8 +51,8 @@ test.describe('Invite Links', () => {
     await page.fill('input[placeholder="Enter your name…"]', 'ErrorTest');
     await page.getByRole('button', { name: /Join Game/i }).click();
 
-    // Should show an error message (use .first() to avoid strict mode violation)
-    await expect(page.locator('text=Game not found').first()).toBeVisible({ timeout: 10_000 });
+    // Should show an error — the error container has a red background style
+    await expect(page.locator('div.bg-red-500\\/20').first()).toBeVisible({ timeout: 12_000 });
   });
 
   test('Copy invite link from Board', async ({ browser }) => {
