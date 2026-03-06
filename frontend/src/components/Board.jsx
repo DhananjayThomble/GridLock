@@ -8,6 +8,7 @@ import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
+import { generateShareText, shareOrCopy } from '../utils/shareResult';
 
 // ─── Turn toast component ─────────────────────────────────────────────────────
 const TurnToast = ({ visible, color }) => (
@@ -112,6 +113,7 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+  const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
 
   // ── Turn indicator state ──────────────────────────────────────────────────────
@@ -423,6 +425,25 @@ const Board = () => {
     navigate('/');  // router basename handles /beta prefix automatically
   };
 
+  // ── Share result handler ────────────────────────────────────────────────────
+  const handleShareResult = async () => {
+    if (!gameState) return;
+    const text = generateShareText(
+      gameState,
+      gridSize || 3,
+      gameState.playerCount || playerCount || 2,
+      role,
+      { tournamentRound: !!tournamentId }
+    );
+    try {
+      const result = await shareOrCopy(text);
+      setShareStatus(result === 'shared' ? 'shared' : 'copied');
+    } catch {
+      setShareStatus(null);
+    }
+    setTimeout(() => setShareStatus(null), 2000);
+  };
+
   // ── Render helpers ────────────────────────────────────────────────────────────
   const getLineColor = (owner) => {
     if (!owner) return null;
@@ -671,6 +692,15 @@ const Board = () => {
           </div>
 
           <div className="flex gap-2">
+            {!isSpectator && (
+              <button
+                onClick={handleShareResult}
+                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
+                aria-label="Share result"
+              >
+                {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
+              </button>
+            )}
             {!isSpectator && !tournamentId && (
               <button
                 onClick={handlePlayAgain}
@@ -790,6 +820,16 @@ const Board = () => {
               {gameId}
             </button>
             {showCopied && <span className="text-xs text-green-500 animate-pulse">Copied!</span>}
+            {gameState.gameOver && !isSpectator && (
+              <button
+                onClick={handleShareResult}
+                className="text-sm px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200"
+                title="Share result"
+                aria-label="Share game result"
+              >
+                {shareStatus === 'copied' ? '✅' : shareStatus === 'shared' ? '✅' : '📤'}
+              </button>
+            )}
           </div>
 
           {/* You are */}
