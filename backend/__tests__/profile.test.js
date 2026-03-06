@@ -196,7 +196,7 @@ describe('Profile API Route', () => {
     expect(profile.eloHistory).toHaveLength(2);
     expect(profile.recentMatches).toHaveLength(1);
     expect(profile.computed).toBeDefined();
-    expect(profile.computed.favoriteGridSize).toBe('3');
+    expect(profile.computed.favoriteGridSize).toBe(3);
     expect(profile.computed.mostPlayedOpponent).toBe('rival1');
   });
 

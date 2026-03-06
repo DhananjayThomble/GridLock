@@ -59,7 +59,7 @@ function buildAtomicLeaderboardUpdate({ username, result, newElo, now = new Date
                     $slice: [
                         { $concatArrays: [
                             { $ifNull: ['$eloHistory', []] },
-                            [{ elo: newElo, date: now, gameId: gameId }],
+                            [gameId != null ? { elo: newElo, date: now, gameId } : { elo: newElo, date: now }],
                         ]},
                         -50,
                     ],

@@ -116,12 +116,13 @@ const MatchRow = ({ match, onPlayerClick }) => {
         {resultLabels[match.result]}
       </span>
       <div className="flex-1 min-w-0">
-        <span
-          className="text-white text-sm cursor-pointer hover:underline"
+        <button
+          type="button"
+          className="text-white text-sm cursor-pointer hover:underline bg-transparent border-none p-0"
           onClick={() => onPlayerClick?.(match.opponents?.[0])}
         >
           vs {match.opponents?.join(', ') || 'Unknown'}
-        </span>
+        </button>
         <span className="text-white/40 text-xs ml-2">
           {match.gridSize}×{match.gridSize} · {match.playerCount}P
         </span>

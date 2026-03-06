@@ -46,7 +46,8 @@ router.get('/:username', async (req, res) => {
       }
     }
 
-    const favoriteGridSize = Object.entries(gridSizeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    const favoriteGridSizeEntry = Object.entries(gridSizeCounts).sort((a, b) => b[1] - a[1])[0];
+    const favoriteGridSize = favoriteGridSizeEntry ? Number(favoriteGridSizeEntry[0]) : null;
     const avgDuration = durationCount > 0 ? Math.round(totalDuration / durationCount) : null;
     const mostPlayedOpponent = Object.entries(opponentCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
