@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import socket from '../socket';
+import { initAudio } from '../utils/sounds';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -56,12 +57,16 @@ const JoinGame = () => {
     if (!name) return setError('Please enter a username');
     setError('');
     setJoining(true);
+    initAudio();
     localStorage.setItem('gridlock_username', name);
     if (!socket.connected) socket.connect();
+    // Include existing session token for rejoin scenarios
+    const existingToken = localStorage.getItem(`gridlock:session:${gameId.toUpperCase()}:${name}`);
     socket.emit('join_game', {
       gameId: gameId.toUpperCase(),
       username: name,
       avatar: selectedAvatar,
+      ...(existingToken ? { sessionToken: existingToken } : {}),
     });
   };
 

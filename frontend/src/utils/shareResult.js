@@ -76,26 +76,34 @@ export function generateShareText(gameState, gridSize, playerCount, role, option
 }
 
 /**
- * Copy text to clipboard and optionally trigger native share on mobile.
+ * Copy text to clipboard (primary) and optionally trigger native share on mobile.
  * @param {string} text - Text to share
  * @returns {Promise<'copied'|'shared'>}
  */
 export async function shareOrCopy(text) {
-  // Try native share first (mobile)
+  // Clipboard first (primary action — always attempt)
+  let clipboardOk = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      clipboardOk = true;
+    } catch {
+      // Clipboard failed — continue to native share
+    }
+  }
+
+  // Try native share as secondary action (mobile)
   if (navigator.share) {
     try {
       await navigator.share({ text });
       return 'shared';
     } catch {
-      // User cancelled or share failed — fall through to clipboard
+      // User cancelled or share failed
+      if (clipboardOk) return 'copied';
     }
   }
 
-  // Clipboard fallback
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return 'copied';
-  }
+  if (clipboardOk) return 'copied';
 
   throw new Error('Sharing not supported');
 }

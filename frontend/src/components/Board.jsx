@@ -131,6 +131,7 @@ const Board = () => {
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
+  const tournamentSnapshotRef = useRef(null);
 
   // ── Turn indicator state ──────────────────────────────────────────────────────
   const [showTurnToast, setShowTurnToast] = useState(false);
@@ -388,7 +389,7 @@ const Board = () => {
       // Use the latest tournament snapshot stored from tournament_update events
       navigate('/tournament', {
         state: {
-          tournament: tournamentSnapshot,
+          tournament: tournamentSnapshotRef.current,
           tournamentId,
           username,
           avatar,
@@ -397,6 +398,7 @@ const Board = () => {
     };
 
     const onTournamentUpdate = ({ tournament: t }) => {
+      tournamentSnapshotRef.current = t;
       setTournamentSnapshot(t);
     };
 
@@ -409,7 +411,7 @@ const Board = () => {
       socket.off('tournament_completed', onTournamentCompleted);
       socket.off('tournament_update', onTournamentUpdate);
     };
-  }, [tournamentId, username, avatar, gridSize, navigate, showWinner, tournamentSnapshot]);
+  }, [tournamentId, username, avatar, gridSize, navigate, showWinner]);
 
   // Reset tournament nav guard when gameId changes
   useEffect(() => {
@@ -910,7 +912,7 @@ const Board = () => {
             touchAction: 'pan-y',
             padding: '12px',
             maxWidth: '500px',
-            ...(boardPulse ? { borderColor: getConfig(role).color } : {}),
+            ...(boardPulse ? { borderColor: getConfig(role).color, '--glow-rgb': getConfig(role).color.match(/\w\w/g).map(h => parseInt(h, 16)).join(',') } : {}),
           }}
         >
           {gameState.horizontalLines.map((row, r) => (

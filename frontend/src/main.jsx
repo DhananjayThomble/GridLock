@@ -13,6 +13,6 @@ createRoot(document.getElementById('root')).render(
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     const swPath = `${import.meta.env.BASE_URL}sw.js`;
-    navigator.serviceWorker.register(swPath).catch(() => {});
+    navigator.serviceWorker.register(swPath).catch((error) => { console.error('Service worker registration failed:', error); });
   });
 }

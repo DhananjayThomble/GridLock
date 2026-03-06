@@ -8,6 +8,7 @@ test.describe('Share Result', () => {
   test('share button appears in winner modal and copies result to clipboard', async ({ browser }) => {
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
+    try {
     const p1 = await ctx1.newPage();
     const p2 = await ctx2.newPage();
 
@@ -36,8 +37,6 @@ test.describe('Share Result', () => {
 
     if (!gameOver) {
       test.skip(true, 'Game did not finish in time');
-      await ctx1.close();
-      await ctx2.close();
       return;
     }
 
@@ -64,8 +63,10 @@ test.describe('Share Result', () => {
     const gridLines = lines.filter(l => /^[🟦🟥🟩🟨⬜]+$/.test(l.trim()));
     expect(gridLines.length).toBe(3); // 3×3 grid
 
-    await ctx1.close();
-    await ctx2.close();
+    } finally {
+      await ctx1.close();
+      await ctx2.close();
+    }
   });
 
   test.skip('share button appears in board header after game over', async ({ browser }) => {
@@ -73,6 +74,7 @@ test.describe('Share Result', () => {
     // Core share functionality is covered by the clipboard test above.
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
+    try {
     const p1 = await ctx1.newPage();
     const p2 = await ctx2.newPage();
 
@@ -101,8 +103,6 @@ test.describe('Share Result', () => {
 
     if (!gameOver) {
       test.skip(true, 'Game did not finish in time');
-      await ctx1.close();
-      await ctx2.close();
       return;
     }
 
@@ -110,8 +110,10 @@ test.describe('Share Result', () => {
     const headerShareBtn = p1.locator('button[aria-label="Share game result"]');
     await expect(headerShareBtn).toBeVisible({ timeout: 5000 });
 
-    await ctx1.close();
-    await ctx2.close();
+    } finally {
+      await ctx1.close();
+      await ctx2.close();
+    }
   });
 
 });

@@ -95,6 +95,10 @@ const TournamentLobby = () => {
     // to the room. Mark reRequesting so we suppress the expected error.
     reRequestingRef.current = true;
     socket.emit('join_tournament', { tournamentId, username, avatar });
+
+    // Auto-reset after 3s in case the expected error never arrives
+    const resetTimer = setTimeout(() => { reRequestingRef.current = false; }, 3000);
+    return () => clearTimeout(resetTimer);
   }, [tournamentId, tournament, username, avatar]);
 
   // ── Copy tournament ID ────────────────────────────────────────────────────────
