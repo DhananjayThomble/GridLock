@@ -26,6 +26,22 @@ const TurnToast = ({ visible, color }) => (
   </div>
 );
 
+// ─── Turn toast component ─────────────────────────────────────────────────────
+const TurnToast = ({ visible, color }) => (
+  <div
+    className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none ${
+      visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-4 scale-90'
+    }`}
+  >
+    <div
+      className="px-5 py-2.5 rounded-full font-extrabold text-white text-sm shadow-lg"
+      style={{ background: color || '#10B981' }}
+    >
+      ⚡ YOUR TURN!
+    </div>
+  </div>
+);
+
 // ─── Player config ────────────────────────────────────────────────────────────
 const PLAYER_CONFIG = {
   player1: { color: '#3B82F6', bg: 'bg-blue-500',   light: 'bg-blue-100',   border: 'border-blue-500',   text: 'text-blue-600',   label: 'P1' },
@@ -179,7 +195,6 @@ const Board = () => {
       };
     }
   }, [gameState?.currentPlayer, gameState?.gameOver, role, isSpectator]);
-
   // ── Status helper ────────────────────────────────────────────────────────────
   const getStatusFromState = useCallback((gs) => {
     if (!gs) return 'Waiting…';
