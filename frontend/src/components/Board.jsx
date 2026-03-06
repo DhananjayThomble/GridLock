@@ -8,6 +8,7 @@ import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
+import { generateShareText, shareOrCopy } from '../utils/shareResult';
 
 // ─── Turn toast component ─────────────────────────────────────────────────────
 const TurnToast = ({ visible, color }) => (
@@ -112,7 +113,9 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+  const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
+  const tournamentSnapshotRef = useRef(null);
 
   // ── Turn indicator state ──────────────────────────────────────────────────────
   const [showTurnToast, setShowTurnToast] = useState(false);
@@ -152,10 +155,14 @@ const Board = () => {
 
     // Only trigger on actual turn *changes* (not initial load)
     if (prev && prev !== current && current === role) {
-      // Haptic feedback
-      if ('vibrate' in navigator) navigator.vibrate(200);
+      // Haptic feedback (vibrate API requires recent user interaction on some devices;
+      // this fires during gameplay so the page is already "user-activated")
+      try {
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+      } catch { /* some browsers throw on vibrate */ }
 
-      // Turn notification sound
+      // Ensure AudioContext is resumed before playing turn sound
+      initAudio();
       sounds.turnNotify();
 
       // Show "YOUR TURN" toast + board glow pulse (deferred to avoid sync setState in effect)
@@ -173,7 +180,6 @@ const Board = () => {
       };
     }
   }, [gameState?.currentPlayer, gameState?.gameOver, role, isSpectator]);
-
   // ── Status helper ────────────────────────────────────────────────────────────
   const getStatusFromState = useCallback((gs) => {
     if (!gs) return 'Waiting…';
@@ -367,7 +373,7 @@ const Board = () => {
       // Use the latest tournament snapshot stored from tournament_update events
       navigate('/tournament', {
         state: {
-          tournament: tournamentSnapshot,
+          tournament: tournamentSnapshotRef.current,
           tournamentId,
           username,
           avatar,
@@ -376,6 +382,7 @@ const Board = () => {
     };
 
     const onTournamentUpdate = ({ tournament: t }) => {
+      tournamentSnapshotRef.current = t;
       setTournamentSnapshot(t);
     };
 
@@ -388,7 +395,7 @@ const Board = () => {
       socket.off('tournament_completed', onTournamentCompleted);
       socket.off('tournament_update', onTournamentUpdate);
     };
-  }, [tournamentId, username, avatar, gridSize, navigate, showWinner, tournamentSnapshot]);
+  }, [tournamentId, username, avatar, gridSize, navigate, showWinner]);
 
   // Reset tournament nav guard when gameId changes
   useEffect(() => {
@@ -421,6 +428,25 @@ const Board = () => {
   const handleLeaveGame = () => {
     initAudio();
     navigate('/');  // router basename handles /beta prefix automatically
+  };
+
+  // ── Share result handler ────────────────────────────────────────────────────
+  const handleShareResult = async () => {
+    if (!gameState) return;
+    const text = generateShareText(
+      gameState,
+      gridSize || 3,
+      gameState.playerCount || playerCount || 2,
+      role,
+      { tournamentRound: !!tournamentId }
+    );
+    try {
+      const result = await shareOrCopy(text);
+      setShareStatus(result === 'shared' ? 'shared' : 'copied');
+    } catch {
+      setShareStatus(null);
+    }
+    setTimeout(() => setShareStatus(null), 2000);
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
@@ -671,6 +697,15 @@ const Board = () => {
           </div>
 
           <div className="flex gap-2">
+            {!isSpectator && (
+              <button
+                onClick={handleShareResult}
+                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
+                aria-label="Share result"
+              >
+                {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
+              </button>
+            )}
             {!isSpectator && !tournamentId && (
               <button
                 onClick={handlePlayAgain}
@@ -790,6 +825,16 @@ const Board = () => {
               {gameId}
             </button>
             {showCopied && <span className="text-xs text-green-500 animate-pulse">Copied!</span>}
+            {gameState.gameOver && !isSpectator && (
+              <button
+                onClick={handleShareResult}
+                className="text-sm px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200"
+                title="Share result"
+                aria-label="Share game result"
+              >
+                {shareStatus === 'copied' ? '✅' : shareStatus === 'shared' ? '✅' : '📤'}
+              </button>
+            )}
           </div>
 
           {/* You are */}
@@ -815,6 +860,20 @@ const Board = () => {
             <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-amber-700 text-xs text-center">
               ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
               Share the room code: <strong>{gameId}</strong>
+              <button
+                onClick={() => {
+                  const url = `https://gridlock.snapurl.in/join/${gameId}`;
+                  navigator.clipboard?.writeText(url).then(() => {
+                    setShowCopied(true);
+                    setTimeout(() => setShowCopied(false), 2000);
+                  });
+                }}
+                className="ml-2 inline-flex items-center gap-1 bg-amber-200 hover:bg-amber-300 text-amber-800 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
+                title="Copy invite link"
+                aria-label="Copy invite link"
+              >
+                📎 Copy Invite Link
+              </button>
             </div>
           )}
 
@@ -837,7 +896,7 @@ const Board = () => {
             touchAction: 'pan-y',
             padding: '12px',
             maxWidth: '500px',
-            ...(boardPulse ? { borderColor: getConfig(role).color } : {}),
+            ...(boardPulse ? { borderColor: getConfig(role).color, '--glow-rgb': getConfig(role).color.match(/\w\w/g).map(h => parseInt(h, 16)).join(',') } : {}),
           }}
         >
           {gameState.horizontalLines.map((row, r) => (

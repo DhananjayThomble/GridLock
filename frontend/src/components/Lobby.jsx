@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { initAudio } from '../utils/sounds';
 import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 
@@ -33,7 +34,7 @@ const TOURNAMENT_SIZE_OPTIONS = [
 ];
 
 const Lobby = () => {
-  const [username,      setUsername]      = useState('');
+  const [username,      setUsername]      = useState(() => localStorage.getItem('gridlock_username') || '');
   const [gridSize,      setGridSize]      = useState(3);
   const [playerCount,   setPlayerCount]   = useState(2);
   const [selectedAvatar, setSelectedAvatar] = useState('👦');
@@ -52,6 +53,7 @@ const Lobby = () => {
   const [tournamentId, setTournamentId]   = useState('');
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
   const navigate = useNavigate();
 
 
@@ -104,6 +106,26 @@ const Lobby = () => {
     };
   }, [navigate, username, selectedAvatar]);
 
+  // ── PWA Install Prompt ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) return;
+
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
+
   // ── Create Tournament ───────────────────────────────────────────────────────
   const handleCreateTournament = () => {
     const name = username.trim();
@@ -126,10 +148,12 @@ const Lobby = () => {
 
   // ── Create ──────────────────────────────────────────────────────────────────
   const handleCreate = () => {
+    initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     if (!name) return alert('Please enter a username');
     if (!socket.connected) socket.connect();
     setCreating(true);
+    localStorage.setItem('gridlock_username', name);
     const cpuPlayers = cpuEnabled ? cpuCount : 0;
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers, cpuDifficulty }, (res) => {
       if (res?.gameId) {
@@ -152,6 +176,7 @@ const Lobby = () => {
 
   // ── Join ────────────────────────────────────────────────────────────────────
   const handleJoin = () => {
+    initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     const id   = gameId.trim().toUpperCase();
     if (!name) return alert('Please enter a username');
@@ -161,6 +186,7 @@ const Lobby = () => {
     const existingToken = localStorage.getItem(tokenKey) || null;
 
     setJoining(true);
+    localStorage.setItem('gridlock_username', name);
     if (!socket.connected) {
       socket.connect();
     }
@@ -575,6 +601,16 @@ const Lobby = () => {
         </div>
 
         <p className="text-center text-white/20 text-xs mt-4">GridLock Beta · Real-time Multiplayer</p>
+
+        {/* ── PWA Install Button ── */}
+        {installPrompt && (
+          <button
+            onClick={handleInstall}
+            className="w-full mt-2 py-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+          >
+            📲 Install App
+          </button>
+        )}
 
         {/* ── Session Stats Panel ── */}
         <div className="mt-3">

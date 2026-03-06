@@ -12,12 +12,18 @@ let isInitialized = false;
  * Must be called from a user-triggered event (click, keypress, etc.)
  */
 export const initAudio = () => {
-  if (isInitialized) return;
-  try {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    isInitialized = true;
-  } catch (err) {
-    console.warn('Web Audio API not supported:', err);
+  if (!isInitialized) {
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      isInitialized = true;
+    } catch (err) {
+      console.warn('Web Audio API not supported:', err);
+      return;
+    }
+  }
+  // Resume suspended context (mobile browsers suspend until user gesture)
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
   }
 };
 
@@ -42,6 +48,10 @@ export const toggleMute = () => {
  */
 const playTone = (frequency, duration, startTime = 0, volume = 0.3) => {
   if (!audioContext || isMuted()) return;
+  // Ensure context is running (may be suspended on mobile)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {});
+  }
 
   const ctx = audioContext;
   const osc = ctx.createOscillator();
