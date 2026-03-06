@@ -9,6 +9,7 @@ const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
 const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
+const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
 
 const DISCONNECT_TIMEOUT_MS = 60_000;
 
@@ -821,6 +822,22 @@ function attachSocketHandlers(io, log) {
                     gridSize: game.gridSize, playerCount: game.playerCount,
                     players: getPlayersList(game), gameState: gameStateWithPlayers,
                 });
+
+                // Push notification to game creator that a player joined (fire-and-forget)
+                try {
+                    const creator = game.players.player1;
+                    if (creator && !creator.isCPU && creator.username !== cleanUsername) {
+                        if (!isUserOnlineInGame(io, creator.username, cleanGameId, game)) {
+                            sendPushToUser(creator.username, {
+                                title: '🎮 Player Joined!',
+                                body: `${cleanUsername} joined your game`,
+                                url: `/join/${cleanGameId}`,
+                                tag: `join-${cleanGameId}`,
+                            }).catch(() => {});
+                        }
+                    }
+                } catch (_) { /* push is best-effort */ }
+
                 if (filled === game.playerCount) {
                     io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
                 }
@@ -888,6 +905,18 @@ function attachSocketHandlers(io, log) {
                         const difficulty = game.cpuDifficulty || 'medium';
                         const delay = CPU_DELAYS[difficulty] || 1200;
                         scheduleCPUMove(io, log, cleanGameId, delay);
+                    } else if (nextPlayer && !nextPlayer.isCPU) {
+                        // Push notification for turn change (fire-and-forget)
+                        try {
+                            if (!isUserOnlineInGame(io, nextPlayer.username, cleanGameId, game)) {
+                                sendPushToUser(nextPlayer.username, {
+                                    title: '⚡ Your Turn!',
+                                    body: "It's your move in GridLock",
+                                    url: `/join/${cleanGameId}`,
+                                    tag: `turn-${cleanGameId}`,
+                                }).catch(() => {});
+                            }
+                        } catch (_) { /* push is best-effort */ }
                     }
                 }
             } catch (error) {
@@ -934,6 +963,25 @@ function attachSocketHandlers(io, log) {
                 }
                 const totalVotes = humanCount + cpuVotes;
                 io.to(cleanGameId).emit('rematch_count', { count: totalVotes, total: game.playerCount });
+
+                // Push notification for rematch request to other players (fire-and-forget)
+                try {
+                    const requestingUsername = player.username;
+                    for (let i = 1; i <= game.playerCount; i++) {
+                        const pid = `player${i}`;
+                        const p = game.players[pid];
+                        if (p && !p.isCPU && p.username !== requestingUsername) {
+                            if (!isUserOnlineInGame(io, p.username, cleanGameId, game)) {
+                                sendPushToUser(p.username, {
+                                    title: '🔄 Rematch?',
+                                    body: `${requestingUsername} wants a rematch!`,
+                                    url: `/join/${cleanGameId}`,
+                                    tag: `rematch-${cleanGameId}`,
+                                }).catch(() => {});
+                            }
+                        }
+                    }
+                } catch (_) { /* push is best-effort */ }
 
                 if (totalVotes >= game.playerCount) {
                     const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();

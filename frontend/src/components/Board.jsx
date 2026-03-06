@@ -3,7 +3,7 @@
 // Adaptive layout: mobile / tablet / desktop
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
@@ -114,6 +114,7 @@ const Board = () => {
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
+  const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
 
@@ -342,6 +343,7 @@ const Board = () => {
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
+      if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
 
@@ -446,7 +448,8 @@ const Board = () => {
     } catch {
       setShareStatus(null);
     }
-    setTimeout(() => setShareStatus(null), 2000);
+    if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
+    shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
@@ -688,7 +691,14 @@ const Board = () => {
               return (
                 <div key={pid} className={`flex justify-between items-center px-2 py-1 rounded-lg ${isWin ? cfg.light : ''}`}>
                   <span className={`font-semibold text-sm ${isWin ? cfg.text : 'text-gray-600'}`}>
-                    {name} {isCPU && '🤖'} {isWin && '🏆'}
+                    {isCPU ? (
+                      <>{name} 🤖 {isWin && '🏆'}</>
+                    ) : (
+                      <Link to={`/profile/${encodeURIComponent(name)}`} className="hover:underline">
+                        {name}
+                      </Link>
+                    )}
+                    {!isCPU && isWin && ' 🏆'}
                   </span>
                   <span className="font-extrabold text-base" style={{ color: cfg.color }}>{score}</span>
                 </div>
