@@ -154,10 +154,14 @@ const Board = () => {
 
     // Only trigger on actual turn *changes* (not initial load)
     if (prev && prev !== current && current === role) {
-      // Haptic feedback
-      if ('vibrate' in navigator) navigator.vibrate(200);
+      // Haptic feedback (vibrate API requires recent user interaction on some devices;
+      // this fires during gameplay so the page is already "user-activated")
+      try {
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+      } catch { /* some browsers throw on vibrate */ }
 
-      // Turn notification sound
+      // Ensure AudioContext is resumed before playing turn sound
+      initAudio();
       sounds.turnNotify();
 
       // Show "YOUR TURN" toast + board glow pulse (deferred to avoid sync setState in effect)

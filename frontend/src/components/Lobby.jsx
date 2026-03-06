@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { initAudio } from '../utils/sounds';
 import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 
@@ -126,6 +127,7 @@ const Lobby = () => {
 
   // ── Create ──────────────────────────────────────────────────────────────────
   const handleCreate = () => {
+    initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     if (!name) return alert('Please enter a username');
     if (!socket.connected) socket.connect();
@@ -152,6 +154,7 @@ const Lobby = () => {
 
   // ── Join ────────────────────────────────────────────────────────────────────
   const handleJoin = () => {
+    initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     const id   = gameId.trim().toUpperCase();
     if (!name) return alert('Please enter a username');
