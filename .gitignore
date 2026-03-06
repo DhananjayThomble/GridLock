@@ -54,3 +54,5 @@ playtest-v2.cjs
 screenshot.cjs
 screenshot.mjs
 /screenshots/
+backend/.env
+frontend/.env
