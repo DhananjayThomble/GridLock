@@ -2,7 +2,7 @@ const Leaderboard = require('../models/Leaderboard');
 
 const MAX_ELO_UPDATE_RETRIES = 5;
 
-function buildAtomicLeaderboardUpdate({ username, result, newElo, now = new Date() }) {
+function buildAtomicLeaderboardUpdate({ username, result, newElo, now = new Date(), gameId = null }) {
     const winInc = result === 'win' ? 1 : 0;
     const lossInc = result === 'loss' ? 1 : 0;
     const drawInc = result === 'draw' ? 1 : 0;
@@ -53,6 +53,19 @@ function buildAtomicLeaderboardUpdate({ username, result, newElo, now = new Date
                 },
             },
         },
+        {
+            $set: {
+                eloHistory: {
+                    $slice: [
+                        { $concatArrays: [
+                            { $ifNull: ['$eloHistory', []] },
+                            [{ elo: newElo, date: now, gameId: gameId }],
+                        ]},
+                        -50,
+                    ],
+                },
+            },
+        },
     ];
 }
 
@@ -67,6 +80,7 @@ async function updateLeaderboardWithOptimisticElo({
     fallbackElo = 1000,
     now = new Date(),
     maxRetries = MAX_ELO_UPDATE_RETRIES,
+    gameId = null,
 }) {
     const eloScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
 
@@ -82,7 +96,7 @@ async function updateLeaderboardWithOptimisticElo({
         try {
             const updated = await Leaderboard.findOneAndUpdate(
                 filter,
-                buildAtomicLeaderboardUpdate({ username, result, newElo, now }),
+                buildAtomicLeaderboardUpdate({ username, result, newElo, now, gameId }),
                 { upsert: !existing, new: true, updatePipeline: true }
             ).lean();
 

@@ -55,6 +55,12 @@ const LeaderboardSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        eloHistory: [{
+            elo: { type: Number },
+            date: { type: Date },
+            gameId: { type: String },
+            _id: false,
+        }],
     },
     {
         timestamps: true,

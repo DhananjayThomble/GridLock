@@ -16,7 +16,7 @@ describe('buildAtomicLeaderboardUpdate', () => {
     });
 
     expect(Array.isArray(pipeline)).toBe(true);
-    expect(pipeline).toHaveLength(3);
+    expect(pipeline).toHaveLength(4);
 
     const firstSet = pipeline[0].$set;
     expect(firstSet.username).toBe('alice');

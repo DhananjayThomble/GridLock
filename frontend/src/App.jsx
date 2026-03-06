@@ -10,6 +10,7 @@ import {
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import Leaderboard from './components/Leaderboard';
+import Profile from './components/Profile';
 import TournamentLobby from './components/TournamentLobby';
 import JoinGame from './components/JoinGame';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -20,7 +21,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/');
 
   return (
     <>
@@ -74,6 +75,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <JoinGame />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/profile/:username"
+            element={(
+              <ErrorBoundary>
+                <Profile />
               </ErrorBoundary>
             )}
           />
