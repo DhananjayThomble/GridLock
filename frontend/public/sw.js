@@ -82,18 +82,25 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
   event.waitUntil(
     clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((windowClients) => {
-        // Focus existing tab if found
+        // Try to find a tab already at the target URL
         for (const client of windowClients) {
-          if (new URL(client.url).origin === self.location.origin) {
+          if (client.url === targetUrl) {
             return client.focus();
           }
         }
-        return clients.openWindow(url);
+        // Navigate first same-origin tab to targetUrl
+        for (const client of windowClients) {
+          if (new URL(client.url).origin === self.location.origin) {
+            return client.navigate(targetUrl).then((c) => c.focus());
+          }
+        }
+        // No existing tabs — open a new window
+        return clients.openWindow(targetUrl);
       })
   );
 });

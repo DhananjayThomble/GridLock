@@ -1,7 +1,12 @@
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
+if (!VAPID_PUBLIC_KEY) {
+    console.warn('VITE_VAPID_PUBLIC_KEY is not set. Push notifications will be disabled.');
+}
+
 export async function subscribeToPush(username) {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+    if (!VAPID_PUBLIC_KEY) return null;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return null;
@@ -23,16 +28,23 @@ export async function subscribeToPush(username) {
         ''
     ).replace(/\/$/, '');
 
-    await fetch(`${API_BASE}/api/push/subscribe`, {
+    const res = await fetch(`${API_BASE}/api/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, subscription: subscription.toJSON() }),
     });
 
+    if (!res.ok) {
+        console.error('Push subscribe failed:', res.status);
+        try { await subscription.unsubscribe(); } catch { /* ignore */ }
+        return null;
+    }
+
     return subscription;
 }
 
 export async function unsubscribeFromPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     const reg = await navigator.serviceWorker.ready;
     const subscription = await reg.pushManager.getSubscription();
     if (subscription) {

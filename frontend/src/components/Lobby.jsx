@@ -645,7 +645,7 @@ const Lobby = () => {
                   await unsubscribeFromPush();
                 } catch { /* push unsubscribe failed — ignore */ }
                 setPushEnabled(false);
-                localStorage.setItem('gridlock_push', 'false');
+                localStorage.removeItem('gridlock_push');
               }
             }}
             className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"

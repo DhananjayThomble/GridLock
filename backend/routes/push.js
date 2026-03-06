@@ -1,5 +1,6 @@
 const express = require('express');
 const PushSubscription = require('../models/PushSubscription');
+const { sanitizeUsername } = require('../utils/sanitize');
 
 const router = express.Router();
 
@@ -11,10 +12,14 @@ router.post('/subscribe', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        const san = sanitizeUsername(username);
+        if (!san.valid) return res.status(400).json({ error: 'Invalid username' });
+        const cleanUsername = san.value;
+
         await PushSubscription.findOneAndUpdate(
             { endpoint: subscription.endpoint },
             {
-                username,
+                username: cleanUsername,
                 endpoint: subscription.endpoint,
                 keys: {
                     p256dh: subscription.keys.p256dh,
