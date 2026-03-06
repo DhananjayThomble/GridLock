@@ -79,17 +79,17 @@ test.describe('Share Result', () => {
     await joinGame(p2, { username: 'Bob', roomCode });
     await waitForGameStart(p1, p2);
 
-    // Play 2×2 game (only 4 lines needed)
+    // Play 2×2 game — 12 total lines (2×2 grid = 2×3 + 3×2 = 12 edges)
     let gameOver = false;
-    for (let i = 0; i < 15 && !gameOver; i++) {
+    for (let i = 0; i < 25 && !gameOver; i++) {
       const { p1HasTurn, p2HasTurn } = await getTurnState(p1, p2);
       const current = p1HasTurn ? p1 : p2HasTurn ? p2 : null;
       if (!current) {
-        await p1.waitForTimeout(300);
+        await p1.waitForTimeout(500);
         continue;
       }
       await makeMove(current);
-      await p1.waitForTimeout(300);
+      await p1.waitForTimeout(500);
 
       const bodyText = await p1.locator('body').innerText();
       if (bodyText.includes('Game Over') || bodyText.includes('Play Again') || bodyText.includes('Wins') || bodyText.includes('Draw')) {
@@ -104,7 +104,6 @@ test.describe('Share Result', () => {
       return;
     }
 
-    // Close the winner modal first by clicking "Leave Game" — wait, we need the header share button
     // The header share button (📤) should be visible even with the modal open
     const headerShareBtn = p1.locator('button[aria-label="Share game result"]');
     await expect(headerShareBtn).toBeVisible({ timeout: 5000 });
