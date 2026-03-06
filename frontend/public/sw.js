@@ -1,5 +1,5 @@
 // GridLock Service Worker — cache-first for assets, network-first for HTML
-const CACHE_NAME = 'gridlock-v1';
+const CACHE_NAME = 'gridlock-v2';
 const STATIC_ASSETS = ['/', '/index.html'];
 
 // Install: pre-cache app shell
