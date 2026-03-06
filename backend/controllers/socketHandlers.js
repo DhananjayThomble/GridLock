@@ -8,7 +8,6 @@ const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
 const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
-const GameHistory = require('../models/GameHistory');
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
 
@@ -289,33 +288,7 @@ async function updateLeaderboard(game, winner, log) {
                 avgOpponentElo,
                 fallbackElo,
                 now,
-                gameId: game.id,
             });
-
-            // Record game history
-            try {
-                await GameHistory.create({
-                    gameId: game.id,
-                    username,
-                    opponents: playerEntries.filter((p) => p.username !== username).map((p) => p.username),
-                    playerCount: game.playerCount,
-                    gridSize: game.gameState?.boxes?.[0]?.length || game.gridSize || 3,
-                    result,
-                    scores: {
-                        player: game.gameState?.scores?.[pid] || 0,
-                        opponent: playerEntries
-                            .filter((p) => p.pid !== pid)
-                            .reduce((sum, p) => sum + (game.gameState?.scores?.[p.pid] || 0), 0),
-                    },
-                    eloBefore: fallbackElo,
-                    eloAfter: updatedDoc.elo,
-                    duration: game.startedAt
-                        ? Math.round((Date.now() - new Date(game.startedAt).getTime()) / 1000)
-                        : null,
-                });
-            } catch (histErr) {
-                log.error('Failed to record game history', { gameId: game.id, username, error: histErr.message });
-            }
 
             eloMap[username] = updatedDoc.elo;
         }
@@ -700,7 +673,6 @@ function attachSocketHandlers(io, log) {
 
                 const filled = countFilledPlayers(game);
                 const isFull = filled === game.playerCount;
-                if (isFull) game.startedAt = new Date();
                 await persistGame(game, isFull ? 'playing' : 'waiting');
                 log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername, cpuPlayers: cpuCount });
 
@@ -836,7 +808,6 @@ function attachSocketHandlers(io, log) {
                 socket.data.isSpectator = false;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
-                if (status === 'playing' && !game.startedAt) game.startedAt = new Date();
                 await gameStore.setGame(cleanGameId, game);
                 await persistGame(game, status);
 
