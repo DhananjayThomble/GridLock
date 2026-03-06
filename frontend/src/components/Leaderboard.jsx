@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const DEFAULT_LIMIT = 20;
 const API_BASE = (
@@ -157,7 +158,11 @@ const Leaderboard = () => {
 
           {player && (
             <div className="mt-3 rounded-xl border border-blue-300/30 bg-blue-500/10 p-3 text-left text-sm text-white">
-              <p className="font-bold">#{player.rank} {player.username}</p>
+              <p className="font-bold">
+                <Link to={`/profile/${encodeURIComponent(player.username)}`} className="hover:underline">
+                  #{player.rank} {player.username}
+                </Link>
+              </p>
               <p className="mt-1 text-white/80">
                 {player.wins}W · {player.losses}L · {player.draws}D · {player.winRate}% WR · ELO {player.elo}
               </p>
@@ -187,7 +192,11 @@ const Leaderboard = () => {
               {topThree.map((entry) => (
                 <article key={entry.username} className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-left text-white">
                   <p className="text-xs uppercase tracking-wider text-amber-200">Rank #{entry.rank}</p>
-                  <h3 className="mt-1 text-lg font-bold">{entry.username}</h3>
+                  <h3 className="mt-1 text-lg font-bold">
+                    <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline hover:text-amber-200 transition-colors">
+                      {entry.username}
+                    </Link>
+                  </h3>
                   <p className="mt-2 text-sm text-white/80">ELO {entry.elo} · {entry.winRate}% WR</p>
                 </article>
               ))}
@@ -210,7 +219,11 @@ const Leaderboard = () => {
                     {rows.map((entry) => (
                       <tr key={entry.username} className="border-t border-white/10">
                         <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
-                        <td className="px-3 py-3">{entry.username}</td>
+                        <td className="px-3 py-3">
+                          <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline hover:text-blue-300 transition-colors">
+                            {entry.username}
+                          </Link>
+                        </td>
                         <td className="px-3 py-3">{entry.wins}/{entry.losses}/{entry.draws}</td>
                         <td className="px-3 py-3">{entry.winRate}%</td>
                         <td className="px-3 py-3">{entry.elo}</td>

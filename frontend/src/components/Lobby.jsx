@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { initAudio } from '../utils/sounds';
 import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
+import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -54,6 +55,7 @@ const Lobby = () => {
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
   const navigate = useNavigate();
 
 
@@ -154,6 +156,13 @@ const Lobby = () => {
     if (!socket.connected) socket.connect();
     setCreating(true);
     localStorage.setItem('gridlock_username', name);
+    // Auto-prompt push subscription on first game action
+    if (!localStorage.getItem('gridlock_push_prompted')) {
+      localStorage.setItem('gridlock_push_prompted', 'true');
+      subscribeToPush(name).then((sub) => {
+        if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+      }).catch(() => {});
+    }
     const cpuPlayers = cpuEnabled ? cpuCount : 0;
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers, cpuDifficulty }, (res) => {
       if (res?.gameId) {
@@ -187,6 +196,13 @@ const Lobby = () => {
 
     setJoining(true);
     localStorage.setItem('gridlock_username', name);
+    // Auto-prompt push subscription on first game action
+    if (!localStorage.getItem('gridlock_push_prompted')) {
+      localStorage.setItem('gridlock_push_prompted', 'true');
+      subscribeToPush(name).then((sub) => {
+        if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+      }).catch(() => {});
+    }
     if (!socket.connected) {
       socket.connect();
     }
@@ -611,6 +627,38 @@ const Lobby = () => {
             📲 Install App
           </button>
         )}
+
+        {/* ── Push Notification Toggle ── */}
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-white/50 text-xs font-medium">🔔 Push Notifications</span>
+          <button
+            onClick={async () => {
+              const name = username.trim();
+              if (!pushEnabled) {
+                if (!name) return alert('Enter a username first');
+                try {
+                  const sub = await subscribeToPush(name);
+                  if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+                } catch { /* push subscribe failed — ignore */ }
+              } else {
+                try {
+                  await unsubscribeFromPush();
+                } catch { /* push unsubscribe failed — ignore */ }
+                setPushEnabled(false);
+                localStorage.removeItem('gridlock_push');
+              }
+            }}
+            className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
+            style={{ backgroundColor: pushEnabled ? '#FBBF24' : 'rgba(255,255,255,0.2)' }}
+            aria-label="Toggle push notifications"
+          >
+            <div
+              className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                pushEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
 
         {/* ── Session Stats Panel ── */}
         <div className="mt-3">

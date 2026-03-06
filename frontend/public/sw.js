@@ -64,3 +64,43 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() || {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'GridLock', {
+      body: data.body || '',
+      icon: '/logo192.png',
+      badge: '/badge72.png',
+      data: { url: data.url || '/' },
+      tag: data.tag || 'gridlock',
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // Try to find a tab already at the target URL
+        for (const client of windowClients) {
+          if (client.url === targetUrl) {
+            return client.focus();
+          }
+        }
+        // Navigate first same-origin tab to targetUrl
+        for (const client of windowClients) {
+          if (new URL(client.url).origin === self.location.origin) {
+            return client.navigate(targetUrl).then((c) => c.focus());
+          }
+        }
+        // No existing tabs — open a new window
+        return clients.openWindow(targetUrl);
+      })
+  );
+});
