@@ -639,11 +639,11 @@ const Lobby = () => {
                 try {
                   const sub = await subscribeToPush(name);
                   if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
-                } catch (_) {}
+                } catch { /* push subscribe failed — ignore */ }
               } else {
                 try {
                   await unsubscribeFromPush();
-                } catch (_) {}
+                } catch { /* push unsubscribe failed — ignore */ }
                 setPushEnabled(false);
                 localStorage.setItem('gridlock_push', 'false');
               }
