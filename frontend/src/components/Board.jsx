@@ -731,18 +731,6 @@ const Board = () => {
             })}
           </div>
 
-          {/* Post-game stats card */}
-          <PostGameStatsCard
-            gameState={gameState}
-            scores={winnerData.scores}
-            playerIds={ids}
-            gridSize={gridSize}
-            moveCount={moveCount}
-            gameDuration={gameDuration}
-            role={role}
-            winnerData={winnerData}
-          />
-
           <div className="flex gap-2">
             {!isSpectator && (
               <button
