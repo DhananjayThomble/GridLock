@@ -1,3 +1,12 @@
+/*
+ * NOTE: ~35 inline JSX usages of color-mix(in srgb, ...) across components.
+ * color-mix() has ~95% global browser support (baseline since 2023).
+ * Inline styles cannot use CSS cascade fallbacks — on unsupported browsers,
+ * these will silently fall back to transparent. Accepted as a conscious
+ * trade-off; the affected elements (badges, status pills, tinted backgrounds)
+ * remain functional with their text/border colors intact.
+ */
+
 #root {
   padding: 0;
 }
@@ -11,7 +20,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.6rem 1rem;
-  background: var(--nav-bg, rgba(15, 23, 42, 0.85));
+  background: var(--nav-bg);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -34,7 +43,8 @@
 }
 
 .app-nav-link.active {
-  background: rgba(59, 130, 246, 0.3);
+  background: rgba(88, 166, 255, 0.25); /* fallback */
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--text-primary);
 }
 

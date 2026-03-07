@@ -118,7 +118,7 @@ const JoinGame = () => {
                 spellCheck={false}
                 inputMode="text"
                 enterKeyHint="join"
-                className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                 style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
               />
             </div>
@@ -133,10 +133,12 @@ const JoinGame = () => {
                     onClick={() => setSelectedAvatar(av)}
                     className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 ${
                       selectedAvatar === av
-                        ? 'bg-blue-500 ring-2 ring-blue-300 scale-110 shadow-lg'
+                        ? 'ring-2 scale-110 shadow-lg'
                         : ''
                     }`}
-                    style={selectedAvatar !== av ? { background: 'var(--bg-card-hover)' } : undefined}
+                    style={selectedAvatar === av
+                      ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)' }
+                      : { background: 'var(--bg-card-hover)' }}
                   >
                     {av}
                   </button>
@@ -146,11 +148,12 @@ const JoinGame = () => {
 
             {/* Error */}
             {error && (
-              <div className="bg-red-500/20 border border-red-400/30 rounded-xl px-4 py-2.5 text-red-200 text-sm text-center">
+              <div className="rounded-xl px-4 py-2.5 text-sm text-center" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
                 {error}
                 <button
                   onClick={() => navigate('/')}
-                  className="block mx-auto mt-2 text-xs text-blue-300 hover:text-blue-200 underline"
+                  className="block mx-auto mt-2 text-xs underline"
+                  style={{ color: 'var(--accent)' }}
                 >
                   Go to Lobby
                 </button>
@@ -162,11 +165,11 @@ const JoinGame = () => {
               onClick={handleJoin}
               disabled={joining}
               className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={{ background: joining ? '#6b7280' : 'linear-gradient(135deg,#10B981,#059669)' }}
+              style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
             >
               {joining ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                   Joining…
                 </span>
               ) : (

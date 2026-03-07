@@ -235,7 +235,7 @@ const Lobby = () => {
           <p className="text-sm mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>Multiplayer · 2–4 Players</p>
           <div className="flex justify-center gap-3 mt-3 text-xl">
             {['•','━','•','━','•'].map((c, i) => (
-              <span key={i} className={c === '•' ? 'animate-bounce inline-block text-blue-400' : ''} style={c !== '•' ? { color: 'var(--text-muted)' } : undefined}>{c}</span>
+              <span key={i} className={c === '•' ? 'animate-bounce inline-block' : ''} style={{ color: c === '•' ? 'var(--accent)' : 'var(--text-muted)' }}>{c}</span>
             ))}
           </div>
         </div>
@@ -262,7 +262,7 @@ const Lobby = () => {
               spellCheck={false}
               inputMode="text"
               enterKeyHint={tab === 'create' ? 'done' : 'next'}
-              className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
               style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
             />
 
@@ -274,10 +274,12 @@ const Lobby = () => {
                   onClick={() => setSelectedAvatar(av)}
                   className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 ${
                     selectedAvatar === av
-                      ? 'bg-blue-500 ring-2 ring-blue-300 scale-110 shadow-lg'
+                      ? 'ring-2 scale-110 shadow-lg'
                       : ''
                   }`}
-                  style={selectedAvatar !== av ? { background: 'var(--bg-card-hover)' } : undefined}
+                  style={selectedAvatar === av
+                    ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)' }
+                    : { background: 'var(--bg-card-hover)' }}
                 >
                   {av}
                 </button>
@@ -301,13 +303,12 @@ const Lobby = () => {
                 key={key}
                 onClick={() => setTab(key)}
                 className={`flex-1 py-3 text-sm font-semibold transition-all ${
-                  tab === key
-                    ? 'border-b-2 border-blue-400'
-                    : ''
+                  tab === key ? 'border-b-2' : ''
                 }`}
                 style={{
                   color: tab === key ? 'var(--text-primary)' : 'var(--text-muted)',
                   background: tab === key ? 'var(--bg-card)' : 'transparent',
+                  borderColor: tab === key ? 'var(--accent)' : 'transparent',
                 }}
               >
                 {label}
@@ -330,12 +331,10 @@ const Lobby = () => {
                         const maxCpu = Math.max(1, value - 1);
                         if (cpuCount > maxCpu) setCpuCount(maxCpu);
                       }}
-                      className={`py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 ${
-                        playerCount === value
-                          ? 'bg-blue-500 border-blue-400 text-white shadow-lg'
-                          : ''
-                      }`}
-                      style={playerCount !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #60a5fa' }}
+                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95"
+                      style={playerCount === value
+                        ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
@@ -353,12 +352,10 @@ const Lobby = () => {
                     <button
                       key={value}
                       onClick={() => setGridSize(value)}
-                      className={`py-2 rounded-xl text-center transition-all active:scale-95 ${
-                        gridSize === value
-                          ? 'bg-purple-500 border-purple-400 text-white shadow-lg'
-                          : ''
-                      }`}
-                      style={gridSize !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #c084fc' }}
+                      className="py-2 rounded-xl text-center transition-all active:scale-95"
+                      style={gridSize === value
+                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
+                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
                       <div className="text-xs opacity-70">{desc}</div>
@@ -371,21 +368,17 @@ const Lobby = () => {
               <div>
                 <button
                   onClick={() => setCpuEnabled(!cpuEnabled)}
-                  className={`w-full py-2.5 px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between ${
-                    cpuEnabled
-                      ? 'bg-amber-500/20 border-amber-400/50 text-amber-200'
-                      : ''
-                  }`}
-                  style={!cpuEnabled ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid rgba(251,191,36,0.5)' }}
+                  className="w-full py-2.5 px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
+                  style={cpuEnabled
+                    ? { background: 'color-mix(in srgb, var(--warning) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }
+                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   <span className="flex items-center gap-2">
                     <span className="text-lg">🤖</span>
                     <span className="text-sm font-semibold">Play vs CPU</span>
                   </span>
-                  <span className={`w-10 h-5 rounded-full transition-all flex items-center ${
-                    cpuEnabled ? 'bg-amber-400 justify-end' : 'justify-start'
-                  }`} style={!cpuEnabled ? { background: 'var(--bg-card-hover)' } : undefined}>
-                    <span className="w-4 h-4 rounded-full bg-white shadow mx-0.5 transition-all" />
+                  <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
+                    <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
                   </span>
                 </button>
               </div>
@@ -395,7 +388,7 @@ const Lobby = () => {
                 <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                   {/* CPU count */}
                   <div>
-                    <label className="block text-amber-200 text-xs font-bold uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>
                       CPU Opponents ({cpuCount})
                     </label>
                     <div className="flex gap-2">
@@ -403,12 +396,10 @@ const Lobby = () => {
                         <button
                           key={n}
                           onClick={() => setCpuCount(n)}
-                          className={`flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95 ${
-                            cpuCount === n
-                              ? 'bg-amber-500 border-amber-400 text-white shadow-lg'
-                              : ''
-                          }`}
-                          style={cpuCount !== n ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #fbbf24' }}
+                          className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95"
+                          style={cpuCount === n
+                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                            : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                         >
                           {n} 🤖
                         </button>
@@ -418,18 +409,16 @@ const Lobby = () => {
 
                   {/* Difficulty selector */}
                   <div>
-                    <label className="block text-amber-200 text-xs font-bold uppercase tracking-wider mb-2">Difficulty</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Difficulty</label>
                     <div className="grid grid-cols-3 gap-2">
                       {DIFFICULTY_OPTIONS.map(({ value, label, icon, desc }) => (
                         <button
                           key={value}
                           onClick={() => setCpuDifficulty(value)}
-                          className={`py-2 px-2 rounded-xl text-center transition-all active:scale-95 ${
-                            cpuDifficulty === value
-                              ? 'bg-amber-500 border-amber-400 text-white shadow-lg'
-                              : ''
-                          }`}
-                          style={cpuDifficulty !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #fbbf24' }}
+                          className="py-2 px-2 rounded-xl text-center transition-all active:scale-95"
+                          style={cpuDifficulty === value
+                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                            : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                         >
                           <div className="text-lg">{icon}</div>
                           <div className="text-xs font-bold">{label}</div>
@@ -445,11 +434,11 @@ const Lobby = () => {
                 onClick={handleCreate}
                 disabled={creating}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creating ? '#6b7280' : 'linear-gradient(135deg,#3B82F6,#8B5CF6)' }}
+                style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
               >
                 {creating ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                     Creating…
                   </span>
                 ) : (
@@ -477,7 +466,7 @@ const Lobby = () => {
                   spellCheck={false}
                   inputMode="text"
                   enterKeyHint="join"
-                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
@@ -486,19 +475,19 @@ const Lobby = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setJoinMode('player')}
-                  className={`py-2 rounded-xl text-sm font-semibold transition-all ${joinMode === 'player'
-                    ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg'
-                    : ''}`}
-                  style={joinMode !== 'player' ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #34d399' }}
+                  className="py-2 rounded-xl text-sm font-semibold transition-all"
+                  style={joinMode === 'player'
+                    ? { background: 'var(--success)', border: '1px solid var(--success)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--success) 30%, transparent)' }
+                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   🎮 Join as Player
                 </button>
                 <button
                   onClick={() => setJoinMode('spectator')}
-                  className={`py-2 rounded-xl text-sm font-semibold transition-all ${joinMode === 'spectator'
-                    ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg'
-                    : ''}`}
-                  style={joinMode !== 'spectator' ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #818cf8' }}
+                  className="py-2 rounded-xl text-sm font-semibold transition-all"
+                  style={joinMode === 'spectator'
+                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   👀 Join as Spectator
                 </button>
@@ -508,11 +497,11 @@ const Lobby = () => {
                 onClick={handleJoin}
                 disabled={joining}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joining ? '#6b7280' : 'linear-gradient(135deg,#10B981,#059669)' }}
+                style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                     Joining…
                   </span>
                 ) : (joinMode === 'spectator' ? '👀 Spectate Game' : '🔗 Join Game')}
@@ -529,18 +518,16 @@ const Lobby = () => {
             <div className="p-5 space-y-4">
               {/* Create Tournament Section */}
               <div>
-                <label className="block text-yellow-200 text-xs font-bold uppercase tracking-wider mb-2">Tournament Size</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Tournament Size</label>
                 <div className="grid grid-cols-2 gap-2">
                   {TOURNAMENT_SIZE_OPTIONS.map(({ value, label, icon, desc }) => (
                     <button
                       key={value}
                       onClick={() => setTournamentSize(value)}
-                      className={`py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 ${
-                        tournamentSize === value
-                          ? 'bg-yellow-500 border-yellow-400 text-white shadow-lg'
-                          : ''
-                      }`}
-                      style={tournamentSize !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #facc15' }}
+                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95"
+                      style={tournamentSize === value
+                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
@@ -552,18 +539,16 @@ const Lobby = () => {
 
               {/* Grid size for tournament */}
               <div>
-                <label className="block text-yellow-200 text-xs font-bold uppercase tracking-wider mb-2">Grid Size</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Grid Size</label>
                 <div className="grid grid-cols-4 gap-2">
                   {GRID_OPTIONS.map(({ value, label, desc }) => (
                     <button
                       key={value}
                       onClick={() => setTournamentGridSize(value)}
-                      className={`py-2 rounded-xl text-center transition-all active:scale-95 ${
-                        tournamentGridSize === value
-                          ? 'bg-purple-500 border-purple-400 text-white shadow-lg'
-                          : ''
-                      }`}
-                      style={tournamentGridSize !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #c084fc' }}
+                      className="py-2 rounded-xl text-center transition-all active:scale-95"
+                      style={tournamentGridSize === value
+                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
+                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
                       <div className="text-xs opacity-70">{desc}</div>
@@ -576,11 +561,11 @@ const Lobby = () => {
                 onClick={handleCreateTournament}
                 disabled={creatingTournament}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creatingTournament ? '#6b7280' : 'linear-gradient(135deg,#F59E0B,#D97706)' }}
+                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                     Creating…
                   </span>
                 ) : (
@@ -597,7 +582,7 @@ const Lobby = () => {
 
               {/* Join Tournament */}
               <div>
-                <label className="block text-yellow-200 text-xs font-bold uppercase tracking-wider mb-1.5">Tournament ID</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Tournament ID</label>
                 <input
                   type="text"
                   value={tournamentId}
@@ -611,7 +596,7 @@ const Lobby = () => {
                   spellCheck={false}
                   inputMode="text"
                   enterKeyHint="join"
-                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
@@ -620,11 +605,11 @@ const Lobby = () => {
                 onClick={handleJoinTournament}
                 disabled={joiningTournament}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joiningTournament ? '#6b7280' : 'linear-gradient(135deg,#10B981,#059669)' }}
+                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                     Joining…
                   </span>
                 ) : (
@@ -676,13 +661,14 @@ const Lobby = () => {
               }
             }}
             className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
-            style={{ backgroundColor: pushEnabled ? '#FBBF24' : 'var(--bg-card-hover)' }}
+            style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
             aria-label="Toggle push notifications"
           >
             <div
-              className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+              className={`w-4 h-4 rounded-full shadow transition-transform ${
                 pushEnabled ? 'translate-x-5' : 'translate-x-0'
               }`}
+              style={{ backgroundColor: 'var(--text-primary)' }}
             />
           </button>
         </div>
@@ -737,7 +723,7 @@ const Lobby = () => {
 
                   {/* Current streak */}
                   {stats.currentStreak > 0 && (
-                    <div className="text-center text-yellow-400 text-sm font-bold">
+                    <div className="text-center text-sm font-bold" style={{ color: 'var(--warning)' }}>
                       🔥 {stats.currentStreak} game win streak!
                     </div>
                   )}
@@ -750,13 +736,14 @@ const Lobby = () => {
                         {stats.history.slice(0, 5).map((g, i) => (
                           <div
                             key={i}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                            style={
                               g.outcome === 'win'
-                                ? 'bg-green-500/30 text-green-300 border border-green-500/30'
+                                ? { backgroundColor: 'color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
                                 : g.outcome === 'draw'
-                                ? 'bg-yellow-500/30 text-yellow-300 border border-yellow-500/30'
-                                : 'bg-red-500/30 text-red-300 border border-red-500/30'
-                            }`}
+                                ? { backgroundColor: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
+                                : { backgroundColor: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)' }
+                            }
                             title={`${g.gridSize}×${g.gridSize} · ${g.players}P`}
                           >
                             {g.outcome === 'win' ? 'W' : g.outcome === 'draw' ? 'D' : 'L'} {g.territoryPct}%

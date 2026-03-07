@@ -104,7 +104,7 @@ const TournamentLobby = () => {
         style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
       >
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-8 h-8 border-2 border-current border-t-current rounded-full animate-spin mx-auto mb-3" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading tournament…</p>
         </div>
       </div>
@@ -153,13 +153,13 @@ const TournamentLobby = () => {
                   </button>
                 </div>
               </div>
-              <div className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase ${
-                isWaiting
-                  ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+              <div className="px-3 py-1.5 rounded-full text-xs font-bold uppercase"
+                style={isWaiting
+                  ? { backgroundColor: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
                   : completed
-                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                  : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-              }`}>
+                  ? { backgroundColor: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
+                  : { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)' }
+                }>
                 {isWaiting ? `⏳ ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : completed ? '🏆 Complete' : '🎮 In Progress'}
               </div>
             </div>
@@ -175,14 +175,14 @@ const TournamentLobby = () => {
                 <div
                   key={i}
                   className={`rounded-xl p-3 text-center transition-all ${
-                    p.username === username ? 'ring-2 ring-blue-400' : ''
+                    p.username === username ? 'ring-2 ring-[var(--accent)]' : ''
                   }`}
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
                 >
                   <div className="text-2xl mb-1">{p.avatar}</div>
                   <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{p.username}</div>
                   {p.username === username && (
-                    <div className="text-blue-400 text-xs mt-0.5">You</div>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>You</div>
                   )}
                 </div>
               ))}
@@ -216,7 +216,7 @@ const TournamentLobby = () => {
           {isWaiting && (
             <div className="p-5 text-center">
               <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                 Share the Tournament ID with friends to start!
               </div>
             </div>
@@ -225,8 +225,8 @@ const TournamentLobby = () => {
           {/* In progress — waiting for match assignment */}
           {!isWaiting && !completed && (
             <div className="p-5 text-center">
-              <div className="flex items-center justify-center gap-2 text-yellow-300 text-sm">
-                <span className="w-4 h-4 border-2 border-yellow-400/40 border-t-yellow-400 rounded-full animate-spin" />
+              <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--warning)' }}>
+                <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, var(--warning) 40%, transparent)', borderTopColor: 'var(--warning)' }} />
                 Waiting for your next match…
               </div>
             </div>
@@ -238,15 +238,15 @@ const TournamentLobby = () => {
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div
               className="rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center"
-              style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))', border: '1px solid rgba(251,191,36,0.3)' }}
+              style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }}
             >
               <div className="text-6xl mb-3 animate-bounce">
                 {tournament.participants.find((p) => p.username === winner)?.avatar || '🏆'}
               </div>
-              <h2 className="text-3xl font-extrabold text-yellow-400 mb-2">
+              <h2 className="text-3xl font-extrabold mb-2" style={{ color: 'var(--warning)' }}>
                 {winner} Wins!
               </h2>
-              <p className="text-yellow-500/80 text-lg mb-1">🏆 Tournament Champion 🏆</p>
+              <p className="text-lg mb-1" style={{ color: 'var(--warning)' }}>🏆 Tournament Champion 🏆</p>
               <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
                 {tournament.tournamentSize}-player tournament · {tournament.gridSize}×{tournament.gridSize}
               </p>
@@ -260,7 +260,7 @@ const TournamentLobby = () => {
               <button
                 onClick={() => navigate('/')}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95"
-                style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}
+                style={{ background: 'var(--warning)' }}
               >
                 👋 Back to Lobby
               </button>

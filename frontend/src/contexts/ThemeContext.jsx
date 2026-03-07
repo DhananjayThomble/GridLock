@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useLayoutEffect } from 'react';
+import React, { createContext, useContext, useState, useLayoutEffect, useCallback } from 'react';
 
 const ThemeContext = createContext();
 
@@ -15,7 +15,13 @@ export const ThemeProvider = ({ children }) => {
     localStorage.setItem('gridlock_theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = useCallback(() => {
+    document.documentElement.setAttribute('data-theme-transitioning', '');
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTimeout(() => {
+      document.documentElement.removeAttribute('data-theme-transitioning');
+    }, 400);
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

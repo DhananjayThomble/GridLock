@@ -17,23 +17,26 @@ function MatchCard({ match, participants }) {
   const hasWinner = !!match.winner;
   const inProgress = match.gameId && !hasWinner;
 
-  let borderClass = 'border-white/10';
-  if (inProgress) borderClass = 'border-yellow-500/60';
-  else if (hasWinner) borderClass = 'border-green-500/40';
+  const borderStyle = inProgress
+    ? 'color-mix(in srgb, var(--warning) 60%, transparent)'
+    : hasWinner
+    ? 'color-mix(in srgb, var(--success) 40%, transparent)'
+    : 'var(--border-color)';
 
   const renderPlayer = (name, avatar, isWinner) => {
     if (!name) {
       return (
-        <div className="flex items-center gap-2 px-3 py-2 text-white/30 text-sm">
+        <div className="flex items-center gap-2 px-3 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>
           <span className="text-base">❓</span>
           <span className="italic">TBD</span>
         </div>
       );
     }
     return (
-      <div className={`flex items-center gap-2 px-3 py-2 text-sm transition-all ${
-        isWinner ? 'text-green-300 font-bold' : hasWinner ? 'text-white/40' : 'text-white/80'
-      }`}>
+      <div
+        className="flex items-center gap-2 px-3 py-2 text-sm transition-all"
+        style={{ color: isWinner ? 'var(--success)' : hasWinner ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: isWinner ? 700 : 400 }}
+      >
         <span className="text-base">{avatar}</span>
         <span className="truncate max-w-[100px] sm:max-w-[120px]">{name}</span>
         {isWinner && <span className="ml-auto">🏆</span>}
@@ -42,14 +45,17 @@ function MatchCard({ match, participants }) {
   };
 
   return (
-    <div className={`bg-white/5 rounded-xl border ${borderClass} overflow-hidden min-w-[160px] sm:min-w-[180px] transition-all`}>
+    <div
+      className="rounded-xl overflow-hidden min-w-[160px] sm:min-w-[180px] transition-all"
+      style={{ backgroundColor: 'var(--bg-card)', border: `1px solid ${borderStyle}` }}
+    >
       {inProgress && (
-        <div className="bg-yellow-500/20 text-yellow-300 text-xs font-bold text-center py-0.5 animate-pulse">
+        <div className="text-xs font-bold text-center py-0.5 animate-pulse" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>
           🎮 In Progress
         </div>
       )}
       {renderPlayer(match.player1, p1Avatar, match.winner === match.player1)}
-      <div className="border-t border-white/10" />
+      <div style={{ borderTop: '1px solid var(--border-color)' }} />
       {renderPlayer(match.player2, p2Avatar, match.winner === match.player2)}
     </div>
   );
@@ -63,7 +69,7 @@ const Bracket = ({ rounds = [], participants = [], champion }) => {
       <div className="flex gap-6 sm:gap-10 min-w-max px-2 items-center">
         {rounds.map((round, roundIndex) => (
           <div key={roundIndex} className="flex flex-col items-center gap-2">
-            <div className="text-xs font-bold text-blue-300 uppercase tracking-wider mb-2">
+            <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--accent)' }}>
               {getRoundLabel(roundIndex, rounds.length)}
             </div>
             <div className="flex flex-col gap-4 justify-center" style={{ minHeight: roundIndex === 0 ? 'auto' : undefined }}>
@@ -71,7 +77,7 @@ const Bracket = ({ rounds = [], participants = [], champion }) => {
                 <div key={matchIndex} className="flex items-center">
                   <MatchCard match={match} participants={participants} />
                   {roundIndex < rounds.length - 1 && (
-                    <div className="w-6 sm:w-10 border-t border-white/20 ml-1" />
+                    <div className="w-6 sm:w-10 ml-1" style={{ borderTop: '1px solid var(--border-color-strong)' }} />
                   )}
                 </div>
               ))}
@@ -82,15 +88,15 @@ const Bracket = ({ rounds = [], participants = [], champion }) => {
         {/* Champion column */}
         {champion && (
           <div className="flex flex-col items-center gap-2">
-            <div className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-2">
+            <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--warning)' }}>
               Champion
             </div>
-            <div className="bg-gradient-to-br from-yellow-500/20 to-amber-600/20 rounded-xl border border-yellow-500/40 px-6 py-4 text-center">
+            <div className="rounded-xl px-6 py-4 text-center" style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)' }}>
               <div className="text-4xl mb-1">
                 {participants.find((p) => p.username === champion)?.avatar || '🏆'}
               </div>
-              <div className="text-yellow-300 font-bold text-sm">{champion}</div>
-              <div className="text-yellow-500 text-lg">🏆</div>
+              <div className="font-bold text-sm" style={{ color: 'var(--warning)' }}>{champion}</div>
+              <div className="text-lg" style={{ color: 'var(--warning)' }}>🏆</div>
             </div>
           </div>
         )}

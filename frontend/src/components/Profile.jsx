@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import useThemeColors from '../hooks/useThemeColors';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -37,6 +38,8 @@ const formatTimeAgo = (value) => {
 
 // ── ELO Chart (pure SVG) ────────────────────────────────────────────────────
 const EloChart = ({ history }) => {
+  const themeColors = useThemeColors();
+
   if (!history || history.length < 2) {
     return <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>Not enough data for chart</p>;
   }
@@ -55,7 +58,9 @@ const EloChart = ({ history }) => {
 
   const points = coords.map((c) => `${c.x},${c.y}`).join(' ');
   const trending = elos[elos.length - 1] >= elos[0];
-  const color = trending ? '#10B981' : '#EF4444';
+  const color = trending
+    ? (themeColors['--success'] || '#3fb950')
+    : (themeColors['--danger'] || '#f85149');
 
   // Gradient fill area
   const areaPath = `M ${coords[0].x},${height - pad} ` +
@@ -107,12 +112,12 @@ const EloChart = ({ history }) => {
 // ── Match Row ────────────────────────────────────────────────────────────────
 const MatchRow = ({ match, onPlayerClick }) => {
   const eloChange = (match.eloAfter || 0) - (match.eloBefore || 0);
-  const resultColors = { win: 'text-green-400', loss: 'text-red-400', draw: 'text-yellow-400' };
+  const resultColors = { win: 'var(--success)', loss: 'var(--danger)', draw: 'var(--warning)' };
   const resultLabels = { win: 'W', loss: 'L', draw: 'D' };
 
   return (
     <div className="flex items-center gap-3 py-2.5 last:border-0" style={{ borderBottom: '1px solid var(--border-color)' }}>
-      <span className={`font-bold text-sm w-6 text-center ${resultColors[match.result]}`}>
+      <span className="font-bold text-sm w-6 text-center" style={{ color: resultColors[match.result] }}>
         {resultLabels[match.result]}
       </span>
       <div className="flex-1 min-w-0">
@@ -131,7 +136,7 @@ const MatchRow = ({ match, onPlayerClick }) => {
       <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
         {match.scores?.player}-{match.scores?.opponent}
       </span>
-      <span className={`text-xs font-bold ${eloChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+      <span className="text-xs font-bold" style={{ color: eloChange >= 0 ? 'var(--success)' : 'var(--danger)' }}>
         {eloChange >= 0 ? '+' : ''}{eloChange}
       </span>
       <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-subtle)' }}>{formatTimeAgo(match.playedAt)}</span>
@@ -201,8 +206,8 @@ const Profile = () => {
         className="min-h-screen flex flex-col items-center justify-center gap-4"
         style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
       >
-        <p className="text-red-400 text-lg">{error}</p>
-        <Link to="/leaderboard" className="text-blue-400 hover:underline text-sm">← Back to Leaderboard</Link>
+        <p className="text-lg" style={{ color: 'var(--danger)' }}>{error}</p>
+        <Link to="/leaderboard" className="text-sm hover:underline" style={{ color: 'var(--accent)' }}>← Back to Leaderboard</Link>
       </div>
     );
   }
