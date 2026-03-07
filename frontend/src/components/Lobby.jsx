@@ -334,7 +334,7 @@ const Lobby = () => {
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs opacity-70">{desc}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -354,7 +354,7 @@ const Lobby = () => {
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs opacity-70">{desc}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -418,7 +418,7 @@ const Lobby = () => {
                         >
                           <div className="text-lg">{icon}</div>
                           <div className="text-xs font-bold">{label}</div>
-                          <div className="text-xs opacity-70">{desc}</div>
+                          <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
                         </button>
                       ))}
                     </div>
@@ -527,7 +527,7 @@ const Lobby = () => {
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs opacity-70">{desc}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -547,7 +547,7 @@ const Lobby = () => {
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs opacity-70">{desc}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
                     </button>
                   ))}
                 </div>
