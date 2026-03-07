@@ -1,0 +1,52 @@
+name: Deploy Beta to EC2
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/deploy-beta.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: beta-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Beta
+    runs-on: ubuntu-latest
+    environment: beta
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            # ── Use dedicated beta clone (separate from production) ──
+            cd ~/projects/GridLock-beta
+            git fetch origin develop
+            git checkout develop
+            git reset --hard origin/develop
+
+            # ── Build frontend ──
+            cd frontend
+            npm ci
+            VITE_BASE_PATH=/ \
+            VITE_SOCKET_URL=https://gridlock-api.snapurl.in \
+            VITE_API_BASE_URL=https://gridlock-api.snapurl.in \
+            VITE_SITE_URL=https://beta-gridlock.snapurl.in \
+            npm run build
+
+            # ── Deploy to Nginx root ──
+            sudo rm -rf /var/www/gridlock-beta/*
+            sudo cp -r dist/. /var/www/gridlock-beta/
+            sudo chown -R www-data:www-data /var/www/gridlock-beta/
+
+            echo "✅ Beta frontend deployed"
