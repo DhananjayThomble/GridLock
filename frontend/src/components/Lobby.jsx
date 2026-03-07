@@ -434,11 +434,11 @@ const Lobby = () => {
                 onClick={handleCreate}
                 disabled={creating}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))' }}
+                style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
               >
                 {creating ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
                     Creating…
                   </span>
                 ) : (
@@ -497,11 +497,11 @@ const Lobby = () => {
                 onClick={handleJoin}
                 disabled={joining}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)' }}
+                style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
                     Joining…
                   </span>
                 ) : (joinMode === 'spectator' ? '👀 Spectate Game' : '🔗 Join Game')}
@@ -561,11 +561,11 @@ const Lobby = () => {
                 onClick={handleCreateTournament}
                 disabled={creatingTournament}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)' }}
+                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
                     Creating…
                   </span>
                 ) : (
@@ -605,11 +605,11 @@ const Lobby = () => {
                 onClick={handleJoinTournament}
                 disabled={joiningTournament}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)' }}
+                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
                     Joining…
                   </span>
                 ) : (

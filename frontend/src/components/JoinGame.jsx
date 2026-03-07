@@ -165,11 +165,11 @@ const JoinGame = () => {
               onClick={handleJoin}
               disabled={joining}
               className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)' }}
+              style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
             >
               {joining ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
                   Joining…
                 </span>
               ) : (
