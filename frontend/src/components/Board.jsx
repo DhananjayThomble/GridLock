@@ -7,7 +7,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
-import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
+import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 
@@ -165,7 +165,7 @@ const Board = () => {
       // Haptic feedback (vibrate API requires recent user interaction on some devices;
       // this fires during gameplay so the page is already "user-activated")
       try {
-        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+        if (isVibrationEnabled() && 'vibrate' in navigator) navigator.vibrate([100, 50, 100]);
       } catch { /* some browsers throw on vibrate */ }
 
       // Ensure AudioContext is resumed before playing turn sound
@@ -418,6 +418,7 @@ const Board = () => {
     initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
+    sounds.linePlaced();
   }, [gameState, role, gameId, sessionToken, isSpectator]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
