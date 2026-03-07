@@ -11,7 +11,7 @@ const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardU
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
 
-const DISCONNECT_TIMEOUT_MS = 60_000;
+const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 60_000;
 
 // Node-local timer handles only — state visibility is handled via disconnectStore (Redis)
 const localTimers = new Map(); // key: `${gameId}:${playerId}` -> { timer, socketId }
