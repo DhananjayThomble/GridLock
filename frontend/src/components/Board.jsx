@@ -771,7 +771,7 @@ const Board = () => {
                   background: rematchRequested
                     ? 'var(--bg-surface)'
                     : `linear-gradient(135deg, var(--accent), var(--accent-hover))`,
-                  color: rematchRequested ? 'var(--text-muted)' : '#ffffff',
+                  ...(rematchRequested && { color: 'var(--text-muted)' }),
                 }}
               >
                 {rematchRequested ? (
@@ -805,11 +805,7 @@ const Board = () => {
             </div>
           )}
 
-          <div className="mt-4 text-xl space-x-1">
-            {['🎉','✨','🎊','🏆','🎉'].map((e, i) => (
-              <span key={i} className="inline-block animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>{e}</span>
-            ))}
-          </div>
+
         </div>
       </div>
     );
