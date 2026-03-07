@@ -379,7 +379,7 @@ const Lobby = () => {
                     <span className="text-sm font-semibold">Play vs CPU</span>
                   </span>
                   <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
-                    <span className="w-4 h-4 rounded-full bg-white shadow mx-0.5 transition-all" />
+                    <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
                   </span>
                 </button>
               </div>
@@ -498,7 +498,7 @@ const Lobby = () => {
                 onClick={handleJoin}
                 disabled={joining}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joining ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--success), var(--success))' }}
+                style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)' }}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
@@ -562,7 +562,7 @@ const Lobby = () => {
                 onClick={handleCreateTournament}
                 disabled={creatingTournament}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--warning), var(--warning))' }}
+                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)' }}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -606,7 +606,7 @@ const Lobby = () => {
                 onClick={handleJoinTournament}
                 disabled={joiningTournament}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--success), var(--success))' }}
+                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)' }}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -666,9 +666,10 @@ const Lobby = () => {
             aria-label="Toggle push notifications"
           >
             <div
-              className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+              className={`w-4 h-4 rounded-full shadow transition-transform ${
                 pushEnabled ? 'translate-x-5' : 'translate-x-0'
               }`}
+              style={{ backgroundColor: 'var(--text-primary)' }}
             />
           </button>
         </div>

@@ -9,6 +9,7 @@ import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
+import useThemeColors from '../hooks/useThemeColors';
 
 // ─── Turn toast component ─────────────────────────────────────────────────────
 const TurnToast = ({ visible, color }) => (
@@ -36,8 +37,8 @@ const PLAYER_CONFIG = {
 
 const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1;
 
-// Helper to get computed CSS variable value at runtime
-const getCSSVar = (varName) => getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+// Helper to get computed CSS variable value at runtime (cached via useThemeColors hook)
+// getCSSVar kept as thin wrapper for inline usage — actual caching happens in the hook
 
 // ─── Responsive sizing hook ───────────────────────────────────────────────────
 function useGridSizes(gridSize) {
@@ -85,6 +86,8 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
+  const themeColors = useThemeColors();
+  const getCSSVar = (varName) => themeColors[varName] || '';
   const {
     username,
     role: initialRole,
@@ -744,7 +747,7 @@ const Board = () => {
                 disabled={rematchRequested}
                 className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
                   rematchRequested
-                    ? 'cursor-not-allowed opacity-60'
+                    ? 'cursor-not-allowed'
                     : 'active:scale-95 hover:shadow-lg'
                 }`}
                 style={{
@@ -993,7 +996,7 @@ const Board = () => {
           <button
             onClick={() => navigate('/')}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', minHeight: '44px' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 25%, transparent)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>

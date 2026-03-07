@@ -165,7 +165,7 @@ const JoinGame = () => {
               onClick={handleJoin}
               disabled={joining}
               className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={{ background: joining ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--success), var(--success))' }}
+              style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)' }}
             >
               {joining ? (
                 <span className="flex items-center justify-center gap-2">

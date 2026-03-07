@@ -260,7 +260,7 @@ const TournamentLobby = () => {
               <button
                 onClick={() => navigate('/')}
                 className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95"
-                style={{ background: 'linear-gradient(135deg, var(--warning), var(--warning))' }}
+                style={{ background: 'var(--warning)' }}
               >
                 👋 Back to Lobby
               </button>
