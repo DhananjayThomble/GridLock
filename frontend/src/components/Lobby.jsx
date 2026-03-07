@@ -226,7 +226,7 @@ const Lobby = () => {
       className="min-h-screen flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-8 sm:items-center safe-bottom"
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-lg lg:max-w-[800px]">
 
         {/* ── Title ── */}
         <div className="text-center mb-6">
@@ -234,11 +234,6 @@ const Lobby = () => {
             GridLock
           </h1>
           <p className="text-sm mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>Multiplayer · 2–4 Players</p>
-          <div className="flex justify-center gap-3 mt-3 text-xl">
-            {['•','━','•','━','•'].map((c, i) => (
-              <span key={i} className={c === '•' ? 'animate-bounce inline-block' : ''} style={{ color: c === '•' ? 'var(--accent)' : 'var(--text-muted)' }}>{c}</span>
-            ))}
-          </div>
         </div>
 
         {/* ── Card ── */}
@@ -307,7 +302,7 @@ const Lobby = () => {
                   tab === key ? 'border-b-2' : ''
                 }`}
                 style={{
-                  color: tab === key ? 'var(--text-primary)' : 'var(--text-muted)',
+                  color: tab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
                   background: tab === key ? 'var(--bg-card)' : 'transparent',
                   borderColor: tab === key ? 'var(--accent)' : 'transparent',
                 }}
@@ -625,7 +620,7 @@ const Lobby = () => {
           )}
         </div>
 
-        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-subtle)' }}>GridLock · Real-time Multiplayer</p>
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
 
         {/* ── Theme Toggle + PWA Install Button ── */}
         <div className="flex items-center justify-center gap-2 mt-3">
