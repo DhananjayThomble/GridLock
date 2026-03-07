@@ -33,16 +33,17 @@ class ErrorBoundaryInner extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-          <div className="w-full max-w-md bg-white/10 border border-white/20 rounded-2xl p-6 text-center shadow-2xl">
+        <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6 text-center shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
             <div className="text-5xl mb-3">⚠️</div>
-            <h2 className="text-2xl font-extrabold mb-2">Something went wrong</h2>
-            <p className="text-white/70 text-sm mb-5">
+            <h2 className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>Something went wrong</h2>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
               The game hit an unexpected issue. You can safely return to the lobby.
             </p>
             <button
               onClick={this.handleReturnToLobby}
-              className="w-full py-3 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 transition-colors"
+              className="w-full py-3 rounded-xl font-bold text-sm text-white transition-colors"
+              style={{ backgroundColor: 'var(--accent)' }}
             >
               Return to Lobby
             </button>

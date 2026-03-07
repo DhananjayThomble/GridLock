@@ -24,7 +24,10 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-40 bg-gray-900/85 backdrop-blur-sm border-b border-gray-700/50 shadow-lg score-bar">
+    <div
+      className="fixed top-0 left-0 right-0 z-40 backdrop-blur-sm shadow-lg score-bar"
+      style={{ backgroundColor: 'var(--nav-bg)', borderBottom: '1px solid var(--border-color)' }}
+    >
       <div className="max-w-6xl mx-auto px-2 sm:px-3 py-1.5 sm:py-2">
         {splitIntoRows ? (
           // Multi-player: grid layout that wraps into 2 columns on mobile
@@ -45,10 +48,8 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <span
-                        className={`text-xs font-bold truncate ${
-                          isCurrent ? 'text-white' : 'text-gray-300'
-                        }`}
-                        style={{ maxWidth: '70px' }}
+                        className="text-xs font-bold truncate"
+                        style={{ maxWidth: '70px', color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                         title={player.username}
                       >
                         {truncateName(player.username, 10)}
@@ -57,7 +58,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                         {percentage.toFixed(0)}%
                       </span>
                     </div>
-                    <div className="h-1.5 bg-gray-800/50 rounded-full overflow-hidden relative">
+                    <div className="h-1.5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-surface)' }}>
                       <div
                         className="h-full transition-all duration-500 ease-out"
                         style={{ width: `${percentage}%`, backgroundColor: player.color }}
@@ -101,9 +102,8 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   {/* Name — wider on mobile, truncated with ellipsis */}
                   <div className="flex-shrink-0" style={{ width: 'clamp(64px, 20vw, 96px)' }}>
                     <span
-                      className={`text-xs font-bold truncate block ${
-                        isCurrent ? 'text-white' : 'text-gray-300'
-                      }`}
+                      className="text-xs font-bold truncate block"
+                      style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                       title={player.username}
                     >
                       {truncateName(player.username, 14)}
@@ -111,7 +111,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   </div>
 
                   {/* Progress bar container */}
-                  <div className="flex-1 h-5 bg-gray-800/50 rounded-full overflow-hidden relative">
+                  <div className="flex-1 h-5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-surface)' }}>
                     <div
                       className="h-full transition-all duration-500 ease-out"
                       style={{ width: `${percentage}%`, backgroundColor: player.color }}

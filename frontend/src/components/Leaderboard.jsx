@@ -154,17 +154,18 @@ const Leaderboard = () => {
             />
             <button
               type="submit"
-              className="rounded-xl bg-blue-500 px-4 py-2.5 font-semibold text-white transition hover:bg-blue-400 disabled:opacity-60"
+              className="rounded-xl px-4 py-2.5 font-semibold text-white transition disabled:opacity-60"
+              style={{ backgroundColor: 'var(--accent)' }}
               disabled={playerLoading}
             >
               {playerLoading ? 'Searching…' : 'Search'}
             </button>
           </form>
 
-          {playerError && <p className="mt-2 text-left text-sm text-red-300">{playerError}</p>}
+          {playerError && <p className="mt-2 text-left text-sm" style={{ color: 'var(--danger)' }}>{playerError}</p>}
 
           {player && (
-            <div className="mt-3 rounded-xl border border-blue-300/30 bg-blue-500/10 p-3 text-left text-sm" style={{ color: 'var(--text-primary)' }}>
+            <div className="mt-3 rounded-xl p-3 text-left text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', color: 'var(--text-primary)' }}>
               <p className="font-bold">
                 <Link to={`/profile/${encodeURIComponent(player.username)}`} className="hover:underline">
                   #{player.rank} {player.username}
@@ -182,7 +183,7 @@ const Leaderboard = () => {
         )}
 
         {!loading && error && (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-red-200">
+          <div className="rounded-2xl p-6" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
             Could not load leaderboard: {error}
           </div>
         )}
@@ -197,10 +198,10 @@ const Leaderboard = () => {
           <>
             <section className="mb-4 grid gap-3 sm:grid-cols-3">
               {topThree.map((entry) => (
-                <article key={entry.username} className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-left" style={{ color: 'var(--text-primary)' }}>
-                  <p className="text-xs uppercase tracking-wider text-amber-200">Rank #{entry.rank}</p>
+                <article key={entry.username} className="rounded-2xl p-4 text-left" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--text-primary)' }}>
+                  <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--warning)' }}>Rank #{entry.rank}</p>
                   <h3 className="mt-1 text-lg font-bold">
-                    <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline hover:text-amber-200 transition-colors">
+                    <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--text-primary)' }}>
                       {entry.username}
                     </Link>
                   </h3>
@@ -227,7 +228,7 @@ const Leaderboard = () => {
                       <tr key={entry.username} style={{ borderTop: '1px solid var(--border-color)' }}>
                         <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
                         <td className="px-3 py-3">
-                          <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline hover:text-blue-300 transition-colors">
+                          <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--accent)' }}>
                             {entry.username}
                           </Link>
                         </td>

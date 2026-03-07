@@ -5,53 +5,126 @@
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-card: rgba(255, 255, 255, 0.05);
-  --bg-card-hover: rgba(255, 255, 255, 0.1);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.8);
-  --text-muted: rgba(255, 255, 255, 0.4);
-  --text-subtle: rgba(255, 255, 255, 0.2);
-  --border-color: rgba(255, 255, 255, 0.1);
-  --border-color-strong: rgba(255, 255, 255, 0.2);
-  --accent: #3b82f6;
-  --accent-secondary: #60a5fa;
-  --label-color: #bfdbfe;
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --gradient-from: #0f172a;
-  --gradient-via: #172554;
-  --gradient-to: #0f172a;
-  --nav-bg: rgba(15, 23, 42, 0.85);
-  --input-bg: rgba(255, 255, 255, 0.1);
-  --input-placeholder: rgba(255, 255, 255, 0.4);
+  --bg-primary:       #0d1117;
+  --bg-secondary:     #161b22;
+  --bg-tertiary:      #1c2128;
+  --bg-card:          rgba(255,255,255,0.04);
+  --bg-card-hover:    rgba(255,255,255,0.08);
+  --bg-surface:       #21262d;
+
+  --text-primary:     #e6edf3;
+  --text-secondary:   #8b949e;
+  --text-muted:       #484f58;
+  --text-subtle:      rgba(230,237,243,0.15);
+
+  --border-color:     rgba(240,246,252,0.1);
+  --border-color-strong: rgba(240,246,252,0.2);
+
+  --accent:           #58a6ff;
+  --accent-hover:     #79c0ff;
+  --accent-secondary: #79c0ff;
+  --label-color:      #8b949e;
+  --success:          #3fb950;
+  --danger:           #f85149;
+  --warning:          #d29922;
+
+  --gradient-from:    #0d1117;
+  --gradient-via:     #0d1b2a;
+  --gradient-to:      #0d1117;
+
+  --nav-bg:           rgba(13,17,23,0.9);
+  --input-bg:         rgba(255,255,255,0.06);
+  --input-placeholder: rgba(230,237,243,0.3);
+
+  --shadow-color:     rgba(0,0,0,0.3);
+  --glow-accent:      rgba(88,166,255,0.15);
+
+  /* Player colors — desaturated for dark mode */
+  --player1-color:    #58a6ff;
+  --player2-color:    #f85149;
+  --player3-color:    #3fb950;
+  --player4-color:    #bc8cff;
+  --player1-bg:       rgba(88,166,255,0.12);
+  --player2-bg:       rgba(248,81,73,0.12);
+  --player3-bg:       rgba(63,185,80,0.12);
+  --player4-bg:       rgba(188,140,255,0.12);
+
+  /* Board-specific */
+  --dot-color:        #484f58;
+  --line-empty:       #21262d;
 }
 
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #e2e8f0;
-  --bg-card: rgba(0, 0, 0, 0.04);
-  --bg-card-hover: rgba(0, 0, 0, 0.08);
-  --text-primary: #0f172a;
-  --text-secondary: rgba(15, 23, 42, 0.8);
-  --text-muted: rgba(15, 23, 42, 0.5);
-  --text-subtle: rgba(15, 23, 42, 0.25);
-  --border-color: rgba(15, 23, 42, 0.1);
-  --border-color-strong: rgba(15, 23, 42, 0.2);
-  --accent: #2563eb;
-  --accent-secondary: #3b82f6;
-  --label-color: #1e40af;
-  --success: #059669;
-  --danger: #dc2626;
-  --warning: #d97706;
-  --gradient-from: #f1f5f9;
-  --gradient-via: #dbeafe;
-  --gradient-to: #f1f5f9;
-  --nav-bg: rgba(241, 245, 249, 0.9);
-  --input-bg: rgba(0, 0, 0, 0.05);
-  --input-placeholder: rgba(15, 23, 42, 0.4);
+  --bg-primary:       #ffffff;
+  --bg-secondary:     #f6f8fa;
+  --bg-tertiary:      #ffffff;
+  --bg-card:          rgba(0,0,0,0.03);
+  --bg-card-hover:    rgba(0,0,0,0.06);
+  --bg-surface:       #f0f3f6;
+
+  --text-primary:     #1f2328;
+  --text-secondary:   #656d76;
+  --text-muted:       #8b949e;
+  --text-subtle:      rgba(31,35,40,0.15);
+
+  --border-color:     rgba(31,35,40,0.15);
+  --border-color-strong: rgba(31,35,40,0.25);
+
+  --accent:           #0969da;
+  --accent-hover:     #0550ae;
+  --accent-secondary: #0550ae;
+  --label-color:      #656d76;
+  --success:          #1a7f37;
+  --danger:           #cf222e;
+  --warning:          #9a6700;
+
+  --gradient-from:    #f6f8fa;
+  --gradient-via:     #edf4fc;
+  --gradient-to:      #f6f8fa;
+
+  --nav-bg:           rgba(255,255,255,0.9);
+  --input-bg:         rgba(0,0,0,0.04);
+  --input-placeholder: rgba(31,35,40,0.4);
+
+  --shadow-color:     rgba(31,35,40,0.12);
+  --glow-accent:      rgba(9,105,218,0.1);
+
+  /* Player colors — vivid for light mode */
+  --player1-color:    #0969da;
+  --player2-color:    #cf222e;
+  --player3-color:    #1a7f37;
+  --player4-color:    #8250df;
+  --player1-bg:       rgba(9,105,218,0.15);
+  --player2-bg:       rgba(207,34,46,0.15);
+  --player3-bg:       rgba(26,127,55,0.15);
+  --player4-bg:       rgba(130,80,223,0.15);
+
+  /* Board-specific */
+  --dot-color:        #1f2328;
+  --line-empty:       #d0d7de;
+}
+
+/* ── Global transitions ────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* Opt-out for elements that need their own transition timing */
+.no-color-transition,
+.no-color-transition *,
+[data-no-transition],
+[data-no-transition] * {
+  transition-property: none !important;
+}
+
+/* ── Selection styling ─────────────────────────────────────────────────────── */
+::selection {
+  background: var(--accent);
+  color: #ffffff;
 }
 
 /* ── Global placeholder styling ────────────────────────────────────────────── */
@@ -60,6 +133,20 @@ textarea::placeholder {
   color: var(--input-placeholder);
   opacity: 1;
 }
+
+/* ── Glassmorphism utility ─────────────────────────────────────────────────── */
+.glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-color-strong);
+}
+
+/* ── Elevation system ──────────────────────────────────────────────────────── */
+.elevation-0 { background: var(--bg-primary); }
+.elevation-1 { background: var(--bg-secondary); }
+.elevation-2 { background: var(--bg-tertiary); }
+.elevation-3 { background: var(--bg-surface); }
 
 /* GridLock - Game Polish */
 
@@ -126,14 +213,19 @@ textarea::placeholder {
 
 /* ── Board glow pulse for turn indicator ───────────────────────────────────── */
 @keyframes board-glow-pulse {
-  0% { box-shadow: 0 0 8px 2px rgba(var(--glow-rgb, 59,130,246), 0.5); }
-  50% { box-shadow: 0 0 20px 6px rgba(var(--glow-rgb, 59,130,246), 0.3); }
-  100% { box-shadow: 0 0 0 0 rgba(var(--glow-rgb, 59,130,246), 0); }
+  0% { box-shadow: 0 0 8px 2px rgba(var(--glow-rgb, 88,166,255), 0.5); }
+  50% { box-shadow: 0 0 20px 6px rgba(var(--glow-rgb, 88,166,255), 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--glow-rgb, 88,166,255), 0); }
 }
 
 .board-glow {
   animation: board-glow-pulse 1.2s ease-out;
   border-width: 2px;
+}
+
+/* ── Glow effect for interactive elements in dark mode ─────────────────────── */
+[data-theme="dark"] .hover-glow:hover {
+  box-shadow: 0 0 15px var(--glow-accent);
 }
 
 /* Keep touch targets stable on coarse pointers (avoid overlap between adjacent lines). */
@@ -171,5 +263,19 @@ textarea::placeholder {
   /* Also apply safe-area to game layout bottom */
   .game-layout {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ── Board line glow on hover ──────────────────────────────────────────────── */
+.line-hover-glow {
+  transition: background-color 0.15s, box-shadow 0.2s;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
