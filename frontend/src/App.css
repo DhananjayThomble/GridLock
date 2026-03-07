@@ -1,3 +1,12 @@
+/*
+ * NOTE: ~35 inline JSX usages of color-mix(in srgb, ...) across components.
+ * color-mix() has ~95% global browser support (baseline since 2023).
+ * Inline styles cannot use CSS cascade fallbacks — on unsupported browsers,
+ * these will silently fall back to transparent. Accepted as a conscious
+ * trade-off; the affected elements (badges, status pills, tinted backgrounds)
+ * remain functional with their text/border colors intact.
+ */
+
 #root {
   padding: 0;
 }

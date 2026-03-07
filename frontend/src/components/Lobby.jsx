@@ -303,9 +303,7 @@ const Lobby = () => {
                 key={key}
                 onClick={() => setTab(key)}
                 className={`flex-1 py-3 text-sm font-semibold transition-all ${
-                  tab === key
-                    ? 'border-b-2'
-                    : ''
+                  tab === key ? 'border-b-2' : ''
                 }`}
                 style={{
                   color: tab === key ? 'var(--text-primary)' : 'var(--text-muted)',
