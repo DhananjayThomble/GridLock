@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import useThemeColors from '../hooks/useThemeColors';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -37,6 +38,8 @@ const formatTimeAgo = (value) => {
 
 // ── ELO Chart (pure SVG) ────────────────────────────────────────────────────
 const EloChart = ({ history }) => {
+  const themeColors = useThemeColors();
+
   if (!history || history.length < 2) {
     return <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>Not enough data for chart</p>;
   }
@@ -56,8 +59,8 @@ const EloChart = ({ history }) => {
   const points = coords.map((c) => `${c.x},${c.y}`).join(' ');
   const trending = elos[elos.length - 1] >= elos[0];
   const color = trending
-    ? getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#3fb950'
-    : getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() || '#f85149';
+    ? (themeColors['--success'] || '#3fb950')
+    : (themeColors['--danger'] || '#f85149');
 
   // Gradient fill area
   const areaPath = `M ${coords[0].x},${height - pad} ` +
