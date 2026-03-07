@@ -10,6 +10,7 @@ import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
+import PostGameStatsCard, { countLines } from './PostGameStatsCard';
 
 // ─── Turn toast component ─────────────────────────────────────────────────────
 const TurnToast = ({ visible, color }) => (
@@ -123,6 +124,12 @@ const Board = () => {
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
+
+  // ── Post-game stats tracking ──────────────────────────────────────────────────
+  const [moveCount, setMoveCount] = useState({});
+  const [gameDuration, setGameDuration] = useState(null);
+  const prevLineCountRef = useRef(0);
+  const gameStartTimeRef = useRef(null);
 
   // ── Turn indicator state ──────────────────────────────────────────────────────
   const [showTurnToast, setShowTurnToast] = useState(false);
@@ -251,12 +258,31 @@ const Board = () => {
         });
       }
 
+      // ── Track moves per player & game start time ────────────────────────────
+      const currentLineCount = countLines(gs);
+      if (currentLineCount > prevLineCountRef.current) {
+        const lineOwners = {};
+        if (gs.horizontalLines) gs.horizontalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
+        if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
+        setMoveCount(lineOwners);
+        if (prevLineCountRef.current === 0 && currentLineCount > 0) {
+          // Only set game start if this is truly the first move (1 line).
+          // If currentLineCount > 1 on first update, we reconnected mid-game —
+          // leave gameStartTimeRef null so duration shows "—" instead of wrong values.
+          if (currentLineCount === 1) {
+            gameStartTimeRef.current = Date.now();
+          }
+        }
+      }
+      prevLineCountRef.current = currentLineCount;
+
       setGameState(gs);
       prevScoresRef.current = gs?.scores || null;
 
       setWaitingCount(0);
 
       if (gs.gameOver || gs.winner) {
+        setGameDuration(prev => prev || (gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null));
         const winner = gs.winner;
 
         // Record session stats exactly once (guard against reconnect re-fires)
@@ -730,6 +756,18 @@ const Board = () => {
               );
             })}
           </div>
+
+          {/* Post-game stats card */}
+          <PostGameStatsCard
+            gameState={gameState}
+            scores={winnerData.scores}
+            playerIds={ids}
+            gridSize={gridSize}
+            moveCount={moveCount}
+            gameDuration={gameDuration}
+            role={role}
+            winnerData={winnerData}
+          />
 
           <div className="flex gap-2">
             {!isSpectator && (

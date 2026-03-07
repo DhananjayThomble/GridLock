@@ -161,6 +161,15 @@ textarea::placeholder {
   animation: winner-pulse 1.5s ease-in-out infinite;
 }
 
+/* Post-game stats card fade-in */
+@keyframes stats-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.stats-card-fade-in {
+  animation: stats-fade-in 0.4s ease-out both;
+}
+
 /* ── Mobile & Responsive ───────────────────────────────────────────────────── */
 
 /* Prevent iOS Safari rubber-band scroll on the game board */
