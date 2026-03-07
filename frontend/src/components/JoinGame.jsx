@@ -73,7 +73,10 @@ const JoinGame = () => {
   if (!gameId) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4 safe-bottom">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 safe-bottom"
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+    >
       <div className="w-full max-w-sm">
 
         {/* Title */}
@@ -81,24 +84,27 @@ const JoinGame = () => {
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             GridLock
           </h1>
-          <p className="text-blue-300 text-xs mt-1 tracking-widest uppercase">Join Game</p>
+          <p className="text-xs mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>Join Game</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden shadow-2xl">
+        <div
+          className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
+          style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
+        >
           <div className="p-5 space-y-4">
 
             {/* Game ID display */}
             <div className="text-center">
-              <span className="text-blue-200 text-xs font-bold uppercase tracking-wider">Game ID</span>
-              <div className="mt-1 font-mono text-2xl font-extrabold text-white tracking-widest">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Game ID</span>
+              <div className="mt-1 font-mono text-2xl font-extrabold tracking-widest" style={{ color: 'var(--text-primary)' }}>
                 {gameId.toUpperCase()}
               </div>
             </div>
 
             {/* Username */}
             <div>
-              <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-1.5">Your Name</label>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
               <input
                 type="text"
                 value={username}
@@ -112,13 +118,14 @@ const JoinGame = () => {
                 spellCheck={false}
                 inputMode="text"
                 enterKeyHint="join"
-                className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
               />
             </div>
 
             {/* Avatar picker */}
             <div>
-              <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-1.5">Pick Avatar</label>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
               <div className="grid grid-cols-8 gap-1.5">
                 {AVATARS.map((av) => (
                   <button
@@ -127,8 +134,9 @@ const JoinGame = () => {
                     className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 ${
                       selectedAvatar === av
                         ? 'bg-blue-500 ring-2 ring-blue-300 scale-110 shadow-lg'
-                        : 'bg-white/10 hover:bg-white/20'
+                        : ''
                     }`}
+                    style={selectedAvatar !== av ? { background: 'var(--bg-card-hover)' } : undefined}
                   >
                     {av}
                   </button>
@@ -170,7 +178,8 @@ const JoinGame = () => {
             <p className="text-center">
               <button
                 onClick={() => navigate('/')}
-                className="text-white/40 text-xs hover:text-white/70 transition-colors"
+                className="text-xs transition-colors"
+                style={{ color: 'var(--text-muted)' }}
               >
                 or go to Lobby →
               </button>

@@ -7,6 +7,7 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import Leaderboard from './components/Leaderboard';
@@ -94,9 +95,11 @@ const AppLayout = () => {
 
 function App() {
   return (
-    <Router basename={basePath}>
-      <AppLayout />
-    </Router>
+    <ThemeProvider>
+      <Router basename={basePath}>
+        <AppLayout />
+      </Router>
+    </ThemeProvider>
   );
 }
 

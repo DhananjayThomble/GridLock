@@ -51,14 +51,11 @@ const TournamentLobby = () => {
     };
 
     const onTournamentCompleted = ({ champion }) => {
-      // The tournament snapshot comes via a separate tournament_update event.
-      // Use the latest snapshot already in state.
       setWinner(champion);
       setCompleted(true);
     };
 
     const onError = (msg) => {
-      // Suppress expected errors from re-joining tournament to fetch state
       if (reRequestingRef.current) {
         reRequestingRef.current = false;
         return;
@@ -69,7 +66,7 @@ const TournamentLobby = () => {
     socket.on('tournament_update', onTournamentUpdate);
     socket.on('tournament_game_assigned', onTournamentGameAssigned);
     socket.on('tournament_completed', onTournamentCompleted);
-    socket.on('tournament_joined', onTournamentUpdate); // Also handles re-join snapshot
+    socket.on('tournament_joined', onTournamentUpdate);
     socket.on('error', onError);
 
     return () => {
@@ -81,27 +78,18 @@ const TournamentLobby = () => {
     };
   }, [tournamentId, username, avatar, navigate]);
 
-  // Reset navigation guard when tournamentId changes
   useEffect(() => {
     navigatedRef.current = false;
   }, [tournamentId]);
 
-  // ── Request tournament data when navigating back without snapshot ────────────
   useEffect(() => {
     if (!tournamentId || tournament) return;
-    // We have a tournamentId but no snapshot (e.g., "View Bracket" from Board).
-    // Re-join the tournament room so we receive tournament_update events.
-    // The backend will reject with "already joined" but also sends tournament_update
-    // to the room. Mark reRequesting so we suppress the expected error.
     reRequestingRef.current = true;
     socket.emit('join_tournament', { tournamentId, username, avatar });
-
-    // Auto-reset after 3s in case the expected error never arrives
     const resetTimer = setTimeout(() => { reRequestingRef.current = false; }, 3000);
     return () => clearTimeout(resetTimer);
   }, [tournamentId, tournament, username, avatar]);
 
-  // ── Copy tournament ID ────────────────────────────────────────────────────────
   const handleCopyId = () => {
     navigator.clipboard?.writeText(tournamentId).then(() => {
       setShowCopied(true);
@@ -109,13 +97,15 @@ const TournamentLobby = () => {
     });
   };
 
-  // ── No tournament data ────────────────────────────────────────────────────────
   if (!tournament) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+      >
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-white/60 text-sm">Loading tournament…</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading tournament…</p>
         </div>
       </div>
     );
@@ -124,9 +114,11 @@ const TournamentLobby = () => {
   const isWaiting = tournament.status === 'waiting';
   const spotsLeft = tournament.tournamentSize - tournament.participants.length;
 
-  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-8 safe-bottom">
+    <div
+      className="min-h-screen flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-8 safe-bottom"
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+    >
       <div className="w-full max-w-2xl">
 
         {/* Title */}
@@ -134,24 +126,28 @@ const TournamentLobby = () => {
           <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent leading-tight">
             🏆 Tournament
           </h1>
-          <p className="text-blue-300 text-sm mt-1 tracking-widest uppercase">
+          <p className="text-sm mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>
             {tournament.tournamentSize} Players · {tournament.gridSize}×{tournament.gridSize} Grid
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden shadow-2xl">
+        <div
+          className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
+          style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
+        >
 
           {/* Tournament ID + Status */}
-          <div className="p-5 border-b border-white/10">
+          <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">Tournament ID</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--label-color)' }}>Tournament ID</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-white font-mono text-lg font-bold tracking-wider">{tournamentId}</span>
+                  <span className="font-mono text-lg font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>{tournamentId}</span>
                   <button
                     onClick={handleCopyId}
-                    className="text-xs bg-white/10 hover:bg-white/20 text-white/70 px-2 py-1 rounded-lg transition-all active:scale-95"
+                    className="text-xs px-2 py-1 rounded-lg transition-all active:scale-95"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
                   >
                     {showCopied ? '✅ Copied!' : '📋 Copy'}
                   </button>
@@ -170,20 +166,21 @@ const TournamentLobby = () => {
           </div>
 
           {/* Participants */}
-          <div className="p-5 border-b border-white/10">
-            <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-3">
+          <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--label-color)' }}>
               Players ({tournament.participants.length}/{tournament.tournamentSize})
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {tournament.participants.map((p, i) => (
                 <div
                   key={i}
-                  className={`bg-white/5 rounded-xl border border-white/10 p-3 text-center transition-all ${
+                  className={`rounded-xl p-3 text-center transition-all ${
                     p.username === username ? 'ring-2 ring-blue-400' : ''
                   }`}
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
                 >
                   <div className="text-2xl mb-1">{p.avatar}</div>
-                  <div className="text-white text-xs font-semibold truncate">{p.username}</div>
+                  <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{p.username}</div>
                   {p.username === username && (
                     <div className="text-blue-400 text-xs mt-0.5">You</div>
                   )}
@@ -193,10 +190,11 @@ const TournamentLobby = () => {
               {Array.from({ length: spotsLeft > 0 ? spotsLeft : 0 }, (_, i) => (
                 <div
                   key={`empty-${i}`}
-                  className="bg-white/5 rounded-xl border border-dashed border-white/20 p-3 text-center"
+                  className="rounded-xl p-3 text-center"
+                  style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-color-strong)' }}
                 >
                   <div className="text-2xl mb-1 opacity-30">❓</div>
-                  <div className="text-white/30 text-xs">Waiting…</div>
+                  <div className="text-xs" style={{ color: 'var(--text-subtle)' }}>Waiting…</div>
                 </div>
               ))}
             </div>
@@ -204,8 +202,8 @@ const TournamentLobby = () => {
 
           {/* Bracket (shown when tournament started) */}
           {tournament.rounds && tournament.rounds.length > 0 && (
-            <div className="p-5 border-b border-white/10">
-              <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-3">Bracket</label>
+            <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--label-color)' }}>Bracket</label>
               <Bracket
                 rounds={tournament.rounds}
                 participants={tournament.participants}
@@ -217,7 +215,7 @@ const TournamentLobby = () => {
           {/* Waiting message */}
           {isWaiting && (
             <div className="p-5 text-center">
-              <div className="flex items-center justify-center gap-2 text-white/60 text-sm">
+              <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 Share the Tournament ID with friends to start!
               </div>
@@ -238,7 +236,10 @@ const TournamentLobby = () => {
         {/* Winner overlay */}
         {completed && winner && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-yellow-500/30 p-8 w-full max-w-sm shadow-2xl text-center">
+            <div
+              className="rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center"
+              style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))', border: '1px solid rgba(251,191,36,0.3)' }}
+            >
               <div className="text-6xl mb-3 animate-bounce">
                 {tournament.participants.find((p) => p.username === winner)?.avatar || '🏆'}
               </div>
@@ -246,11 +247,10 @@ const TournamentLobby = () => {
                 {winner} Wins!
               </h2>
               <p className="text-yellow-500/80 text-lg mb-1">🏆 Tournament Champion 🏆</p>
-              <p className="text-white/40 text-sm mb-6">
+              <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
                 {tournament.tournamentSize}-player tournament · {tournament.gridSize}×{tournament.gridSize}
               </p>
 
-              {/* Confetti-style decoration */}
               <div className="flex justify-center gap-1 text-2xl mb-6">
                 {['🎉', '✨', '🏆', '✨', '🎉'].map((e, i) => (
                   <span key={i} className="animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>{e}</span>
@@ -272,7 +272,8 @@ const TournamentLobby = () => {
         <div className="text-center mt-4">
           <button
             onClick={() => navigate('/')}
-            className="text-white/30 hover:text-white/60 text-xs transition-all"
+            className="text-xs transition-all"
+            style={{ color: 'var(--text-subtle)' }}
           >
             ← Back to Lobby
           </button>

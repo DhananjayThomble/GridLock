@@ -38,7 +38,7 @@ const formatTimeAgo = (value) => {
 // ── ELO Chart (pure SVG) ────────────────────────────────────────────────────
 const EloChart = ({ history }) => {
   if (!history || history.length < 2) {
-    return <p className="text-white/40 text-sm text-center py-8">Not enough data for chart</p>;
+    return <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>Not enough data for chart</p>;
   }
 
   const width = 600, height = 200, pad = 40;
@@ -80,8 +80,8 @@ const EloChart = ({ history }) => {
           const label = Math.round(maxElo - pct * range);
           return (
             <g key={pct}>
-              <line x1={pad} y1={y} x2={width - pad} y2={y} stroke="rgba(255,255,255,0.1)" />
-              <text x={pad - 5} y={y + 4} textAnchor="end" fill="rgba(255,255,255,0.4)" fontSize="10">{label}</text>
+              <line x1={pad} y1={y} x2={width - pad} y2={y} stroke="var(--border-color)" />
+              <text x={pad - 5} y={y + 4} textAnchor="end" fill="var(--text-muted)" fontSize="10">{label}</text>
             </g>
           );
         })}
@@ -95,7 +95,7 @@ const EloChart = ({ history }) => {
         {/* Current value dot */}
         <circle cx={last.x} cy={last.y} r="4" fill={color} />
       </svg>
-      <div className="flex justify-between text-xs text-white/40 mt-1 px-1">
+      <div className="flex justify-between text-xs mt-1 px-1" style={{ color: 'var(--text-muted)' }}>
         <span>Min: {Math.min(...elos)}</span>
         <span>Current: {elos[elos.length - 1]}</span>
         <span>Max: {Math.max(...elos)}</span>
@@ -111,39 +111,40 @@ const MatchRow = ({ match, onPlayerClick }) => {
   const resultLabels = { win: 'W', loss: 'L', draw: 'D' };
 
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-white/10 last:border-0">
+    <div className="flex items-center gap-3 py-2.5 last:border-0" style={{ borderBottom: '1px solid var(--border-color)' }}>
       <span className={`font-bold text-sm w-6 text-center ${resultColors[match.result]}`}>
         {resultLabels[match.result]}
       </span>
       <div className="flex-1 min-w-0">
         <button
           type="button"
-          className="text-white text-sm cursor-pointer hover:underline bg-transparent border-none p-0"
+          className="text-sm cursor-pointer hover:underline bg-transparent border-none p-0"
+          style={{ color: 'var(--text-primary)' }}
           onClick={() => onPlayerClick?.(match.opponents?.[0])}
         >
           vs {match.opponents?.join(', ') || 'Unknown'}
         </button>
-        <span className="text-white/40 text-xs ml-2">
+        <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
           {match.gridSize}×{match.gridSize} · {match.playerCount}P
         </span>
       </div>
-      <span className="text-white/60 text-xs hidden sm:inline">
+      <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
         {match.scores?.player}-{match.scores?.opponent}
       </span>
       <span className={`text-xs font-bold ${eloChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
         {eloChange >= 0 ? '+' : ''}{eloChange}
       </span>
-      <span className="text-white/30 text-xs hidden sm:inline">{formatTimeAgo(match.playedAt)}</span>
+      <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-subtle)' }}>{formatTimeAgo(match.playedAt)}</span>
     </div>
   );
 };
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ label, value, sub }) => (
-  <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-    <p className="text-xs text-white/50 uppercase tracking-wider">{label}</p>
-    <p className="text-xl font-bold text-white mt-1">{value}</p>
-    {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
+  <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+    <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
+    <p className="text-xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>{value}</p>
+    {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
   </div>
 );
 
@@ -185,15 +186,21 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <div className="text-white/60 text-lg animate-pulse">Loading profile…</div>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+      >
+        <div className="text-lg animate-pulse" style={{ color: 'var(--text-muted)' }}>Loading profile…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div
+        className="min-h-screen flex flex-col items-center justify-center gap-4"
+        style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+      >
         <p className="text-red-400 text-lg">{error}</p>
         <Link to="/leaderboard" className="text-blue-400 hover:underline text-sm">← Back to Leaderboard</Link>
       </div>
@@ -205,21 +212,24 @@ const Profile = () => {
   const p = profile;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 sm:p-6">
+    <div
+      className="min-h-screen p-4 sm:p-6"
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+    >
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Back link */}
-        <Link to="/leaderboard" className="text-white/40 hover:text-white/70 text-sm inline-flex items-center gap-1 transition-colors">
+        <Link to="/leaderboard" className="text-sm inline-flex items-center gap-1 transition-colors hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
           ← Leaderboard
         </Link>
 
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-extrabold text-white">👤 {p.username}</h1>
-          <p className="text-white/50 text-sm mt-1">
+          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>👤 {p.username}</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             Rank #{p.rank} · Member since {formatDate(p.memberSince)}
           </p>
           {p.lastPlayedAt && (
-            <p className="text-white/30 text-xs mt-0.5">Last played {formatTimeAgo(p.lastPlayedAt)}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-subtle)' }}>Last played {formatTimeAgo(p.lastPlayedAt)}</p>
           )}
         </div>
 
@@ -251,7 +261,8 @@ const Profile = () => {
                 value={
                   <button
                     type="button"
-                    className="cursor-pointer hover:underline bg-transparent border-none p-0 text-white text-xl font-bold"
+                    className="cursor-pointer hover:underline bg-transparent border-none p-0 text-xl font-bold"
+                    style={{ color: 'var(--text-primary)' }}
                     onClick={() => handlePlayerClick(p.computed.mostPlayedOpponent)}
                   >
                     {p.computed.mostPlayedOpponent}
@@ -263,14 +274,14 @@ const Profile = () => {
         )}
 
         {/* ELO History Chart */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <h2 className="text-white font-bold mb-3">📈 ELO History</h2>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <h2 className="font-bold mb-3" style={{ color: 'var(--text-primary)' }}>📈 ELO History</h2>
           <EloChart history={p.eloHistory} />
         </div>
 
         {/* Recent Matches */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <h2 className="text-white font-bold mb-3">🎮 Recent Matches</h2>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <h2 className="font-bold mb-3" style={{ color: 'var(--text-primary)' }}>🎮 Recent Matches</h2>
           {p.recentMatches && p.recentMatches.length > 0 ? (
             <div>
               {p.recentMatches.map((match, i) => (
@@ -278,7 +289,7 @@ const Profile = () => {
               ))}
             </div>
           ) : (
-            <p className="text-white/40 text-sm text-center py-6">No matches played yet</p>
+            <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>No matches played yet</p>
           )}
         </div>
       </div>

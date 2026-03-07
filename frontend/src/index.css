@@ -2,6 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme Variables ───────────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --bg-card-hover: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.8);
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --text-subtle: rgba(255, 255, 255, 0.2);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color-strong: rgba(255, 255, 255, 0.2);
+  --accent: #3b82f6;
+  --accent-secondary: #60a5fa;
+  --label-color: #bfdbfe;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --gradient-from: #0f172a;
+  --gradient-via: #172554;
+  --gradient-to: #0f172a;
+  --nav-bg: rgba(15, 23, 42, 0.85);
+  --input-bg: rgba(255, 255, 255, 0.1);
+  --input-placeholder: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #e2e8f0;
+  --bg-card: rgba(0, 0, 0, 0.04);
+  --bg-card-hover: rgba(0, 0, 0, 0.08);
+  --text-primary: #0f172a;
+  --text-secondary: rgba(15, 23, 42, 0.8);
+  --text-muted: rgba(15, 23, 42, 0.5);
+  --text-subtle: rgba(15, 23, 42, 0.25);
+  --border-color: rgba(15, 23, 42, 0.1);
+  --border-color-strong: rgba(15, 23, 42, 0.2);
+  --accent: #2563eb;
+  --accent-secondary: #3b82f6;
+  --label-color: #1e40af;
+  --success: #059669;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --gradient-from: #f1f5f9;
+  --gradient-via: #dbeafe;
+  --gradient-to: #f1f5f9;
+  --nav-bg: rgba(241, 245, 249, 0.9);
+  --input-bg: rgba(0, 0, 0, 0.05);
+  --input-placeholder: rgba(15, 23, 42, 0.4);
+}
+
+/* ── Global placeholder styling ────────────────────────────────────────────── */
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
+}
+
 /* GridLock - Game Polish */
 
 /* Smooth color transitions for grid cells */
