@@ -54,6 +54,13 @@
   --input-placeholder: rgba(15, 23, 42, 0.4);
 }
 
+/* ── Global placeholder styling ────────────────────────────────────────────── */
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
+}
+
 /* GridLock - Game Polish */
 
 /* Smooth color transitions for grid cells */
