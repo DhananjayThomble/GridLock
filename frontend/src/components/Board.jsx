@@ -10,7 +10,8 @@ import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
-import PostGameStatsCard, { countLines } from './PostGameStatsCard';
+import PostGameStatsCard from './PostGameStatsCard';
+import { countLines } from '../utils/postGameUtils';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
