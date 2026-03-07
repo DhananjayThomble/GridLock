@@ -29,24 +29,42 @@ jobs:
           script: |
             set -e
 
-            # ── Use dedicated beta clone (separate from production) ──
+            # ── Pull latest develop ──
             cd ~/projects/GridLock-beta
             git fetch origin develop
             git checkout develop
             git reset --hard origin/develop
 
-            # ── Build frontend ──
-            cd frontend
+            # ── Deploy backend (port 5001, separate DB) ──
+            cd backend
+            npm ci --production
+            MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
+              pm2 reload gridlock-beta-backend --update-env || \
+              MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
+              pm2 start ~/projects/GridLock-beta/backend/server.js --name gridlock-beta-backend
+
+            sleep 2
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/health)
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "❌ Beta backend health check failed (HTTP $HTTP_CODE)"
+              pm2 logs gridlock-beta-backend --lines 10 --nostream
+              exit 1
+            fi
+            echo "✅ Beta backend deployed (port 5001)"
+
+            # ── Build & deploy frontend ──
+            cd ~/projects/GridLock-beta/frontend
             npm ci
             VITE_BASE_PATH=/ \
-            VITE_SOCKET_URL=https://gridlock-api.snapurl.in \
-            VITE_API_BASE_URL=https://gridlock-api.snapurl.in \
+            VITE_SOCKET_URL=https://beta-gridlock.snapurl.in \
+            VITE_API_BASE_URL=https://beta-gridlock.snapurl.in \
             VITE_SITE_URL=https://beta-gridlock.snapurl.in \
             npm run build
 
-            # ── Deploy to Nginx root ──
             sudo rm -rf /var/www/gridlock-beta/*
             sudo cp -r dist/. /var/www/gridlock-beta/
             sudo chown -R www-data:www-data /var/www/gridlock-beta/
 
-            echo "✅ Beta frontend deployed"
+            pm2 save
+
+            echo "✅ Beta deployment complete (frontend + backend)"
