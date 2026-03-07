@@ -6,6 +6,18 @@ const BASE_URL = process.env.TEST_BASE_URL
   || (process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta');
 
 /**
+ * API base resolution strategy:
+ * 1) Explicit TEST_API_URL wins
+ * 2) In CI, default backend is 5000 (see .github/workflows/ci.yml)
+ * 3) Local e2e helper script backend is 5105
+ */
+const getApiBase = () => {
+  if (process.env.TEST_API_URL) return process.env.TEST_API_URL;
+  if (process.env.CI) return 'http://127.0.0.1:5000';
+  return 'http://127.0.0.1:5105';
+};
+
+/**
  * Navigate to the lobby and wait for it to be ready.
  */
 async function goToLobby(page, baseUrl = BASE_URL) {
@@ -102,4 +114,4 @@ async function makeMove(page) {
   return false;
 }
 
-module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, BASE_URL };
+module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, getApiBase, BASE_URL };
