@@ -90,7 +90,7 @@ export const isMuted = () => {
  * Toggle master mute and persist (backward compat API)
  */
 export const toggleMute = () => {
-  const settings = getSoundSettings();
+  const settings = { ...getSoundSettings() };
   settings.masterMute = !settings.masterMute;
   saveSoundSettings(settings);
   return settings.masterMute;

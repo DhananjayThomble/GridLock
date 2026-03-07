@@ -13,13 +13,14 @@ const TOGGLE_OPTIONS = [
 
 const Toggle = ({ checked, onChange, label, disabled = false }) => (
   <button
-    onClick={onChange}
+    onClick={() => { if (disabled) return; onChange(); }}
     className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
     style={{ backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)' }}
     role="switch"
     aria-checked={checked}
     aria-disabled={disabled}
     aria-label={label}
+    tabIndex={disabled ? -1 : 0}
     data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <div
