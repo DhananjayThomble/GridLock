@@ -329,12 +329,12 @@ const Lobby = () => {
                       }}
                       className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95"
                       style={playerCount === value
-                        ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                        ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs opacity-80">{desc}</div>
+                      <div className="text-xs">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -350,11 +350,11 @@ const Lobby = () => {
                       onClick={() => setGridSize(value)}
                       className="py-2 rounded-xl text-center transition-all active:scale-95"
                       style={gridSize === value
-                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
+                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs opacity-80">{desc}</div>
+                      <div className="text-xs">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -394,7 +394,7 @@ const Lobby = () => {
                           onClick={() => setCpuCount(n)}
                           className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95"
                           style={cpuCount === n
-                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                             : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                         >
                           {n} 🤖
@@ -413,12 +413,12 @@ const Lobby = () => {
                           onClick={() => setCpuDifficulty(value)}
                           className="py-2 px-2 rounded-xl text-center transition-all active:scale-95"
                           style={cpuDifficulty === value
-                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                             : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                         >
                           <div className="text-lg">{icon}</div>
                           <div className="text-xs font-bold">{label}</div>
-                          <div className="text-xs opacity-80">{desc}</div>
+                          <div className="text-xs">{desc}</div>
                         </button>
                       ))}
                     </div>
@@ -429,7 +429,7 @@ const Lobby = () => {
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
               >
                 {creating ? (
@@ -473,7 +473,7 @@ const Lobby = () => {
                   onClick={() => setJoinMode('player')}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'player'
-                    ? { background: 'var(--success)', border: '1px solid var(--success)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--success) 30%, transparent)' }
+                    ? { background: 'var(--success)', border: '1px solid var(--success)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--success) 30%, transparent)' }
                     : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   🎮 Join as Player
@@ -482,7 +482,7 @@ const Lobby = () => {
                   onClick={() => setJoinMode('spectator')}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'spectator'
-                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
                     : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   👀 Join as Spectator
@@ -492,7 +492,7 @@ const Lobby = () => {
               <button
                 onClick={handleJoin}
                 disabled={joining}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
               >
                 {joining ? (
@@ -522,12 +522,12 @@ const Lobby = () => {
                       onClick={() => setTournamentSize(value)}
                       className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95"
                       style={tournamentSize === value
-                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs opacity-80">{desc}</div>
+                      <div className="text-xs">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -543,11 +543,11 @@ const Lobby = () => {
                       onClick={() => setTournamentGridSize(value)}
                       className="py-2 rounded-xl text-center transition-all active:scale-95"
                       style={tournamentGridSize === value
-                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: '#ffffff', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
+                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs opacity-80">{desc}</div>
+                      <div className="text-xs">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -556,7 +556,7 @@ const Lobby = () => {
               <button
                 onClick={handleCreateTournament}
                 disabled={creatingTournament}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
               >
                 {creatingTournament ? (
@@ -600,7 +600,7 @@ const Lobby = () => {
               <button
                 onClick={handleJoinTournament}
                 disabled={joiningTournament}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
               >
                 {joiningTournament ? (
