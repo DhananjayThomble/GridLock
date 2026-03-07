@@ -258,7 +258,7 @@ const Lobby = () => {
               spellCheck={false}
               inputMode="text"
               enterKeyHint={tab === 'create' ? 'done' : 'next'}
-              className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+              className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
               style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
             />
 
@@ -268,13 +268,13 @@ const Lobby = () => {
                 <button
                   key={av}
                   onClick={() => setSelectedAvatar(av)}
-                  className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 ${
+                  className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
                     selectedAvatar === av
-                      ? 'ring-2 scale-110 shadow-lg'
+                      ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
                       : ''
                   }`}
                   style={selectedAvatar === av
-                    ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)' }
+                    ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
                     : { background: 'var(--bg-card-hover)' }}
                 >
                   {av}
@@ -334,7 +334,7 @@ const Lobby = () => {
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
+                      <div className="text-xs opacity-80">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -354,7 +354,7 @@ const Lobby = () => {
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
+                      <div className="text-xs opacity-80">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -418,7 +418,7 @@ const Lobby = () => {
                         >
                           <div className="text-lg">{icon}</div>
                           <div className="text-xs font-bold">{label}</div>
-                          <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
+                          <div className="text-xs opacity-80">{desc}</div>
                         </button>
                       ))}
                     </div>
@@ -462,7 +462,7 @@ const Lobby = () => {
                   spellCheck={false}
                   inputMode="text"
                   enterKeyHint="join"
-                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
@@ -527,7 +527,7 @@ const Lobby = () => {
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
+                      <div className="text-xs opacity-80">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -547,7 +547,7 @@ const Lobby = () => {
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">{desc}</div>
+                      <div className="text-xs opacity-80">{desc}</div>
                     </button>
                   ))}
                 </div>
@@ -592,7 +592,7 @@ const Lobby = () => {
                   spellCheck={false}
                   inputMode="text"
                   enterKeyHint="join"
-                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
