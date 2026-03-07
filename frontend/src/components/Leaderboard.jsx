@@ -128,21 +128,28 @@ const Leaderboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 px-3 py-5 sm:px-6 sm:py-8">
+    <div
+      className="min-h-screen px-3 py-5 sm:px-6 sm:py-8"
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+    >
       <div className="mx-auto w-full max-w-5xl">
         <header className="mb-6 text-center sm:mb-8">
-          <h1 className="text-4xl font-extrabold text-white sm:text-5xl">🏆 Leaderboard</h1>
-          <p className="mt-2 text-sm text-blue-200">Top GridLock players by wins, win rate, then ELO</p>
+          <h1 className="text-4xl font-extrabold sm:text-5xl" style={{ color: 'var(--text-primary)' }}>🏆 Leaderboard</h1>
+          <p className="mt-2 text-sm" style={{ color: 'var(--label-color)' }}>Top GridLock players by wins, win rate, then ELO</p>
         </header>
 
-        <section className="mb-4 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-md sm:p-5">
-          <h2 className="mb-3 text-left text-sm font-bold uppercase tracking-wider text-blue-200">Find a player</h2>
+        <section
+          className="mb-4 rounded-2xl p-4 backdrop-blur-md sm:p-5"
+          style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
+        >
+          <h2 className="mb-3 text-left text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Find a player</h2>
           <form className="flex flex-col gap-2 sm:flex-row" onSubmit={onLookup}>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search username"
-              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
               aria-label="Search username"
             />
             <button
@@ -157,13 +164,13 @@ const Leaderboard = () => {
           {playerError && <p className="mt-2 text-left text-sm text-red-300">{playerError}</p>}
 
           {player && (
-            <div className="mt-3 rounded-xl border border-blue-300/30 bg-blue-500/10 p-3 text-left text-sm text-white">
+            <div className="mt-3 rounded-xl border border-blue-300/30 bg-blue-500/10 p-3 text-left text-sm" style={{ color: 'var(--text-primary)' }}>
               <p className="font-bold">
                 <Link to={`/profile/${encodeURIComponent(player.username)}`} className="hover:underline">
                   #{player.rank} {player.username}
                 </Link>
               </p>
-              <p className="mt-1 text-white/80">
+              <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
                 {player.wins}W · {player.losses}L · {player.draws}D · {player.winRate}% WR · ELO {player.elo}
               </p>
             </div>
@@ -171,7 +178,7 @@ const Leaderboard = () => {
         </section>
 
         {loading && (
-          <div className="rounded-2xl border border-white/20 bg-white/10 p-8 text-white/80">Loading leaderboard…</div>
+          <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading leaderboard…</div>
         )}
 
         {!loading && error && (
@@ -181,7 +188,7 @@ const Leaderboard = () => {
         )}
 
         {!loading && !error && rows.length === 0 && (
-          <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-white/70">
+          <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
             No leaderboard data yet. Play some games to claim the top spot.
           </div>
         )}
@@ -190,34 +197,34 @@ const Leaderboard = () => {
           <>
             <section className="mb-4 grid gap-3 sm:grid-cols-3">
               {topThree.map((entry) => (
-                <article key={entry.username} className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-left text-white">
+                <article key={entry.username} className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4 text-left" style={{ color: 'var(--text-primary)' }}>
                   <p className="text-xs uppercase tracking-wider text-amber-200">Rank #{entry.rank}</p>
                   <h3 className="mt-1 text-lg font-bold">
                     <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline hover:text-amber-200 transition-colors">
                       {entry.username}
                     </Link>
                   </h3>
-                  <p className="mt-2 text-sm text-white/80">ELO {entry.elo} · {entry.winRate}% WR</p>
+                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>ELO {entry.elo} · {entry.winRate}% WR</p>
                 </article>
               ))}
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md">
+            <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm text-white">
-                  <thead className="bg-white/10 text-xs uppercase tracking-wider text-blue-200">
+                <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <thead style={{ background: 'var(--bg-card-hover)' }}>
                     <tr>
-                      <th className="px-3 py-3">Rank</th>
-                      <th className="px-3 py-3">Player</th>
-                      <th className="px-3 py-3">W/L/D</th>
-                      <th className="px-3 py-3">Win Rate</th>
-                      <th className="px-3 py-3">ELO</th>
-                      <th className="px-3 py-3">Last Played</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Rank</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Player</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>W/L/D</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Win Rate</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>ELO</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Last Played</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((entry) => (
-                      <tr key={entry.username} className="border-t border-white/10">
+                      <tr key={entry.username} style={{ borderTop: '1px solid var(--border-color)' }}>
                         <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
                         <td className="px-3 py-3">
                           <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline hover:text-blue-300 transition-colors">

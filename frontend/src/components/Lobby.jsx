@@ -7,13 +7,14 @@ import { initAudio } from '../utils/sounds';
 import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
+import ThemeToggle from './ThemeToggle';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
 const PLAYER_COUNT_OPTIONS = [
   { value: 2, label: '2 Players', icon: '👥', desc: 'Classic duel' },
-  { value: 3, label: '3 Players', icon: '👨‍👩‍👦', desc: 'Triple threat' },
-  { value: 4, label: '4 Players', icon: '👨‍👩‍👧‍👦', desc: 'Party mode' },
+  { value: 3, label: '3 Players', icon: '👨👩👦', desc: 'Triple threat' },
+  { value: 4, label: '4 Players', icon: '👨👩👧👦', desc: 'Party mode' },
 ];
 
 const GRID_OPTIONS = [
@@ -220,7 +221,10 @@ const Lobby = () => {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-8 sm:items-center safe-bottom">
+    <div
+      className="min-h-screen flex items-start justify-center p-3 pt-6 sm:p-4 sm:pt-8 sm:items-center safe-bottom"
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+    >
       <div className="w-full max-w-lg">
 
         {/* ── Title ── */}
@@ -228,20 +232,23 @@ const Lobby = () => {
           <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
             GridLock
           </h1>
-          <p className="text-blue-300 text-sm mt-1 tracking-widest uppercase">Multiplayer · 2–4 Players</p>
+          <p className="text-sm mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>Multiplayer · 2–4 Players</p>
           <div className="flex justify-center gap-3 mt-3 text-xl">
             {['•','━','•','━','•'].map((c, i) => (
-              <span key={i} className={c === '•' ? 'animate-bounce inline-block text-blue-400' : 'text-gray-600'} style={{ animationDelay: `${i * 0.1}s` }}>{c}</span>
+              <span key={i} className={c === '•' ? 'animate-bounce inline-block text-blue-400' : ''} style={c !== '•' ? { color: 'var(--text-muted)' } : undefined}>{c}</span>
             ))}
           </div>
         </div>
 
         {/* ── Card ── */}
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden shadow-2xl">
+        <div
+          className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
+          style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
+        >
 
           {/* ── Username + Avatar ── */}
-          <div className="p-5 border-b border-white/10">
-            <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-1.5">Your Name</label>
+          <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
             <input
               type="text"
               value={username}
@@ -255,10 +262,11 @@ const Lobby = () => {
               spellCheck={false}
               inputMode="text"
               enterKeyHint={tab === 'create' ? 'done' : 'next'}
-              className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
             />
 
-            <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mt-3 mb-1.5">Pick Avatar</label>
+            <label className="block text-xs font-bold uppercase tracking-wider mt-3 mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
             <div className="grid grid-cols-8 gap-1.5">
               {AVATARS.map((av) => (
                 <button
@@ -267,22 +275,23 @@ const Lobby = () => {
                   className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 ${
                     selectedAvatar === av
                       ? 'bg-blue-500 ring-2 ring-blue-300 scale-110 shadow-lg'
-                      : 'bg-white/10 hover:bg-white/20'
+                      : ''
                   }`}
+                  style={selectedAvatar !== av ? { background: 'var(--bg-card-hover)' } : undefined}
                 >
                   {av}
                 </button>
               ))}
             </div>
             {username && (
-              <p className="text-center mt-2 text-white/60 text-xs">
-                Playing as {selectedAvatar} <span className="font-bold text-white">{username}</span>
+              <p className="text-center mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Playing as {selectedAvatar} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{username}</span>
               </p>
             )}
           </div>
 
           {/* ── Tabs ── */}
-          <div className="flex border-b border-white/10">
+          <div className="flex" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {[
               { key: 'create', label: '🎮 Create Game' },
               { key: 'join',   label: '🔗 Join Game' },
@@ -293,9 +302,13 @@ const Lobby = () => {
                 onClick={() => setTab(key)}
                 className={`flex-1 py-3 text-sm font-semibold transition-all ${
                   tab === key
-                    ? 'text-white border-b-2 border-blue-400 bg-white/5'
-                    : 'text-white/50 hover:text-white/80'
+                    ? 'border-b-2 border-blue-400'
+                    : ''
                 }`}
+                style={{
+                  color: tab === key ? 'var(--text-primary)' : 'var(--text-muted)',
+                  background: tab === key ? 'var(--bg-card)' : 'transparent',
+                }}
               >
                 {label}
               </button>
@@ -307,22 +320,22 @@ const Lobby = () => {
             <div className="p-5 space-y-4">
               {/* Players */}
               <div>
-                <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-2">Number of Players</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Number of Players</label>
                 <div className="grid grid-cols-3 gap-2">
                   {PLAYER_COUNT_OPTIONS.map(({ value, label, icon, desc }) => (
                     <button
                       key={value}
                       onClick={() => {
                         setPlayerCount(value);
-                        // Clamp cpuCount when playerCount shrinks
                         const maxCpu = Math.max(1, value - 1);
                         if (cpuCount > maxCpu) setCpuCount(maxCpu);
                       }}
-                      className={`py-2.5 px-2 rounded-xl border text-center transition-all active:scale-95 ${
+                      className={`py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 ${
                         playerCount === value
                           ? 'bg-blue-500 border-blue-400 text-white shadow-lg'
-                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          : ''
                       }`}
+                      style={playerCount !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #60a5fa' }}
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
@@ -334,17 +347,18 @@ const Lobby = () => {
 
               {/* Grid size */}
               <div>
-                <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-2">Grid Size</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Grid Size</label>
                 <div className="grid grid-cols-4 gap-2">
                   {GRID_OPTIONS.map(({ value, label, desc }) => (
                     <button
                       key={value}
                       onClick={() => setGridSize(value)}
-                      className={`py-2 rounded-xl border text-center transition-all active:scale-95 ${
+                      className={`py-2 rounded-xl text-center transition-all active:scale-95 ${
                         gridSize === value
                           ? 'bg-purple-500 border-purple-400 text-white shadow-lg'
-                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          : ''
                       }`}
+                      style={gridSize !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #c084fc' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
                       <div className="text-xs opacity-70">{desc}</div>
@@ -357,19 +371,20 @@ const Lobby = () => {
               <div>
                 <button
                   onClick={() => setCpuEnabled(!cpuEnabled)}
-                  className={`w-full py-2.5 px-4 rounded-xl border text-left transition-all active:scale-[0.98] flex items-center justify-between ${
+                  className={`w-full py-2.5 px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between ${
                     cpuEnabled
                       ? 'bg-amber-500/20 border-amber-400/50 text-amber-200'
-                      : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                      : ''
                   }`}
+                  style={!cpuEnabled ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid rgba(251,191,36,0.5)' }}
                 >
                   <span className="flex items-center gap-2">
                     <span className="text-lg">🤖</span>
                     <span className="text-sm font-semibold">Play vs CPU</span>
                   </span>
                   <span className={`w-10 h-5 rounded-full transition-all flex items-center ${
-                    cpuEnabled ? 'bg-amber-400 justify-end' : 'bg-white/20 justify-start'
-                  }`}>
+                    cpuEnabled ? 'bg-amber-400 justify-end' : 'justify-start'
+                  }`} style={!cpuEnabled ? { background: 'var(--bg-card-hover)' } : undefined}>
                     <span className="w-4 h-4 rounded-full bg-white shadow mx-0.5 transition-all" />
                   </span>
                 </button>
@@ -377,7 +392,7 @@ const Lobby = () => {
 
               {/* CPU Settings (visible when enabled) */}
               {cpuEnabled && (
-                <div className="space-y-3 bg-white/5 rounded-xl p-3 border border-white/10">
+                <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                   {/* CPU count */}
                   <div>
                     <label className="block text-amber-200 text-xs font-bold uppercase tracking-wider mb-2">
@@ -388,11 +403,12 @@ const Lobby = () => {
                         <button
                           key={n}
                           onClick={() => setCpuCount(n)}
-                          className={`flex-1 py-2 rounded-xl border text-center text-sm font-bold transition-all active:scale-95 ${
+                          className={`flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95 ${
                             cpuCount === n
                               ? 'bg-amber-500 border-amber-400 text-white shadow-lg'
-                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                              : ''
                           }`}
+                          style={cpuCount !== n ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #fbbf24' }}
                         >
                           {n} 🤖
                         </button>
@@ -408,11 +424,12 @@ const Lobby = () => {
                         <button
                           key={value}
                           onClick={() => setCpuDifficulty(value)}
-                          className={`py-2 px-2 rounded-xl border text-center transition-all active:scale-95 ${
+                          className={`py-2 px-2 rounded-xl text-center transition-all active:scale-95 ${
                             cpuDifficulty === value
                               ? 'bg-amber-500 border-amber-400 text-white shadow-lg'
-                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                              : ''
                           }`}
+                          style={cpuDifficulty !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #fbbf24' }}
                         >
                           <div className="text-lg">{icon}</div>
                           <div className="text-xs font-bold">{label}</div>
@@ -446,7 +463,7 @@ const Lobby = () => {
           {tab === 'join' && (
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-blue-200 text-xs font-bold uppercase tracking-wider mb-1.5">Game ID</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Game ID</label>
                 <input
                   type="text"
                   value={gameId}
@@ -460,7 +477,8 @@ const Lobby = () => {
                   spellCheck={false}
                   inputMode="text"
                   enterKeyHint="join"
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
 
@@ -468,17 +486,19 @@ const Lobby = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setJoinMode('player')}
-                  className={`py-2 rounded-xl border text-sm font-semibold transition-all ${joinMode === 'player'
+                  className={`py-2 rounded-xl text-sm font-semibold transition-all ${joinMode === 'player'
                     ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg'
-                    : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'}`}
+                    : ''}`}
+                  style={joinMode !== 'player' ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #34d399' }}
                 >
                   🎮 Join as Player
                 </button>
                 <button
                   onClick={() => setJoinMode('spectator')}
-                  className={`py-2 rounded-xl border text-sm font-semibold transition-all ${joinMode === 'spectator'
+                  className={`py-2 rounded-xl text-sm font-semibold transition-all ${joinMode === 'spectator'
                     ? 'bg-indigo-500 border-indigo-400 text-white shadow-lg'
-                    : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'}`}
+                    : ''}`}
+                  style={joinMode !== 'spectator' ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #818cf8' }}
                 >
                   👀 Join as Spectator
                 </button>
@@ -498,7 +518,7 @@ const Lobby = () => {
                 ) : (joinMode === 'spectator' ? '👀 Spectate Game' : '🔗 Join Game')}
               </button>
 
-              <p className="text-white/40 text-xs text-center">
+              <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
                 Ask the game creator for their room code
               </p>
             </div>
@@ -515,11 +535,12 @@ const Lobby = () => {
                     <button
                       key={value}
                       onClick={() => setTournamentSize(value)}
-                      className={`py-2.5 px-2 rounded-xl border text-center transition-all active:scale-95 ${
+                      className={`py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 ${
                         tournamentSize === value
                           ? 'bg-yellow-500 border-yellow-400 text-white shadow-lg'
-                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          : ''
                       }`}
+                      style={tournamentSize !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #facc15' }}
                     >
                       <div className="text-lg">{icon}</div>
                       <div className="text-xs font-bold">{label}</div>
@@ -537,11 +558,12 @@ const Lobby = () => {
                     <button
                       key={value}
                       onClick={() => setTournamentGridSize(value)}
-                      className={`py-2 rounded-xl border text-center transition-all active:scale-95 ${
+                      className={`py-2 rounded-xl text-center transition-all active:scale-95 ${
                         tournamentGridSize === value
                           ? 'bg-purple-500 border-purple-400 text-white shadow-lg'
-                          : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          : ''
                       }`}
+                      style={tournamentGridSize !== value ? { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' } : { border: '1px solid #c084fc' }}
                     >
                       <div className="text-sm font-bold">{label}</div>
                       <div className="text-xs opacity-70">{desc}</div>
@@ -568,9 +590,9 @@ const Lobby = () => {
 
               {/* Divider */}
               <div className="flex items-center gap-3">
-                <div className="flex-1 border-t border-white/10" />
-                <span className="text-white/30 text-xs font-bold uppercase">or join</span>
-                <div className="flex-1 border-t border-white/10" />
+                <div className="flex-1" style={{ borderTop: '1px solid var(--border-color)' }} />
+                <span className="text-xs font-bold uppercase" style={{ color: 'var(--text-subtle)' }}>or join</span>
+                <div className="flex-1" style={{ borderTop: '1px solid var(--border-color)' }} />
               </div>
 
               {/* Join Tournament */}
@@ -589,7 +611,8 @@ const Lobby = () => {
                   spellCheck={false}
                   inputMode="text"
                   enterKeyHint="join"
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                  className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                 />
               </div>
 
@@ -609,28 +632,32 @@ const Lobby = () => {
                 )}
               </button>
 
-              <p className="text-white/40 text-xs text-center">
+              <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
                 Single-elimination bracket · Winner takes all 🏆
               </p>
             </div>
           )}
         </div>
 
-        <p className="text-center text-white/20 text-xs mt-4">GridLock · Real-time Multiplayer</p>
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-subtle)' }}>GridLock · Real-time Multiplayer</p>
 
-        {/* ── PWA Install Button ── */}
-        {installPrompt && (
-          <button
-            onClick={handleInstall}
-            className="w-full mt-2 py-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
-          >
-            📲 Install App
-          </button>
-        )}
+        {/* ── Theme Toggle + PWA Install Button ── */}
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <ThemeToggle />
+          {installPrompt && (
+            <button
+              onClick={handleInstall}
+              className="py-2.5 px-4 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+            >
+              📲 Install App
+            </button>
+          )}
+        </div>
 
         {/* ── Push Notification Toggle ── */}
         <div className="flex items-center justify-between mt-3 px-1">
-          <span className="text-white/50 text-xs font-medium">🔔 Push Notifications</span>
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>🔔 Push Notifications</span>
           <button
             onClick={async () => {
               const name = username.trim();
@@ -649,7 +676,7 @@ const Lobby = () => {
               }
             }}
             className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
-            style={{ backgroundColor: pushEnabled ? '#FBBF24' : 'rgba(255,255,255,0.2)' }}
+            style={{ backgroundColor: pushEnabled ? '#FBBF24' : 'var(--bg-card-hover)' }}
             aria-label="Toggle push notifications"
           >
             <div
@@ -668,16 +695,17 @@ const Lobby = () => {
               if (next) setStats(getStats()); // refresh on open, not via useEffect
               setShowStats(next);
             }}
-            className="w-full py-2 text-xs font-semibold text-white/40 hover:text-white/70 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+            style={{ color: 'var(--text-muted)' }}
           >
             <span>📊 Your Stats</span>
             <span>{showStats ? '▲' : '▼'}</span>
           </button>
 
           {showStats && (
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-4 mt-1 space-y-3">
+            <div className="backdrop-blur-md rounded-2xl p-4 mt-1 space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
               {stats.gamesPlayed === 0 ? (
-                <p className="text-center text-white/30 text-xs py-2">No games played yet this session.</p>
+                <p className="text-center text-xs py-2" style={{ color: 'var(--text-subtle)' }}>No games played yet this session.</p>
               ) : (
                 <>
                   {/* Summary row */}
@@ -687,9 +715,9 @@ const Lobby = () => {
                       { label: 'Wins', value: stats.wins },
                       { label: 'Win Rate', value: getWinRate() },
                     ].map(({ label, value }) => (
-                      <div key={label} className="bg-white/10 rounded-xl py-2">
-                        <div className="text-white font-bold text-lg">{value}</div>
-                        <div className="text-white/40 text-xs">{label}</div>
+                      <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card-hover)' }}>
+                        <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{value}</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
                       </div>
                     ))}
                   </div>
@@ -700,9 +728,9 @@ const Lobby = () => {
                       { label: 'Best Territory', value: `${stats.bestTerritory}%` },
                       { label: 'Best Streak', value: `${stats.bestStreak} 🔥` },
                     ].map(({ label, value }) => (
-                      <div key={label} className="bg-white/10 rounded-xl py-2">
-                        <div className="text-white font-bold text-sm">{value}</div>
-                        <div className="text-white/40 text-xs">{label}</div>
+                      <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card-hover)' }}>
+                        <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{value}</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
                       </div>
                     ))}
                   </div>
@@ -717,7 +745,7 @@ const Lobby = () => {
                   {/* Last 5 games */}
                   {stats.history.length > 0 && (
                     <div>
-                      <p className="text-white/40 text-xs mb-1.5 uppercase tracking-wider">Last {Math.min(stats.history.length, 5)} Games</p>
+                      <p className="text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Last {Math.min(stats.history.length, 5)} Games</p>
                       <div className="flex gap-1.5 flex-wrap">
                         {stats.history.slice(0, 5).map((g, i) => (
                           <div
@@ -741,7 +769,8 @@ const Lobby = () => {
                   {/* Reset */}
                   <button
                     onClick={() => { resetStats(); setStats(getStats()); }}
-                    className="w-full text-xs text-white/20 hover:text-white/50 transition-all py-1"
+                    className="w-full text-xs transition-all py-1"
+                    style={{ color: 'var(--text-subtle)' }}
                   >
                     Reset stats
                   </button>
