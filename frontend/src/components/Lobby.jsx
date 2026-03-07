@@ -8,6 +8,7 @@ import socket from '../socket';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import ThemeToggle from './ThemeToggle';
+import SoundSettings from './SoundSettings';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -672,6 +673,9 @@ const Lobby = () => {
             />
           </button>
         </div>
+
+        {/* ── Sound & Haptic Settings ── */}
+        <SoundSettings />
 
         {/* ── Session Stats Panel ── */}
         <div className="mt-3">
