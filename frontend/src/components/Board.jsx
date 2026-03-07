@@ -766,7 +766,7 @@ const Board = () => {
             )}
             {tournamentId && (
               <div className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center" style={{ color: 'var(--warning)', backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)` }}>
-                <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin inline-block mr-2 align-middle" style={{ borderTopColor: 'var(--warning)' }} />
+                <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin inline-block mr-2 align-middle" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'var(--warning)' }} />
                 Next match loading…
               </div>
             )}

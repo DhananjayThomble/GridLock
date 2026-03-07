@@ -104,7 +104,7 @@ const TournamentLobby = () => {
         style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
       >
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-current/40 border-t-current rounded-full animate-spin mx-auto mb-3" />
+          <div className="w-8 h-8 border-2 border-current border-t-current rounded-full animate-spin mx-auto mb-3" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading tournament…</p>
         </div>
       </div>
@@ -175,7 +175,7 @@ const TournamentLobby = () => {
                 <div
                   key={i}
                   className={`rounded-xl p-3 text-center transition-all ${
-                    p.username === username ? 'ring-2 ring-blue-400' : ''
+                    p.username === username ? 'ring-2 ring-[var(--accent)]' : ''
                   }`}
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
                 >
@@ -216,7 +216,7 @@ const TournamentLobby = () => {
           {isWaiting && (
             <div className="p-5 text-center">
               <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                 Share the Tournament ID with friends to start!
               </div>
             </div>

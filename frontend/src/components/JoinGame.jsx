@@ -118,7 +118,7 @@ const JoinGame = () => {
                 spellCheck={false}
                 inputMode="text"
                 enterKeyHint="join"
-                className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                className="w-full rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                 style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
               />
             </div>
@@ -169,7 +169,7 @@ const JoinGame = () => {
             >
               {joining ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
                   Joining…
                 </span>
               ) : (
