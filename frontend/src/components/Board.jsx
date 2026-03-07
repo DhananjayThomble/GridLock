@@ -775,7 +775,9 @@ const Board = () => {
                 }}
               >
                 {rematchRequested ? (
-                  <>⏳ Waiting...</>
+                  rematchCount.count >= rematchCount.total && rematchCount.total > 0
+                    ? <>🚀 Starting...</>
+                    : <>⏳ Waiting...</>
                 ) : (
                   <>🔄 Play Again</>
                 )}
