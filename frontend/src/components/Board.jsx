@@ -12,22 +12,6 @@ import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 import PostGameStatsCard, { countLines } from './PostGameStatsCard';
 
-// ─── Turn toast component ─────────────────────────────────────────────────────
-const TurnToast = ({ visible, color }) => (
-  <div
-    className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none ${
-      visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-4 scale-90'
-    }`}
-  >
-    <div
-      className="px-5 py-2.5 rounded-full font-extrabold text-white text-sm shadow-lg"
-      style={{ background: color || 'var(--success)' }}
-    >
-      ⚡ YOUR TURN!
-    </div>
-  </div>
-);
-
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
   player1: { colorVar: '--player1-color', bgVar: '--player1-bg', label: 'P1' },
@@ -132,7 +116,6 @@ const Board = () => {
   const gameStartTimeRef = useRef(null);
 
   // ── Turn indicator state ──────────────────────────────────────────────────────
-  const [showTurnToast, setShowTurnToast] = useState(false);
   const [boardPulse, setBoardPulse] = useState(false);
   const prevPlayerRef = useRef(null);
 
@@ -179,17 +162,12 @@ const Board = () => {
       initAudio();
       sounds.turnNotify();
 
-      // Show "YOUR TURN" toast + board glow pulse (deferred to avoid sync setState in effect)
-      const toastTimer = setTimeout(() => {
-        setShowTurnToast(true);
-        setBoardPulse(true);
-      }, 0);
-      const hideToastTimer = setTimeout(() => setShowTurnToast(false), 1500);
+      // Board glow pulse (deferred to avoid sync setState in effect)
+      const pulseTimer = setTimeout(() => setBoardPulse(true), 0);
       const hidePulseTimer = setTimeout(() => setBoardPulse(false), 1200);
 
       return () => {
-        clearTimeout(toastTimer);
-        clearTimeout(hideToastTimer);
+        clearTimeout(pulseTimer);
         clearTimeout(hidePulseTimer);
       };
     }
@@ -289,8 +267,8 @@ const Board = () => {
         if (!gameOverRecorded.current && roleRef.current !== 'spectator') {
           gameOverRecorded.current = true;
           const myScore = gs.scores?.[role] || 0;
-          const totalBoxes = (gridSize || 3) * (gridSize || 3);
-          const territoryPct = Math.round((myScore / totalBoxes) * 100);
+          const totalBoxes = ((gridSize || 3) - 1) * ((gridSize || 3) - 1);
+          const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
           // Win/lose sound
@@ -860,7 +838,6 @@ const Board = () => {
   return (
     <div className="game-layout flex flex-col items-center" style={{ minHeight: '100dvh', backgroundColor: 'var(--bg-primary)' }}>
       {renderWinnerModal()}
-      <TurnToast visible={showTurnToast} color={myPlayerColor} />
 
       {/* ── Live ScoreBar (fixed top) ── */}
       {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
