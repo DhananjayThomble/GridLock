@@ -9,6 +9,7 @@ import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sess
 import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import ThemeToggle from './ThemeToggle';
 import SoundSettings from './SoundSettings';
+import QuickPlay from './QuickPlay';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -58,6 +59,8 @@ const Lobby = () => {
   const [joiningTournament, setJoiningTournament]   = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
+  const [quickPlaying, setQuickPlaying] = useState(false);
+  const [queueSize, setQueueSize] = useState(1);
   const navigate = useNavigate();
 
 
@@ -110,6 +113,41 @@ const Lobby = () => {
     };
   }, [navigate, username, selectedAvatar]);
 
+  // ── Socket: Quick Play matchmaking events ─────────────────────────────────
+  useEffect(() => {
+    const onQueueMatched = ({ gameId: gid, playerId, sessionToken, gridSize: gs, playerCount: pc, players, gameState }) => {
+      setQuickPlaying(false);
+      navigate('/game', {
+        state: {
+          username: username.trim(),
+          gridSize: gs,
+          gameId: gid,
+          role: playerId,
+          avatar: selectedAvatar,
+          playerCount: pc,
+          sessionToken,
+        },
+      });
+    };
+
+    const onQueueStatus = ({ position, queueSize: qs }) => {
+      setQueueSize(qs);
+    };
+
+    const onQueueTimeout = () => {
+      // QuickPlay component handles UI — this is just for logging
+    };
+
+    socket.on('queue_matched', onQueueMatched);
+    socket.on('queue_status', onQueueStatus);
+    socket.on('queue_timeout', onQueueTimeout);
+    return () => {
+      socket.off('queue_matched', onQueueMatched);
+      socket.off('queue_status', onQueueStatus);
+      socket.off('queue_timeout', onQueueTimeout);
+    };
+  }, [navigate, username, selectedAvatar, gridSize, playerCount]);
+
   // ── PWA Install Prompt ──────────────────────────────────────────────────────
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -148,6 +186,49 @@ const Lobby = () => {
     if (!socket.connected) socket.connect();
     setJoiningTournament(true);
     socket.emit('join_tournament', { tournamentId: id, username: name, avatar: selectedAvatar });
+  };
+
+  // ── Quick Play ───────────────────────────────────────────────────────────
+  const handleQuickPlay = () => {
+    initAudio();
+    const name = username.trim();
+    if (!name) return alert('Please enter a username');
+    if (!socket.connected) socket.connect();
+    localStorage.setItem('gridlock_username', name);
+    setQuickPlaying(true);
+    setQueueSize(1);
+    socket.emit('queue_join', { username: name, avatar: selectedAvatar, gridSize, playerCount });
+  };
+
+  const handleQuickPlayCancel = () => {
+    socket.emit('queue_leave');
+    setQuickPlaying(false);
+  };
+
+  const handleQuickPlayCPU = () => {
+    socket.emit('queue_leave');
+    setQuickPlaying(false);
+    // Create a CPU game with current preferences
+    const name = username.trim();
+    if (!socket.connected) socket.connect();
+    setCreating(true);
+    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
+      if (res?.gameId) {
+        setCreating(false);
+        navigate('/game', {
+          state: {
+            username: name,
+            gridSize,
+            gameId: res.gameId,
+            role: res.playerId,
+            avatar: selectedAvatar,
+            playerCount,
+            sessionToken: res.sessionToken,
+            cpuDifficulty: 'medium',
+          },
+        });
+      }
+    });
   };
 
   // ── Create ──────────────────────────────────────────────────────────────────
@@ -286,6 +367,24 @@ const Lobby = () => {
                 Playing as {selectedAvatar} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{username}</span>
               </p>
             )}
+          </div>
+
+          {/* ── Quick Play Button ── */}
+          <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={handleQuickPlay}
+              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
+                color: 'var(--text-on-accent)',
+                boxShadow: '0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)',
+              }}
+            >
+              ⚡ Quick Play
+            </button>
+            <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-muted)' }}>
+              Instant match with random opponents
+            </p>
           </div>
 
           {/* ── Tabs ── */}
@@ -767,6 +866,17 @@ const Lobby = () => {
         </div>
 
       </div>
+
+      {/* ── Quick Play Overlay ── */}
+      {quickPlaying && (
+        <QuickPlay
+          gridSize={gridSize}
+          playerCount={playerCount}
+          queueSize={queueSize}
+          onCancel={handleQuickPlayCancel}
+          onPlayCPU={handleQuickPlayCPU}
+        />
+      )}
     </div>
   );
 };
