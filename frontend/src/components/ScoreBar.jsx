@@ -13,7 +13,7 @@ import React from 'react';
  * @param {string} currentPlayer - ID of the current player
  */
 const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
-  const totalTiles = gridSize * gridSize;
+  const totalTiles = (gridSize - 1) * (gridSize - 1);
   // On mobile with 3-4 players, split into two rows of 2
   const splitIntoRows = players.length > 2;
 
