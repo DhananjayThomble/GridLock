@@ -763,7 +763,7 @@ const Board = () => {
               <button
                 onClick={handlePlayAgain}
                 disabled={rematchRequested}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
+                className={`flex-1 py-2.5 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all ${
                   rematchRequested
                     ? 'cursor-not-allowed'
                     : 'active:scale-95 hover:shadow-lg'
@@ -807,7 +807,6 @@ const Board = () => {
               </span> players ready for rematch
             </div>
           )}
-
 
         </div>
       </div>

@@ -52,6 +52,8 @@
   /* Board-specific */
   --dot-color:        #484f58;
   --line-empty:       #21262d;
+
+  --text-on-accent:   #ffffff;
 }
 
 [data-theme="light"] {
@@ -102,6 +104,8 @@
   /* Board-specific */
   --dot-color:        #1f2328;
   --line-empty:       #d0d7de;
+
+  --text-on-accent:   #ffffff;
 }
 
 /* ── Theme transition (only during toggle) ─────────────────────────────────── */
