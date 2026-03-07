@@ -429,7 +429,7 @@ const Lobby = () => {
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
               >
                 {creating ? (
@@ -492,7 +492,7 @@ const Lobby = () => {
               <button
                 onClick={handleJoin}
                 disabled={joining}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
               >
                 {joining ? (
@@ -556,7 +556,7 @@ const Lobby = () => {
               <button
                 onClick={handleCreateTournament}
                 disabled={creatingTournament}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
               >
                 {creatingTournament ? (
@@ -600,7 +600,7 @@ const Lobby = () => {
               <button
                 onClick={handleJoinTournament}
                 disabled={joiningTournament}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
               >
                 {joiningTournament ? (
