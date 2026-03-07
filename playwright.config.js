@@ -47,6 +47,18 @@ module.exports = defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'mobile-iphone',
+      use: { ...devices['iPhone 14'] },
+    },
+    {
+      name: 'mobile-pixel',
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'tablet-ipad',
+      use: { ...devices['iPad Mini'] },
+    },
   ],
 
   // In CI: start vite preview before tests, kill after.
