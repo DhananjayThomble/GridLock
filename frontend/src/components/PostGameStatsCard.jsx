@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { formatDuration, calcEloChange } from '../utils/postGameUtils';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -18,39 +19,6 @@ const PLAYER_CONFIG = {
 };
 
 const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1;
-
-// ─── Utility functions ──────────────────────────────────────────────────────
-export const formatDuration = (seconds) => {
-  if (!seconds && seconds !== 0) return '—';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-};
-
-/**
- * Count total placed lines in a game state.
- * Extracted as module-level utility to avoid recreation on every render.
- */
-export const countLines = (state) => {
-  let total = 0;
-  if (state?.horizontalLines) state.horizontalLines.forEach(row => row.forEach(v => { if (v) total++; }));
-  if (state?.verticalLines) state.verticalLines.forEach(row => row.forEach(v => { if (v) total++; }));
-  return total;
-};
-
-/**
- * Calculate ELO change with proper draw support.
- * @param {number} playerElo
- * @param {number} opponentElo
- * @param {'win'|'draw'|'loss'} outcome
- * @returns {number} ELO delta (rounded)
- */
-export const calcEloChange = (playerElo, opponentElo, outcome) => {
-  const K = 32;
-  const expected = 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
-  const actual = outcome === 'win' ? 1.0 : outcome === 'draw' ? 0.5 : 0.0;
-  return Math.round(K * (actual - expected));
-};
 
 /**
  * Fetch a player's ELO from the profile API.
@@ -102,9 +70,9 @@ const PostGameStatsCard = ({
     if (!bothHuman || !gameState) return;
 
     let cancelled = false;
-    setEloLoading(true);
 
     const loadElos = async () => {
+      setEloLoading(true);
       const results = {};
       await Promise.all(
         playerIds.map(async (pid) => {
