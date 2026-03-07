@@ -3,14 +3,8 @@
 const { test, expect } = require('@playwright/test');
 const {
   goToLobby, createGame, joinGame,
-  waitForGameStart, getTurnState, makeMove, BASE_URL,
+  waitForGameStart, getTurnState, makeMove, getApiBase, BASE_URL,
 } = require('./helpers');
-
-const getApiBase = () => {
-  if (process.env.TEST_API_URL) return process.env.TEST_API_URL;
-  if (process.env.CI) return 'http://127.0.0.1:5000';
-  return 'http://127.0.0.1:5105';
-};
 
 test.describe('Player Profile Page', () => {
 
@@ -87,34 +81,36 @@ test.describe('Player Profile Page', () => {
     await joinGame(p2, { username: 'ProfileBot', roomCode });
     await waitForGameStart(p1, p2);
 
-    // Play full game
-    let gameOver = false;
-    for (let i = 0; i < 24 && !gameOver; i++) {
-      const { p1HasTurn, p2HasTurn } = await getTurnState(p1, p2);
-      const current = p1HasTurn ? p1 : p2HasTurn ? p2 : null;
-      if (!current) break;
-      await makeMove(current);
-      await p1.waitForTimeout(300);
-      const t = await p1.locator('body').innerText();
-      if (t.includes('Game Over') || t.includes('Play Again') || t.includes('Winner')) {
-        gameOver = true;
-      }
-    }
-
-    if (gameOver) {
-      // Check profile API for the player
-      const res = await request.get(`${getApiBase()}/api/profile/${encodeURIComponent(profileName)}`);
-      if (res.status() === 200) {
-        const data = await res.json();
-        if (data.success && data.profile) {
-          expect(data.profile.gamesPlayed).toBeGreaterThanOrEqual(1);
+    try {
+      // Play full game
+      let gameOver = false;
+      for (let i = 0; i < 24 && !gameOver; i++) {
+        const { p1HasTurn, p2HasTurn } = await getTurnState(p1, p2);
+        const current = p1HasTurn ? p1 : p2HasTurn ? p2 : null;
+        if (!current) break;
+        await makeMove(current);
+        await p1.waitForTimeout(300);
+        const t = await p1.locator('body').innerText();
+        if (t.includes('Game Over') || t.includes('Play Again') || t.includes('Winner')) {
+          gameOver = true;
         }
       }
-      // If 404, profile system may not persist for test users — that's OK
-    }
 
-    await ctx1.close();
-    await ctx2.close();
+      if (gameOver) {
+        // Check profile API for the player
+        const res = await request.get(`${getApiBase()}/api/profile/${encodeURIComponent(profileName)}`);
+        if (res.status() === 200) {
+          const data = await res.json();
+          if (data.success && data.profile) {
+            expect(data.profile.gamesPlayed).toBeGreaterThanOrEqual(1);
+          }
+        }
+        // If 404, profile system may not persist for test users — that's OK
+      }
+    } finally {
+      await ctx1.close();
+      await ctx2.close();
+    }
   });
 
 });

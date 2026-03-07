@@ -62,7 +62,7 @@ test.describe('Navigation Edge Cases', () => {
     await page.waitForTimeout(2000);
 
     const body = await page.locator('body').innerText();
-    // SPA should render the lobby as fallback
+    // SPA should render its main navigation (including Lobby link), not a blank/error page
     expect(body).toContain('Lobby');
   });
 

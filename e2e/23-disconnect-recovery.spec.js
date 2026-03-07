@@ -59,19 +59,19 @@ test.describe('Disconnect & Recovery', () => {
       // Simulate disconnect by closing P2's page
       await p2.close();
       await ctx2.close();
-      await p1.waitForTimeout(5000);
+      await p1.waitForTimeout(2000);
 
-      // Reconnect P2 by creating a new context and joining the same game
+      // Reconnect P2 quickly (before 8s test-mode disconnect timeout expires)
       ctx2 = await browser.newContext();
       p2 = await ctx2.newPage();
       await joinGame(p2, { username: 'ReconBob', roomCode });
 
-      await p1.waitForTimeout(5000);
+      await p1.waitForTimeout(3000);
 
-      // P1 should see the game is back (either error cleared, or turn indicator present)
+      // P1 should see the game is back (turn indicator present, no active disconnect state)
       const p1Body = await p1.locator('body').innerText();
-      const gameActive = p1Body.includes('turn') || p1Body.includes('Turn') ||
-        !p1Body.includes('disconnected');
+      const gameActive = (p1Body.includes('turn') || p1Body.includes('Turn')) &&
+        !p1Body.includes('forfeited due to disconnect');
       expect(gameActive, `Game should be active after reconnect. Body: ${p1Body.slice(0, 300)}`).toBe(true);
     } finally {
       await ctx1.close();
@@ -147,7 +147,7 @@ test.describe('Disconnect & Recovery', () => {
       await p2.close();
       await ctx2.close();
 
-      // Poll for forfeit — reconnect window is 60s on backend
+      // Poll for forfeit — reconnect window is 8s in test mode (DISCONNECT_TIMEOUT_MS)
       let forfeited = false;
       for (let i = 0; i < 16; i++) {
         await p1.waitForTimeout(5000);
@@ -160,7 +160,7 @@ test.describe('Disconnect & Recovery', () => {
           break;
         }
       }
-      expect(forfeited, 'Prolonged disconnect should trigger forfeit within 80s').toBe(true);
+      expect(forfeited, 'Prolonged disconnect should trigger forfeit after timeout expires').toBe(true);
     } finally {
       await ctx1.close();
       await ctx2.close().catch(() => {});
