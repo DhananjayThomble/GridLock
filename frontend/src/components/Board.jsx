@@ -10,6 +10,7 @@ import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
+import PostGameStatsCard, { countLines } from './PostGameStatsCard';
 
 // ─── Turn toast component ─────────────────────────────────────────────────────
 const TurnToast = ({ visible, color }) => (
@@ -81,105 +82,6 @@ function useGridSizes(gridSize) {
 
   return sizes;
 }
-
-// ─── Post-Game Stats Card ─────────────────────────────────────────────────────
-const formatDuration = (seconds) => {
-  if (!seconds && seconds !== 0) return '—';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-};
-
-const calcEloChange = (playerElo = 1200, opponentElo = 1200, won) => {
-  const K = 32;
-  const expected = 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
-  const actual = won ? 1 : 0;
-  return Math.round(K * (actual - expected));
-};
-
-const PostGameStatsCard = ({ gameState, scores, playerIds, gridSize, moveCount, gameDuration, role, winnerData }) => {
-  const totalBoxes = (gridSize || 3) * (gridSize || 3);
-
-  return (
-    <div
-      className="stats-card-fade-in rounded-xl p-3 mb-4 w-full"
-      data-testid="post-game-stats"
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
-      }}
-    >
-      <h3
-        className="text-xs font-bold uppercase tracking-wider mb-2 text-center"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        📊 Game Stats
-      </h3>
-
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-        {playerIds.map((pid) => {
-          const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
-          const score = scores?.[pid] ?? 0;
-          const pct = totalBoxes > 0 ? Math.round((score / totalBoxes) * 100) : 0;
-          const cfg = getConfig(pid);
-          return (
-            <div key={`terr-${pid}`} className="flex items-center justify-between">
-              <span className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>{name}</span>
-              <span className="text-xs font-bold" style={{ color: `var(${cfg.colorVar})` }} data-testid={`territory-pct-${pid}`}>{pct}%</span>
-            </div>
-          );
-        })}
-
-        <div className="col-span-2 border-t my-1" style={{ borderColor: 'var(--border-color)' }} />
-
-        {playerIds.map((pid) => {
-          const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
-          const moves = moveCount?.[pid] ?? 0;
-          return (
-            <div key={`moves-${pid}`} className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{name} moves</span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid={`move-count-${pid}`}>{moves}</span>
-            </div>
-          );
-        })}
-
-        <div className="col-span-2 border-t my-1" style={{ borderColor: 'var(--border-color)' }} />
-
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⏱ Duration</span>
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid="game-duration">{formatDuration(gameDuration)}</span>
-        </div>
-
-        {playerIds.length === 2 && !gameState?.[`${playerIds[0]}IsCPU`] && !gameState?.[`${playerIds[1]}IsCPU`] && (
-          <div className="flex items-center justify-between">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO Δ</span>
-            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid="elo-change">
-              {(() => {
-                if (!role || role === 'spectator') return '—';
-                const isWinner = winnerData?.winner === role;
-                const delta = calcEloChange(1200, 1200, isWinner);
-                return delta >= 0 ? `+${delta}` : `${delta}`;
-              })()}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-center gap-3 mt-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
-        {playerIds.map((pid) => {
-          const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
-          const isCPU = !!gameState?.[`${pid}IsCPU`];
-          if (isCPU) return null;
-          return (
-            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline" style={{ color: 'var(--accent)' }} data-testid={`profile-link-${pid}`}>
-              👤 {name}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Board = () => {
@@ -357,19 +259,20 @@ const Board = () => {
       }
 
       // ── Track moves per player & game start time ────────────────────────────
-      const countLines = (state) => {
-        let total = 0;
-        if (state?.horizontalLines) state.horizontalLines.forEach(row => row.forEach(v => { if (v) total++; }));
-        if (state?.verticalLines) state.verticalLines.forEach(row => row.forEach(v => { if (v) total++; }));
-        return total;
-      };
       const currentLineCount = countLines(gs);
       if (currentLineCount > prevLineCountRef.current) {
         const lineOwners = {};
         if (gs.horizontalLines) gs.horizontalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
         if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
         setMoveCount(lineOwners);
-        if (prevLineCountRef.current === 0) gameStartTimeRef.current = Date.now();
+        if (prevLineCountRef.current === 0 && currentLineCount > 0) {
+          // Only set game start if this is truly the first move (1 line).
+          // If currentLineCount > 1 on first update, we reconnected mid-game —
+          // leave gameStartTimeRef null so duration shows "—" instead of wrong values.
+          if (currentLineCount === 1) {
+            gameStartTimeRef.current = Date.now();
+          }
+        }
       }
       prevLineCountRef.current = currentLineCount;
 
