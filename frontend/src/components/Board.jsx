@@ -287,7 +287,10 @@ const Board = () => {
       }
     };
 
-    const onError = (msg) => { setError(typeof msg === 'string' ? msg : JSON.stringify(msg)); };
+    const onError = (msg) => {
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setTimeout(() => setError(null), 3000);
+    };
 
     const onRematchCount = (data) => {
       setRematchCount({ count: data.count, total: data.total });

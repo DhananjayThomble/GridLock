@@ -616,7 +616,7 @@ const Lobby = () => {
           )}
         </div>
 
-        <p className="text-center text-white/20 text-xs mt-4">GridLock Beta · Real-time Multiplayer</p>
+        <p className="text-center text-white/20 text-xs mt-4">GridLock · Real-time Multiplayer</p>
 
         {/* ── PWA Install Button ── */}
         {installPrompt && (
