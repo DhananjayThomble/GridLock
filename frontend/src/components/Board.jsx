@@ -7,7 +7,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
-import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
+import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 
@@ -82,6 +82,144 @@ function useGridSizes(gridSize) {
   return sizes;
 }
 
+// ─── Post-Game Stats Card ─────────────────────────────────────────────────────
+const formatDuration = (seconds) => {
+  if (!seconds && seconds !== 0) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+};
+
+const calcEloChange = (playerElo = 1200, opponentElo = 1200, won) => {
+  const K = 32;
+  const expected = 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
+  const actual = won ? 1 : 0;
+  return Math.round(K * (actual - expected));
+};
+
+const PostGameStatsCard = ({ gameState, scores, playerIds, gridSize, moveCount, gameDuration, role, winnerData }) => {
+  const totalBoxes = (gridSize || 3) * (gridSize || 3);
+
+  return (
+    <div
+      className="stats-card-fade-in rounded-xl p-3 mb-4 w-full"
+      data-testid="post-game-stats"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+      }}
+    >
+      <h3
+        className="text-xs font-bold uppercase tracking-wider mb-2 text-center"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        📊 Game Stats
+      </h3>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        {/* Territory % */}
+        {playerIds.map((pid) => {
+          const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
+          const score = scores?.[pid] ?? 0;
+          const pct = totalBoxes > 0 ? Math.round((score / totalBoxes) * 100) : 0;
+          const cfg = getConfig(pid);
+          return (
+            <div key={`terr-${pid}`} className="flex items-center justify-between">
+              <span className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>
+                {name}
+              </span>
+              <span
+                className="text-xs font-bold"
+                style={{ color: cfg.color }}
+                data-testid={`territory-pct-${pid}`}
+              >
+                {pct}%
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Separator */}
+        <div className="col-span-2 border-t my-1" style={{ borderColor: 'var(--border-color)' }} />
+
+        {/* Move counts */}
+        {playerIds.map((pid) => {
+          const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
+          const moves = moveCount?.[pid] ?? 0;
+          return (
+            <div key={`moves-${pid}`} className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {name} moves
+              </span>
+              <span
+                className="text-xs font-semibold"
+                style={{ color: 'var(--text-primary)' }}
+                data-testid={`move-count-${pid}`}
+              >
+                {moves}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Separator */}
+        <div className="col-span-2 border-t my-1" style={{ borderColor: 'var(--border-color)' }} />
+
+        {/* Duration */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⏱ Duration</span>
+          <span
+            className="text-xs font-semibold"
+            style={{ color: 'var(--text-primary)' }}
+            data-testid="game-duration"
+          >
+            {formatDuration(gameDuration)}
+          </span>
+        </div>
+
+        {/* ELO change preview (only for non-CPU 2-player games) */}
+        {playerIds.length === 2 && !gameState?.[`${playerIds[0]}IsCPU`] && !gameState?.[`${playerIds[1]}IsCPU`] && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO Δ</span>
+            <span
+              className="text-xs font-semibold"
+              style={{ color: 'var(--text-primary)' }}
+              data-testid="elo-change"
+            >
+              {(() => {
+                if (!role || role === 'spectator') return '—';
+                const isWinner = winnerData?.winner === role;
+                const delta = calcEloChange(1200, 1200, isWinner);
+                return delta >= 0 ? `+${delta}` : `${delta}`;
+              })()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* View Profile links */}
+      <div className="flex justify-center gap-3 mt-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+        {playerIds.map((pid) => {
+          const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
+          const isCPU = !!gameState?.[`${pid}IsCPU`];
+          if (isCPU) return null;
+          return (
+            <Link
+              key={`profile-${pid}`}
+              to={`/profile/${encodeURIComponent(name)}`}
+              className="text-xs font-medium hover:underline"
+              style={{ color: 'var(--accent)' }}
+              data-testid={`profile-link-${pid}`}
+            >
+              👤 {name}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Board = () => {
   const location  = useLocation();
@@ -124,6 +262,12 @@ const Board = () => {
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
 
+  // ── Post-game stats tracking ──────────────────────────────────────────────────
+  const [moveCount, setMoveCount] = useState({});
+  const [gameDuration, setGameDuration] = useState(null);
+  const prevLineCountRef = useRef(0);
+  const gameStartTimeRef = useRef(null);
+
   // ── Turn indicator state ──────────────────────────────────────────────────────
   const [showTurnToast, setShowTurnToast] = useState(false);
   const [boardPulse, setBoardPulse] = useState(false);
@@ -165,7 +309,7 @@ const Board = () => {
       // Haptic feedback (vibrate API requires recent user interaction on some devices;
       // this fires during gameplay so the page is already "user-activated")
       try {
-        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+        if (isVibrationEnabled() && 'vibrate' in navigator) navigator.vibrate([100, 50, 100]);
       } catch { /* some browsers throw on vibrate */ }
 
       // Ensure AudioContext is resumed before playing turn sound
@@ -251,12 +395,44 @@ const Board = () => {
         });
       }
 
+      // ── Track moves per player & game start time ────────────────────────────
+      // Count total lines placed this update vs previous to detect new move
+      const countLines = (state) => {
+        let total = 0;
+        if (state?.horizontalLines) state.horizontalLines.forEach(row => row.forEach(v => { if (v) total++; }));
+        if (state?.verticalLines) state.verticalLines.forEach(row => row.forEach(v => { if (v) total++; }));
+        return total;
+      };
+      const currentLineCount = countLines(gs);
+      if (currentLineCount > prevLineCountRef.current) {
+        // A new line was placed — attribute to the player who just moved
+        // The currentPlayer in gs is the NEXT player (after the move), so the mover
+        // is whoever was currentPlayer before. But if a box was captured, currentPlayer
+        // stays the same. We can detect who placed it by looking at which player owns
+        // the newest line. Simpler: track all owned lines per player.
+        const lineOwners = {};
+        if (gs.horizontalLines) gs.horizontalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
+        if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
+        setMoveCount(lineOwners);
+
+        // Set game start time on first move
+        if (prevLineCountRef.current === 0) {
+          gameStartTimeRef.current = Date.now();
+        }
+      }
+      prevLineCountRef.current = currentLineCount;
+
       setGameState(gs);
       prevScoresRef.current = gs?.scores || null;
 
       setWaitingCount(0);
 
       if (gs.gameOver || gs.winner) {
+        // Calculate game duration
+        setGameDuration(prev => {
+          if (prev) return prev;
+          return gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null;
+        });
         const winner = gs.winner;
 
         // Record session stats exactly once (guard against reconnect re-fires)
@@ -729,6 +905,18 @@ const Board = () => {
               );
             })}
           </div>
+
+          {/* Post-game stats card */}
+          <PostGameStatsCard
+            gameState={gameState}
+            scores={winnerData.scores}
+            playerIds={ids}
+            gridSize={gridSize}
+            moveCount={moveCount}
+            gameDuration={gameDuration}
+            role={role}
+            winnerData={winnerData}
+          />
 
           <div className="flex gap-2">
             {!isSpectator && (
