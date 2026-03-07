@@ -65,9 +65,27 @@ test.describe('Sound & Haptic Settings', () => {
     await masterToggle.click();
     await expect(masterToggle).toHaveAttribute('aria-checked', 'false');
 
+    // Verify individual toggles are visually disabled when master mute is on
+    const toggleIds = [
+      'toggle-move-sound',
+      'toggle-score-sound',
+      'toggle-turn-alert',
+      'toggle-vibration',
+    ];
+    for (const tid of toggleIds) {
+      const toggle = page.getByTestId(tid);
+      await expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    }
+
     // Unmute
     await masterToggle.click();
     await expect(masterToggle).toHaveAttribute('aria-checked', 'true');
+
+    // Verify individual toggles are no longer disabled
+    for (const tid of toggleIds) {
+      const toggle = page.getByTestId(tid);
+      await expect(toggle).toHaveAttribute('aria-disabled', 'false');
+    }
   });
 
   test('volume slider changes value', async ({ page }) => {

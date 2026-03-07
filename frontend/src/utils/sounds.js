@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS = {
 let audioContext = null;
 let isInitialized = false;
 
+// Module-level settings cache to avoid repeated localStorage reads
+let _cachedSettings = null;
+
 /**
  * Initialize AudioContext on first user interaction
  * Must be called from a user-triggered event (click, keypress, etc.)
@@ -41,24 +44,31 @@ export const initAudio = () => {
  * Load settings from localStorage, migrating old format if needed
  */
 export const getSoundSettings = () => {
+  if (_cachedSettings) return _cachedSettings;
+
   // Migrate old mute key on first load
   const oldMute = localStorage.getItem(OLD_MUTE_KEY);
   if (oldMute !== null) {
     const migrated = { ...DEFAULT_SETTINGS, masterMute: oldMute === 'true' };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
     localStorage.removeItem(OLD_MUTE_KEY);
+    _cachedSettings = migrated;
     return migrated;
   }
 
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      const result = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      _cachedSettings = result;
+      return result;
     }
   } catch {
     // Corrupted data — reset
   }
-  return { ...DEFAULT_SETTINGS };
+  const defaults = { ...DEFAULT_SETTINGS };
+  _cachedSettings = defaults;
+  return defaults;
 };
 
 /**
@@ -66,6 +76,7 @@ export const getSoundSettings = () => {
  */
 export const saveSoundSettings = (settings) => {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  _cachedSettings = settings;
 };
 
 /**
@@ -155,6 +166,15 @@ const playSequence = (notes) => {
 // ─── Sound Effects ────────────────────────────────────────────────────────────
 
 /**
+ * Short click - played when a line is placed on the board
+ * ~60ms, subtle tap sound gated by moveSound
+ */
+export const linePlaced = () => {
+  if (!isSoundEnabled('moveSound')) return;
+  playTone(600, 0.06, 0, 0.2);
+};
+
+/**
  * Short soft click - played when local player captures a tile
  * ~100ms, pleasant high tone
  */
@@ -175,9 +195,11 @@ export const opponentCapture = () => {
 /**
  * Short fanfare - played when game starts (all players joined)
  * ~400ms, ascending tones
+ * Not gated by any individual toggle — always plays unless master muted
  */
 export const gameStart = () => {
-  if (!isSoundEnabled('moveSound')) return;
+  const settings = getSoundSettings();
+  if (settings.masterMute) return;
   playSequence([
     { freq: 523, duration: 0.1, volume: 0.25 }, // C5
     { freq: 659, duration: 0.1, volume: 0.25 }, // E5
@@ -226,6 +248,7 @@ export const turnNotify = () => {
 
 // Export all sounds as a single object for convenience
 export const sounds = {
+  linePlaced,
   tileCaptured,
   opponentCapture,
   gameStart,

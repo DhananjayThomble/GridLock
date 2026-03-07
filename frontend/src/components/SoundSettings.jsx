@@ -11,20 +11,22 @@ const TOGGLE_OPTIONS = [
   { key: 'vibration',  label: 'Vibration',   icon: '📳', desc: 'Haptic feedback on mobile' },
 ];
 
-const Toggle = ({ checked, onChange, label }) => (
+const Toggle = ({ checked, onChange, label, disabled = false }) => (
   <button
     onClick={onChange}
     className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
     style={{ backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)' }}
     role="switch"
     aria-checked={checked}
+    aria-disabled={disabled}
     aria-label={label}
     data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <div
-      className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+      className={`w-4 h-4 rounded-full shadow transition-transform ${
         checked ? 'translate-x-5' : 'translate-x-0'
       }`}
+      style={{ backgroundColor: 'var(--text-primary)' }}
     />
   </button>
 );
@@ -101,6 +103,7 @@ const SoundSettings = () => {
                   checked={settings[key]}
                   onChange={() => update(key, !settings[key])}
                   label={label}
+                  disabled={settings.masterMute}
                 />
               </div>
             ))}
