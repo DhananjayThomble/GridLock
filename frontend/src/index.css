@@ -291,6 +291,13 @@ textarea::placeholder {
   }
 }
 
+/* ── Touch input: eliminate 300ms tap delay on interactive elements ─────────── */
+[role="button"],
+button,
+a {
+  touch-action: manipulation;
+}
+
 /* ── Board line glow on hover ──────────────────────────────────────────────── */
 .line-hover-glow {
   transition: background-color 0.15s, box-shadow 0.2s;

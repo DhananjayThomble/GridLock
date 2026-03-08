@@ -28,6 +28,14 @@
     <link rel="apple-touch-icon" href="%BASE_URL%icons/icon-192.png" />
     <title>GridLock – Dots &amp; Boxes Multiplayer</title>
     <script>
+      // Apply theme immediately to prevent flash of wrong theme
+      (function () {
+        var stored = localStorage.getItem('gridlock_theme');
+        var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <script>
       (function () {
         var currentUrl = new URL(window.location.href);
         var redirectedPath = currentUrl.searchParams.get('__spa_redirect');
