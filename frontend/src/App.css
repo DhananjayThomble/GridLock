@@ -49,5 +49,6 @@
 }
 
 .app-content-with-nav {
-  padding-top: 3.25rem;
+  /* Must exceed .app-nav computed height (~3.1rem) to prevent content overlap */
+  padding-top: 3.75rem;
 }
