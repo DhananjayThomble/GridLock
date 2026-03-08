@@ -52,6 +52,12 @@ const GameSchema = new mongoose.Schema({
         index: true,
     },
 
+    matchType: {
+        type: String,
+        enum: ['private', 'public'],
+        default: 'private',
+    },
+
     createdAt: {
         type: Date,
         default: Date.now,

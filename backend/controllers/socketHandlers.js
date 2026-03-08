@@ -10,6 +10,8 @@ const disconnectStore = require('../stores/disconnectStore');
 const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
+const matchmaking = require('../services/matchmaking');
+const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 60_000;
 
@@ -102,6 +104,19 @@ function generateSessionToken() {
     return crypto.randomBytes(24).toString('hex');
 }
 
+/**
+ * Generate a unique 6-char hex game ID with collision check against gameStore.
+ * Retries up to maxAttempts times. Returns null if all attempts collide.
+ */
+async function generateUniqueGameId(maxAttempts = 5) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const candidate = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+        const existing = await gameStore.getGame(candidate);
+        if (!existing) return candidate;
+    }
+    return null;
+}
+
 function countFilledPlayers(game) {
     return Object.keys(game.players).filter((pid) => !!game.players[pid]).length;
 }
@@ -174,6 +189,7 @@ async function persistGame(game, status = null, metadata = null) {
         lastActivityAt: now,
         updatedAt: now,
     };
+    if (game.matchType) payload.matchType = game.matchType;
     if (metadata) payload.metadata = { ...(game.metadata || {}), ...metadata };
     if (finalStatus === 'finished' || finalStatus === 'abandoned') payload.finishedAt = now;
     await Game.findOneAndUpdate(
@@ -190,7 +206,8 @@ async function markGameFinished(gameId, reason = null) {
 }
 
 async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p1, p2 }) {
-    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const gameId = await generateUniqueGameId();
+    if (!gameId) throw new Error('Failed to generate unique game ID after retries');
     const p1Token = generateSessionToken();
     const p2Token = generateSessionToken();
 
@@ -628,7 +645,8 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
-                const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const gameId = await generateUniqueGameId();
+                if (!gameId) { socket.emit('error', 'Failed to generate game ID. Please try again.'); return; }
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
                 const sessionToken = generateSessionToken();
 
@@ -984,7 +1002,8 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (totalVotes >= game.playerCount) {
-                    const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    const newGameId = await generateUniqueGameId();
+                    if (!newGameId) { socket.emit('error', 'Failed to generate rematch game ID'); return; }
                     const initialState = initializeGameState(game.gridSize, game.playerCount);
                     const newGame = {
                         id: newGameId,
@@ -1029,10 +1048,197 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── queue_join (Quick Play matchmaking) ──────────────────────────────
+        socket.on('queue_join', async ({ username, avatar, gridSize, playerCount }) => {
+            try {
+                if (rateLimited('queue_join')) return;
+
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) { socket.emit('error', uResult.error); return; }
+                const cleanUsername = uResult.value;
+                const cleanAvatar = sanitizeAvatar(avatar);
+
+                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
+
+                const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
+                if (!pcResult.valid) { socket.emit('error', pcResult.error); return; }
+
+                const result = matchmaking.joinQueue(socket.id, cleanUsername, cleanAvatar, gridResult.value, pcResult.value);
+
+                if (result.rejected) {
+                    socket.emit('error', result.reason);
+                    return;
+                }
+
+                if (result.matched) {
+                    // Verify all matched sockets are still connected before game creation
+                    const players = result.players;
+                    const connected = [];
+                    const disconnected = [];
+                    for (const p of players) {
+                        const s = io.sockets.sockets.get(p.socketId);
+                        if (s && s.connected) {
+                            connected.push(p);
+                        } else {
+                            disconnected.push(p);
+                        }
+                    }
+
+                    if (disconnected.length > 0) {
+                        // Re-queue connected players
+                        for (const p of connected) {
+                            const requeue = matchmaking.joinQueue(p.socketId, p.username, p.avatar, p.gridSize, p.playerCount);
+                            const ps = io.sockets.sockets.get(p.socketId);
+                            if (ps && requeue.queued) {
+                                ps.data.queueKey = requeue.queueKey;
+                                ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey });
+                                const timer = setTimeout(() => {
+                                    if (matchmaking.isInQueue(p.socketId)) {
+                                        ps.emit('queue_timeout', { suggestion: 'cpu' });
+                                    }
+                                }, QUEUE_TIMEOUT_MS);
+                                matchmaking.setTimeoutTimer(p.socketId, timer);
+                            }
+                        }
+                        log.info('Matched player disconnected before game creation, re-queued remaining', {
+                            disconnected: disconnected.map(p => p.username),
+                            requeued: connected.map(p => p.username),
+                        });
+                        return;
+                    }
+
+                    // Create game for matched players
+                    const host = players[0];
+                    const gameId = await generateUniqueGameId();
+                    if (!gameId) { socket.emit('error', 'Failed to generate game ID'); return; }
+                    const initialState = initializeGameState(host.gridSize, host.playerCount);
+
+                    const game = {
+                        id: gameId,
+                        gridSize: host.gridSize,
+                        playerCount: host.playerCount,
+                        players: {},
+                        gameState: initialState,
+                        createdAt: Date.now(),
+                        matchType: 'public',
+                        metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                    };
+
+                    for (let i = 0; i < players.length; i++) {
+                        const slot = `player${i + 1}`;
+                        const p = players[i];
+                        const token = generateSessionToken();
+                        game.players[slot] = {
+                            id: p.socketId,
+                            username: p.username,
+                            avatar: p.avatar,
+                            color: PLAYER_COLORS[slot],
+                            token,
+                            disconnectedAt: null,
+                        };
+                    }
+
+                    await gameStore.setGame(gameId, game);
+                    await persistGame(game, game.playerCount === players.length ? 'playing' : 'waiting');
+
+                    // Notify all matched players
+                    for (let i = 0; i < players.length; i++) {
+                        const slot = `player${i + 1}`;
+                        const p = players[i];
+                        const playerSocket = io.sockets.sockets.get(p.socketId);
+                        if (playerSocket) {
+                            playerSocket.join(gameId);
+                            playerSocket.data.gameId = gameId;
+                            playerSocket.data.playerId = slot;
+                            playerSocket.data.queueKey = undefined;
+
+                            const gameStateWithPlayers = buildGameStateWithPlayers(game);
+                            playerSocket.emit('queue_matched', {
+                                gameId,
+                                playerId: slot,
+                                sessionToken: game.players[slot].token,
+                                gridSize: game.gridSize,
+                                playerCount: game.playerCount,
+                                players: getPlayersList(game),
+                                gameState: gameStateWithPlayers,
+                            });
+                        }
+                    }
+
+                    if (players.length === game.playerCount) {
+                        io.to(gameId).emit('all_players_joined', { gameId });
+                    }
+
+                    log.info('Quick Play match created', { gameId, playerCount: game.playerCount, players: players.map((p) => p.username) });
+                } else {
+                    // Player queued — broadcast status to ALL waiters and set timeout
+                    socket.data.queueKey = result.queueKey;
+
+                    // Notify every player in this queue of the updated status
+                    const waiters = matchmaking.getWaiters(result.queueKey);
+                    for (const waiterId of waiters) {
+                        const waiterSocket = io.sockets.sockets.get(waiterId);
+                        if (waiterSocket) {
+                            const status = matchmaking.getQueueStatus(waiterId);
+                            if (status) {
+                                waiterSocket.emit('queue_status', {
+                                    position: status.position,
+                                    queueSize: status.queueSize,
+                                    queueKey: status.queueKey,
+                                });
+                            }
+                        }
+                    }
+
+                    // Timeout: suggest CPU fallback after QUEUE_TIMEOUT_MS
+                    const timeoutTimer = setTimeout(() => {
+                        if (matchmaking.isInQueue(socket.id)) {
+                            socket.emit('queue_timeout', { suggestion: 'cpu' });
+                        }
+                    }, QUEUE_TIMEOUT_MS);
+                    matchmaking.setTimeoutTimer(socket.id, timeoutTimer);
+                }
+            } catch (error) {
+                log.error('Error handling queue_join', { error: error.message, stack: error.stack });
+                socket.emit('error', 'Failed to join matchmaking queue');
+            }
+        });
+
+        // ── queue_leave ────────────────────────────────────────────────────────
+        socket.on('queue_leave', () => {
+            if (!socketLimiter.allow(socket.id, 'queue_leave')) return;
+
+            const info = matchmaking.playerIndex.get(socket.id);
+            const queueKey = info?.queueKey;
+            matchmaking.leaveQueue(socket.id);
+            socket.data.queueKey = undefined;
+            socket.emit('queue_left', {});
+
+            // Broadcast updated status to remaining waiters
+            if (queueKey) {
+                const waiters = matchmaking.getWaiters(queueKey);
+                for (const waiterId of waiters) {
+                    const waiterSocket = io.sockets.sockets.get(waiterId);
+                    if (waiterSocket) {
+                        const status = matchmaking.getQueueStatus(waiterId);
+                        if (status) {
+                            waiterSocket.emit('queue_status', {
+                                position: status.position,
+                                queueSize: status.queueSize,
+                                queueKey: status.queueKey,
+                            });
+                        }
+                    }
+                }
+            }
+        });
+
         // ── disconnect ─────────────────────────────────────────────────────────
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
+            matchmaking.leaveQueue(socket.id);
 
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
