@@ -1142,8 +1142,24 @@ function attachSocketHandlers(io, log) {
                     // Guard: reject if any two slots share the same player ID
                     const slotIds = Object.values(game.players).map((p) => p.id);
                     if (new Set(slotIds).size !== slotIds.length) {
-                        log.error('Self-match guard triggered in Quick Play', { gameId, slotIds });
-                        socket.emit('error', 'Matchmaking error — please try again');
+                        log.error('Self-match guard triggered in Quick Play — re-queuing affected players', { gameId, slotIds });
+                        // Re-queue all matched players so they aren't silently dropped
+                        for (const p of players) {
+                            const ps = io.sockets.sockets.get(p.socketId);
+                            if (ps && ps.connected) {
+                                const requeue = matchmaking.joinQueue(p.socketId, p.username, p.avatar, p.gridSize, p.playerCount);
+                                if (requeue.queued) {
+                                    ps.data.queueKey = requeue.queueKey;
+                                    ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey });
+                                    const timer = setTimeout(() => {
+                                        if (matchmaking.isInQueue(p.socketId)) {
+                                            ps.emit('queue_timeout', { suggestion: 'cpu' });
+                                        }
+                                    }, QUEUE_TIMEOUT_MS);
+                                    matchmaking.setTimeoutTimer(p.socketId, timer);
+                                }
+                            }
+                        }
                         return;
                     }
 
@@ -1243,7 +1259,6 @@ function attachSocketHandlers(io, log) {
                                 },
                                 gameState: cpuInitialState,
                                 createdAt: Date.now(),
-                                matchType: 'public',
                                 metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
                                 cpuDifficulty,
                             };
@@ -1260,14 +1275,6 @@ function attachSocketHandlers(io, log) {
                                     disconnectedAt: null,
                                     isCPU: true,
                                 };
-                            }
-
-                            // Guard: never allow same player in both slots
-                            const cpuSlotIds = Object.values(cpuGame.players).map((p) => p.id);
-                            if (new Set(cpuSlotIds).size !== cpuSlotIds.length) {
-                                log.error('Self-match guard triggered in Quick Play timeout', { gameId: cpuGameId, cpuSlotIds });
-                                socket.emit('error', 'Matchmaking error — please try again');
-                                return;
                             }
 
                             await gameStore.setGame(cpuGameId, cpuGame);
