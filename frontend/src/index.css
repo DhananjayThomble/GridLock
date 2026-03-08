@@ -114,8 +114,8 @@
 
   /* Winner highlight */
   --winner-gold:      #996515;
-  --winner-bg:        rgba(184,134,11,0.10);
-  --winner-glow:      rgba(184,134,11,0.30);
+  --winner-bg:        rgba(153,101,21,0.10);
+  --winner-glow:      rgba(153,101,21,0.30);
 
   /* Danger button (Leave Game) — WCAG AA compliant */
   --btn-danger-bg:    #cf222e;

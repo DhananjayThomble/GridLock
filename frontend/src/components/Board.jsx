@@ -1010,7 +1010,7 @@ const Board = () => {
           <button
             onClick={() => navigate('/')}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', minHeight: '44px' }}
+            style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>
