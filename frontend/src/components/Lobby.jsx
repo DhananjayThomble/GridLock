@@ -212,11 +212,8 @@ const Lobby = () => {
   useEffect(() => { safePersist('gridlock-tournamentSize', String(tournamentSize)); }, [tournamentSize]);
   useEffect(() => { safePersist('gridlock-tournamentGridSize', String(tournamentGridSize)); }, [tournamentGridSize]);
 
-  // Clamp cpuCount when playerCount changes (covers mount + runtime)
-  useEffect(() => {
-    const maxCpu = Math.max(1, playerCount - 1);
-    if (cpuCount > maxCpu) setCpuCount(maxCpu);
-  }, [playerCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  // cpuCount is clamped to playerCount-1 in the playerCount button handler below.
+  // The lazy initializer also cross-validates against stored playerCount.
 
   // ── PWA Install Prompt ──────────────────────────────────────────────────────
   useEffect(() => {
