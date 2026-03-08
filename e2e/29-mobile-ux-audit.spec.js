@@ -76,28 +76,43 @@ test.describe('Mobile UX Audit', () => {
     const issues = await page.evaluate(() => {
       const all = document.querySelectorAll('*');
       const found = [];
-      const patterns = [
+      const classPatterns = [
         /\btext-white\b/, /\btext-black\b/,
         /\bbg-white\b/, /\bbg-black\b/,
         /\btext-gray-\d+\b/, /\btext-slate-\d+\b/,
         /\bbg-gray-\d+\b/, /\bbg-slate-\d+\b/,
       ];
+      // Inline style patterns for hardcoded hex colors (N7)
+      const inlineColorRe = /(?:^|;\s*)color\s*:\s*#[0-9a-f]{3,8}/i;
+      const inlineBgRe    = /(?:^|;\s*)background(?:-color)?\s*:\s*#[0-9a-f]{3,8}/i;
       for (const el of all) {
+        if (el.offsetParent === null) continue;
+
+        // Check class-based hardcoded colors
         const cls = el.className;
-        if (typeof cls !== 'string' || el.offsetParent === null) continue;
-        if (cls.includes('dark:')) continue;
-        for (const p of patterns) {
-          if (p.test(cls)) {
-            const cs = window.getComputedStyle(el);
-            if (cs.color === 'rgb(255, 255, 255)' && cs.backgroundColor.includes('255, 255, 255'))
-              found.push({ tag: el.tagName, text: el.textContent?.slice(0, 30), issue: 'white-on-white' });
-            if (cs.color === 'rgb(0, 0, 0)' && cs.backgroundColor === 'rgb(0, 0, 0)')
-              found.push({ tag: el.tagName, text: el.textContent?.slice(0, 30), issue: 'black-on-black' });
+        if (typeof cls === 'string' && !cls.includes('dark:')) {
+          for (const p of classPatterns) {
+            if (p.test(cls)) {
+              const cs = window.getComputedStyle(el);
+              if (cs.color === 'rgb(255, 255, 255)' && cs.backgroundColor.includes('255, 255, 255'))
+                found.push({ tag: el.tagName, text: el.textContent?.slice(0, 30), issue: 'white-on-white' });
+              if (cs.color === 'rgb(0, 0, 0)' && cs.backgroundColor === 'rgb(0, 0, 0)')
+                found.push({ tag: el.tagName, text: el.textContent?.slice(0, 30), issue: 'black-on-black' });
+            }
           }
+        }
+
+        // Check inline style hardcoded colors
+        const style = el.getAttribute('style');
+        if (style) {
+          if (inlineColorRe.test(style))
+            found.push({ tag: el.tagName, text: el.textContent?.slice(0, 30), issue: 'inline-color-hex', style: style.slice(0, 60) });
+          if (inlineBgRe.test(style))
+            found.push({ tag: el.tagName, text: el.textContent?.slice(0, 30), issue: 'inline-bg-hex', style: style.slice(0, 60) });
         }
       }
       return found;
     });
-    expect(issues.length, `Invisible text: ${JSON.stringify(issues)}`).toBe(0);
+    expect(issues.length, `Invisible text or hardcoded inline colors: ${JSON.stringify(issues)}`).toBe(0);
   });
 });

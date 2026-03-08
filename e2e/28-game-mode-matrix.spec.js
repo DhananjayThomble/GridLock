@@ -1,7 +1,7 @@
 // e2e/28-game-mode-matrix.spec.js — Test all 36 game mode combinations (CPU)
 
 const { test, expect } = require('@playwright/test');
-const { goToLobby, createCpuGame, BASE_URL } = require('./helpers');
+const { createCpuGame, makeMove } = require('./helpers');
 
 const PLAYER_COUNTS = [2, 3, 4];
 const GRID_SIZES = ['3×3', '4×4', '5×5', '6×6'];
@@ -18,15 +18,6 @@ function getTimeout(gridSize) {
     case 6: return 180_000;
     default: return 90_000;
   }
-}
-
-async function clickAvailableLine(page) {
-  const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
-  for (const line of lines.slice(0, 15)) {
-    try { await line.click({ timeout: 3000, force: true }); return true; }
-    catch { continue; }
-  }
-  return false;
 }
 
 for (const playerCount of PLAYER_COUNTS) {
@@ -57,7 +48,7 @@ for (const playerCount of PLAYER_COUNTS) {
               if (/game over|winner|final/i.test(text)) break;
               continue;
             }
-            if (await clickAvailableLine(page)) {
+            if (await makeMove(page)) {
               movesPlayed++;
               await page.waitForFunction(() => !/your turn/i.test(document.body.innerText), { timeout: 10_000 }).catch(() => {});
             }
@@ -74,7 +65,8 @@ for (const playerCount of PLAYER_COUNTS) {
 
           if (/game over|winner|final/i.test(finalText)) {
             const scoreSum = await page.evaluate(() => {
-              const bar = document.querySelector('.score-bar');
+              // TODO: add data-testid="score-bar" to the ScoreBar component
+              const bar = document.querySelector('[data-testid="score-bar"]') || document.querySelector('.score-bar');
               if (!bar) return 0;
               let sum = 0;
               for (const el of bar.querySelectorAll('span')) {

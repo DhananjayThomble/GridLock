@@ -118,6 +118,16 @@ async function makeMove(page) {
 /**
  * Create a CPU game — does NOT wait for room code (CPU games start immediately).
  * Shared by 15-cpu-game.spec.js and 28-game-mode-matrix.spec.js.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {object} opts
+ * @param {string}  [opts.username='HumanPlayer']
+ * @param {string}  [opts.gridSize='3×3']        - Board size (e.g. '3×3', '4×4', '5×5', '6×6')
+ * @param {number}  [opts.playerCount=2]          - Total players (human + CPU)
+ * @param {string}  [opts.cpuDifficulty]          - 'easy' | 'medium' | 'hard'
+ * @param {number}  [opts.cpuCount]               - Number of CPU opponents.
+ *                                                   Defaults to playerCount - 1 (fills all
+ *                                                   remaining slots with CPU players).
  */
 async function createCpuGame(page, {
   username = 'HumanPlayer',
@@ -126,6 +136,8 @@ async function createCpuGame(page, {
   cpuDifficulty,
   cpuCount,
 } = {}) {
+  // Default cpuCount: fill all non-human slots with CPU
+  const effectiveCpuCount = cpuCount ?? (playerCount - 1);
   await goToLobby(page);
   await page.fill('input[placeholder="Enter your name…"]', username);
   await page.click(`button:has-text("${playerCount} Players")`);
@@ -142,8 +154,8 @@ async function createCpuGame(page, {
   }
 
   // Set CPU count for 3P/4P
-  if (cpuCount && cpuCount > 1) {
-    for (let i = 1; i < cpuCount; i++) {
+  if (effectiveCpuCount > 1) {
+    for (let i = 1; i < effectiveCpuCount; i++) {
       await page.click('button:has-text("+")');
     }
   }
