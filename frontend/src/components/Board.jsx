@@ -658,7 +658,7 @@ const Board = () => {
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
               <div className="min-w-0 flex-1">
-                <div className="font-bold truncate player-name-4p" style={{ color: isCurrent ? playerColor : 'var(--text-primary)', fontSize: count >= 4 ? 'clamp(0.55rem, 2vw, 0.875rem)' : '0.75rem' }}>
+                <div className="font-bold truncate" style={{ color: isCurrent ? playerColor : 'var(--text-primary)', fontSize: count >= 4 ? 'clamp(0.55rem, 2vw, 0.875rem)' : '0.75rem' }}>
                   {waiting ? `P${pid.slice(6)} waiting…` : name}
                   {isCPU && <span className="ml-1">🤖</span>}
                   {isMe && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(you)</span>}

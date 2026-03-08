@@ -51,8 +51,8 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <span
-                        className="font-bold truncate"
-                        style={{ maxWidth: 'clamp(60px, 15vw, 140px)', fontSize: 'clamp(0.55rem, 2vw, 0.875rem)', color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                        className="font-bold truncate score-bar-player-name"
+                        style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                         title={player.username}
                       >
                         {truncateName(player.username, multiPlayerMaxLen)}

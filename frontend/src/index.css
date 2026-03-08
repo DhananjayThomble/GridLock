@@ -232,14 +232,6 @@ textarea::placeholder {
   padding-top: 88px;
 }
 
-/* ScoreBar progress bar heights — custom classes instead of targeting Tailwind utilities */
-.score-progress-thin {
-  height: 0.375rem; /* 6px — compact bar for multi-player rows */
-}
-.score-progress-thick {
-  height: 1.25rem; /* 20px — full bar for 2-player layout */
-}
-
 /* On mobile: board centers and fits within viewport width */
 @media (max-width: 640px) {
   .board-container {
@@ -259,13 +251,6 @@ textarea::placeholder {
   .game-toolbar {
     max-width: calc(100vw - 1.5rem);
     width: 100%;
-  }
-}
-
-/* ── Responsive breakpoints — small tablet (641-767px) ─────────────────────── */
-@media (min-width: 641px) and (max-width: 767px) {
-  .board-container {
-    max-width: min(90vw, 520px);
   }
 }
 
@@ -302,7 +287,8 @@ textarea::placeholder {
     height: 2rem;
   }
 
-  .game-toolbar button {
+  .game-toolbar button,
+  .lobby-container button {
     white-space: nowrap;
   }
 
