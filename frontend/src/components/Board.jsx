@@ -698,7 +698,7 @@ const Board = () => {
           ) : (
             <>
               <div className="text-6xl mb-2 animate-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1" style={{ color: `var(${winnerData.colorVar})` }}>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
                 {winnerData.name} Wins!
               </h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>🏆 Champion!</p>
@@ -718,7 +718,7 @@ const Board = () => {
                 <div
                   key={pid}
                   className="flex justify-between items-center px-2 py-1 rounded-lg"
-                  style={isWin ? { backgroundColor: `var(${cfg.bgVar})` } : undefined}
+                  style={isWin ? { backgroundColor: 'var(--winner-bg)' } : undefined}
                 >
                   <span className="font-semibold text-sm" style={{ color: isWin ? playerColor : 'var(--text-secondary)' }}>
                     {isCPU ? (
@@ -1010,7 +1010,7 @@ const Board = () => {
           <button
             onClick={() => navigate('/')}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 25%, transparent)', minHeight: '44px' }}
+            style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>

@@ -39,15 +39,24 @@
   --shadow-color:     rgba(0,0,0,0.3);
   --glow-accent:      rgba(88,166,255,0.15);
 
-  /* Player colors — desaturated for dark mode */
+  /* Player slot colors — consistent identity across all UI */
   --player1-color:    #58a6ff;
-  --player2-color:    #f85149;
+  --player2-color:    #f0883e;
   --player3-color:    #3fb950;
   --player4-color:    #bc8cff;
   --player1-bg:       rgba(88,166,255,0.12);
-  --player2-bg:       rgba(248,81,73,0.12);
+  --player2-bg:       rgba(240,136,62,0.12);
   --player3-bg:       rgba(63,185,80,0.12);
   --player4-bg:       rgba(188,140,255,0.12);
+
+  /* Winner highlight */
+  --winner-gold:      #FFD700;
+  --winner-bg:        rgba(255,215,0,0.10);
+  --winner-glow:      rgba(255,215,0,0.35);
+
+  /* Danger button (Leave Game) — WCAG AA compliant */
+  --btn-danger-bg:    #da3633;
+  --btn-danger-text:  #ffffff;
 
   /* Board-specific */
   --dot-color:        #484f58;
@@ -93,15 +102,24 @@
   --shadow-color:     rgba(31,35,40,0.12);
   --glow-accent:      rgba(9,105,218,0.1);
 
-  /* Player colors — vivid for light mode */
+  /* Player slot colors — consistent identity across all UI */
   --player1-color:    #0969da;
-  --player2-color:    #cf222e;
+  --player2-color:    #b45309;
   --player3-color:    #1a7f37;
   --player4-color:    #8250df;
   --player1-bg:       rgba(9,105,218,0.15);
-  --player2-bg:       rgba(207,34,46,0.15);
+  --player2-bg:       rgba(180,83,9,0.15);
   --player3-bg:       rgba(26,127,55,0.15);
   --player4-bg:       rgba(130,80,223,0.15);
+
+  /* Winner highlight */
+  --winner-gold:      #996515;
+  --winner-bg:        rgba(153,101,21,0.10);
+  --winner-glow:      rgba(153,101,21,0.30);
+
+  /* Danger button (Leave Game) — WCAG AA compliant */
+  --btn-danger-bg:    #cf222e;
+  --btn-danger-text:  #ffffff;
 
   /* Board-specific */
   --dot-color:        #1f2328;
