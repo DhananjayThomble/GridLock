@@ -13,6 +13,11 @@ import QuickPlay from './QuickPlay';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
+/** Safely persist to localStorage — swallows quota/private-browsing errors. */
+const safePersist = (key, value) => {
+  try { localStorage.setItem(key, value); } catch { /* quota exceeded / private browsing */ }
+};
+
 const PLAYER_COUNT_OPTIONS = [
   { value: 2, label: '2 Players', icon: '👥', desc: 'Classic duel' },
   { value: 3, label: '3 Players', icon: '👨👩👦', desc: 'Triple threat' },
@@ -61,7 +66,9 @@ const Lobby = () => {
   const [cpuEnabled,    setCpuEnabled]    = useState(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   const [cpuCount,      setCpuCount]      = useState(() => {
     const saved = parseInt(localStorage.getItem('gridlock-cpuCount'), 10);
-    return saved >= 1 && saved <= 3 ? saved : 1;
+    const validSaved = saved >= 1 && saved <= 3 ? saved : 1;
+    const savedPlayerCount = parseInt(localStorage.getItem('gridlock-playerCount'), 10) || 2;
+    return Math.min(validSaved, savedPlayerCount - 1);
   });
   const [cpuDifficulty, setCpuDifficulty] = useState(() => {
     const saved = localStorage.getItem('gridlock-cpuDifficulty');
@@ -183,14 +190,14 @@ const Lobby = () => {
   }, []);
 
   // ── Persist lobby settings to localStorage ──────────────────────────────────
-  useEffect(() => { localStorage.setItem('gridlock-avatar', selectedAvatar); }, [selectedAvatar]);
-  useEffect(() => { localStorage.setItem('gridlock-gridSize', String(gridSize)); }, [gridSize]);
-  useEffect(() => { localStorage.setItem('gridlock-playerCount', String(playerCount)); }, [playerCount]);
-  useEffect(() => { localStorage.setItem('gridlock-cpuEnabled', String(cpuEnabled)); }, [cpuEnabled]);
-  useEffect(() => { localStorage.setItem('gridlock-cpuCount', String(cpuCount)); }, [cpuCount]);
-  useEffect(() => { localStorage.setItem('gridlock-cpuDifficulty', cpuDifficulty); }, [cpuDifficulty]);
-  useEffect(() => { localStorage.setItem('gridlock-tournamentSize', String(tournamentSize)); }, [tournamentSize]);
-  useEffect(() => { localStorage.setItem('gridlock-tournamentGridSize', String(tournamentGridSize)); }, [tournamentGridSize]);
+  useEffect(() => { safePersist('gridlock-avatar', selectedAvatar); }, [selectedAvatar]);
+  useEffect(() => { safePersist('gridlock-gridSize', String(gridSize)); }, [gridSize]);
+  useEffect(() => { safePersist('gridlock-playerCount', String(playerCount)); }, [playerCount]);
+  useEffect(() => { safePersist('gridlock-cpuEnabled', String(cpuEnabled)); }, [cpuEnabled]);
+  useEffect(() => { safePersist('gridlock-cpuCount', String(cpuCount)); }, [cpuCount]);
+  useEffect(() => { safePersist('gridlock-cpuDifficulty', cpuDifficulty); }, [cpuDifficulty]);
+  useEffect(() => { safePersist('gridlock-tournamentSize', String(tournamentSize)); }, [tournamentSize]);
+  useEffect(() => { safePersist('gridlock-tournamentGridSize', String(tournamentGridSize)); }, [tournamentGridSize]);
 
   // Clamp cpuCount when playerCount changes (covers mount + runtime)
   useEffect(() => {
