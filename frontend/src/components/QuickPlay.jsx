@@ -19,10 +19,7 @@ const QuickPlay = ({ gridSize, playerCount, queueSize: initialQueueSize, onCance
   const showCpuRef = useRef(false);
   const timedOutRef = useRef(false);
 
-  // Update queue size when prop changes
-  useEffect(() => {
-    if (initialQueueSize != null) setQueueSize(initialQueueSize);
-  }, [initialQueueSize]);
+  // Queue size initialized from prop; socket events update it afterward
 
   // Listen for queue_status and queue_timeout socket events
   useEffect(() => {

@@ -115,7 +115,7 @@ const Lobby = () => {
 
   // ── Socket: Quick Play matchmaking events ─────────────────────────────────
   useEffect(() => {
-    const onQueueMatched = ({ gameId: gid, playerId, sessionToken, gridSize: gs, playerCount: pc, players, gameState }) => {
+    const onQueueMatched = ({ gameId: gid, playerId, sessionToken, gridSize: gs, playerCount: pc }) => {
       setQuickPlaying(false);
       navigate('/game', {
         state: {
@@ -130,7 +130,7 @@ const Lobby = () => {
       });
     };
 
-    const onQueueStatus = ({ position, queueSize: qs }) => {
+    const onQueueStatus = ({ queueSize: qs }) => {
       setQueueSize(qs);
     };
 
