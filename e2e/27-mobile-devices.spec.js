@@ -1,6 +1,6 @@
 // e2e/27-mobile-devices.spec.js — Mobile-specific viewport and layout tests
 
-const { test, expect, devices } = require('@playwright/test');
+const { test, expect } = require('@playwright/test');
 const { goToLobby, createCpuGame, BASE_URL } = require('./helpers');
 
 const MOBILE_VIEWPORTS = [
