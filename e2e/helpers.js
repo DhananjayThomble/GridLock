@@ -98,11 +98,12 @@ async function getTurnState(p1, p2) {
 }
 
 /**
- * Click the first interactive line for the active player.
+ * Click the first interactive (unowned) line for the active player.
+ * Uses role="button" + aria-disabled="false" — stable attributes from Board.jsx.
  * Returns true if a click succeeded.
  */
 async function makeMove(page) {
-  const lines = await page.locator('[class*="cursor-pointer"]').all();
+  const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
   for (const line of lines.slice(0, 10)) {
     try {
       await line.click({ timeout: 2000, force: true });
@@ -114,4 +115,57 @@ async function makeMove(page) {
   return false;
 }
 
-module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, getApiBase, BASE_URL };
+/**
+ * Create a CPU game — does NOT wait for room code (CPU games start immediately).
+ * Shared by 15-cpu-game.spec.js and 28-game-mode-matrix.spec.js.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {object} opts
+ * @param {string}  [opts.username='HumanPlayer']
+ * @param {string}  [opts.gridSize='3×3']        - Board size (e.g. '3×3', '4×4', '5×5', '6×6')
+ * @param {number}  [opts.playerCount=2]          - Total players (human + CPU)
+ * @param {string}  [opts.cpuDifficulty]          - 'easy' | 'medium' | 'hard'
+ * @param {number}  [opts.cpuCount]               - Number of CPU opponents.
+ *                                                   Defaults to playerCount - 1 (fills all
+ *                                                   remaining slots with CPU players).
+ */
+async function createCpuGame(page, {
+  username = 'HumanPlayer',
+  gridSize = '3×3',
+  playerCount = 2,
+  cpuDifficulty,
+  cpuCount,
+} = {}) {
+  // Default cpuCount: fill all non-human slots with CPU
+  const effectiveCpuCount = cpuCount ?? (playerCount - 1);
+  await goToLobby(page);
+  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.click(`button:has-text("${playerCount} Players")`);
+  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+
+  // Enable CPU toggle
+  await page.locator('button:has-text("Play vs CPU")').click();
+  await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
+
+  // Set difficulty if specified
+  if (cpuDifficulty) {
+    const label = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
+    await page.click(`button:has-text("${label}")`);
+  }
+
+  // Set CPU count for 3P/4P
+  if (effectiveCpuCount > 1) {
+    for (let i = 1; i < effectiveCpuCount; i++) {
+      await page.click('button:has-text("+")');
+    }
+  }
+
+  await page.click('button:has-text("🚀 Create Game")');
+  await page.waitForURL(/\/game/, { timeout: 15_000 });
+  await page.waitForFunction(
+    () => /turn/i.test(document.body.innerText),
+    { timeout: 20_000 }
+  );
+}
+
+module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, createCpuGame, getApiBase, BASE_URL };
