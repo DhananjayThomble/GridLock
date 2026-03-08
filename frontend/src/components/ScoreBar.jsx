@@ -23,6 +23,9 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
     return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
   };
 
+  // For 4P on mobile, allow at least 10 chars; on tablet+ show full name
+  const multiPlayerMaxLen = typeof window !== 'undefined' && window.innerWidth >= 768 ? 20 : 10;
+
   return (
     <div
       className="fixed top-0 left-0 right-0 z-40 backdrop-blur-sm shadow-lg score-bar"
@@ -48,11 +51,11 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <span
-                        className="text-xs font-bold truncate"
-                        style={{ maxWidth: '70px', color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                        className="font-bold truncate"
+                        style={{ maxWidth: 'clamp(60px, 15vw, 140px)', fontSize: 'clamp(0.55rem, 2vw, 0.875rem)', color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                         title={player.username}
                       >
-                        {truncateName(player.username, 10)}
+                        {truncateName(player.username, multiPlayerMaxLen)}
                       </span>
                       <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
                         {percentage.toFixed(0)}%
