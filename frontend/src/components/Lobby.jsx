@@ -61,7 +61,7 @@ const Lobby = () => {
   const [cpuEnabled,    setCpuEnabled]    = useState(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   const [cpuCount,      setCpuCount]      = useState(() => {
     const saved = parseInt(localStorage.getItem('gridlock-cpuCount'), 10);
-    return saved >= 1 && saved <= 5 ? saved : 1;
+    return saved >= 1 && saved <= 3 ? saved : 1;
   });
   const [cpuDifficulty, setCpuDifficulty] = useState(() => {
     const saved = localStorage.getItem('gridlock-cpuDifficulty');
@@ -73,7 +73,7 @@ const Lobby = () => {
   });
   const [tournamentGridSize, setTournamentGridSize] = useState(() => {
     const saved = parseInt(localStorage.getItem('gridlock-tournamentGridSize'), 10);
-    return saved >= 3 && saved <= 8 ? saved : 4;
+    return saved >= 3 && saved <= 6 ? saved : 4;
   });
   const [tournamentId, setTournamentId]   = useState('');
   const [creatingTournament, setCreatingTournament] = useState(false);
@@ -191,6 +191,12 @@ const Lobby = () => {
   useEffect(() => { localStorage.setItem('gridlock-cpuDifficulty', cpuDifficulty); }, [cpuDifficulty]);
   useEffect(() => { localStorage.setItem('gridlock-tournamentSize', String(tournamentSize)); }, [tournamentSize]);
   useEffect(() => { localStorage.setItem('gridlock-tournamentGridSize', String(tournamentGridSize)); }, [tournamentGridSize]);
+
+  // Clamp cpuCount when playerCount changes (covers mount + runtime)
+  useEffect(() => {
+    const maxCpu = Math.max(1, playerCount - 1);
+    if (cpuCount > maxCpu) setCpuCount(maxCpu);
+  }, [playerCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── PWA Install Prompt ──────────────────────────────────────────────────────
   useEffect(() => {
