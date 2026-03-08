@@ -59,8 +59,9 @@
   --btn-danger-text:  #ffffff;
 
   /* Board-specific */
-  --dot-color:        #484f58;
+  --dot-color:        #8b949e;
   --line-empty:       #21262d;
+  --progress-track:   #30363d;
 
   --text-on-accent:   #ffffff;
 
@@ -122,8 +123,9 @@
   --btn-danger-text:  #ffffff;
 
   /* Board-specific */
-  --dot-color:        #1f2328;
+  --dot-color:        #57606a;
   --line-empty:       #d0d7de;
+  --progress-track:   #d0d7de;
 
   --text-on-accent:   #ffffff;
 

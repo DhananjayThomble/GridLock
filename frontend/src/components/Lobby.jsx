@@ -39,9 +39,18 @@ const TOURNAMENT_SIZE_OPTIONS = [
 
 const Lobby = () => {
   const [username,      setUsername]      = useState(() => localStorage.getItem('gridlock_username') || '');
-  const [gridSize,      setGridSize]      = useState(3);
-  const [playerCount,   setPlayerCount]   = useState(2);
-  const [selectedAvatar, setSelectedAvatar] = useState('👦');
+  const [gridSize,      setGridSize]      = useState(() => {
+    const saved = parseInt(localStorage.getItem('gridlock-gridSize'), 10);
+    return saved >= 3 && saved <= 6 ? saved : 3;
+  });
+  const [playerCount,   setPlayerCount]   = useState(() => {
+    const saved = parseInt(localStorage.getItem('gridlock-playerCount'), 10);
+    return saved >= 2 && saved <= 4 ? saved : 2;
+  });
+  const [selectedAvatar, setSelectedAvatar] = useState(() => {
+    const saved = localStorage.getItem('gridlock-avatar');
+    return saved && AVATARS.includes(saved) ? saved : '👦';
+  });
   const [gameId,        setGameId]        = useState('');
   const [creating,      setCreating]      = useState(false);
   const [joining,       setJoining]       = useState(false);
@@ -49,9 +58,12 @@ const Lobby = () => {
   const [tab,           setTab]           = useState('create'); // 'create' | 'join' | 'tournament'
   const [showStats,     setShowStats]     = useState(false);
   const [stats,         setStats]         = useState(getStats());
-  const [cpuEnabled,    setCpuEnabled]    = useState(false);
+  const [cpuEnabled,    setCpuEnabled]    = useState(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   const [cpuCount,      setCpuCount]      = useState(1);
-  const [cpuDifficulty, setCpuDifficulty] = useState('medium');
+  const [cpuDifficulty, setCpuDifficulty] = useState(() => {
+    const saved = localStorage.getItem('gridlock-cpuDifficulty');
+    return ['easy', 'medium', 'hard'].includes(saved) ? saved : 'medium';
+  });
   const [tournamentSize, setTournamentSize] = useState(4);
   const [tournamentGridSize, setTournamentGridSize] = useState(4);
   const [tournamentId, setTournamentId]   = useState('');
@@ -160,6 +172,13 @@ const Lobby = () => {
       }
     };
   }, []);
+
+  // ── Persist lobby settings to localStorage ──────────────────────────────────
+  useEffect(() => { localStorage.setItem('gridlock-avatar', selectedAvatar); }, [selectedAvatar]);
+  useEffect(() => { localStorage.setItem('gridlock-gridSize', String(gridSize)); }, [gridSize]);
+  useEffect(() => { localStorage.setItem('gridlock-playerCount', String(playerCount)); }, [playerCount]);
+  useEffect(() => { localStorage.setItem('gridlock-cpuEnabled', String(cpuEnabled)); }, [cpuEnabled]);
+  useEffect(() => { localStorage.setItem('gridlock-cpuDifficulty', cpuDifficulty); }, [cpuDifficulty]);
 
   // ── PWA Install Prompt ──────────────────────────────────────────────────────
   useEffect(() => {
