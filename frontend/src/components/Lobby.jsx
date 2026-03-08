@@ -59,13 +59,22 @@ const Lobby = () => {
   const [showStats,     setShowStats]     = useState(false);
   const [stats,         setStats]         = useState(getStats());
   const [cpuEnabled,    setCpuEnabled]    = useState(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
-  const [cpuCount,      setCpuCount]      = useState(1);
+  const [cpuCount,      setCpuCount]      = useState(() => {
+    const saved = parseInt(localStorage.getItem('gridlock-cpuCount'), 10);
+    return saved >= 1 && saved <= 5 ? saved : 1;
+  });
   const [cpuDifficulty, setCpuDifficulty] = useState(() => {
     const saved = localStorage.getItem('gridlock-cpuDifficulty');
     return ['easy', 'medium', 'hard'].includes(saved) ? saved : 'medium';
   });
-  const [tournamentSize, setTournamentSize] = useState(4);
-  const [tournamentGridSize, setTournamentGridSize] = useState(4);
+  const [tournamentSize, setTournamentSize] = useState(() => {
+    const saved = parseInt(localStorage.getItem('gridlock-tournamentSize'), 10);
+    return [4, 8].includes(saved) ? saved : 4;
+  });
+  const [tournamentGridSize, setTournamentGridSize] = useState(() => {
+    const saved = parseInt(localStorage.getItem('gridlock-tournamentGridSize'), 10);
+    return saved >= 3 && saved <= 8 ? saved : 4;
+  });
   const [tournamentId, setTournamentId]   = useState('');
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
@@ -178,7 +187,10 @@ const Lobby = () => {
   useEffect(() => { localStorage.setItem('gridlock-gridSize', String(gridSize)); }, [gridSize]);
   useEffect(() => { localStorage.setItem('gridlock-playerCount', String(playerCount)); }, [playerCount]);
   useEffect(() => { localStorage.setItem('gridlock-cpuEnabled', String(cpuEnabled)); }, [cpuEnabled]);
+  useEffect(() => { localStorage.setItem('gridlock-cpuCount', String(cpuCount)); }, [cpuCount]);
   useEffect(() => { localStorage.setItem('gridlock-cpuDifficulty', cpuDifficulty); }, [cpuDifficulty]);
+  useEffect(() => { localStorage.setItem('gridlock-tournamentSize', String(tournamentSize)); }, [tournamentSize]);
+  useEffect(() => { localStorage.setItem('gridlock-tournamentGridSize', String(tournamentGridSize)); }, [tournamentGridSize]);
 
   // ── PWA Install Prompt ──────────────────────────────────────────────────────
   useEffect(() => {
