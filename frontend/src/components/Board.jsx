@@ -861,7 +861,7 @@ const Board = () => {
       })()}
 
       {/* ── Main content area (pushes below fixed ScoreBar) ── */}
-      <div className="game-content w-full flex flex-col items-center px-2 sm:px-6 pb-4">
+      <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
 
         {/* ── Header: Room code + You are + Status ── */}
         <div className="w-full max-w-2xl mb-2 sm:mb-3">
@@ -950,6 +950,7 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
+        <div className="flex flex-1 items-center justify-center w-full">
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -990,6 +991,7 @@ const Board = () => {
               )}
             </div>
           ))}
+        </div>
         </div>
 
         {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
