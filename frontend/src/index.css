@@ -108,12 +108,12 @@
   --player3-color:    #1a7f37;
   --player4-color:    #8250df;
   --player1-bg:       rgba(9,105,218,0.15);
-  --player2-bg:       rgba(217,119,6,0.15);
+  --player2-bg:       rgba(180,83,9,0.15);
   --player3-bg:       rgba(26,127,55,0.15);
   --player4-bg:       rgba(130,80,223,0.15);
 
   /* Winner highlight */
-  --winner-gold:      #b8860b;
+  --winner-gold:      #996515;
   --winner-bg:        rgba(184,134,11,0.10);
   --winner-glow:      rgba(184,134,11,0.30);
 
