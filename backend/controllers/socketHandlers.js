@@ -1139,6 +1139,14 @@ function attachSocketHandlers(io, log) {
                         };
                     }
 
+                    // Guard: reject if any two slots share the same player ID
+                    const slotIds = Object.values(game.players).map((p) => p.id);
+                    if (new Set(slotIds).size !== slotIds.length) {
+                        log.error('Self-match guard triggered in Quick Play', { gameId, slotIds });
+                        socket.emit('error', 'Matchmaking error — please try again');
+                        return;
+                    }
+
                     await gameStore.setGame(gameId, game);
                     await persistGame(game, game.playerCount === players.length ? 'playing' : 'waiting');
 
@@ -1191,9 +1199,109 @@ function attachSocketHandlers(io, log) {
                         }
                     }
 
-                    // Timeout: suggest CPU fallback after QUEUE_TIMEOUT_MS
-                    const timeoutTimer = setTimeout(() => {
-                        if (matchmaking.isInQueue(socket.id)) {
+                    // Timeout: auto-create CPU game after QUEUE_TIMEOUT_MS
+                    const timeoutTimer = setTimeout(async () => {
+                        try {
+                            if (!matchmaking.isInQueue(socket.id)) return;
+
+                            // Retrieve player info before leaving queue
+                            const qStatus = matchmaking.getQueueStatus(socket.id);
+                            if (!qStatus) return;
+                            const qKey = qStatus.queueKey;
+                            const queueArr = matchmaking.queues.get(qKey);
+                            const entry = queueArr?.find((e) => e.socketId === socket.id);
+                            if (!entry) return;
+
+                            const pGridSize = entry.gridSize;
+                            const pPlayerCount = entry.playerCount;
+                            const pUsername = entry.username;
+                            const pAvatar = entry.avatar;
+
+                            // Remove player from queue
+                            matchmaking.leaveQueue(socket.id);
+
+                            // Create a game with CPU opponent(s) filling remaining slots
+                            const cpuGameId = await generateUniqueGameId();
+                            if (!cpuGameId) { socket.emit('error', 'Failed to generate game ID'); return; }
+                            const cpuInitialState = initializeGameState(pGridSize, pPlayerCount);
+                            const cpuSessionToken = generateSessionToken();
+                            const cpuDifficulty = 'medium';
+
+                            const cpuGame = {
+                                id: cpuGameId,
+                                gridSize: pGridSize,
+                                playerCount: pPlayerCount,
+                                players: {
+                                    player1: {
+                                        id: socket.id,
+                                        username: pUsername,
+                                        avatar: pAvatar,
+                                        color: PLAYER_COLORS.player1,
+                                        token: cpuSessionToken,
+                                        disconnectedAt: null,
+                                    },
+                                },
+                                gameState: cpuInitialState,
+                                createdAt: Date.now(),
+                                matchType: 'public',
+                                metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                                cpuDifficulty,
+                            };
+
+                            // Fill remaining slots with CPU players
+                            for (let ci = 1; ci < pPlayerCount; ci++) {
+                                const cpuSlot = `player${ci + 1}`;
+                                cpuGame.players[cpuSlot] = {
+                                    id: `cpu-${cpuGameId}-${ci - 1}`,
+                                    username: CPU_NAMES[ci - 1] || `Bot-${ci}`,
+                                    avatar: CPU_AVATARS[ci - 1] || '🤖',
+                                    color: PLAYER_COLORS[cpuSlot],
+                                    token: `cpu-token-${cpuGameId}-${ci - 1}`,
+                                    disconnectedAt: null,
+                                    isCPU: true,
+                                };
+                            }
+
+                            // Guard: never allow same player in both slots
+                            const cpuSlotIds = Object.values(cpuGame.players).map((p) => p.id);
+                            if (new Set(cpuSlotIds).size !== cpuSlotIds.length) {
+                                log.error('Self-match guard triggered in Quick Play timeout', { gameId: cpuGameId, cpuSlotIds });
+                                socket.emit('error', 'Matchmaking error — please try again');
+                                return;
+                            }
+
+                            await gameStore.setGame(cpuGameId, cpuGame);
+                            socket.join(cpuGameId);
+                            socket.data.gameId = cpuGameId;
+                            socket.data.playerId = 'player1';
+                            socket.data.queueKey = undefined;
+
+                            await persistGame(cpuGame, 'playing');
+
+                            const cpuGameState = buildGameStateWithPlayers(cpuGame);
+                            socket.emit('queue_matched', {
+                                gameId: cpuGameId,
+                                playerId: 'player1',
+                                sessionToken: cpuSessionToken,
+                                gridSize: cpuGame.gridSize,
+                                playerCount: cpuGame.playerCount,
+                                players: getPlayersList(cpuGame),
+                                gameState: cpuGameState,
+                                cpuDifficulty: cpuGame.cpuDifficulty,
+                            });
+
+                            io.to(cpuGameId).emit('all_players_joined', { gameId: cpuGameId });
+
+                            // If first turn belongs to CPU, trigger it
+                            const firstCpuPlayer = cpuGame.players[cpuGame.gameState.currentPlayer];
+                            if (firstCpuPlayer && firstCpuPlayer.isCPU) {
+                                const cpuDelay = CPU_DELAYS[cpuDifficulty] || 1200;
+                                scheduleCPUMove(io, log, cpuGameId, cpuDelay);
+                            }
+
+                            log.info('Quick Play timeout — CPU game created', { gameId: cpuGameId, username: pUsername, cpuSlots: pPlayerCount - 1 });
+                        } catch (err) {
+                            log.error('Quick Play timeout CPU fallback failed', { error: err.message, stack: err.stack });
                             socket.emit('queue_timeout', { suggestion: 'cpu' });
                         }
                     }, QUEUE_TIMEOUT_MS);
