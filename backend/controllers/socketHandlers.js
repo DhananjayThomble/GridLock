@@ -193,7 +193,7 @@ async function markGameFinished(gameId, reason = null) {
 }
 
 async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p1, p2 }) {
-    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const gameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
     const p1Token = generateSessionToken();
     const p2Token = generateSessionToken();
 
@@ -631,7 +631,7 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
-                const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const gameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
                 const sessionToken = generateSessionToken();
 
@@ -987,7 +987,7 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (totalVotes >= game.playerCount) {
-                    const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    const newGameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
                     const initialState = initializeGameState(game.gridSize, game.playerCount);
                     const newGame = {
                         id: newGameId,
@@ -1050,11 +1050,16 @@ function attachSocketHandlers(io, log) {
 
                 const result = matchmaking.joinQueue(socket.id, cleanUsername, cleanAvatar, gridResult.value, pcResult.value);
 
+                if (result.rejected) {
+                    socket.emit('error', result.reason);
+                    return;
+                }
+
                 if (result.matched) {
                     // Create game for matched players
                     const players = result.players;
                     const host = players[0];
-                    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    const gameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
                     const initialState = initializeGameState(host.gridSize, host.playerCount);
 
                     const game = {
@@ -1115,13 +1120,24 @@ function attachSocketHandlers(io, log) {
 
                     log.info('Quick Play match created', { gameId, playerCount: game.playerCount, players: players.map((p) => p.username) });
                 } else {
-                    // Player queued — send status and set timeout
+                    // Player queued — broadcast status to ALL waiters and set timeout
                     socket.data.queueKey = result.queueKey;
-                    socket.emit('queue_status', {
-                        position: result.position,
-                        queueSize: result.queueSize,
-                        queueKey: result.queueKey,
-                    });
+
+                    // Notify every player in this queue of the updated status
+                    const waiters = matchmaking.getWaiters(result.queueKey);
+                    for (const waiterId of waiters) {
+                        const waiterSocket = io.sockets.sockets.get(waiterId);
+                        if (waiterSocket) {
+                            const status = matchmaking.getQueueStatus(waiterId);
+                            if (status) {
+                                waiterSocket.emit('queue_status', {
+                                    position: status.position,
+                                    queueSize: status.queueSize,
+                                    queueKey: status.queueKey,
+                                });
+                            }
+                        }
+                    }
 
                     // Timeout: suggest CPU fallback after QUEUE_TIMEOUT_MS
                     const timeoutTimer = setTimeout(() => {
@@ -1139,9 +1155,31 @@ function attachSocketHandlers(io, log) {
 
         // ── queue_leave ────────────────────────────────────────────────────────
         socket.on('queue_leave', () => {
+            if (!socketLimiter.allow(socket.id, 'queue_leave')) return;
+
+            const info = matchmaking.playerIndex.get(socket.id);
+            const queueKey = info?.queueKey;
             matchmaking.leaveQueue(socket.id);
             socket.data.queueKey = undefined;
             socket.emit('queue_left', {});
+
+            // Broadcast updated status to remaining waiters
+            if (queueKey) {
+                const waiters = matchmaking.getWaiters(queueKey);
+                for (const waiterId of waiters) {
+                    const waiterSocket = io.sockets.sockets.get(waiterId);
+                    if (waiterSocket) {
+                        const status = matchmaking.getQueueStatus(waiterId);
+                        if (status) {
+                            waiterSocket.emit('queue_status', {
+                                position: status.position,
+                                queueSize: status.queueSize,
+                                queueKey: status.queueKey,
+                            });
+                        }
+                    }
+                }
+            }
         });
 
         // ── disconnect ─────────────────────────────────────────────────────────

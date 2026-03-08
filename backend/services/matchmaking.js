@@ -1,8 +1,31 @@
 // backend/services/matchmaking.js
-// In-memory matchmaking queue for public Quick Play games
+/**
+ * In-memory matchmaking queue for public Quick Play games.
+ *
+ * ## Queue Structure
+ * - Queues are keyed by player preference: `"<playerCount>P:<gridSize>x<gridSize>"` (e.g. "2P:3x3").
+ * - Each queue is a FIFO array of waiting player entries.
+ * - When a queue reaches the required player count, the first N players are
+ *   popped, matched together, and returned as a group for game creation.
+ *
+ * ## Matching Algorithm
+ * - Exact-match only: players must share the same grid size AND player count.
+ * - First-come-first-served: earliest joiners are matched first.
+ * - Double-queue prevention: joining a new queue auto-removes from any prior queue.
+ * - Stale entries are cleaned up periodically (STALE_ENTRY_MS).
+ * - Each queue is capped at MAX_QUEUE_SIZE to prevent unbounded memory growth.
+ *
+ * ## Timeout
+ * - After QUEUE_TIMEOUT_MS the caller is notified to suggest a CPU fallback.
+ *   This constant is synced with the frontend timer thresholds (30s default).
+ *   Override via QUEUE_TIMEOUT_MS env var; test env uses a shorter value.
+ */
 
-const QUEUE_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
+const QUEUE_TIMEOUT_MS = parseInt(process.env.QUEUE_TIMEOUT_MS, 10)
+    || (process.env.NODE_ENV === 'test' ? 5_000 : 30_000);
 const STALE_ENTRY_MS = 60_000;
+/** Maximum players per queue key — prevents unbounded memory growth / DoS */
+const MAX_QUEUE_SIZE = 100;
 
 class MatchmakingService {
     constructor() {
@@ -27,8 +50,21 @@ class MatchmakingService {
     }
 
     /**
+     * Get all socket IDs currently waiting in a given queue.
+     * @param {string} queueKey
+     * @returns {string[]}
+     */
+    getWaiters(queueKey) {
+        const queue = this.queues.get(queueKey);
+        if (!queue) return [];
+        return queue.map((e) => e.socketId);
+    }
+
+    /**
      * Add a player to the matchmaking queue.
-     * Returns { queued: true, queueKey, position, queueSize } or { matched: true, players, queueKey }
+     * Returns { queued: true, queueKey, position, queueSize }
+     *       | { matched: true, players, queueKey }
+     *       | { rejected: true, reason: string }
      */
     joinQueue(socketId, username, avatar, gridSize, playerCount) {
         // Prevent double-queueing
@@ -43,6 +79,11 @@ class MatchmakingService {
         }
 
         const queue = this.queues.get(queueKey);
+
+        // Enforce queue size cap
+        if (queue.length >= MAX_QUEUE_SIZE) {
+            return { rejected: true, reason: 'Queue is full. Please try again later.' };
+        }
 
         const entry = {
             socketId,
@@ -206,3 +247,4 @@ const matchmaking = new MatchmakingService();
 module.exports = matchmaking;
 module.exports.MatchmakingService = MatchmakingService;
 module.exports.QUEUE_TIMEOUT_MS = QUEUE_TIMEOUT_MS;
+module.exports.MAX_QUEUE_SIZE = MAX_QUEUE_SIZE;

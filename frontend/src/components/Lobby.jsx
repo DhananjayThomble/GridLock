@@ -212,23 +212,31 @@ const Lobby = () => {
     const name = username.trim();
     if (!socket.connected) socket.connect();
     setCreating(true);
-    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
-      if (res?.gameId) {
-        setCreating(false);
-        navigate('/game', {
-          state: {
-            username: name,
-            gridSize,
-            gameId: res.gameId,
-            role: res.playerId,
-            avatar: selectedAvatar,
-            playerCount,
-            sessionToken: res.sessionToken,
-            cpuDifficulty: 'medium',
-          },
-        });
-      }
-    });
+    try {
+      socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
+        if (res?.gameId) {
+          setCreating(false);
+          navigate('/game', {
+            state: {
+              username: name,
+              gridSize,
+              gameId: res.gameId,
+              role: res.playerId,
+              avatar: selectedAvatar,
+              playerCount,
+              sessionToken: res.sessionToken,
+              cpuDifficulty: 'medium',
+            },
+          });
+        } else {
+          setCreating(false);
+          alert('Failed to create CPU game. Please try again.');
+        }
+      });
+    } catch (err) {
+      setCreating(false);
+      alert('Failed to create CPU game. Please try again.');
+    }
   };
 
   // ── Create ──────────────────────────────────────────────────────────────────
@@ -373,6 +381,7 @@ const Lobby = () => {
           <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
               onClick={handleQuickPlay}
+              aria-label="Quick Play — instant match with random opponents"
               className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
               style={{
                 background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))',

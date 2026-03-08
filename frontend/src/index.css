@@ -54,6 +54,8 @@
   --line-empty:       #21262d;
 
   --text-on-accent:   #ffffff;
+
+  --overlay-bg:       rgba(0, 0, 0, 0.6);
 }
 
 [data-theme="light"] {
@@ -106,6 +108,8 @@
   --line-empty:       #d0d7de;
 
   --text-on-accent:   #ffffff;
+
+  --overlay-bg:       rgba(0, 0, 0, 0.6);
 }
 
 /* ── Theme transition (only during toggle) ─────────────────────────────────── */
