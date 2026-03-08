@@ -204,6 +204,22 @@ textarea::placeholder {
 .board-container {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  max-width: min(90vw, 500px);
+}
+
+/* Score bar player name — responsive width via CSS clamp */
+.score-bar-player-name {
+  max-width: clamp(60px, 15vw, 140px);
+  font-size: clamp(0.55rem, 2vw, 0.875rem);
+}
+
+/* Score bar progress bars — base heights */
+.score-progress-thin {
+  height: 0.375rem;
+}
+
+.score-progress-thick {
+  height: 1.25rem;
 }
 
 /* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
@@ -214,6 +230,14 @@ textarea::placeholder {
 /* Game content: add top padding to clear fixed ScoreBar (~80px) */
 .game-content {
   padding-top: 88px;
+}
+
+/* ScoreBar progress bar heights — custom classes instead of targeting Tailwind utilities */
+.score-progress-thin {
+  height: 0.375rem; /* 6px — compact bar for multi-player rows */
+}
+.score-progress-thick {
+  height: 1.25rem; /* 20px — full bar for 2-player layout */
 }
 
 /* On mobile: board centers and fits within viewport width */
@@ -238,22 +262,25 @@ textarea::placeholder {
   }
 }
 
+/* ── Responsive breakpoints — small tablet (641-767px) ─────────────────────── */
+@media (min-width: 641px) and (max-width: 767px) {
+  .board-container {
+    max-width: min(90vw, 520px);
+  }
+}
+
 /* ── Responsive breakpoints — tablet (768px+) ─────────────────────────────── */
 @media (min-width: 768px) {
   .board-container {
     max-width: min(70vw, 560px);
   }
 
-  .score-bar .h-1\.5 {
+  .score-progress-thin {
     height: 0.375rem;
   }
 
-  .score-bar .h-5 {
+  .score-progress-thick {
     height: 1.5rem;
-  }
-
-  .player-name-4p {
-    max-width: none;
   }
 
   .game-content {
@@ -267,15 +294,15 @@ textarea::placeholder {
     max-width: min(50vw, 620px);
   }
 
-  .score-bar .h-1\.5 {
+  .score-progress-thin {
     height: 0.5rem;
   }
 
-  .score-bar .h-5 {
+  .score-progress-thick {
     height: 2rem;
   }
 
-  button {
+  .game-toolbar button {
     white-space: nowrap;
   }
 

@@ -53,7 +53,7 @@ function useGridSizes(gridSize) {
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Clamp: minimum 20px so it's tappable, max 80px for desktop
+      // Clamp: minimum 24px so it's tappable, max 90-100px tiered by viewport
       const maxBox = w < 640 ? 90 : w < 1024 ? 96 : 100;
       box = Math.max(24, Math.min(box, maxBox));
 
@@ -958,7 +958,6 @@ const Board = () => {
           style={{
             touchAction: 'pan-y',
             padding: '12px',
-            
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),

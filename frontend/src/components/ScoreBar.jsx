@@ -23,8 +23,8 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
     return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
   };
 
-  // For 4P on mobile, allow at least 10 chars; on tablet+ show full name
-  const multiPlayerMaxLen = typeof window !== 'undefined' && window.innerWidth >= 768 ? 20 : 10;
+  // CSS clamp() + truncate handles responsive width; use generous JS limit as safety net
+  const multiPlayerMaxLen = 20;
 
   return (
     <div
@@ -61,7 +61,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                         {percentage.toFixed(0)}%
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
+                    <div className="score-progress-thin rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                       <div
                         className="h-full transition-all duration-500 ease-out"
                         style={{ width: `${percentage}%`, backgroundColor: player.color }}
@@ -114,7 +114,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   </div>
 
                   {/* Progress bar container */}
-                  <div className="flex-1 h-5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
+                  <div className="flex-1 score-progress-thick rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                     <div
                       className="h-full transition-all duration-500 ease-out"
                       style={{ width: `${percentage}%`, backgroundColor: player.color }}
