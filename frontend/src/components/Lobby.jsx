@@ -1,7 +1,7 @@
 // src/components/Lobby.jsx
 // Production-ready lobby — mobile-first, fully adaptive
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { initAudio } from '../utils/sounds';
 import socket from '../socket';
@@ -148,6 +148,19 @@ const Lobby = () => {
     };
   }, [navigate, username, selectedAvatar, gridSize, playerCount]);
 
+  // ── Ref for unmount cleanup (captures latest quickPlaying value) ──────────
+  const quickPlayingRef = useRef(quickPlaying);
+  useEffect(() => { quickPlayingRef.current = quickPlaying; }, [quickPlaying]);
+
+  // ── Cleanup: emit queue_leave on unmount if still in queue ──────────────
+  useEffect(() => {
+    return () => {
+      if (quickPlayingRef.current) {
+        socket.emit('queue_leave');
+      }
+    };
+  }, []);
+
   // ── PWA Install Prompt ──────────────────────────────────────────────────────
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -212,31 +225,31 @@ const Lobby = () => {
     const name = username.trim();
     if (!socket.connected) socket.connect();
     setCreating(true);
-    try {
-      socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
-        if (res?.gameId) {
-          setCreating(false);
-          navigate('/game', {
-            state: {
-              username: name,
-              gridSize,
-              gameId: res.gameId,
-              role: res.playerId,
-              avatar: selectedAvatar,
-              playerCount,
-              sessionToken: res.sessionToken,
-              cpuDifficulty: 'medium',
-            },
-          });
-        } else {
-          setCreating(false);
-          alert('Failed to create CPU game. Please try again.');
-        }
-      });
-    } catch (err) {
-      setCreating(false);
-      alert('Failed to create CPU game. Please try again.');
-    }
+    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
+      if (res?.error) {
+        setCreating(false);
+        alert(res.error);
+        return;
+      }
+      if (res?.gameId) {
+        setCreating(false);
+        navigate('/game', {
+          state: {
+            username: name,
+            gridSize,
+            gameId: res.gameId,
+            role: res.playerId,
+            avatar: selectedAvatar,
+            playerCount,
+            sessionToken: res.sessionToken,
+            cpuDifficulty: 'medium',
+          },
+        });
+      } else {
+        setCreating(false);
+        alert('Failed to create CPU game. Please try again.');
+      }
+    });
   };
 
   // ── Create ──────────────────────────────────────────────────────────────────
@@ -381,15 +394,18 @@ const Lobby = () => {
           <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
               onClick={handleQuickPlay}
+              disabled={quickPlaying || creating}
               aria-label="Quick Play — instant match with random opponents"
-              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
-                color: 'var(--text-on-accent)',
-                boxShadow: '0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)',
+                background: (quickPlaying || creating)
+                  ? 'var(--bg-surface)'
+                  : 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
+                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--text-on-accent)',
+                boxShadow: (quickPlaying || creating) ? 'none' : '0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)',
               }}
             >
-              ⚡ Quick Play
+              {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
             <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-muted)' }}>
               Instant match with random opponents

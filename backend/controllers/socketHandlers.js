@@ -104,6 +104,19 @@ function generateSessionToken() {
     return crypto.randomBytes(24).toString('hex');
 }
 
+/**
+ * Generate a unique 6-char hex game ID with collision check against gameStore.
+ * Retries up to maxAttempts times. Returns null if all attempts collide.
+ */
+async function generateUniqueGameId(maxAttempts = 5) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const candidate = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+        const existing = await gameStore.getGame(candidate);
+        if (!existing) return candidate;
+    }
+    return null;
+}
+
 function countFilledPlayers(game) {
     return Object.keys(game.players).filter((pid) => !!game.players[pid]).length;
 }
@@ -193,7 +206,8 @@ async function markGameFinished(gameId, reason = null) {
 }
 
 async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p1, p2 }) {
-    const gameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+    const gameId = await generateUniqueGameId();
+    if (!gameId) throw new Error('Failed to generate unique game ID after retries');
     const p1Token = generateSessionToken();
     const p2Token = generateSessionToken();
 
@@ -631,7 +645,8 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
-                const gameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+                const gameId = await generateUniqueGameId();
+                if (!gameId) { socket.emit('error', 'Failed to generate game ID. Please try again.'); return; }
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
                 const sessionToken = generateSessionToken();
 
@@ -987,7 +1002,8 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (totalVotes >= game.playerCount) {
-                    const newGameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+                    const newGameId = await generateUniqueGameId();
+                    if (!newGameId) { socket.emit('error', 'Failed to generate rematch game ID'); return; }
                     const initialState = initializeGameState(game.gridSize, game.playerCount);
                     const newGame = {
                         id: newGameId,
@@ -1056,10 +1072,46 @@ function attachSocketHandlers(io, log) {
                 }
 
                 if (result.matched) {
-                    // Create game for matched players
+                    // Verify all matched sockets are still connected before game creation
                     const players = result.players;
+                    const connected = [];
+                    const disconnected = [];
+                    for (const p of players) {
+                        const s = io.sockets.sockets.get(p.socketId);
+                        if (s && s.connected) {
+                            connected.push(p);
+                        } else {
+                            disconnected.push(p);
+                        }
+                    }
+
+                    if (disconnected.length > 0) {
+                        // Re-queue connected players
+                        for (const p of connected) {
+                            const requeue = matchmaking.joinQueue(p.socketId, p.username, p.avatar, p.gridSize, p.playerCount);
+                            const ps = io.sockets.sockets.get(p.socketId);
+                            if (ps && requeue.queued) {
+                                ps.data.queueKey = requeue.queueKey;
+                                ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey });
+                                const timer = setTimeout(() => {
+                                    if (matchmaking.isInQueue(p.socketId)) {
+                                        ps.emit('queue_timeout', { suggestion: 'cpu' });
+                                    }
+                                }, QUEUE_TIMEOUT_MS);
+                                matchmaking.setTimeoutTimer(p.socketId, timer);
+                            }
+                        }
+                        log.info('Matched player disconnected before game creation, re-queued remaining', {
+                            disconnected: disconnected.map(p => p.username),
+                            requeued: connected.map(p => p.username),
+                        });
+                        return;
+                    }
+
+                    // Create game for matched players
                     const host = players[0];
-                    const gameId = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+                    const gameId = await generateUniqueGameId();
+                    if (!gameId) { socket.emit('error', 'Failed to generate game ID'); return; }
                     const initialState = initializeGameState(host.gridSize, host.playerCount);
 
                     const game = {

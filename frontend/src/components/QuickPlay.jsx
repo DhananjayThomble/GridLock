@@ -4,6 +4,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import socket from '../socket';
 
+// Timeout thresholds (seconds) — Must match backend QUEUE_TIMEOUT_MS in services/matchmaking.js
+const QUEUE_TIMEOUT_SEC = 30;
+const CPU_SUGGEST_SEC   = 15;
+const CPU_AUTO_SEC      = QUEUE_TIMEOUT_SEC;
+
 const QuickPlay = ({ gridSize, playerCount, queueSize: initialQueueSize, onCancel, onPlayCPU }) => {
   const [elapsed, setElapsed] = useState(0);
   const [queueSize, setQueueSize] = useState(initialQueueSize || 1);
@@ -42,11 +47,11 @@ const QuickPlay = ({ gridSize, playerCount, queueSize: initialQueueSize, onCance
     timerRef.current = setInterval(() => {
       setElapsed((prev) => {
         const next = prev + 1;
-        if (next >= 15 && !showCpuRef.current) {
+        if (next >= CPU_SUGGEST_SEC && !showCpuRef.current) {
           showCpuRef.current = true;
           setShowCpuOption(true);
         }
-        if (next >= 30 && !timedOutRef.current) {
+        if (next >= CPU_AUTO_SEC && !timedOutRef.current) {
           timedOutRef.current = true;
           setTimedOut(true);
         }
