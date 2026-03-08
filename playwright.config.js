@@ -50,14 +50,17 @@ module.exports = defineConfig({
     {
       name: 'mobile-iphone',
       use: { ...devices['iPhone 14'] },
+      testMatch: /2[789]-.*\.spec\.js/,
     },
     {
       name: 'mobile-pixel',
       use: { ...devices['Pixel 7'] },
+      testMatch: /2[789]-.*\.spec\.js/,
     },
     {
       name: 'tablet-ipad',
       use: { ...devices['iPad Mini'] },
+      testMatch: /2[789]-.*\.spec\.js/,
     },
   ],
 

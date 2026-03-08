@@ -1,33 +1,8 @@
 // e2e/15-cpu-game.spec.js — CPU player game tests
 
 const { test, expect } = require('@playwright/test');
-const { goToLobby, BASE_URL } = require('./helpers');
+const { goToLobby, createCpuGame, BASE_URL } = require('./helpers');
 
-/**
- * Create a CPU game — does NOT wait for room code (CPU games start immediately).
- */
-async function createCpuGame(page, { username = 'HumanPlayer', gridSize = '3×3', playerCount = 2 } = {}) {
-  await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]', username);
-  await page.click(`button:has-text("${playerCount} Players")`);
-  // Click grid size — ignore if button doesn't exist (falls back to default 3×3)
-  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
-
-  // Enable CPU toggle
-  const cpuToggle = page.locator('button:has-text("Play vs CPU")');
-  await cpuToggle.click();
-  await page.waitForTimeout(500);
-
-  // Create game
-  await page.click('button:has-text("🚀 Create Game")');
-  await page.waitForURL(/\/game/, { timeout: 15_000 });
-
-  // Wait for game to start (turn indicator appears)
-  await page.waitForFunction(
-    () => /turn/i.test(document.body.innerText),
-    { timeout: 20_000 }
-  );
-}
 
 test.describe('CPU Player Games', () => {
 
@@ -68,7 +43,7 @@ test.describe('CPU Player Games', () => {
       }
 
       if (body.includes('Your turn')) {
-        const lines = await page.locator('[class*="cursor-pointer"]').all();
+        const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
         for (const line of lines.slice(0, 10)) {
           try {
             await line.click({ timeout: 2000, force: true });
@@ -93,7 +68,7 @@ test.describe('CPU Player Games', () => {
       const body = await page.locator('body').innerText();
       if (body.includes('Game Over') || body.includes('Play Again')) break;
       if (body.includes('Your turn')) {
-        const lines = await page.locator('[class*="cursor-pointer"]').all();
+        const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
         for (const line of lines.slice(0, 10)) {
           try { await line.click({ timeout: 2000, force: true }); break; } catch { continue; }
         }
