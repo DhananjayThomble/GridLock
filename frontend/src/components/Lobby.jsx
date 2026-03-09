@@ -996,7 +996,6 @@ const Lobby = () => {
       {quickPlaying && (
         <QuickPlay
           gridSize={gridSize}
-          playerCount={2}
           queueSize={queueSize}
           onCancel={handleQuickPlayCancel}
           onPlayCPU={handleQuickPlayCPU}

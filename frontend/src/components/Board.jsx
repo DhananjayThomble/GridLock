@@ -270,7 +270,7 @@ const Board = () => {
         if (!gameOverRecorded.current && roleRef.current !== 'spectator') {
           gameOverRecorded.current = true;
           const myScore = gs.scores?.[role] || 0;
-          const totalBoxes = ((gridSize || 3) - 1) * ((gridSize || 3) - 1);
+          const totalBoxes = (gridSize || 3) * (gridSize || 3);
           const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
