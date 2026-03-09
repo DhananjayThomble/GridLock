@@ -54,7 +54,7 @@ const SoundSettings = () => {
         data-testid="sound-settings-trigger"
       >
         <span>⚙️ Sound &amp; Haptic</span>
-        <span>{open ? '▲' : '▼'}</span>
+        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (

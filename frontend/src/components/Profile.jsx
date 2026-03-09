@@ -249,7 +249,7 @@ const Profile = () => {
             label="Streak"
             value={p.currentStreak > 0 ? `${p.currentStreak}🔥` : '0'}
           />
-          <StatCard label="Best" value={p.bestStreak} />
+          <StatCard label="Best Streak" value={p.bestStreak} />
         </div>
 
         {/* Computed Stats */}

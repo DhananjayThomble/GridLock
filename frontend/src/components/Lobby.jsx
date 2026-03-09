@@ -590,7 +590,7 @@ const Lobby = () => {
                     <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>
                       CPU Opponents ({cpuCount})
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" style={{ maxWidth: playerCount - 1 === 1 ? '50%' : '100%' }}>
                       {Array.from({ length: playerCount - 1 }, (_, i) => i + 1).map((n) => (
                         <button
                           key={n}
@@ -838,148 +838,158 @@ const Lobby = () => {
 
         <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
 
-        {/* ── Theme Toggle + PWA Install Button ── */}
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <ThemeToggle />
-          {installPrompt && (
+        {/* ── Settings Footer Card ── */}
+        <div
+          className="mt-4 rounded-2xl p-4 space-y-3 settings-card"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Settings</span>
+          </div>
+
+          {/* Theme Toggle + PWA Install */}
+          <div className="flex items-center justify-center gap-2">
+            <ThemeToggle />
+            {installPrompt && (
+              <button
+                onClick={handleInstall}
+                className="py-2.5 px-4 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2"
+                style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+              >
+                📲 Install App
+              </button>
+            )}
+          </div>
+
+          {/* Push Notification Toggle */}
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>🔔 Push Notifications</span>
             <button
-              onClick={handleInstall}
-              className="py-2.5 px-4 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+              onClick={async () => {
+                const name = username.trim();
+                if (!pushEnabled) {
+                  const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+                  try {
+                    const sub = await subscribeToPush(name);
+                    if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+                  } catch { /* push subscribe failed — ignore */ }
+                } else {
+                  try {
+                    await unsubscribeFromPush();
+                  } catch { /* push unsubscribe failed — ignore */ }
+                  setPushEnabled(false);
+                  localStorage.removeItem('gridlock_push');
+                }
+              }}
+              className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
+              style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
+              aria-label="Toggle push notifications"
             >
-              📲 Install App
+              <div
+                className={`w-4 h-4 rounded-full shadow transition-transform ${
+                  pushEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+                style={{ backgroundColor: 'var(--text-primary)' }}
+              />
             </button>
-          )}
-        </div>
+          </div>
 
-        {/* ── Push Notification Toggle ── */}
-        <div className="flex items-center justify-between mt-3 px-1">
-          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>🔔 Push Notifications</span>
-          <button
-            onClick={async () => {
-              const name = username.trim();
-              if (!pushEnabled) {
-                const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
-                try {
-                  const sub = await subscribeToPush(name);
-                  if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
-                } catch { /* push subscribe failed — ignore */ }
-              } else {
-                try {
-                  await unsubscribeFromPush();
-                } catch { /* push unsubscribe failed — ignore */ }
-                setPushEnabled(false);
-                localStorage.removeItem('gridlock_push');
-              }
-            }}
-            className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
-            style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
-            aria-label="Toggle push notifications"
-          >
-            <div
-              className={`w-4 h-4 rounded-full shadow transition-transform ${
-                pushEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`}
-              style={{ backgroundColor: 'var(--text-primary)' }}
-            />
-          </button>
-        </div>
+          {/* Sound & Haptic Settings */}
+          <SoundSettings />
 
-        {/* ── Sound & Haptic Settings ── */}
-        <SoundSettings />
+          {/* Session Stats Panel */}
+          <div>
+            <button
+              onClick={() => {
+                const next = !showStats;
+                if (next) setStats(getStats());
+                setShowStats(next);
+              }}
+              className="w-full py-2 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <span>📊 Your Stats</span>
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{showStats ? '▲' : '▼'}</span>
+            </button>
 
-        {/* ── Session Stats Panel ── */}
-        <div className="mt-3">
-          <button
-            onClick={() => {
-              const next = !showStats;
-              if (next) setStats(getStats()); // refresh on open, not via useEffect
-              setShowStats(next);
-            }}
-            className="w-full py-2 text-xs font-semibold transition-all flex items-center justify-center gap-2"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <span>📊 Your Stats</span>
-            <span>{showStats ? '▲' : '▼'}</span>
-          </button>
-
-          {showStats && (
-            <div className="backdrop-blur-md rounded-2xl p-4 mt-1 space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-              {stats.gamesPlayed === 0 ? (
-                <p className="text-center text-xs py-2" style={{ color: 'var(--text-subtle)' }}>No games played yet this session.</p>
-              ) : (
-                <>
-                  {/* Summary row */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    {[
-                      { label: 'Games', value: stats.gamesPlayed },
-                      { label: 'Wins', value: stats.wins },
-                      { label: 'Win Rate', value: getWinRate() },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card-hover)' }}>
-                        <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{value}</div>
-                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    {[
-                      { label: 'Avg Territory', value: getAvgTerritory() },
-                      { label: 'Best Territory', value: `${stats.bestTerritory}%` },
-                      { label: 'Best Streak', value: `${stats.bestStreak} 🔥` },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card-hover)' }}>
-                        <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{value}</div>
-                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Current streak */}
-                  {stats.currentStreak > 0 && (
-                    <div className="text-center text-sm font-bold" style={{ color: 'var(--warning)' }}>
-                      🔥 {stats.currentStreak} game win streak!
+            {showStats && (
+              <div className="backdrop-blur-md rounded-2xl p-4 mt-1 space-y-3" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)' }}>
+                {stats.gamesPlayed === 0 ? (
+                  <p className="text-center text-xs py-2" style={{ color: 'var(--text-subtle)' }}>No games played yet this session.</p>
+                ) : (
+                  <>
+                    {/* Summary row */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      {[
+                        { label: 'Games', value: stats.gamesPlayed },
+                        { label: 'Wins', value: stats.wins },
+                        { label: 'Win Rate', value: getWinRate() },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card)' }}>
+                          <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{value}</div>
+                          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
+                        </div>
+                      ))}
                     </div>
-                  )}
 
-                  {/* Last 5 games */}
-                  {stats.history.length > 0 && (
-                    <div>
-                      <p className="text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Last {Math.min(stats.history.length, 5)} Games</p>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {stats.history.slice(0, 5).map((g, i) => (
-                          <div
-                            key={i}
-                            className="px-2.5 py-1 rounded-lg text-xs font-bold"
-                            style={
-                              g.outcome === 'win'
-                                ? { backgroundColor: 'color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
-                                : g.outcome === 'draw'
-                                ? { backgroundColor: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
-                                : { backgroundColor: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)' }
-                            }
-                            title={`${g.gridSize}×${g.gridSize} · ${g.players}P`}
-                          >
-                            {g.outcome === 'win' ? 'W' : g.outcome === 'draw' ? 'D' : 'L'} {g.territoryPct}%
-                          </div>
-                        ))}
-                      </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      {[
+                        { label: 'Avg Territory', value: getAvgTerritory() },
+                        { label: 'Best Territory', value: `${stats.bestTerritory}%` },
+                        { label: 'Best Streak', value: `${stats.bestStreak} 🔥` },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card)' }}>
+                          <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{value}</div>
+                          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
+                        </div>
+                      ))}
                     </div>
-                  )}
 
-                  {/* Reset */}
-                  <button
-                    onClick={() => { resetStats(); setStats(getStats()); }}
-                    className="w-full text-xs transition-all py-1"
-                    style={{ color: 'var(--text-subtle)' }}
-                  >
-                    Reset stats
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+                    {/* Current streak */}
+                    {stats.currentStreak > 0 && (
+                      <div className="text-center text-sm font-bold" style={{ color: 'var(--warning)' }}>
+                        🔥 {stats.currentStreak} game win streak!
+                      </div>
+                    )}
+
+                    {/* Last 5 games */}
+                    {stats.history.length > 0 && (
+                      <div>
+                        <p className="text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Last {Math.min(stats.history.length, 5)} Games</p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {stats.history.slice(0, 5).map((g, i) => (
+                            <div
+                              key={i}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold"
+                              style={
+                                g.outcome === 'win'
+                                  ? { backgroundColor: 'color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
+                                  : g.outcome === 'draw'
+                                  ? { backgroundColor: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
+                                  : { backgroundColor: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)' }
+                              }
+                              title={`${g.gridSize}×${g.gridSize} · ${g.players}P`}
+                            >
+                              {g.outcome === 'win' ? 'W' : g.outcome === 'draw' ? 'D' : 'L'} {g.territoryPct}%
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reset */}
+                    <button
+                      onClick={() => { resetStats(); setStats(getStats()); }}
+                      className="w-full text-xs transition-all py-1"
+                      style={{ color: 'var(--text-subtle)' }}
+                    >
+                      Reset stats
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
