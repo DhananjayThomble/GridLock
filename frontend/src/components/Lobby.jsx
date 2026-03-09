@@ -300,7 +300,7 @@ const Lobby = () => {
             gameId: res.gameId,
             role: res.playerId,
             avatar: selectedAvatar,
-            playerCount,
+            playerCount: 2,
             sessionToken: res.sessionToken,
             cpuDifficulty: 'medium',
           },
