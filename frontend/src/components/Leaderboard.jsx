@@ -85,6 +85,20 @@ const Leaderboard = () => {
 
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
 
+  /* On mobile (<768px), skip ranks 1-3 in table when top-3 cards are shown */
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  const tableRows = useMemo(
+    () => (isMobile && rows.length >= 3 ? rows.slice(3) : rows),
+    [rows, isMobile],
+  );
+
   const onLookup = async (event) => {
     event.preventDefault();
     const username = query.trim();
@@ -200,7 +214,8 @@ const Leaderboard = () => {
               {topThree.map((entry) => (
                 <article key={entry.username} className="rounded-2xl p-4 text-left" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--text-primary)' }}>
                   <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--warning)' }}>Rank #{entry.rank}</p>
-                  <h3 className="mt-1 text-lg font-bold">
+                  <h3 className="mt-1 text-lg font-bold flex items-center gap-1.5">
+                    {entry.avatar && <span className="text-xl" aria-hidden="true">{entry.avatar}</span>}
                     <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--text-primary)' }}>
                       {entry.username}
                     </Link>
@@ -211,7 +226,7 @@ const Leaderboard = () => {
             </section>
 
             <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
-              <div className="overflow-x-auto">
+              <div className="leaderboard-scroll-wrapper">
                 <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
                   <thead style={{ background: 'var(--bg-card-hover)' }}>
                     <tr>
@@ -220,22 +235,23 @@ const Leaderboard = () => {
                       <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>W/L/D</th>
                       <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Win Rate</th>
                       <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>ELO</th>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Last Played</th>
+                      <th className="px-3 py-3 text-xs uppercase tracking-wider leaderboard-last-played" style={{ color: 'var(--label-color)' }}>Last Played</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((entry) => (
+                    {tableRows.map((entry) => (
                       <tr key={entry.username} style={{ borderTop: '1px solid var(--border-color)' }}>
                         <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
                         <td className="px-3 py-3">
-                          <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--accent)' }}>
+                          <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors inline-flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+                            {entry.avatar && <span className="text-base" aria-hidden="true">{entry.avatar}</span>}
                             {entry.username}
                           </Link>
                         </td>
                         <td className="px-3 py-3">{entry.wins}/{entry.losses}/{entry.draws}</td>
                         <td className="px-3 py-3">{entry.winRate}%</td>
                         <td className="px-3 py-3">{entry.elo}</td>
-                        <td className="px-3 py-3">{formatDate(entry.lastPlayedAt)}</td>
+                        <td className="px-3 py-3 leaderboard-last-played">{formatDate(entry.lastPlayedAt)}</td>
                       </tr>
                     ))}
                   </tbody>
