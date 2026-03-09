@@ -743,10 +743,19 @@ function attachSocketHandlers(io, log) {
 
                 // Spectator path: join room read-only and receive live updates
                 if (isSpectatorJoinRequest(joinMode)) {
+                    // Prevent spectator from rejoining as player mid-game
+                    // (they chose spectator mode — they stay as spectator)
                     socket.join(cleanGameId);
                     socket.data.gameId = cleanGameId;
                     socket.data.playerId = 'spectator';
                     socket.data.isSpectator = true;
+                    socket.data.spectatorUsername = cleanUsername;
+
+                    // Track spectator count
+                    if (!game.spectatorCount) game.spectatorCount = 0;
+                    game.spectatorCount++;
+                    await gameStore.setGame(cleanGameId, game);
+
                     socket.emit('game_started', {
                         gameId: cleanGameId,
                         playerId: 'spectator',
@@ -755,8 +764,11 @@ function attachSocketHandlers(io, log) {
                         playerCount: game.playerCount,
                         players: getPlayersList(game),
                         gameState: buildGameStateWithPlayers(game),
+                        spectatorCount: game.spectatorCount,
                     });
-                    socket.to(cleanGameId).emit('spectator_joined', { username: cleanUsername });
+                    // Notify all in room (players + other spectators) of updated count
+                    io.to(cleanGameId).emit('spectator_count', { count: game.spectatorCount });
+                    socket.to(cleanGameId).emit('spectator_joined', { username: cleanUsername, count: game.spectatorCount });
                     return;
                 }
 
@@ -1454,7 +1466,24 @@ function attachSocketHandlers(io, log) {
                 const hintedPlayerId = socket.data?.playerId;
                 const hintedIsSpectator = socket.data?.isSpectator === true || hintedPlayerId === 'spectator';
                 if (hintedGameId && hintedPlayerId) {
-                    if (hintedIsSpectator) return;
+                    if (hintedIsSpectator) {
+                        // Decrement spectator count and notify remaining participants
+                        try {
+                            const hintedGame = await gameStore.getGame(hintedGameId);
+                            if (hintedGame) {
+                                hintedGame.spectatorCount = Math.max(0, (hintedGame.spectatorCount || 1) - 1);
+                                await gameStore.setGame(hintedGameId, hintedGame);
+                                io.to(hintedGameId).emit('spectator_count', { count: hintedGame.spectatorCount });
+                                io.to(hintedGameId).emit('spectator_left', {
+                                    username: socket.data.spectatorUsername || 'A spectator',
+                                    count: hintedGame.spectatorCount,
+                                });
+                            }
+                        } catch (err) {
+                            log.error('Spectator disconnect cleanup failed', { gameId: hintedGameId, error: err.message });
+                        }
+                        return;
+                    }
                     const hintedGame = await gameStore.getGame(hintedGameId);
                     if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
                         await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);

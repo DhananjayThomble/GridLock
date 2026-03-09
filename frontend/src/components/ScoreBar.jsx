@@ -12,8 +12,8 @@ import React from 'react';
  * @param {number} gridSize - Grid dimension (e.g. 3 for 3×3 = 9 total boxes)
  * @param {string} currentPlayer - ID of the current player
  */
-const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
-  const totalTiles = gridSize * gridSize;
+const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectatorCount }) => {
+  const totalTiles = (gridSize - 1) * (gridSize - 1);
   // On mobile with 3-4 players, split into two rows of 2
   const splitIntoRows = players.length > 2;
 
@@ -154,6 +154,19 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                 </div>
               );
             })}
+          </div>
+        )}
+        {spectatorCount > 0 && (
+          <div className="flex justify-center mt-1">
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{
+                backgroundColor: 'var(--spectator-bg)',
+                color: 'var(--spectator-text)',
+              }}
+            >
+              👀 {spectatorCount} watching
+            </span>
           </div>
         )}
       </div>

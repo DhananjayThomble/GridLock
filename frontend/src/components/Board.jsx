@@ -106,6 +106,7 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+  const [spectatorCount, setSpectatorCount] = useState(0);
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
@@ -214,6 +215,9 @@ const Board = () => {
       }
       setWaitingCount(count - filled);
       setStatus(filled < count ? `⏳ Waiting for ${count - filled} more player(s)…` : getStatusFromState(gs));
+
+      // Set initial spectator count if provided
+      if (data.spectatorCount != null) setSpectatorCount(data.spectatorCount);
     };
 
     const onAllJoined = () => {
@@ -331,6 +335,10 @@ const Board = () => {
       setError(`${data.username || 'A player'} forfeited due to disconnect.`);
     };
 
+    const onSpectatorCount = (data) => {
+      setSpectatorCount(data.count || 0);
+    };
+
     socket.on('game_started',       onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',        onGameUpdate);
@@ -340,6 +348,7 @@ const Board = () => {
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
+    socket.on('spectator_count',     onSpectatorCount);
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -359,6 +368,7 @@ const Board = () => {
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
+      socket.off('spectator_count',     onSpectatorCount);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
@@ -886,6 +896,7 @@ const Board = () => {
             scores={gameState.scores || {}}
             gridSize={gridSize || 3}
             currentPlayer={gameState.currentPlayer}
+            spectatorCount={spectatorCount}
           />
         );
       })()}
@@ -921,9 +932,41 @@ const Board = () => {
             )}
           </div>
 
+          {/* Spectator banner */}
+          {isSpectator && (
+            <div
+              className="flex items-center justify-center gap-2 mb-2 px-4 py-2 rounded-xl text-sm font-semibold spectator-banner"
+              style={{
+                backgroundColor: 'var(--spectator-bg)',
+                border: '1px solid var(--spectator-border)',
+                color: 'var(--spectator-text)',
+              }}
+            >
+              <span className="text-lg">👀</span>
+              <span>Spectating</span>
+              <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>— watching only</span>
+            </div>
+          )}
+
+          {/* Spectator count (visible to players) */}
+          {!isSpectator && spectatorCount > 0 && (
+            <div className="flex items-center justify-center mb-1">
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: 'var(--spectator-bg)',
+                  color: 'var(--spectator-text)',
+                  border: '1px solid var(--spectator-border)',
+                }}
+              >
+                👀 {spectatorCount} watching
+              </span>
+            </div>
+          )}
+
           {/* You are */}
           <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
-            You are <span className="font-bold" style={{ color: isSpectator ? 'var(--accent)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
+            You are <span className="font-bold" style={{ color: isSpectator ? 'var(--spectator-text)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
             {gameState?.hasCPU && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>vs CPU</span>}
             {tournamentId && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>🏆 Tournament Match</span>}
           </p>

@@ -8,5 +8,7 @@ describe('spectator mode helpers', () => {
     expect(isSpectatorJoinRequest('SPECTATOR')).toBe(true);
     expect(isSpectatorJoinRequest('player')).toBe(false);
     expect(isSpectatorJoinRequest(undefined)).toBe(false);
+    expect(isSpectatorJoinRequest(null)).toBe(false);
+    expect(isSpectatorJoinRequest('')).toBe(false);
   });
 });
