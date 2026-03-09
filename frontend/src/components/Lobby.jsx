@@ -268,8 +268,7 @@ const Lobby = () => {
     localStorage.setItem('gridlock_username', name);
     setQuickPlaying(true);
     setQueueSize(1);
-    // Always default Quick Play to 2P for fastest matching
-    socket.emit('queue_join', { username: name, avatar: selectedAvatar, gridSize, playerCount: 2 });
+    socket.emit('queue_join', { username: name, avatar: selectedAvatar, gridSize, playerCount });
   };
 
   const handleQuickPlayCancel = () => {
@@ -277,15 +276,16 @@ const Lobby = () => {
     setQuickPlaying(false);
   };
 
-  const handleQuickPlayCPU = () => {
+  const handleQuickPlayCPU = (selectedCount) => {
+    const pc = selectedCount || playerCount;
     socket.emit('queue_leave');
     setQuickPlaying(false);
-    // Create a CPU game with current preferences
+    // Create a CPU game with selected player count from Quick Play modal
     const name = username.trim();
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     if (!socket.connected) socket.connect();
     setCreating(true);
-    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount: 2, cpuPlayers: 1, cpuDifficulty: 'medium' }, (res) => {
+    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount: pc, cpuPlayers: pc - 1, cpuDifficulty: 'medium' }, (res) => {
       if (res?.error) {
         setCreating(false);
         setUsernameError(res.error);
@@ -300,7 +300,7 @@ const Lobby = () => {
             gameId: res.gameId,
             role: res.playerId,
             avatar: selectedAvatar,
-            playerCount: 2,
+            playerCount: pc,
             sessionToken: res.sessionToken,
             cpuDifficulty: 'medium',
           },
@@ -996,7 +996,10 @@ const Lobby = () => {
       {quickPlaying && (
         <QuickPlay
           gridSize={gridSize}
+          playerCount={playerCount}
           queueSize={queueSize}
+          username={username.trim()}
+          avatar={selectedAvatar}
           onCancel={handleQuickPlayCancel}
           onPlayCPU={handleQuickPlayCPU}
         />

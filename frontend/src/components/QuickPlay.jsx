@@ -1,5 +1,5 @@
 // src/components/QuickPlay.jsx
-// Matchmaking waiting screen — shows queue status, timer, and CPU fallback
+// Matchmaking waiting screen — shows queue status, timer, player count selector, and CPU fallback
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import socket from '../socket';
@@ -9,7 +9,10 @@ const QUEUE_TIMEOUT_SEC = 30;
 const CPU_SUGGEST_SEC   = 15;
 const CPU_AUTO_SEC      = QUEUE_TIMEOUT_SEC;
 
-const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU }) => {
+const PLAYER_OPTIONS = [2, 3, 4];
+
+const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initialQueueSize, username, avatar, onCancel, onPlayCPU }) => {
+  const [selectedPlayerCount, setSelectedPlayerCount] = useState(initialPlayerCount || 2);
   const [elapsed, setElapsed] = useState(0);
   const [queueSize, setQueueSize] = useState(initialQueueSize || 1);
   const [showCpuOption, setShowCpuOption] = useState(false);
@@ -18,8 +21,10 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
   const overlayRef = useRef(null);
   const showCpuRef = useRef(false);
   const timedOutRef = useRef(false);
+  const selectedPlayerCountRef = useRef(selectedPlayerCount);
 
-  // Queue size initialized from prop; socket events update it afterward
+  // Keep ref in sync
+  useEffect(() => { selectedPlayerCountRef.current = selectedPlayerCount; }, [selectedPlayerCount]);
 
   // Listen for queue_status and queue_timeout socket events
   useEffect(() => {
@@ -58,6 +63,29 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
 
     return () => clearInterval(timerRef.current);
   }, []); // stable — no deps that change
+
+  // Handle player count change — re-queue with new preference
+  const handlePlayerCountChange = useCallback((newCount) => {
+    if (newCount === selectedPlayerCountRef.current) return;
+    setSelectedPlayerCount(newCount);
+
+    // Re-queue: leave current queue, rejoin with new player count
+    socket.emit('queue_leave');
+    socket.emit('queue_join', { username, avatar, playerCount: newCount, gridSize });
+
+    // Reset timer and CPU suggestion state on re-queue
+    setElapsed(0);
+    setShowCpuOption(false);
+    showCpuRef.current = false;
+    setTimedOut(false);
+    timedOutRef.current = false;
+    setQueueSize(1);
+  }, [gridSize, username, avatar]);
+
+  // Wrap onPlayCPU to pass selected player count
+  const handlePlayCPU = useCallback(() => {
+    if (onPlayCPU) onPlayCPU(selectedPlayerCountRef.current);
+  }, [onPlayCPU]);
 
   // Focus trap: keep focus within the overlay
   const handleKeyDown = useCallback((e) => {
@@ -127,11 +155,52 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
               className="text-lg font-bold"
               style={{ color: 'var(--text-primary)' }}
             >
-              {timedOut ? 'No opponents found' : 'Searching for opponents…'}
+              {timedOut ? 'No opponents found' : `Searching for ${selectedPlayerCount}-player match…`}
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Grid: {gridSize}×{gridSize} · Players: 2 (Classic Duel)
+              Grid: {gridSize}×{gridSize}
             </p>
+          </div>
+
+          {/* Player count selector */}
+          <div>
+            <label
+              className="block text-xs font-bold uppercase mb-2"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Players
+            </label>
+            <div
+              className="inline-flex rounded-xl overflow-hidden"
+              role="radiogroup"
+              aria-label="Player count"
+              style={{ border: '1px solid var(--border-color-strong)' }}
+            >
+              {PLAYER_OPTIONS.map((count) => {
+                const isSelected = count === selectedPlayerCount;
+                return (
+                  <button
+                    key={count}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={`${count} players`}
+                    onClick={() => handlePlayerCountChange(count)}
+                    className="px-5 py-2 text-sm font-bold transition-all min-h-[44px]"
+                    style={{
+                      background: isSelected
+                        ? 'var(--accent)'
+                        : 'var(--bg-surface)',
+                      color: isSelected
+                        ? 'var(--text-on-accent)'
+                        : 'var(--text-secondary)',
+                      borderRight: count < 4 ? '1px solid var(--border-color-strong)' : 'none',
+                    }}
+                  >
+                    {count}P
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Timer and queue info */}
@@ -159,8 +228,8 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
                 <div className="flex-1" style={{ borderTop: '1px solid var(--border-color)' }} />
               </div>
               <button
-                onClick={onPlayCPU}
-                aria-label={timedOut ? 'Play versus CPU instead' : 'Play versus CPU instead?'}
+                onClick={handlePlayCPU}
+                aria-label={timedOut ? `Play versus ${selectedPlayerCount - 1} CPU instead` : `Play versus ${selectedPlayerCount - 1} CPU instead?`}
                 className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 min-h-[44px]"
                 style={{
                   background: timedOut
@@ -170,7 +239,9 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
                   color: timedOut ? 'var(--text-on-accent)' : 'var(--text-primary)',
                 }}
               >
-                🤖 {timedOut ? 'Play vs CPU instead' : 'Play vs CPU instead?'}
+                🤖 {timedOut
+                  ? `Play vs ${selectedPlayerCount - 1} CPU instead`
+                  : `Play vs ${selectedPlayerCount - 1} CPU instead?`}
               </button>
             </div>
           )}
