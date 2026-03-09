@@ -14,6 +14,7 @@ import Leaderboard from './components/Leaderboard';
 import Profile from './components/Profile';
 import TournamentLobby from './components/TournamentLobby';
 import JoinGame from './components/JoinGame';
+import ReplayPage from './components/ReplayPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -22,7 +23,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
 
   return (
     <>
@@ -84,6 +85,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <Profile />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/replay/:gameId"
+            element={(
+              <ErrorBoundary>
+                <ReplayPage />
               </ErrorBoundary>
             )}
           />

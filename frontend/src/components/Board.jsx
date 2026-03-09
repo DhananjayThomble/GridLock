@@ -481,6 +481,30 @@ const Board = () => {
     shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
   };
 
+  // ── Share replay link handler ──────────────────────────────────────────────
+  const [replayShareStatus, setReplayShareStatus] = useState(null);
+  const replayShareTimeoutRef = useRef(null);
+  const handleShareReplay = async () => {
+    const url = `https://gridlock.snapurl.in/replay/${gameId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'GridLock Replay', url });
+        setReplayShareStatus('shared');
+      } catch {
+        // user cancelled
+      }
+    } else if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        setReplayShareStatus('copied');
+      } catch {
+        setReplayShareStatus(null);
+      }
+    }
+    if (replayShareTimeoutRef.current) clearTimeout(replayShareTimeoutRef.current);
+    replayShareTimeoutRef.current = setTimeout(() => setReplayShareStatus(null), 2000);
+  };
+
   // ── Render helpers ────────────────────────────────────────────────────────────
   const getPlayerColor = (playerId) => {
     if (!playerId) return null;
@@ -789,6 +813,14 @@ const Board = () => {
                 {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
               </button>
             )}
+            <button
+              onClick={handleShareReplay}
+              className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+              style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--accent)' }}
+              aria-label="Share replay"
+            >
+              {replayShareStatus === 'copied' ? '✅ Copied!' : replayShareStatus === 'shared' ? '✅ Shared!' : '🎬 Replay'}
+            </button>
             {!isSpectator && !tournamentId && (
               <button
                 onClick={handlePlayAgain}

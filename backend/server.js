@@ -14,6 +14,7 @@ const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
 const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
+const replayRoutes = require('./routes/replay');
 
 const app = express();
 const server = http.createServer(app);
@@ -94,6 +95,9 @@ app.use('/api/profile', profileRoutes);
 
 // Push notification API routes
 app.use('/api/push', pushRoutes);
+
+// Game replay API routes
+app.use('/api/games', replayRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {
