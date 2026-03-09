@@ -375,6 +375,46 @@ a {
   }
 }
 
+/* ── color-mix() fallbacks ─────────────────────────────────────────────────── */
+.bg-muted-15 {
+  background-color: #e5e7eb;
+}
+.bg-warning-15 {
+  background-color: #fef3c7;
+}
+.bg-warning-12 {
+  background-color: #fef9c3;
+}
+.border-warning-40 {
+  border-color: var(--warning);
+}
+.border-warning-60 {
+  border-color: var(--warning);
+}
+.border-success-40 {
+  border-color: var(--success);
+}
+@supports (background-color: color-mix(in srgb, red 50%, blue)) {
+  .bg-muted-15 {
+    background-color: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  }
+  .bg-warning-15 {
+    background-color: color-mix(in srgb, var(--warning) 15%, transparent);
+  }
+  .bg-warning-12 {
+    background-color: color-mix(in srgb, var(--warning) 12%, transparent);
+  }
+  .border-warning-40 {
+    border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+  }
+  .border-warning-60 {
+    border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+  }
+  .border-success-40 {
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  }
+}
+
 /* ── Leaderboard responsive table ──────────────────────────────────────────── */
 
 .leaderboard-scroll-wrapper {

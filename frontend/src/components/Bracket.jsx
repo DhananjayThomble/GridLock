@@ -10,6 +10,19 @@ function getRoundLabel(roundIndex, totalRounds) {
   return `Round ${roundIndex + 1}`;
 }
 
+/** Reusable gray "?" placeholder avatar for empty/TBD slots */
+function PlaceholderAvatar() {
+  return (
+    <span
+      className="bg-muted-15 text-base inline-flex items-center justify-center w-6 h-6 rounded-full font-bold"
+      style={{
+        color: 'var(--text-muted)',
+        fontSize: '0.75rem',
+      }}
+    >?</span>
+  );
+}
+
 function MatchCard({ match, participants }) {
   const p1Avatar = participants.find((p) => p.username === match.player1)?.avatar;
   const p2Avatar = participants.find((p) => p.username === match.player2)?.avatar;
@@ -17,20 +30,17 @@ function MatchCard({ match, participants }) {
   const hasWinner = !!match.winner;
   const inProgress = match.gameId && !hasWinner;
 
-  const borderStyle = inProgress
-    ? 'color-mix(in srgb, var(--warning) 60%, transparent)'
+  const borderClass = inProgress
+    ? 'border-warning-60'
     : hasWinner
-    ? 'color-mix(in srgb, var(--success) 40%, transparent)'
-    : 'var(--border-color)';
+    ? 'border-success-40'
+    : '';
 
   const renderPlayer = (name, avatar, isWinner) => {
     if (!name) {
       return (
         <div className="flex items-center gap-2 px-3 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-          <span
-            className="text-base inline-flex items-center justify-center w-6 h-6 rounded-full font-bold"
-            style={{ backgroundColor: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', color: 'var(--text-muted)' }}
-          >?</span>
+          <PlaceholderAvatar />
           <span className="italic">TBD</span>
         </div>
       );
@@ -40,7 +50,7 @@ function MatchCard({ match, participants }) {
         className="flex items-center gap-2 px-3 py-2 text-sm transition-all"
         style={{ color: isWinner ? 'var(--success)' : hasWinner ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: isWinner ? 700 : 400 }}
       >
-        <span className="text-base">{avatar || <span className="inline-flex items-center justify-center w-6 h-6 rounded-full font-bold" style={{ backgroundColor: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>?</span>}</span>
+        <span className="text-base">{avatar || <PlaceholderAvatar />}</span>
         <span className="truncate max-w-[100px] sm:max-w-[120px]">{name}</span>
         {isWinner && <span className="ml-auto">🏆</span>}
       </div>
@@ -49,11 +59,11 @@ function MatchCard({ match, participants }) {
 
   return (
     <div
-      className="rounded-xl overflow-hidden min-w-[160px] sm:min-w-[180px] transition-all"
-      style={{ backgroundColor: 'var(--bg-card)', border: `1px solid ${borderStyle}` }}
+      className={`rounded-xl overflow-hidden min-w-[160px] sm:min-w-[180px] transition-all border ${borderClass}`}
+      style={{ backgroundColor: 'var(--bg-card)', borderColor: borderClass ? undefined : 'var(--border-color)' }}
     >
       {inProgress && (
-        <div className="text-xs font-bold text-center py-0.5 animate-pulse" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}>
+        <div className="bg-warning-15 text-xs font-bold text-center py-0.5 motion-safe:animate-pulse" style={{ color: 'var(--warning)' }}>
           🎮 In Progress
         </div>
       )}
@@ -94,7 +104,7 @@ const Bracket = ({ rounds = [], participants = [], champion }) => {
             <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--warning)' }}>
               Champion
             </div>
-            <div className="rounded-xl px-6 py-4 text-center" style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)' }}>
+            <div className="bg-warning-12 border-warning-40 rounded-xl px-6 py-4 text-center border">
               <div className="text-4xl mb-1">
                 {participants.find((p) => p.username === champion)?.avatar || '🏆'}
               </div>
