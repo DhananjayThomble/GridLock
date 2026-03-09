@@ -463,6 +463,13 @@ const Board = () => {
 
   const handlePlayAgain = () => {
     initAudio();
+    if (isCPUGame) {
+      // CPU games: instant rematch, no voting UI
+      setRematchRequested(true);
+      setRematchFailed(null);
+      socket.emit('request_rematch', { gameId, sessionToken });
+      return;
+    }
     if (rematchRequested) {
       // Cancel the vote
       setRematchRequested(false);
@@ -810,6 +817,7 @@ const Board = () => {
             {!isSpectator && !tournamentId && !rematchFailed && (
               <button
                 onClick={handlePlayAgain}
+                disabled={isCPUGame && rematchRequested}
                 className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
                   rematchRequested
                     ? 'active:scale-95'
@@ -821,12 +829,17 @@ const Board = () => {
                     : `linear-gradient(135deg, var(--accent), var(--accent-hover))`,
                   color: rematchRequested ? 'var(--text-secondary)' : 'var(--text-on-accent)',
                   border: rematchRequested ? '1px solid var(--border-color)' : 'none',
+                  opacity: (isCPUGame && rematchRequested) ? 0.6 : 1,
                 }}
               >
-                {rematchRequested ? (
+                {isCPUGame ? (
+                  rematchRequested
+                    ? <>⏳ Starting rematch…</>
+                    : <>🔄 Rematch</>
+                ) : rematchRequested ? (
                   rematchCount.total > 0
-                    ? <>⏳ Waiting ({rematchCount.count}/{rematchCount.total}) · Cancel</>
-                    : <>⏳ Waiting... · Cancel</>
+                    ? <>⏳ Waiting ({rematchCount.count}/{rematchCount.total}) <span style={{ opacity: 0.7, fontWeight: 400, fontStyle: 'italic' }}>· Cancel</span></>
+                    : <>⏳ Waiting... <span style={{ opacity: 0.7, fontWeight: 400, fontStyle: 'italic' }}>· Cancel</span></>
                 ) : (
                   <>🔄 Rematch{rematchCount.total > 0 ? ` (${rematchCount.count}/${rematchCount.total})` : ''}</>
                 )}
@@ -862,7 +875,7 @@ const Board = () => {
               {rematchFailed}
             </div>
           )}
-          {!rematchFailed && rematchCount.count > 0 && (
+          {!isCPUGame && !rematchFailed && rematchCount.count > 0 && (
             <div className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <span className="font-semibold">
                 {rematchCount.count}/{rematchCount.total}

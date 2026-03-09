@@ -597,6 +597,11 @@ function scheduleCPUMove(io, log, gameId, delay) {
                 io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
                 updateLeaderboard(game, newState.winner, log);
                 await handleTournamentGameCompletion(io, log, gameId, game, newState.winner);
+                // Defensive cleanup: clear any lingering rematch timer
+                if (rematchTimers.has(gameId)) {
+                    clearTimeout(rematchTimers.get(gameId));
+                    rematchTimers.delete(gameId);
+                }
                 setTimeout(async () => {
                     await gameStore.deleteGame(gameId);
                     await rematchStore.clearVotes(gameId);
@@ -1032,6 +1037,11 @@ function attachSocketHandlers(io, log) {
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
                     await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
+                    // Defensive cleanup: clear any lingering rematch timer
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
@@ -1208,6 +1218,12 @@ function attachSocketHandlers(io, log) {
                 const player = game.players[requestingPlayerId];
                 if (!player || player.token !== sessionToken) {
                     socket.emit('error', 'Unauthorized rematch cancel');
+                    return;
+                }
+
+                // Only allow cancel after game has finished
+                if (!game.gameState?.winner) {
+                    socket.emit('error', 'Rematch cancel only valid after game has finished');
                     return;
                 }
 
@@ -1552,13 +1568,8 @@ function attachSocketHandlers(io, log) {
 
                 // If game already finished, handle rematch vote auto-decline then persist
                 if (game.gameState?.winner) {
-                    // Auto-decline: remove this player's rematch vote and notify
-                    const { wasRemoved } = await rematchStore.removeVote(gameId, playerId);
-                    if (wasRemoved) {
-                        const humanVotes = await rematchStore.getVoteCount(gameId);
-                        const cpuVotes = countCPUPlayers(game);
-                        io.to(gameId).emit('rematch_count', { count: humanVotes + cpuVotes, total: game.playerCount });
-                    }
+                    // Auto-decline: remove this player's rematch vote
+                    await rematchStore.removeVote(gameId, playerId);
                     // Emit rematch_failed since a player disconnected
                     io.to(gameId).emit('rematch_failed', {
                         reason: `${player.username || 'A player'} disconnected`,
@@ -1629,6 +1640,11 @@ function attachSocketHandlers(io, log) {
                         await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
+                        // Defensive cleanup: clear any lingering rematch timer
+                        if (rematchTimers.has(gameId)) {
+                            clearTimeout(rematchTimers.get(gameId));
+                            rematchTimers.delete(gameId);
+                        }
                         setTimeout(async () => {
                             await gameStore.deleteGame(gameId);
                             await rematchStore.clearVotes(gameId);
