@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
+import confetti from 'canvas-confetti';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
@@ -126,6 +127,7 @@ const Board = () => {
   const prevScoresRef = useRef(null);
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
+  const confettiFiredRef = useRef(false);
   const gameStarted      = useRef(false);
   // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
@@ -418,6 +420,18 @@ const Board = () => {
     tournamentNavRef.current = false;
   }, [gameId]);
 
+  // ── Winner confetti ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (winnerData && !winnerData.isDraw && !confettiFiredRef.current && !prefersReducedMotion) {
+      confettiFiredRef.current = true;
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    }
+    if (!winnerData) {
+      confettiFiredRef.current = false;
+    }
+  }, [winnerData]);
+
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
@@ -543,7 +557,7 @@ const Board = () => {
           onTouchEnd={touchHandlers.onTouchEnd}
           role="button"
           aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn || !!owner}
+          aria-disabled={!isMyTurn}
           tabIndex={isMyTurn ? 0 : -1}
           onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
           className={`h-2 w-full rounded line-hover-glow ${
@@ -579,7 +593,7 @@ const Board = () => {
           onTouchEnd={touchHandlers.onTouchEnd}
           role="button"
           aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn || !!owner}
+          aria-disabled={!isMyTurn}
           tabIndex={isMyTurn ? 0 : -1}
           onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
           className={`w-2 h-full rounded line-hover-glow ${
@@ -688,7 +702,7 @@ const Board = () => {
       : null;
 
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md postgame-modal">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
         <div
           className="rounded-2xl p-6 w-full max-w-sm md:max-w-lg lg:max-w-xl shadow-2xl text-center"
           style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
@@ -702,7 +716,7 @@ const Board = () => {
           ) : (
             <>
               <div className="text-6xl mb-2 winner-avatar-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1 winner-name-shimmer" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
                 {winnerData.name} Wins!
               </h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>🏆 Champion!</p>
@@ -768,7 +782,7 @@ const Board = () => {
             {!isSpectator && (
               <button
                 onClick={handleShareResult}
-                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95"
+                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)' }}
                 aria-label="Share result"
               >
@@ -808,7 +822,7 @@ const Board = () => {
             )}
             <button
               onClick={tournamentId ? () => navigate('/tournament', { state: { tournament: tournamentSnapshot, tournamentId, username, avatar } }) : handleLeaveGame}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95"
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
               style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
             >
               {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
@@ -886,12 +900,12 @@ const Board = () => {
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
             <button
               onClick={handleCopyId}
-              className="font-mono text-base font-bold px-4 py-1.5 rounded-full transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              className="font-mono text-sm font-bold px-3 py-1 rounded-full transition-colors room-code-btn"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               title="Tap to copy room code"
               aria-label="Copy room code"
             >
-              {gameId} <span aria-hidden="true">📋</span>
+              {gameId}
             </button>
             {showCopied && <span className="text-xs animate-pulse" style={{ color: 'var(--success)' }}>Copied!</span>}
             {gameState.gameOver && !isSpectator && (
@@ -970,13 +984,12 @@ const Board = () => {
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
-          }`}
+          } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
             touchAction: 'pan-y',
             padding: '12px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
-            '--active-player-color': myPlayerColor,
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
         >
@@ -1015,7 +1028,7 @@ const Board = () => {
           {/* Mute button — moved OUT of board */}
           <button
             onClick={() => { initAudio(); handleToggleMute(); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm mute-btn"
             style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', minHeight: '44px', minWidth: '44px' }}
             title={muted ? 'Unmute sounds' : 'Mute sounds'}
             aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}

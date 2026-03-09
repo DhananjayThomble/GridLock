@@ -501,7 +501,7 @@ const Lobby = () => {
               <button
                 key={key}
                 onClick={() => setTab(key)}
-                className={`flex-1 py-3 text-sm font-semibold transition-all ${
+                className={`flex-1 py-3 text-sm font-semibold transition-all lobby-tab ${
                   tab === key ? 'border-b-2' : ''
                 }`}
                 style={{
@@ -530,7 +530,7 @@ const Lobby = () => {
                         const maxCpu = Math.max(1, value - 1);
                         if (cpuCount > maxCpu) setCpuCount(maxCpu);
                       }}
-                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95"
+                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
                       style={playerCount === value
                         ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
@@ -551,7 +551,7 @@ const Lobby = () => {
                     <button
                       key={value}
                       onClick={() => setGridSize(value)}
-                      className="py-2 rounded-xl text-center transition-all active:scale-95"
+                      className="py-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
                       style={gridSize === value
                         ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
@@ -595,7 +595,7 @@ const Lobby = () => {
                         <button
                           key={n}
                           onClick={() => setCpuCount(n)}
-                          className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95"
+                          className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95 lobby-option-card"
                           style={cpuCount === n
                             ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                             : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
@@ -729,7 +729,7 @@ const Lobby = () => {
                     <button
                       key={value}
                       onClick={() => setTournamentSize(value)}
-                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95"
+                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
                       style={tournamentSize === value
                         ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
@@ -750,7 +750,7 @@ const Lobby = () => {
                     <button
                       key={value}
                       onClick={() => setTournamentGridSize(value)}
-                      className="py-2 rounded-xl text-center transition-all active:scale-95"
+                      className="py-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
                       style={tournamentGridSize === value
                         ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
