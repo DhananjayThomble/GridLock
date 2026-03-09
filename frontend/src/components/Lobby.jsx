@@ -801,7 +801,7 @@ const Lobby = () => {
 
               <button
                 onClick={handleJoinTournament}
-                disabled={joiningTournament}
+                disabled={joiningTournament || !username.trim() || !tournamentId.trim()}
                 className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
               >

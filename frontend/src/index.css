@@ -374,3 +374,26 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Leaderboard responsive table ──────────────────────────────────────────── */
+
+.leaderboard-scroll-wrapper {
+  overflow-x: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide "Last Played" column on mobile */
+@media (max-width: 767px) {
+  .leaderboard-last-played {
+    display: none;
+  }
+}
+
+/* ── Lobby "Playing as" ellipsis ───────────────────────────────────────────── */
+.lobby-playing-as {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

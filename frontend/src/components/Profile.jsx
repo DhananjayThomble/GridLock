@@ -229,7 +229,8 @@ const Profile = () => {
 
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>👤 {p.username}</h1>
+          <div className="text-5xl mb-2" aria-hidden="true">{p.avatar || '👤'}</div>
+          <h1 className="text-3xl font-extrabold" style={{ color: 'var(--text-primary)' }}>{p.username}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             Rank #{p.rank} · Member since {formatDate(p.memberSince)}
           </p>
@@ -294,7 +295,9 @@ const Profile = () => {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>No matches played yet</p>
+            <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>
+              {p.gamesPlayed > 0 ? 'Match history is not available for older games' : 'No matches played yet'}
+            </p>
           )}
         </div>
       </div>
