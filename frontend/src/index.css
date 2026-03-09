@@ -420,115 +420,99 @@ a {
   min-width: 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   Enhancement #107 — Hover States for Desktop
-   Only apply on devices with hover capability (no sticky-hover on mobile)
-   ══════════════════════════════════════════════════════════════════════════════ */
+/* Hover States for Desktop (#107) */
+button, [role="button"], a { cursor: pointer; }
 
-/* Cursor pointer on all clickable elements */
-button,
-[role="button"],
-a {
-  cursor: pointer;
+/* Base transitions (apply on both hover-in AND hover-out) */
+button:not(:disabled) {
+  transition: opacity 180ms ease, background-color 180ms ease, transform 120ms ease;
+}
+[role="button"]:not([aria-disabled="true"]) {
+  transition: opacity 150ms ease, transform 120ms ease;
 }
 
 @media (hover: hover) {
-  /* ── Generic button hover (scoped to specific containers) ───────────────── */
-  .lobby-container button:hover:not(:disabled),
-  .score-bar button:hover:not(:disabled),
-  .settings-card button:hover:not(:disabled) {
+  button:hover:not(:disabled) {
     opacity: 0.85;
-    transition: opacity 180ms ease, background-color 180ms ease, transform 180ms ease;
   }
-
-  /* ── Grid edge (line) hover preview ──────────────────────────────────────── */
-  .line-hover-glow[role="button"]:not([aria-disabled="true"]):hover {
-    background-color: var(--line-hover-preview, var(--accent));
-    opacity: 0.5;
-    box-shadow: 0 0 10px var(--line-hover-preview, var(--accent));
-    transition: background-color 150ms ease, opacity 150ms ease, box-shadow 200ms ease;
+  [role="button"]:not([aria-disabled="true"]):hover {
+    opacity: 0.7;
   }
-
-  /* ── Post-game modal buttons ─────────────────────────────────────────────── */
-  .postgame-modal button:hover:not(:disabled) {
-    filter: brightness(1.12);
-    transform: translateY(-1px);
-    transition: filter 180ms ease, transform 180ms ease;
-  }
-
-  /* ── Tab/keyboard focus states (visible on focus-visible) ────────────────── */
-  button:focus-visible,
-  [role="button"]:focus-visible {
+  button:focus-visible, [role="button"]:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    transition: outline 150ms ease;
   }
 
-  /* ── Scoreboard card hover ───────────────────────────────────────────────── */
-  .scoreboard-cards > div:hover {
-    background-color: var(--bg-card-hover) !important;
-    transition: background-color 180ms ease;
+  /* ── Grid edge lines ── */
+  .line-hover-glow[role="button"]:not([aria-disabled="true"]):hover {
+    opacity: 0.9;
+    filter: brightness(1.3);
+    transform: scaleY(1.4);
+  }
+  .line-hover-glow[role="button"][aria-label^="Vertical"]:not([aria-disabled="true"]):hover {
+    transform: scaleX(1.4);
+  }
+
+  /* ── Option selector cards (player count, grid size, difficulty) ── */
+  .lobby-option-card:hover {
+    border-color: var(--accent) !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+    transform: translateY(-1px);
+  }
+
+  /* ── Tab navigation ── */
+  .lobby-tab:hover {
+    background: var(--bg-card-hover) !important;
+    color: var(--text-primary) !important;
+  }
+
+  /* ── Room code button ── */
+  .room-code-btn:hover {
+    background: var(--bg-card-hover) !important;
+    border-color: var(--accent) !important;
+    transform: scale(1.03);
+  }
+
+  /* ── Mute button ── */
+  .mute-btn:hover {
+    background: var(--bg-card-hover) !important;
+    transform: scale(1.05);
+  }
+
+  /* ── Post-game buttons ── */
+  .postgame-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   Enhancement #111 — Active Player Highlight + Board Glow
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-/* Active player scoreboard row — glow + brighter background */
-.scoreboard-active-player {
-  box-shadow: 0 0 14px var(--active-player-color, var(--accent));
-  background-color: color-mix(in srgb, var(--active-player-color, var(--accent)) 18%, var(--bg-secondary)) !important;
-  border-color: var(--active-player-color, var(--accent)) !important;
-  transition: box-shadow 200ms ease, background-color 200ms ease, border-color 200ms ease, transform 200ms ease;
+/* ── Active (press) states ── */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.97);
 }
 
-/* Active player in ScoreBar (fixed top bar) */
+/* Active Player Highlight (#111) */
 .score-bar-active-player {
   background-color: color-mix(in srgb, var(--active-player-color, var(--accent)) 12%, transparent);
   border-radius: 0.5rem;
   padding: 2px 4px;
   transition: background-color 200ms ease;
 }
-
-/* Board glow on tablet+ */
 @media (min-width: 768px) {
-  .board-container {
+  .board-container.board-glow-active {
     box-shadow: 0 0 20px var(--active-player-color, var(--accent));
     transition: box-shadow 300ms ease;
   }
 }
 
-/* Smooth turn transitions on all scoreboard elements */
-.scoreboard-cards > div {
-  transition: all 200ms ease;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   Enhancement #108 — Winner Confetti Animations
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-/* Winner avatar bounce animation */
 @keyframes winner-bounce {
-  0%   { transform: scale(1); }
-  20%  { transform: scale(1.25); }
-  40%  { transform: scale(0.95); }
-  60%  { transform: scale(1.12); }
-  80%  { transform: scale(0.98); }
+  0% { transform: scale(1); }
+  20% { transform: scale(1.25); }
+  40% { transform: scale(0.95); }
+  60% { transform: scale(1.12); }
   100% { transform: scale(1.05); }
 }
-
-.winner-avatar-bounce {
-  animation: winner-bounce 0.8s ease-out forwards;
-}
-
-/* Subtle shimmer on winner name */
-@keyframes winner-shimmer {
-  0%   { text-shadow: 0 0 8px var(--winner-glow); }
-  50%  { text-shadow: 0 0 20px var(--winner-glow), 0 0 40px var(--winner-glow); }
-  100% { text-shadow: 0 0 8px var(--winner-glow); }
-}
-
-.winner-name-shimmer {
-  animation: winner-shimmer 2s ease-in-out infinite;
-}
+.winner-avatar-bounce { animation: winner-bounce 0.8s ease-out forwards; }
