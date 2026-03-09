@@ -493,7 +493,7 @@ const Board = () => {
   }, []);
 
   const handleShareReplay = async () => {
-    const url = `https://gridlock.snapurl.in/replay/${gameId}`;
+    const url = `${window.location.origin}/replay/${gameId}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: 'GridLock Replay', url });
@@ -993,7 +993,7 @@ const Board = () => {
               Share the room code: <strong>{gameId}</strong>
               <button
                 onClick={() => {
-                  const url = `https://gridlock.snapurl.in/join/${gameId}`;
+                  const url = `${window.location.origin}/join/${gameId}`;
                   navigator.clipboard?.writeText(url).then(() => {
                     setShowCopied(true);
                     setTimeout(() => setShowCopied(false), 2000);

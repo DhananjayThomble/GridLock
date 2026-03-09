@@ -16,8 +16,6 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-// Bot User-Agent patterns for OG meta tag serving
-const BOT_UA_PATTERN = /facebookexternalhit|twitterbot|linkedinbot|slackbot|telegrambot|whatsapp|discordbot|googlebot|bingbot|crawler|spider|preview/i;
 
 /**
  * GET /api/games/:gameId/og

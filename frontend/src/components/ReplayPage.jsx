@@ -272,7 +272,7 @@ const ReplayPage = () => {
     }, []);
 
     const handleShare = async () => {
-        const url = `https://gridlock.snapurl.in/replay/${gameId}`;
+        const url = `${window.location.origin}/replay/${gameId}`;
         if (navigator.share) {
             try {
                 await navigator.share({ title: 'GridLock Replay', url });
