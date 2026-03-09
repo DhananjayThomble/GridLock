@@ -12,6 +12,7 @@ import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 import PostGameStatsCard from './PostGameStatsCard';
 import { countLines } from '../utils/postGameUtils';
+import confetti from 'canvas-confetti';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -181,6 +182,17 @@ const Board = () => {
     return gs.currentPlayer === role ? '⚡ Your turn!' : `⏳ ${name}'s turn`;
   }, [role]);
 
+  // ── Winner confetti ──────────────────────────────────────────────────────────
+  const fireConfetti = useCallback(() => {
+    const isDesktop = window.innerWidth >= 1024;
+    const particleCount = isDesktop ? 200 : window.innerWidth >= 768 ? 120 : 80;
+    const spread = isDesktop ? 90 : 60;
+    confetti({ particleCount, spread, origin: { x: 0.5, y: 0.5 }, gravity: 1.2, ticks: 200, disableForReducedMotion: true });
+    setTimeout(() => {
+      confetti({ particleCount: Math.round(particleCount * 0.5), spread: spread * 0.8, origin: { x: 0.5, y: 0.45 }, gravity: 1, ticks: 150, disableForReducedMotion: true });
+    }, 300);
+  }, []);
+
   // ── Socket events ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!gameId || !username) { navigate('/'); return; }
@@ -275,6 +287,7 @@ const Board = () => {
           // Win/lose sound
           if (winner === role) sounds.gameWin();
           else if (winner !== 'draw') sounds.gameLose();
+          if (winner !== 'draw') fireConfetti();
         }
 
         if (winner === 'draw') {
@@ -554,6 +567,7 @@ const Board = () => {
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
             touchAction: 'manipulation',
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            ...(isMyTurn && currentPlayerColor ? { '--line-hover-preview': currentPlayerColor } : {}),
           }}
         />
       </div>
@@ -590,6 +604,7 @@ const Board = () => {
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
             touchAction: 'manipulation',
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            ...(isMyTurn && currentPlayerColor ? { '--line-hover-preview': currentPlayerColor } : {}),
           }}
         />
       </div>
@@ -649,11 +664,11 @@ const Board = () => {
               key={pid}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-300 ${
                 waiting ? 'opacity-50' : ''
-              }`}
+              } ${isCurrent && !waiting ? 'scoreboard-active-player' : ''}`}
               style={{
                 backgroundColor: isCurrent ? `var(${cfg.bgVar})` : 'var(--bg-secondary)',
                 borderColor: isCurrent ? playerColor : 'var(--border-color)',
-                ...(isCurrent ? { boxShadow: `0 0 12px ${playerColor}30`, transform: 'scale(1.1)' } : {}),
+                ...(isCurrent ? { boxShadow: `0 0 12px ${playerColor}30`, transform: 'scale(1.1)', '--active-player-color': playerColor } : {}),
               }}
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
@@ -696,13 +711,13 @@ const Board = () => {
           {winnerData.isDraw ? (
             <>
               <div className="text-6xl mb-2" aria-label="Tied">🤝</div>
-              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--text-primary)' }}>It's a Draw!</h2>
+              <h2 className="text-3xl font-extrabold mb-1 winner-name-shimmer" style={{ color: 'var(--text-primary)' }}>It's a Draw!</h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Great game everyone!</p>
             </>
           ) : (
             <>
               <div className="text-6xl mb-2 winner-avatar-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1 winner-name-shimmer" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
                 {winnerData.name} Wins!
               </h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>🏆 Champion!</p>
