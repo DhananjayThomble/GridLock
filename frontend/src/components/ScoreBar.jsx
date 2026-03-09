@@ -163,6 +163,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
               style={{
                 backgroundColor: 'var(--spectator-bg)',
                 color: 'var(--spectator-text)',
+                border: '1px solid var(--spectator-border)',
               }}
             >
               👀 {spectatorCount} watching

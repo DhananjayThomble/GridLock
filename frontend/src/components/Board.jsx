@@ -98,6 +98,7 @@ const Board = () => {
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
+  const [spectatorNotice, setSpectatorNotice] = useState(null);
   const [status,         setStatus]         = useState('Connecting…');
   const [showWinner,     setShowWinner]     = useState(false);
   const [winnerData,     setWinnerData]     = useState(null);
@@ -339,6 +340,16 @@ const Board = () => {
       setSpectatorCount(data.count || 0);
     };
 
+    const onSpectatorJoined = (data) => {
+      setSpectatorNotice(`${data.username || 'Someone'} joined as spectator`);
+      setTimeout(() => setSpectatorNotice(null), 3000);
+    };
+
+    const onSpectatorLeft = (data) => {
+      setSpectatorNotice(`${data.username || 'A spectator'} stopped watching`);
+      setTimeout(() => setSpectatorNotice(null), 3000);
+    };
+
     socket.on('game_started',       onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',        onGameUpdate);
@@ -349,6 +360,8 @@ const Board = () => {
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
     socket.on('spectator_count',     onSpectatorCount);
+    socket.on('spectator_joined',    onSpectatorJoined);
+    socket.on('spectator_left',      onSpectatorLeft);
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -369,6 +382,8 @@ const Board = () => {
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
       socket.off('spectator_count',     onSpectatorCount);
+      socket.off('spectator_joined',    onSpectatorJoined);
+      socket.off('spectator_left',      onSpectatorLeft);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
@@ -948,21 +963,7 @@ const Board = () => {
             </div>
           )}
 
-          {/* Spectator count (visible to players) */}
-          {!isSpectator && spectatorCount > 0 && (
-            <div className="flex items-center justify-center mb-1">
-              <span
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style={{
-                  backgroundColor: 'var(--spectator-bg)',
-                  color: 'var(--spectator-text)',
-                  border: '1px solid var(--spectator-border)',
-                }}
-              >
-                👀 {spectatorCount} watching
-              </span>
-            </div>
-          )}
+          {/* Spectator count badge — rendered in ScoreBar only (avoid duplication) */}
 
           {/* You are */}
           <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
@@ -1015,6 +1016,12 @@ const Board = () => {
           {error && (
             <div className="mt-2 rounded-lg px-4 py-2 text-xs" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
               ⚠️ {error}
+            </div>
+          )}
+
+          {spectatorNotice && (
+            <div className="mt-2 rounded-lg px-4 py-2 text-xs" style={{ backgroundColor: 'var(--spectator-bg)', border: '1px solid var(--spectator-border)', color: 'var(--spectator-text)' }}>
+              👀 {spectatorNotice}
             </div>
           )}
         </div>

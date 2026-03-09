@@ -752,6 +752,8 @@ function attachSocketHandlers(io, log) {
                     socket.data.spectatorUsername = cleanUsername;
 
                     // Track spectator count
+                    // TODO: This is a non-atomic read-modify-write. Under concurrent spectator
+                    // joins, the count can drift by ±1. Consider Redis HINCRBY for accuracy.
                     if (!game.spectatorCount) game.spectatorCount = 0;
                     game.spectatorCount++;
                     await gameStore.setGame(cleanGameId, game);
@@ -812,6 +814,12 @@ function attachSocketHandlers(io, log) {
                         socket.to(cleanGameId).emit('player_reconnected', { playerId, username: cleanUsername });
                         return;
                     }
+                }
+
+                // Guard: prevent spectator from escalating to player by re-emitting join_game
+                if (socket.data.isSpectator) {
+                    socket.emit('error', 'Spectators cannot join as players. Leave and rejoin to play.');
+                    return;
                 }
 
                 // New join path
