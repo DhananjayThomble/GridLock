@@ -419,3 +419,114 @@ a {
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Enhancement #107 — Hover States for Desktop
+   Only apply on devices with hover capability (no sticky-hover on mobile)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Cursor pointer on all clickable elements */
+button,
+[role="button"],
+a {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  /* ── Generic button hover ─────────────────────────────────────────────────── */
+  button:hover:not(:disabled) {
+    opacity: 0.85;
+    transition: opacity 180ms ease, background-color 180ms ease, transform 180ms ease;
+  }
+
+  /* ── Grid edge (line) hover preview ──────────────────────────────────────── */
+  .line-hover-glow[role="button"]:not([aria-disabled="true"]):hover {
+    background-color: var(--line-hover-preview, var(--accent)) !important;
+    opacity: 0.5 !important;
+    box-shadow: 0 0 10px var(--line-hover-preview, var(--accent)) !important;
+    transition: background-color 150ms ease, opacity 150ms ease, box-shadow 200ms ease;
+  }
+
+  /* ── Post-game modal buttons ─────────────────────────────────────────────── */
+  .fixed button:hover:not(:disabled) {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+    transition: filter 180ms ease, transform 180ms ease;
+  }
+
+  /* ── Tab/keyboard focus states (visible on focus-visible) ────────────────── */
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    transition: outline 150ms ease;
+  }
+
+  /* ── Scoreboard card hover ───────────────────────────────────────────────── */
+  .scoreboard-cards > div:hover {
+    background-color: var(--bg-card-hover) !important;
+    transition: background-color 180ms ease;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Enhancement #111 — Active Player Highlight + Board Glow
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Active player scoreboard row — glow + brighter background */
+.scoreboard-active-player {
+  box-shadow: 0 0 14px var(--active-player-color, var(--accent));
+  background-color: color-mix(in srgb, var(--active-player-color, var(--accent)) 18%, var(--bg-secondary)) !important;
+  border-color: var(--active-player-color, var(--accent)) !important;
+  transition: box-shadow 200ms ease, background-color 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+/* Active player in ScoreBar (fixed top bar) */
+.score-bar-active-player {
+  background-color: color-mix(in srgb, var(--active-player-color, var(--accent)) 12%, transparent);
+  border-radius: 0.5rem;
+  padding: 2px 4px;
+  transition: background-color 200ms ease;
+}
+
+/* Board glow on tablet+ */
+@media (min-width: 768px) {
+  .board-container {
+    box-shadow: 0 0 20px var(--active-player-color, var(--accent));
+    transition: box-shadow 300ms ease;
+  }
+}
+
+/* Smooth turn transitions on all scoreboard elements */
+.scoreboard-cards > div {
+  transition: all 200ms ease;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Enhancement #108 — Winner Confetti Animations
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Winner avatar bounce animation */
+@keyframes winner-bounce {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.25); }
+  40%  { transform: scale(0.95); }
+  60%  { transform: scale(1.12); }
+  80%  { transform: scale(0.98); }
+  100% { transform: scale(1.05); }
+}
+
+.winner-avatar-bounce {
+  animation: winner-bounce 0.8s ease-out forwards;
+}
+
+/* Subtle shimmer on winner name */
+@keyframes winner-shimmer {
+  0%   { text-shadow: 0 0 8px var(--winner-glow); }
+  50%  { text-shadow: 0 0 20px var(--winner-glow), 0 0 40px var(--winner-glow); }
+  100% { text-shadow: 0 0 8px var(--winner-glow); }
+}
+
+.winner-name-shimmer {
+  animation: winner-shimmer 2s ease-in-out infinite;
+}

@@ -99,6 +99,20 @@ const TournamentLobby = () => {
     });
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: 'GridLock Tournament',
+      text: `Join my GridLock tournament! Code: ${tournamentId}`,
+      url: window.location.href,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); }
+      catch { handleCopyId(); }
+    } else {
+      handleCopyId();
+    }
+  };
+
   if (!tournament) {
     return (
       <div
@@ -158,6 +172,14 @@ const TournamentLobby = () => {
                   >
                     {showCopied ? '✅ Copied!' : '📋 Copy'}
                   </button>
+                  <button
+                    onClick={handleShare}
+                    className="text-xs px-2 py-1 rounded-lg transition-all active:scale-95"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+                    aria-label="Share tournament ID"
+                  >
+                    📤 Share
+                  </button>
                 </div>
               </div>
               <div className="px-3 py-1.5 rounded-full text-xs font-bold uppercase"
@@ -200,8 +222,8 @@ const TournamentLobby = () => {
                   className="rounded-xl p-3 text-center"
                   style={{ background: 'var(--bg-card)', border: '1px dashed var(--border-color-strong)' }}
                 >
-                  <div className="text-2xl mb-1 opacity-30">❓</div>
-                  <div className="text-xs" style={{ color: 'var(--text-subtle)' }}>Waiting…</div>
+                  <div className="text-2xl mb-1" style={{ opacity: 0.3, color: 'var(--text-muted)' }}>👤</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Waiting…</div>
                 </div>
               ))}
             </div>
@@ -211,11 +233,19 @@ const TournamentLobby = () => {
           {tournament.rounds && tournament.rounds.length > 0 && (
             <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
               <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--label-color)' }}>Bracket</label>
-              <Bracket
-                rounds={tournament.rounds}
-                participants={tournament.participants}
-                champion={tournament.champion}
-              />
+              <div className="relative">
+                <Bracket
+                  rounds={tournament.rounds}
+                  participants={tournament.participants}
+                  champion={tournament.champion}
+                />
+                {/* Scroll affordance gradient */}
+                <div
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
+                  style={{ background: 'linear-gradient(to top, var(--bg-card-hover), transparent)' }}
+                  aria-hidden="true"
+                />
+              </div>
             </div>
           )}
 

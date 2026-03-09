@@ -258,6 +258,8 @@ const Leaderboard = () => {
                 </table>
               </div>
             </section>
+
+            <p className="text-xs mt-3 text-center" style={{color: 'var(--text-muted)'}}>Ranked by ELO. Ties broken by total games played.</p>
           </>
         )}
       </div>

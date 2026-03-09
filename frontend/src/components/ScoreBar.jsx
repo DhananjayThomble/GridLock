@@ -44,8 +44,9 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                 <div
                   key={player.id}
                   className={`flex items-center gap-1.5 transition-all duration-200 ${
-                    isCurrent ? 'scale-[1.02]' : ''
+                    isCurrent ? 'scale-[1.02] score-bar-active-player' : ''
                   }`}
+                  style={isCurrent ? { '--active-player-color': player.color } : undefined}
                 >
                   <span className="text-base leading-none flex-shrink-0">{player.avatar}</span>
                   <div className="flex-1 min-w-0">
@@ -101,8 +102,9 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                 <div
                   key={player.id}
                   className={`flex items-center gap-2 transition-all duration-200 ${
-                    isCurrent ? 'scale-[1.02]' : ''
+                    isCurrent ? 'scale-[1.02] score-bar-active-player' : ''
                   }`}
+                  style={isCurrent ? { '--active-player-color': player.color } : undefined}
                 >
                   {/* Avatar */}
                   <div className="flex-shrink-0">
