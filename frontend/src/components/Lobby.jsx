@@ -464,7 +464,7 @@ const Lobby = () => {
             </div>
             {username && (
               <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
-                Playing as {selectedAvatar} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{username}</span>
+                Playing as {selectedAvatar} <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
               </p>
             )}
           </div>

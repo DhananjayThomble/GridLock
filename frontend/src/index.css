@@ -383,6 +383,20 @@ a {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Right-edge fade to hint at scrollable content on mobile */
+@media (max-width: 767px) {
+  .leaderboard-scroll-wrapper::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, transparent, var(--bg-primary));
+    pointer-events: none;
+  }
+}
+
 /* Hide "Last Played" column on mobile */
 @media (max-width: 767px) {
   .leaderboard-last-played {
@@ -393,7 +407,15 @@ a {
 /* ── Lobby "Playing as" ellipsis ───────────────────────────────────────────── */
 .lobby-playing-as {
   max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.lobby-playing-as .lobby-username {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }

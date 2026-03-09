@@ -15,6 +15,7 @@ const TournamentLobby = () => {
   const [showCopied, setShowCopied] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [winner, setWinner] = useState(null);
+  const [socketError, setSocketError] = useState('');
   const navigatedRef = useRef(false);
 
   const tournamentId = tournament?.tournamentId || initialTournamentId;
@@ -31,6 +32,7 @@ const TournamentLobby = () => {
 
     const onTournamentUpdate = ({ tournament: t }) => {
       setTournament(t);
+      setSocketError('');
     };
 
     const onTournamentGameAssigned = ({ tournamentId: tid, gameId, playerId, sessionToken, gridSize: assignedGridSize, playerCount: assignedPlayerCount }) => {
@@ -60,7 +62,7 @@ const TournamentLobby = () => {
         reRequestingRef.current = false;
         return;
       }
-      alert(typeof msg === 'string' ? msg : 'Something went wrong');
+      setSocketError(typeof msg === 'string' ? msg : 'Something went wrong');
     };
 
     socket.on('tournament_update', onTournamentUpdate);
@@ -132,6 +134,11 @@ const TournamentLobby = () => {
         </div>
 
         {/* Card */}
+        {socketError && (
+          <div className="mb-4 rounded-xl p-3 text-center text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
+            {socketError}
+          </div>
+        )}
         <div
           className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
