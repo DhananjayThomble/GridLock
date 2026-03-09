@@ -96,7 +96,7 @@ const Leaderboard = () => {
 
   const tableRows = useMemo(
     () => (isMobile && topThree.length > 0 ? rows.slice(topThree.length) : rows),
-    [rows, isMobile],
+    [rows, isMobile, topThree],
   );
 
   const onLookup = async (event) => {

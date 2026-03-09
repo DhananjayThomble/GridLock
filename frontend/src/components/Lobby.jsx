@@ -42,6 +42,17 @@ const TOURNAMENT_SIZE_OPTIONS = [
   { value: 8, label: '8 Players', icon: '🏆', desc: 'Full bracket' },
 ];
 
+// ── Username validation (module-level — pure & static) ──────────────────────
+const USERNAME_RE = /^[a-zA-Z0-9_-]+$/;
+const validateUsername = (raw) => {
+  const name = raw.trim();
+  if (!name) return 'Please enter a username';
+  if (name.length < 2) return 'Username must be at least 2 characters';
+  if (name.length > 16) return 'Username must be at most 16 characters';
+  if (!USERNAME_RE.test(name)) return 'Only letters, numbers, underscores, and hyphens allowed';
+  return '';
+};
+
 const Lobby = () => {
   const [username,      setUsername]      = useState(() => localStorage.getItem('gridlock_username') || '');
   const [gridSize,      setGridSize]      = useState(() => {
@@ -93,16 +104,6 @@ const Lobby = () => {
   const [gameIdError, setGameIdError] = useState('');
   const [tournamentIdError, setTournamentIdError] = useState('');
   const navigate = useNavigate();
-
-  // ── Username validation ─────────────────────────────────────────────────────
-  const USERNAME_RE = /^[a-zA-Z0-9_-]+$/;
-  const validateUsername = (raw) => {
-    const name = raw.trim();
-    if (!name) return 'Please enter a username';
-    if (name.length < 2) return 'Username must be at least 2 characters';
-    if (!USERNAME_RE.test(name)) return 'Only letters, numbers, underscores, and hyphens allowed';
-    return '';
-  };
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
