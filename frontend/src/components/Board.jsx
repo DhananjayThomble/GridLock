@@ -99,6 +99,7 @@ const Board = () => {
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
   const [spectatorNotice, setSpectatorNotice] = useState(null);
+  const spectatorTimerRef = useRef(null);
   const [status,         setStatus]         = useState('Connecting…');
   const [showWinner,     setShowWinner]     = useState(false);
   const [winnerData,     setWinnerData]     = useState(null);
@@ -341,13 +342,15 @@ const Board = () => {
     };
 
     const onSpectatorJoined = (data) => {
+      if (spectatorTimerRef.current) clearTimeout(spectatorTimerRef.current);
       setSpectatorNotice(`${data.username || 'Someone'} joined as spectator`);
-      setTimeout(() => setSpectatorNotice(null), 3000);
+      spectatorTimerRef.current = setTimeout(() => setSpectatorNotice(null), 3000);
     };
 
     const onSpectatorLeft = (data) => {
+      if (spectatorTimerRef.current) clearTimeout(spectatorTimerRef.current);
       setSpectatorNotice(`${data.username || 'A spectator'} stopped watching`);
-      setTimeout(() => setSpectatorNotice(null), 3000);
+      spectatorTimerRef.current = setTimeout(() => setSpectatorNotice(null), 3000);
     };
 
     socket.on('game_started',       onGameStarted);
@@ -385,6 +388,7 @@ const Board = () => {
       socket.off('spectator_joined',    onSpectatorJoined);
       socket.off('spectator_left',      onSpectatorLeft);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
+      if (spectatorTimerRef.current) clearTimeout(spectatorTimerRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
 
@@ -915,6 +919,14 @@ const Board = () => {
           />
         );
       })()}
+
+      {/* ── Spectator count badge (visible on game-over when ScoreBar is hidden) ── */}
+      {gameState && gameState.gameOver && spectatorCount > 0 && (
+        <div className="flex items-center justify-center gap-1 py-1 text-xs font-medium" style={{ color: 'var(--spectator-text)' }}>
+          <span>👀</span>
+          <span>{spectatorCount} watching</span>
+        </div>
+      )}
 
       {/* ── Main content area (pushes below fixed ScoreBar) ── */}
       <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
