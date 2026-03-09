@@ -14,7 +14,7 @@
 
   --text-primary:     #e6edf3;
   --text-secondary:   #8b949e;
-  --text-muted:       #484f58;
+  --text-muted:       #848d97;
   --text-subtle:      rgba(230,237,243,0.15);
 
   --border-color:     rgba(240,246,252,0.1);
@@ -53,6 +53,7 @@
   --winner-gold:      #FFD700;
   --winner-bg:        rgba(255,215,0,0.10);
   --winner-glow:      rgba(255,215,0,0.35);
+  --draw-bg:          rgba(192,192,192,0.10);
 
   /* Danger button (Leave Game) — WCAG AA compliant */
   --btn-danger-bg:    #da3633;
@@ -78,7 +79,7 @@
 
   --text-primary:     #1f2328;
   --text-secondary:   #656d76;
-  --text-muted:       #8b949e;
+  --text-muted:       #57606a;
   --text-subtle:      rgba(31,35,40,0.15);
 
   --border-color:     rgba(31,35,40,0.15);
@@ -117,6 +118,7 @@
   --winner-gold:      #996515;
   --winner-bg:        rgba(153,101,21,0.10);
   --winner-glow:      rgba(153,101,21,0.30);
+  --draw-bg:          rgba(128,128,128,0.08);
 
   /* Danger button (Leave Game) — WCAG AA compliant */
   --btn-danger-bg:    #cf222e;
@@ -215,7 +217,7 @@ textarea::placeholder {
 
 /* Score bar progress bars — base heights */
 .score-progress-thin {
-  height: 0.375rem;
+  height: 0.5rem;
 }
 
 .score-progress-thick {
@@ -261,7 +263,7 @@ textarea::placeholder {
   }
 
   .score-progress-thin {
-    height: 0.375rem;
+    height: 0.5rem;
   }
 
   .score-progress-thick {
@@ -280,7 +282,7 @@ textarea::placeholder {
   }
 
   .score-progress-thin {
-    height: 0.5rem;
+    height: 0.625rem;
   }
 
   .score-progress-thick {

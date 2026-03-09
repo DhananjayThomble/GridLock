@@ -96,9 +96,9 @@ const PostGameStatsCard = ({
     if (!is1v1) {
       return (
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO</span>
-          <span className="text-xs italic" style={{ color: 'var(--text-muted)' }} data-testid="elo-1v1-note">
-            1v1 games only
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⚡ ELO</span>
+          <span className="text-xs italic" style={{ color: 'var(--text-secondary)' }} data-testid="elo-1v1-note">
+            ℹ️ 1v1 games only
           </span>
         </div>
       );
@@ -109,7 +109,7 @@ const PostGameStatsCard = ({
     if (!role || role === 'spectator') {
       return (
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO Δ</span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⚡ ELO Δ</span>
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid="elo-change">—</span>
         </div>
       );
@@ -118,8 +118,8 @@ const PostGameStatsCard = ({
     if (eloLoading) {
       return (
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO Δ</span>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }} data-testid="elo-change">loading…</span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⚡ ELO Δ</span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }} data-testid="elo-change">loading…</span>
         </div>
       );
     }
@@ -131,7 +131,7 @@ const PostGameStatsCard = ({
     if (myElo == null || oppElo == null) {
       return (
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO Δ</span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⚡ ELO Δ</span>
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid="elo-change">N/A</span>
         </div>
       );
@@ -142,7 +142,7 @@ const PostGameStatsCard = ({
 
     return (
       <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO Δ</span>
+        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⚡ ELO Δ</span>
         <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid="elo-change">
           {delta >= 0 ? `+${delta}` : `${delta}`}
         </span>
@@ -161,7 +161,7 @@ const PostGameStatsCard = ({
     >
       <h3
         className="text-xs font-bold uppercase tracking-wider mb-2 text-center"
-        style={{ color: 'var(--text-muted)' }}
+        style={{ color: 'var(--text-secondary)' }}
       >
         📊 Game Stats
       </h3>
@@ -187,7 +187,7 @@ const PostGameStatsCard = ({
           const moves = moveCount?.[pid] ?? 0;
           return (
             <div key={`moves-${pid}`} className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{name} moves</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{name} moves</span>
               <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid={`move-count-${pid}`}>{moves}</span>
             </div>
           );
@@ -196,7 +196,7 @@ const PostGameStatsCard = ({
         <div className="col-span-2 border-t my-1" style={{ borderColor: 'var(--border-color)' }} />
 
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⏱ Duration</span>
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⏱ Duration</span>
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid="game-duration">{formatDuration(gameDuration)}</span>
         </div>
 

@@ -50,12 +50,19 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <span className="text-base leading-none flex-shrink-0">{player.avatar}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span
-                        className="font-bold truncate score-bar-player-name"
-                        style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
-                        title={player.username}
-                      >
-                        {truncateName(player.username, multiPlayerMaxLen)}
+                      <span className="flex items-center gap-1 min-w-0">
+                        <span
+                          className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: player.color }}
+                          aria-hidden="true"
+                        />
+                        <span
+                          className="font-bold truncate score-bar-player-name"
+                          style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                          title={player.username}
+                        >
+                          {truncateName(player.username, multiPlayerMaxLen)}
+                        </span>
                       </span>
                       <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
                         {percentage.toFixed(0)}%
@@ -64,7 +71,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                     <div className="score-progress-thin rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                       <div
                         className="h-full transition-all duration-500 ease-out"
-                        style={{ width: `${percentage}%`, backgroundColor: player.color }}
+                        style={{ width: `${percentage}%`, ...(percentage > 0 && { minWidth: '8px' }), backgroundColor: player.color }}
                       />
                       {isCurrent && (
                         <div
@@ -103,7 +110,12 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   </div>
 
                   {/* Name — wider on mobile, truncated with ellipsis */}
-                  <div className="flex-shrink-0" style={{ width: 'clamp(64px, 20vw, 96px)' }}>
+                  <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 'clamp(64px, 20vw, 96px)' }}>
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: player.color }}
+                      aria-hidden="true"
+                    />
                     <span
                       className="text-xs font-bold truncate block"
                       style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
@@ -117,7 +129,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 score-progress-thick rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                     <div
                       className="h-full transition-all duration-500 ease-out"
-                      style={{ width: `${percentage}%`, backgroundColor: player.color }}
+                      style={{ width: `${percentage}%`, ...(percentage > 0 && { minWidth: '8px' }), backgroundColor: player.color }}
                     />
                     {isCurrent && (
                       <div

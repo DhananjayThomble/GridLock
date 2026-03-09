@@ -682,6 +682,10 @@ const Board = () => {
     if (!showWinner || !winnerData) return null;
     const count = winnerData.playerCount || 2;
     const ids   = Array.from({ length: count }, (_, i) => `player${i + 1}`);
+    // Pre-compute max score for draw highlighting
+    const maxScore = winnerData.isDraw
+      ? Math.max(...ids.map(pid => winnerData.scores?.[pid] ?? 0))
+      : null;
 
     return (
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
@@ -691,7 +695,7 @@ const Board = () => {
         >
           {winnerData.isDraw ? (
             <>
-              <div className="text-6xl mb-2">🤝</div>
+              <div className="text-6xl mb-2" aria-label="Tied">🤝</div>
               <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--text-primary)' }}>It's a Draw!</h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Great game everyone!</p>
             </>
@@ -714,21 +718,33 @@ const Board = () => {
               const score = winnerData.scores?.[pid] ?? 0;
               const isWin = !winnerData.isDraw && winnerData.winner === pid;
               const isCPU = !!gameState?.[`${pid}IsCPU`];
+              // In a draw: players who share the max score are "tied", others are losers
+              const isTied = winnerData.isDraw && score === maxScore;
+              const isDrawLoser = winnerData.isDraw && score < maxScore;
+
               return (
                 <div
                   key={pid}
                   className="flex justify-between items-center px-2 py-1 rounded-lg"
-                  style={isWin ? { backgroundColor: 'var(--winner-bg)' } : undefined}
+                  style={{
+                    ...(isWin ? { backgroundColor: 'var(--winner-bg)' } : {}),
+                    ...(isTied ? {
+                      backgroundColor: 'var(--draw-bg)',
+                      borderLeft: '3px solid var(--winner-gold)',
+                    } : {}),
+                    ...(isDrawLoser ? { opacity: 0.5 } : {}),
+                  }}
                 >
-                  <span className="font-semibold text-sm" style={{ color: isWin ? playerColor : 'var(--text-secondary)' }}>
+                  <span className="font-semibold text-sm" style={{ color: isWin || isTied ? playerColor : 'var(--text-secondary)' }}>
                     {isCPU ? (
-                      <>{name} 🤖 {isWin && '🏆'}</>
+                      <>{name} 🤖 {isWin && '🏆'}{isTied && <span aria-label="Tied"> 🤝</span>}</>
                     ) : (
                       <Link to={`/profile/${encodeURIComponent(name)}`} className="hover:underline">
                         {name}
                       </Link>
                     )}
                     {!isCPU && isWin && ' 🏆'}
+                    {!isCPU && isTied && <span aria-label="Tied"> 🤝</span>}
                   </span>
                   <span className="font-extrabold text-base" style={{ color: playerColor }}>{score}</span>
                 </div>
