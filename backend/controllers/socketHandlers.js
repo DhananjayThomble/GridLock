@@ -1092,7 +1092,7 @@ function attachSocketHandlers(io, log) {
                             const ps = io.sockets.sockets.get(p.socketId);
                             if (ps && requeue.queued) {
                                 ps.data.queueKey = requeue.queueKey;
-                                ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey });
+                                ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey, queueCounts: matchmaking.getAllQueueCounts() });
                                 const timer = setTimeout(() => {
                                     if (matchmaking.isInQueue(p.socketId)) {
                                         ps.emit('queue_timeout', { suggestion: 'cpu' });
@@ -1150,7 +1150,7 @@ function attachSocketHandlers(io, log) {
                                 const requeue = matchmaking.joinQueue(p.socketId, p.username, p.avatar, p.gridSize, p.playerCount);
                                 if (requeue.queued) {
                                     ps.data.queueKey = requeue.queueKey;
-                                    ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey });
+                                    ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey, queueCounts: matchmaking.getAllQueueCounts() });
                                     const timer = setTimeout(() => {
                                         if (matchmaking.isInQueue(p.socketId)) {
                                             ps.emit('queue_timeout', { suggestion: 'cpu' });
@@ -1210,6 +1210,7 @@ function attachSocketHandlers(io, log) {
                                     position: status.position,
                                     queueSize: status.queueSize,
                                     queueKey: status.queueKey,
+                                    queueCounts: matchmaking.getAllQueueCounts(),
                                 });
                             }
                         }
@@ -1342,6 +1343,7 @@ function attachSocketHandlers(io, log) {
                                 position: status.position,
                                 queueSize: status.queueSize,
                                 queueKey: status.queueKey,
+                                queueCounts: matchmaking.getAllQueueCounts(),
                             });
                         }
                     }

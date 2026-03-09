@@ -15,6 +15,7 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
   const [selectedPlayerCount, setSelectedPlayerCount] = useState(initialPlayerCount || 2);
   const [elapsed, setElapsed] = useState(0);
   const [queueSize, setQueueSize] = useState(initialQueueSize || 1);
+  const [queueCounts, setQueueCounts] = useState({}); // per-queueKey counts, e.g. { "2P:3x3": 3, "3P:3x3": 1 }
   const [showCpuOption, setShowCpuOption] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const timerRef = useRef(null);
@@ -22,14 +23,16 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
   const showCpuRef = useRef(false);
   const timedOutRef = useRef(false);
   const selectedPlayerCountRef = useRef(selectedPlayerCount);
+  const radioGroupRef = useRef(null);
 
   // Keep ref in sync
   useEffect(() => { selectedPlayerCountRef.current = selectedPlayerCount; }, [selectedPlayerCount]);
 
   // Listen for queue_status and queue_timeout socket events
   useEffect(() => {
-    const onStatus = ({ queueSize: qs }) => {
+    const onStatus = ({ queueSize: qs, queueCounts: qc }) => {
       if (qs != null) setQueueSize(qs);
+      if (qc != null) setQueueCounts(qc);
     };
     const onTimeout = () => {
       timedOutRef.current = true;
@@ -82,6 +85,31 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
     setQueueSize(1);
   }, [gridSize, username, avatar]);
 
+  // Roving tabindex arrow key navigation for radiogroup
+  const handleRadioKeyDown = useCallback((e) => {
+    const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+
+    const currentIdx = PLAYER_OPTIONS.indexOf(selectedPlayerCountRef.current);
+    let nextIdx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIdx = (currentIdx + 1) % PLAYER_OPTIONS.length;
+    } else {
+      nextIdx = (currentIdx - 1 + PLAYER_OPTIONS.length) % PLAYER_OPTIONS.length;
+    }
+
+    const newCount = PLAYER_OPTIONS[nextIdx];
+    handlePlayerCountChange(newCount);
+
+    // Focus the newly selected radio button
+    const group = radioGroupRef.current;
+    if (group) {
+      const buttons = group.querySelectorAll('[role="radio"]');
+      if (buttons[nextIdx]) buttons[nextIdx].focus();
+    }
+  }, [handlePlayerCountChange]);
+
   // Wrap onPlayCPU to pass selected player count
   const handlePlayCPU = useCallback(() => {
     if (onPlayCPU) onPlayCPU(selectedPlayerCountRef.current);
@@ -123,6 +151,16 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
     }
   }, []);
 
+  // Build per-selection queue count display for the current grid size
+  const queueCountDisplay = PLAYER_OPTIONS
+    .map((count) => {
+      const key = `${count}P:${gridSize}x${gridSize}`;
+      const n = queueCounts[key] || 0;
+      return n > 0 ? `${n} searching for ${count}P` : null;
+    })
+    .filter(Boolean)
+    .join(' | ');
+
   return (
     <div
       ref={overlayRef}
@@ -157,9 +195,15 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
             >
               {timedOut ? 'No opponents found' : `Searching for ${selectedPlayerCount}-player match…`}
             </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Grid: {gridSize}×{gridSize}
-            </p>
+          </div>
+
+          {/* Grid size display */}
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}
+          >
+            <span className="text-xs font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Grid</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{gridSize}×{gridSize}</span>
           </div>
 
           {/* Player count selector */}
@@ -171,12 +215,14 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
               Players
             </label>
             <div
+              ref={radioGroupRef}
               className="inline-flex rounded-xl overflow-hidden"
               role="radiogroup"
               aria-label="Player count"
               style={{ border: '1px solid var(--border-color-strong)' }}
+              onKeyDown={handleRadioKeyDown}
             >
-              {PLAYER_OPTIONS.map((count) => {
+              {PLAYER_OPTIONS.map((count, idx) => {
                 const isSelected = count === selectedPlayerCount;
                 return (
                   <button
@@ -184,6 +230,7 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
                     role="radio"
                     aria-checked={isSelected}
                     aria-label={`${count} players`}
+                    tabIndex={isSelected ? 0 : -1}
                     onClick={() => handlePlayerCountChange(count)}
                     className="px-5 py-2 text-sm font-bold transition-all min-h-[44px]"
                     style={{
@@ -193,7 +240,7 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
                       color: isSelected
                         ? 'var(--text-on-accent)'
                         : 'var(--text-secondary)',
-                      borderRight: count < 4 ? '1px solid var(--border-color-strong)' : 'none',
+                      borderRight: idx < PLAYER_OPTIONS.length - 1 ? '1px solid var(--border-color-strong)' : 'none',
                     }}
                   >
                     {count}P
@@ -215,7 +262,9 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
               <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
                 👥 {queueSize}
               </div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>In queue</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {queueCountDisplay || 'In queue'}
+              </div>
             </div>
           </div>
 
