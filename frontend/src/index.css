@@ -53,6 +53,7 @@
   --winner-gold:      #FFD700;
   --winner-bg:        rgba(255,215,0,0.10);
   --winner-glow:      rgba(255,215,0,0.35);
+  --draw-bg:          rgba(192,192,192,0.10);
 
   /* Danger button (Leave Game) — WCAG AA compliant */
   --btn-danger-bg:    #da3633;
@@ -117,6 +118,7 @@
   --winner-gold:      #996515;
   --winner-bg:        rgba(153,101,21,0.10);
   --winner-glow:      rgba(153,101,21,0.30);
+  --draw-bg:          rgba(128,128,128,0.08);
 
   /* Danger button (Leave Game) — WCAG AA compliant */
   --btn-danger-bg:    #cf222e;

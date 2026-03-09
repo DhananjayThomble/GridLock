@@ -71,7 +71,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                     <div className="score-progress-thin rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                       <div
                         className="h-full transition-all duration-500 ease-out"
-                        style={{ width: `${percentage}%`, minWidth: '8px', backgroundColor: player.color }}
+                        style={{ width: `${percentage}%`, ...(percentage > 0 && { minWidth: '8px' }), backgroundColor: player.color }}
                       />
                       {isCurrent && (
                         <div
@@ -129,7 +129,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 score-progress-thick rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                     <div
                       className="h-full transition-all duration-500 ease-out"
-                      style={{ width: `${percentage}%`, minWidth: '8px', backgroundColor: player.color }}
+                      style={{ width: `${percentage}%`, ...(percentage > 0 && { minWidth: '8px' }), backgroundColor: player.color }}
                     />
                     {isCurrent && (
                       <div
