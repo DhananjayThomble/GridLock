@@ -433,22 +433,24 @@ a {
 }
 
 @media (hover: hover) {
-  /* ── Generic button hover ─────────────────────────────────────────────────── */
-  button:hover:not(:disabled) {
+  /* ── Generic button hover (scoped to specific containers) ───────────────── */
+  .lobby-container button:hover:not(:disabled),
+  .score-bar button:hover:not(:disabled),
+  .settings-card button:hover:not(:disabled) {
     opacity: 0.85;
     transition: opacity 180ms ease, background-color 180ms ease, transform 180ms ease;
   }
 
   /* ── Grid edge (line) hover preview ──────────────────────────────────────── */
   .line-hover-glow[role="button"]:not([aria-disabled="true"]):hover {
-    background-color: var(--line-hover-preview, var(--accent)) !important;
-    opacity: 0.5 !important;
-    box-shadow: 0 0 10px var(--line-hover-preview, var(--accent)) !important;
+    background-color: var(--line-hover-preview, var(--accent));
+    opacity: 0.5;
+    box-shadow: 0 0 10px var(--line-hover-preview, var(--accent));
     transition: background-color 150ms ease, opacity 150ms ease, box-shadow 200ms ease;
   }
 
   /* ── Post-game modal buttons ─────────────────────────────────────────────── */
-  .fixed button:hover:not(:disabled) {
+  .postgame-modal button:hover:not(:disabled) {
     filter: brightness(1.12);
     transform: translateY(-1px);
     transition: filter 180ms ease, transform 180ms ease;

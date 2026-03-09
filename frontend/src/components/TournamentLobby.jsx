@@ -16,6 +16,8 @@ const TournamentLobby = () => {
   const [completed, setCompleted] = useState(false);
   const [winner, setWinner] = useState(null);
   const [socketError, setSocketError] = useState('');
+  const [bracketOverflows, setBracketOverflows] = useState(false);
+  const bracketRef = useRef(null);
   const navigatedRef = useRef(false);
 
   const tournamentId = tournament?.tournamentId || initialTournamentId;
@@ -83,6 +85,17 @@ const TournamentLobby = () => {
   useEffect(() => {
     navigatedRef.current = false;
   }, [tournamentId]);
+
+  // Detect bracket overflow to conditionally show scroll affordance
+  useEffect(() => {
+    const el = bracketRef.current;
+    if (!el) { setBracketOverflows(false); return; }
+    const check = () => setBracketOverflows(el.scrollWidth > el.clientWidth);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [tournament?.rounds]);
 
   useEffect(() => {
     if (!tournamentId || tournament) return;
@@ -233,18 +246,20 @@ const TournamentLobby = () => {
           {tournament.rounds && tournament.rounds.length > 0 && (
             <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
               <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--label-color)' }}>Bracket</label>
-              <div className="relative">
+              <div className="relative" ref={bracketRef}>
                 <Bracket
                   rounds={tournament.rounds}
                   participants={tournament.participants}
                   champion={tournament.champion}
                 />
-                {/* Scroll affordance gradient */}
-                <div
-                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
-                  style={{ background: 'linear-gradient(to top, var(--bg-card-hover), transparent)' }}
-                  aria-hidden="true"
-                />
+                {/* Scroll affordance gradient — only shown when bracket overflows */}
+                {bracketOverflows && (
+                  <div
+                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
+                    style={{ background: 'linear-gradient(to top, var(--bg-card-hover), transparent)' }}
+                    aria-hidden="true"
+                  />
+                )}
               </div>
             </div>
           )}

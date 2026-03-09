@@ -840,7 +840,7 @@ const Lobby = () => {
 
         {/* ── Settings Footer Card ── */}
         <div
-          className="mt-4 rounded-2xl p-4 space-y-3"
+          className="mt-4 rounded-2xl p-4 space-y-3 settings-card"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
         >
           <div className="flex items-center justify-between">

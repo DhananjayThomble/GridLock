@@ -543,7 +543,7 @@ const Board = () => {
           onTouchEnd={touchHandlers.onTouchEnd}
           role="button"
           aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn}
+          aria-disabled={!isMyTurn || !!owner}
           tabIndex={isMyTurn ? 0 : -1}
           onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
           className={`h-2 w-full rounded line-hover-glow ${
@@ -579,7 +579,7 @@ const Board = () => {
           onTouchEnd={touchHandlers.onTouchEnd}
           role="button"
           aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn}
+          aria-disabled={!isMyTurn || !!owner}
           tabIndex={isMyTurn ? 0 : -1}
           onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
           className={`w-2 h-full rounded line-hover-glow ${
@@ -688,7 +688,7 @@ const Board = () => {
       : null;
 
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md postgame-modal">
         <div
           className="rounded-2xl p-6 w-full max-w-sm md:max-w-lg lg:max-w-xl shadow-2xl text-center"
           style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
