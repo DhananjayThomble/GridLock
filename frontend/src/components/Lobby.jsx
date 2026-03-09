@@ -89,8 +89,10 @@ const Lobby = () => {
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
   const [quickPlaying, setQuickPlaying] = useState(false);
   const [queueSize, setQueueSize] = useState(1);
+  const [usernameError, setUsernameError] = useState('');
+  const [gameIdError, setGameIdError] = useState('');
+  const [tournamentIdError, setTournamentIdError] = useState('');
   const navigate = useNavigate();
-
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
@@ -106,7 +108,7 @@ const Lobby = () => {
       setJoining(false);
       setCreatingTournament(false);
       setJoiningTournament(false);
-      alert(typeof msg === 'string' ? msg : 'Something went wrong');
+      setUsernameError(typeof msg === 'string' ? msg : 'Something went wrong');
     };
 
     socket.on('game_created', onCreated);
@@ -228,7 +230,8 @@ const Lobby = () => {
   // ── Create Tournament ───────────────────────────────────────────────────────
   const handleCreateTournament = () => {
     const name = username.trim();
-    if (!name) return alert('Please enter a username');
+    if (!name) { setUsernameError('Please enter a username'); return; }
+    setUsernameError('');
     if (!socket.connected) socket.connect();
     setCreatingTournament(true);
     socket.emit('create_tournament', { username: name, avatar: selectedAvatar, tournamentSize, gridSize: tournamentGridSize });
@@ -238,8 +241,10 @@ const Lobby = () => {
   const handleJoinTournament = () => {
     const name = username.trim();
     const id = tournamentId.trim().toUpperCase();
-    if (!name) return alert('Please enter a username');
-    if (!id) return alert('Please enter a Tournament ID');
+    if (!name) { setUsernameError('Please enter a username'); return; }
+    setUsernameError('');
+    if (!id) { setTournamentIdError('Please enter a Tournament ID'); return; }
+    setTournamentIdError('');
     if (!socket.connected) socket.connect();
     setJoiningTournament(true);
     socket.emit('join_tournament', { tournamentId: id, username: name, avatar: selectedAvatar });
@@ -249,7 +254,8 @@ const Lobby = () => {
   const handleQuickPlay = () => {
     initAudio();
     const name = username.trim();
-    if (!name) return alert('Please enter a username');
+    if (!name) { setUsernameError('Please enter a username'); return; }
+    setUsernameError('');
     if (!socket.connected) socket.connect();
     localStorage.setItem('gridlock_username', name);
     setQuickPlaying(true);
@@ -272,7 +278,7 @@ const Lobby = () => {
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
       if (res?.error) {
         setCreating(false);
-        alert(res.error);
+        setUsernameError(res.error);
         return;
       }
       if (res?.gameId) {
@@ -291,7 +297,7 @@ const Lobby = () => {
         });
       } else {
         setCreating(false);
-        alert('Failed to create CPU game. Please try again.');
+        setUsernameError('Failed to create CPU game. Please try again.');
       }
     });
   };
@@ -300,7 +306,8 @@ const Lobby = () => {
   const handleCreate = () => {
     initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
-    if (!name) return alert('Please enter a username');
+    if (!name) { setUsernameError('Please enter a username'); return; }
+    setUsernameError('');
     if (!socket.connected) socket.connect();
     setCreating(true);
     localStorage.setItem('gridlock_username', name);
@@ -336,8 +343,10 @@ const Lobby = () => {
     initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     const id   = gameId.trim().toUpperCase();
-    if (!name) return alert('Please enter a username');
-    if (!id)   return alert('Please enter a Game ID');
+    if (!name) { setUsernameError('Please enter a username'); return; }
+    setUsernameError('');
+    if (!id) { setGameIdError('Please enter a Game ID'); return; }
+    setGameIdError('');
 
     const tokenKey = `gridlock:session:${id}:${name}`;
     const existingToken = localStorage.getItem(tokenKey) || null;
@@ -394,10 +403,10 @@ const Lobby = () => {
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
               onKeyDown={(e) => e.key === 'Enter' && (tab === 'create' ? handleCreate() : handleJoin())}
               placeholder="Enter your name…"
-              maxLength={20}
+              maxLength={16}
               autoComplete="nickname"
               autoCorrect="off"
               autoCapitalize="words"
@@ -405,8 +414,20 @@ const Lobby = () => {
               inputMode="text"
               enterKeyHint={tab === 'create' ? 'done' : 'next'}
               className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
-              style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
+              style={{
+                background: 'var(--input-bg)',
+                border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                color: 'var(--text-primary)',
+              }}
             />
+            <div className="flex justify-between mt-1">
+              {usernameError ? (
+                <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
+              ) : <span />}
+              <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                {username.length}/16
+              </p>
+            </div>
 
             <label className="block text-xs font-bold uppercase tracking-wider mt-3 mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
             <div className="grid grid-cols-8 gap-1.5">
@@ -428,7 +449,7 @@ const Lobby = () => {
               ))}
             </div>
             {username && (
-              <p className="text-center mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
                 Playing as {selectedAvatar} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{username}</span>
               </p>
             )}
@@ -438,7 +459,7 @@ const Lobby = () => {
           <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
               onClick={handleQuickPlay}
-              disabled={quickPlaying || creating}
+              disabled={quickPlaying || creating || !username.trim()}
               aria-label="Quick Play — instant match with random opponents"
               className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60"
               style={{
@@ -596,7 +617,7 @@ const Lobby = () => {
 
               <button
                 onClick={handleCreate}
-                disabled={creating}
+                disabled={creating || !username.trim()}
                 className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
               >
@@ -620,7 +641,7 @@ const Lobby = () => {
                 <input
                   type="text"
                   value={gameId}
-                  onChange={(e) => setGameId(e.target.value.toUpperCase())}
+                  onChange={(e) => { setGameId(e.target.value.toUpperCase()); setGameIdError(''); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
                   placeholder="e.g. AB3XYZ"
                   maxLength={8}
@@ -631,10 +652,16 @@ const Lobby = () => {
                   inputMode="text"
                   enterKeyHint="join"
                   className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
+                  style={{
+                    background: 'var(--input-bg)',
+                    border: gameIdError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    color: 'var(--text-primary)',
+                  }}
                 />
+                {gameIdError && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{gameIdError}</p>
+                )}
               </div>
-
 
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -659,7 +686,7 @@ const Lobby = () => {
 
               <button
                 onClick={handleJoin}
-                disabled={joining}
+                disabled={joining || !username.trim() || !gameId.trim()}
                 className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
               >
@@ -723,7 +750,7 @@ const Lobby = () => {
 
               <button
                 onClick={handleCreateTournament}
-                disabled={creatingTournament}
+                disabled={creatingTournament || !username.trim()}
                 className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
                 style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
               >
@@ -750,7 +777,7 @@ const Lobby = () => {
                 <input
                   type="text"
                   value={tournamentId}
-                  onChange={(e) => setTournamentId(e.target.value.toUpperCase())}
+                  onChange={(e) => { setTournamentId(e.target.value.toUpperCase()); setTournamentIdError(''); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinTournament()}
                   placeholder="e.g. AB3XYZ"
                   maxLength={8}
@@ -761,8 +788,15 @@ const Lobby = () => {
                   inputMode="text"
                   enterKeyHint="join"
                   className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
+                  style={{
+                    background: 'var(--input-bg)',
+                    border: tournamentIdError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    color: 'var(--text-primary)',
+                  }}
                 />
+                {tournamentIdError && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{tournamentIdError}</p>
+                )}
               </div>
 
               <button
@@ -811,7 +845,7 @@ const Lobby = () => {
             onClick={async () => {
               const name = username.trim();
               if (!pushEnabled) {
-                if (!name) return alert('Enter a username first');
+                if (!name) { setUsernameError('Enter a username first'); return; }
                 try {
                   const sub = await subscribeToPush(name);
                   if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }

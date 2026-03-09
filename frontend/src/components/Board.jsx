@@ -695,7 +695,7 @@ const Board = () => {
         >
           {winnerData.isDraw ? (
             <>
-              <div className="text-6xl mb-2">🤝</div>
+              <div className="text-6xl mb-2" aria-label="Tied">🤝</div>
               <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--text-primary)' }}>It's a Draw!</h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Great game everyone!</p>
             </>
@@ -737,14 +737,14 @@ const Board = () => {
                 >
                   <span className="font-semibold text-sm" style={{ color: isWin || isTied ? playerColor : 'var(--text-secondary)' }}>
                     {isCPU ? (
-                      <>{name} 🤖 {isWin && '🏆'}{isTied && ' 🤝'}</>
+                      <>{name} 🤖 {isWin && '🏆'}{isTied && <span aria-label="Tied"> 🤝</span>}</>
                     ) : (
                       <Link to={`/profile/${encodeURIComponent(name)}`} className="hover:underline">
                         {name}
                       </Link>
                     )}
                     {!isCPU && isWin && ' 🏆'}
-                    {!isCPU && isTied && ' 🤝'}
+                    {!isCPU && isTied && <span aria-label="Tied"> 🤝</span>}
                   </span>
                   <span className="font-extrabold text-base" style={{ color: playerColor }}>{score}</span>
                 </div>
