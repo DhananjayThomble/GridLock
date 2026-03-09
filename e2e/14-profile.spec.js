@@ -91,7 +91,7 @@ test.describe('Player Profile Page', () => {
         await makeMove(current);
         await p1.waitForTimeout(300);
         const t = await p1.locator('body').innerText();
-        if (t.includes('Game Over') || t.includes('Play Again') || t.includes('Winner')) {
+        if (t.includes('Game Over') || t.includes('Rematch') || t.includes('Winner')) {
           gameOver = true;
         }
       }

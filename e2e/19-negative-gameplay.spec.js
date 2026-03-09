@@ -107,7 +107,7 @@ test.describe('Negative Gameplay', () => {
         await makeMove(current);
         await p1.waitForTimeout(300);
         const t = await p1.locator('body').innerText();
-        if (t.includes('Game Over') || t.includes('Play Again')) { gameOver = true; }
+        if (t.includes('Game Over') || t.includes('Rematch')) { gameOver = true; }
       }
 
       expect(gameOver, '3×3 game should complete').toBe(true);
@@ -176,7 +176,7 @@ test.describe('Negative Gameplay', () => {
         await makeMove(current);
         await p1.waitForTimeout(300);
         const t = await p1.locator('body').innerText();
-        if (t.includes('Game Over') || t.includes('Play Again')) { gameOver = true; }
+        if (t.includes('Game Over') || t.includes('Rematch')) { gameOver = true; }
       }
 
       if (gameOver) {

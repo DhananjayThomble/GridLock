@@ -30,7 +30,7 @@ test.describe('Share Result', () => {
       await p1.waitForTimeout(300);
 
       const bodyText = await p1.locator('body').innerText();
-      if (bodyText.includes('Game Over') || bodyText.includes('Play Again') || bodyText.includes('Wins') || bodyText.includes('Draw')) {
+      if (bodyText.includes('Game Over') || bodyText.includes('Rematch') || bodyText.includes('Wins') || bodyText.includes('Draw')) {
         gameOver = true;
       }
     }
@@ -96,7 +96,7 @@ test.describe('Share Result', () => {
       await p1.waitForTimeout(500);
 
       const bodyText = await p1.locator('body').innerText();
-      if (bodyText.includes('Game Over') || bodyText.includes('Play Again') || bodyText.includes('Wins') || bodyText.includes('Draw')) {
+      if (bodyText.includes('Game Over') || bodyText.includes('Rematch') || bodyText.includes('Wins') || bodyText.includes('Draw')) {
         gameOver = true;
       }
     }

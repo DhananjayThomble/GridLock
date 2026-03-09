@@ -154,7 +154,7 @@ test.describe('Disconnect & Recovery', () => {
         const body = await p1.locator('body').innerText().catch(() => '');
         if (body.includes('forfeit') || body.includes('Forfeit') ||
             body.includes('forfeited') ||
-            body.includes('Game Over') || body.includes('Play Again') ||
+            body.includes('Game Over') || body.includes('Rematch') ||
             body.includes('won') || body.includes('Winner')) {
           forfeited = true;
           break;

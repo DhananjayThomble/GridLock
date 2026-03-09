@@ -37,7 +37,7 @@ test.describe('CPU Player Games', () => {
     let gameOver = false;
     for (let i = 0; i < 20 && !gameOver; i++) {
       const body = await page.locator('body').innerText();
-      if (body.includes('Game Over') || body.includes('Play Again') || body.includes('Winner')) {
+      if (body.includes('Game Over') || body.includes('Rematch') || body.includes('Winner')) {
         gameOver = true;
         break;
       }
@@ -55,7 +55,7 @@ test.describe('CPU Player Games', () => {
     }
 
     const finalBody = await page.locator('body').innerText();
-    const completed = finalBody.includes('Game Over') || finalBody.includes('Play Again') ||
+    const completed = finalBody.includes('Game Over') || finalBody.includes('Rematch') ||
       finalBody.includes('Winner') || gameOver;
     expect(completed, 'CPU game on 2×2 should complete').toBe(true);
   });
@@ -66,7 +66,7 @@ test.describe('CPU Player Games', () => {
 
     for (let i = 0; i < 20; i++) {
       const body = await page.locator('body').innerText();
-      if (body.includes('Game Over') || body.includes('Play Again')) break;
+      if (body.includes('Game Over') || body.includes('Rematch')) break;
       if (body.includes('Your turn')) {
         const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
         for (const line of lines.slice(0, 10)) {
@@ -78,7 +78,7 @@ test.describe('CPU Player Games', () => {
 
     await page.waitForTimeout(2000);
     const finalBody = await page.locator('body').innerText();
-    if (finalBody.includes('Game Over') || finalBody.includes('Play Again')) {
+    if (finalBody.includes('Game Over') || finalBody.includes('Rematch')) {
       const hasCpuName = finalBody.includes('🤖') || finalBody.includes('CPU');
       expect(hasCpuName, 'Game over should show CPU name with 🤖').toBe(true);
     }

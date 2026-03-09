@@ -81,4 +81,44 @@ async function storeCount() {
     return rematchVotes.size;
 }
 
-module.exports = { addVote, getVoteCount, clearVotes, storeCount };
+async function removeVote(gameId, playerId) {
+    const gameKey = String(gameId);
+    const playerKey = String(playerId);
+
+    try {
+        const redis = await getRedisClient();
+        if (redis) {
+            const key = getKey(gameKey);
+            const removed = await redis.sRem(key, playerKey);
+            const count = await redis.sCard(key);
+            return { count, wasRemoved: removed === 1 };
+        }
+    } catch (error) {
+        console.error('[rematchStore] Redis removeVote failed, using in-memory fallback:', error.message);
+    }
+
+    const votes = rematchVotes.get(gameKey);
+    if (!votes) return { count: 0, wasRemoved: false };
+    const had = votes.has(playerKey);
+    votes.delete(playerKey);
+    return { count: votes.size, wasRemoved: had };
+}
+
+async function hasVoted(gameId, playerId) {
+    const gameKey = String(gameId);
+    const playerKey = String(playerId);
+
+    try {
+        const redis = await getRedisClient();
+        if (redis) {
+            return await redis.sIsMember(getKey(gameKey), playerKey);
+        }
+    } catch (error) {
+        console.error('[rematchStore] Redis hasVoted failed, using in-memory fallback:', error.message);
+    }
+
+    const votes = rematchVotes.get(gameKey);
+    return votes ? votes.has(playerKey) : false;
+}
+
+module.exports = { addVote, removeVote, hasVoted, getVoteCount, clearVotes, storeCount };
