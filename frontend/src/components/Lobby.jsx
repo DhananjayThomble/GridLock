@@ -94,6 +94,16 @@ const Lobby = () => {
   const [tournamentIdError, setTournamentIdError] = useState('');
   const navigate = useNavigate();
 
+  // ── Username validation ─────────────────────────────────────────────────────
+  const USERNAME_RE = /^[a-zA-Z0-9_-]+$/;
+  const validateUsername = (raw) => {
+    const name = raw.trim();
+    if (!name) return 'Please enter a username';
+    if (name.length < 2) return 'Username must be at least 2 characters';
+    if (!USERNAME_RE.test(name)) return 'Only letters, numbers, underscores, and hyphens allowed';
+    return '';
+  };
+
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
@@ -230,7 +240,7 @@ const Lobby = () => {
   // ── Create Tournament ───────────────────────────────────────────────────────
   const handleCreateTournament = () => {
     const name = username.trim();
-    if (!name) { setUsernameError('Please enter a username'); return; }
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     setCreatingTournament(true);
@@ -241,7 +251,7 @@ const Lobby = () => {
   const handleJoinTournament = () => {
     const name = username.trim();
     const id = tournamentId.trim().toUpperCase();
-    if (!name) { setUsernameError('Please enter a username'); return; }
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!id) { setTournamentIdError('Please enter a Tournament ID'); return; }
     setTournamentIdError('');
@@ -254,7 +264,7 @@ const Lobby = () => {
   const handleQuickPlay = () => {
     initAudio();
     const name = username.trim();
-    if (!name) { setUsernameError('Please enter a username'); return; }
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     localStorage.setItem('gridlock_username', name);
@@ -273,6 +283,7 @@ const Lobby = () => {
     setQuickPlaying(false);
     // Create a CPU game with current preferences
     const name = username.trim();
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     if (!socket.connected) socket.connect();
     setCreating(true);
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
@@ -306,7 +317,7 @@ const Lobby = () => {
   const handleCreate = () => {
     initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
-    if (!name) { setUsernameError('Please enter a username'); return; }
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     setCreating(true);
@@ -343,7 +354,7 @@ const Lobby = () => {
     initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     const id   = gameId.trim().toUpperCase();
-    if (!name) { setUsernameError('Please enter a username'); return; }
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!id) { setGameIdError('Please enter a Game ID'); return; }
     setGameIdError('');
@@ -406,7 +417,9 @@ const Lobby = () => {
               onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
               onKeyDown={(e) => e.key === 'Enter' && (tab === 'create' ? handleCreate() : handleJoin())}
               placeholder="Enter your name…"
+              minLength={2}
               maxLength={16}
+              pattern="[a-zA-Z0-9_\-]+"
               autoComplete="nickname"
               autoCorrect="off"
               autoCapitalize="words"
@@ -845,7 +858,7 @@ const Lobby = () => {
             onClick={async () => {
               const name = username.trim();
               if (!pushEnabled) {
-                if (!name) { setUsernameError('Enter a username first'); return; }
+                const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
                 try {
                   const sub = await subscribeToPush(name);
                   if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }

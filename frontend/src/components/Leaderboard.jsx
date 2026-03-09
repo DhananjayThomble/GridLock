@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const DEFAULT_LIMIT = 20;
@@ -86,16 +86,17 @@ const Leaderboard = () => {
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
 
   /* On mobile (<768px), skip ranks 1-3 in table when top-3 cards are shown */
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
-  const handleResize = useCallback(() => setIsMobile(window.innerWidth < 768), []);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => {
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [handleResize]);
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   const tableRows = useMemo(
     () => (isMobile && topThree.length > 0 ? rows.slice(topThree.length) : rows),
-    [rows, topThree, isMobile],
+    [rows, isMobile],
   );
 
   const onLookup = async (event) => {
