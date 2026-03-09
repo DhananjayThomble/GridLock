@@ -838,6 +838,8 @@ const Lobby = () => {
 
         <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
 
+        <hr style={{ borderColor: 'var(--border-color)', margin: '1rem 0' }} />
+
         {/* ── Theme Toggle + PWA Install Button ── */}
         <div className="flex items-center justify-center gap-2 mt-3">
           <ThemeToggle />
@@ -900,7 +902,7 @@ const Lobby = () => {
             style={{ color: 'var(--text-muted)' }}
           >
             <span>📊 Your Stats</span>
-            <span>{showStats ? '▲' : '▼'}</span>
+            <span className="text-xl" style={{ color: 'var(--text-secondary)' }}>{showStats ? '▲' : '▼'}</span>
           </button>
 
           {showStats && (

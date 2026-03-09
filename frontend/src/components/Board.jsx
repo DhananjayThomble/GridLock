@@ -701,8 +701,8 @@ const Board = () => {
             </>
           ) : (
             <>
-              <div className="text-6xl mb-2 animate-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
+              <div className="text-6xl mb-2 winner-avatar-bounce">{winnerData.avatar}</div>
+              <h2 className="text-3xl font-extrabold mb-1 winner-name-shimmer" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
                 {winnerData.name} Wins!
               </h2>
               <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>🏆 Champion!</p>
@@ -886,12 +886,12 @@ const Board = () => {
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
             <button
               onClick={handleCopyId}
-              className="font-mono text-sm font-bold px-3 py-1 rounded-full transition-colors"
+              className="font-mono text-base font-bold px-4 py-1.5 rounded-full transition-colors cursor-pointer inline-flex items-center gap-1.5"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               title="Tap to copy room code"
               aria-label="Copy room code"
             >
-              {gameId}
+              {gameId} <span aria-hidden="true">📋</span>
             </button>
             {showCopied && <span className="text-xs animate-pulse" style={{ color: 'var(--success)' }}>Copied!</span>}
             {gameState.gameOver && !isSpectator && (
@@ -976,6 +976,7 @@ const Board = () => {
             padding: '12px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
+            '--active-player-color': myPlayerColor,
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
         >

@@ -16,7 +16,7 @@ const ThemeToggle = () => {
       aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
-      {theme === 'dark' ? '☀️' : '🌙'}
+      {theme === 'dark' ? '☀️' : '🌙'} <span className="text-sm font-medium">Theme</span>
     </button>
   );
 };
