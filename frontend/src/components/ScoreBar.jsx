@@ -23,6 +23,9 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
     return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
   };
 
+  // CSS clamp() + truncate handles responsive width; use generous JS limit as safety net
+  const multiPlayerMaxLen = 20;
+
   return (
     <div
       className="fixed top-0 left-0 right-0 z-40 backdrop-blur-sm shadow-lg score-bar"
@@ -48,17 +51,17 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <span
-                        className="text-xs font-bold truncate"
-                        style={{ maxWidth: '70px', color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                        className="font-bold truncate score-bar-player-name"
+                        style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                         title={player.username}
                       >
-                        {truncateName(player.username, 10)}
+                        {truncateName(player.username, multiPlayerMaxLen)}
                       </span>
                       <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
                         {percentage.toFixed(0)}%
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
+                    <div className="score-progress-thin rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                       <div
                         className="h-full transition-all duration-500 ease-out"
                         style={{ width: `${percentage}%`, backgroundColor: player.color }}
@@ -111,7 +114,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer }) => {
                   </div>
 
                   {/* Progress bar container */}
-                  <div className="flex-1 h-5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
+                  <div className="flex-1 score-progress-thick rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
                     <div
                       className="h-full transition-all duration-500 ease-out"
                       style={{ width: `${percentage}%`, backgroundColor: player.color }}

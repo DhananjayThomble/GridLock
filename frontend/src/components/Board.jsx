@@ -36,9 +36,9 @@ function useGridSizes(gridSize) {
       const h = window.innerHeight;
 
       // Reserve space for ScoreBar + header + toolbar
-      const reservedH = w < 640 ? 220 : 280;
+      const reservedH = w < 640 ? 200 : w < 768 ? 240 : 260;
       // Horizontal padding: board-container padding (8px mobile) + outer margin
-      const reservedW = w < 640 ? 40 : 64;
+      const reservedW = w < 640 ? 32 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -53,9 +53,9 @@ function useGridSizes(gridSize) {
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Clamp: minimum 20px so it's tappable, max 80px for desktop
-      const maxBox = w < 640 ? 72 : 80;
-      box = Math.max(20, Math.min(box, maxBox));
+      // Clamp: minimum 24px so it's tappable, max 90-100px tiered by viewport
+      const maxBox = w < 640 ? 90 : w < 1024 ? 96 : 100;
+      box = Math.max(24, Math.min(box, maxBox));
 
       const dot = Math.max(6, Math.round(box * 0.18));
       setSizes({ dot, line: box, box });
@@ -658,7 +658,7 @@ const Board = () => {
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-xs truncate" style={{ color: isCurrent ? playerColor : 'var(--text-primary)' }}>
+                <div className="font-bold truncate" style={{ color: isCurrent ? playerColor : 'var(--text-primary)', fontSize: count >= 4 ? 'clamp(0.55rem, 2vw, 0.875rem)' : '0.75rem' }}>
                   {waiting ? `P${pid.slice(6)} waiting…` : name}
                   {isCPU && <span className="ml-1">🤖</span>}
                   {isMe && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(you)</span>}
@@ -686,7 +686,7 @@ const Board = () => {
     return (
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
         <div
-          className="rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center"
+          className="rounded-2xl p-6 w-full max-w-sm md:max-w-lg lg:max-w-xl shadow-2xl text-center"
           style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
         >
           {winnerData.isDraw ? (
@@ -958,7 +958,6 @@ const Board = () => {
           style={{
             touchAction: 'pan-y',
             padding: '12px',
-            maxWidth: '500px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),

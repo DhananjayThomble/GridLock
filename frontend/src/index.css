@@ -204,6 +204,22 @@ textarea::placeholder {
 .board-container {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  max-width: min(90vw, 500px);
+}
+
+/* Score bar player name — responsive width via CSS clamp */
+.score-bar-player-name {
+  max-width: clamp(60px, 15vw, 140px);
+  font-size: clamp(0.55rem, 2vw, 0.875rem);
+}
+
+/* Score bar progress bars — base heights */
+.score-progress-thin {
+  height: 0.375rem;
+}
+
+.score-progress-thick {
+  height: 1.25rem;
 }
 
 /* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
@@ -235,6 +251,49 @@ textarea::placeholder {
   .game-toolbar {
     max-width: calc(100vw - 1.5rem);
     width: 100%;
+  }
+}
+
+/* ── Responsive breakpoints — tablet (768px+) ─────────────────────────────── */
+@media (min-width: 768px) {
+  .board-container {
+    max-width: min(70vw, 560px);
+  }
+
+  .score-progress-thin {
+    height: 0.375rem;
+  }
+
+  .score-progress-thick {
+    height: 1.5rem;
+  }
+
+  .game-content {
+    padding-top: 96px;
+  }
+}
+
+/* ── Responsive breakpoints — desktop (1024px+) ──────────────────────────── */
+@media (min-width: 1024px) {
+  .board-container {
+    max-width: min(50vw, 620px);
+  }
+
+  .score-progress-thin {
+    height: 0.5rem;
+  }
+
+  .score-progress-thick {
+    height: 2rem;
+  }
+
+  .game-toolbar button,
+  .lobby-container button {
+    white-space: nowrap;
+  }
+
+  .game-content {
+    padding-top: 100px;
   }
 }
 
