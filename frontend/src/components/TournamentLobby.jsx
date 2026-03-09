@@ -88,8 +88,10 @@ const TournamentLobby = () => {
 
   // Detect bracket overflow to conditionally show scroll affordance
   useEffect(() => {
-    const el = bracketRef.current;
-    if (!el) { setBracketOverflows(false); return; }
+    const wrapper = bracketRef.current;
+    if (!wrapper) { setBracketOverflows(false); return; }
+    // The actual scrolling container is the first child with overflow-x-auto
+    const el = wrapper.querySelector('.overflow-x-auto') || wrapper;
     const check = () => setBracketOverflows(el.scrollWidth > el.clientWidth);
     check();
     const ro = new ResizeObserver(check);
@@ -252,13 +254,21 @@ const TournamentLobby = () => {
                   participants={tournament.participants}
                   champion={tournament.champion}
                 />
-                {/* Scroll affordance gradient — only shown when bracket overflows */}
+                {/* Scroll affordance — right-edge fade + hint text when bracket overflows */}
                 {bracketOverflows && (
-                  <div
-                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-8"
-                    style={{ background: 'linear-gradient(to top, var(--bg-card-hover), transparent)' }}
-                    aria-hidden="true"
-                  />
+                  <>
+                    <div
+                      className="pointer-events-none absolute top-0 right-0 bottom-0 w-8"
+                      style={{ background: 'linear-gradient(to left, var(--bg-card-hover), transparent)' }}
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="text-center mt-1 text-xs animate-pulse"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Scroll to see more →
+                    </div>
+                  </>
                 )}
               </div>
             </div>

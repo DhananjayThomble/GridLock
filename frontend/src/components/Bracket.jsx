@@ -11,8 +11,8 @@ function getRoundLabel(roundIndex, totalRounds) {
 }
 
 function MatchCard({ match, participants }) {
-  const p1Avatar = participants.find((p) => p.username === match.player1)?.avatar || '❓';
-  const p2Avatar = participants.find((p) => p.username === match.player2)?.avatar || '❓';
+  const p1Avatar = participants.find((p) => p.username === match.player1)?.avatar;
+  const p2Avatar = participants.find((p) => p.username === match.player2)?.avatar;
 
   const hasWinner = !!match.winner;
   const inProgress = match.gameId && !hasWinner;
@@ -27,7 +27,10 @@ function MatchCard({ match, participants }) {
     if (!name) {
       return (
         <div className="flex items-center gap-2 px-3 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-          <span className="text-base">❓</span>
+          <span
+            className="text-base inline-flex items-center justify-center w-6 h-6 rounded-full font-bold"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', color: 'var(--text-muted)' }}
+          >?</span>
           <span className="italic">TBD</span>
         </div>
       );
@@ -37,7 +40,7 @@ function MatchCard({ match, participants }) {
         className="flex items-center gap-2 px-3 py-2 text-sm transition-all"
         style={{ color: isWinner ? 'var(--success)' : hasWinner ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: isWinner ? 700 : 400 }}
       >
-        <span className="text-base">{avatar}</span>
+        <span className="text-base">{avatar || <span className="inline-flex items-center justify-center w-6 h-6 rounded-full font-bold" style={{ backgroundColor: 'color-mix(in srgb, var(--text-muted) 15%, transparent)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>?</span>}</span>
         <span className="truncate max-w-[100px] sm:max-w-[120px]">{name}</span>
         {isWinner && <span className="ml-auto">🏆</span>}
       </div>
