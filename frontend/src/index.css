@@ -453,27 +453,32 @@ button:not(:disabled) {
     transform: scaleX(1.4);
   }
 
-  /* ── Option selector cards (player count, grid size, difficulty) ── */
+  /* ── Option selector cards (player count, grid size, difficulty) ──
+     !important needed: React inline styles set background/border/color
+     for selected vs unselected state; CSS hover must override inline. */
   .lobby-option-card:hover {
     border-color: var(--accent) !important;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
     transform: translateY(-1px);
   }
 
-  /* ── Tab navigation ── */
+  /* ── Tab navigation ──
+     !important needed: inline styles set background/color per active tab. */
   .lobby-tab:hover {
     background: var(--bg-card-hover) !important;
     color: var(--text-primary) !important;
   }
 
-  /* ── Room code button ── */
+  /* ── Room code button ──
+     !important needed: inline styles set background/border on this element. */
   .room-code-btn:hover {
     background: var(--bg-card-hover) !important;
     border-color: var(--accent) !important;
     transform: scale(1.03);
   }
 
-  /* ── Mute button ── */
+  /* ── Mute button ──
+     !important needed: inline styles set background on this element. */
   .mute-btn:hover {
     background: var(--bg-card-hover) !important;
     transform: scale(1.05);
@@ -482,7 +487,7 @@ button:not(:disabled) {
   /* ── Post-game buttons ── */
   .postgame-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    box-shadow: 0 3px 10px var(--shadow-color);
   }
 }
 
@@ -503,7 +508,7 @@ button:active:not(:disabled) {
 }
 @media (min-width: 768px) {
   .board-container.board-glow-active {
-    box-shadow: 0 0 20px var(--active-player-color, var(--accent));
+    box-shadow: 0 0 20px var(--accent);
     transition: box-shadow 300ms ease;
   }
 }

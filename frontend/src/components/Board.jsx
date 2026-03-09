@@ -422,7 +422,8 @@ const Board = () => {
 
   // ── Winner confetti ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (winnerData && !winnerData.isDraw && !confettiFiredRef.current) {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (winnerData && !winnerData.isDraw && !confettiFiredRef.current && !prefersReducedMotion) {
       confettiFiredRef.current = true;
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
