@@ -484,6 +484,14 @@ const Board = () => {
   // ── Share replay link handler ──────────────────────────────────────────────
   const [replayShareStatus, setReplayShareStatus] = useState(null);
   const replayShareTimeoutRef = useRef(null);
+
+  // Cleanup replay share timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (replayShareTimeoutRef.current) clearTimeout(replayShareTimeoutRef.current);
+    };
+  }, []);
+
   const handleShareReplay = async () => {
     const url = `https://gridlock.snapurl.in/replay/${gameId}`;
     if (navigator.share) {

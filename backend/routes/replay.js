@@ -5,6 +5,17 @@ const express = require('express');
 const router = express.Router();
 const Game = require('../models/Game');
 
+// Escape user-supplied strings for safe interpolation into HTML
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Bot User-Agent patterns for OG meta tag serving
 const BOT_UA_PATTERN = /facebookexternalhit|twitterbot|linkedinbot|slackbot|telegrambot|whatsapp|discordbot|googlebot|bingbot|crawler|spider|preview/i;
 
@@ -34,21 +45,21 @@ router.get('/:gameId/og', async (req, res) => {
 
         const playerNames = Object.values(rawPlayers)
             .filter(p => p && p.username)
-            .map(p => p.username)
+            .map(p => escapeHtml(p.username))
             .join(' vs ');
 
         const winner = game.gameState?.winner;
         const winnerName = winner && winner !== 'draw' && rawPlayers[winner]
-            ? rawPlayers[winner].username
+            ? escapeHtml(rawPlayers[winner].username)
             : null;
 
         const title = winnerName
             ? `${winnerName} wins! — GridLock Replay`
             : winner === 'draw'
-                ? `It's a draw! — GridLock Replay`
+                ? `It&#39;s a draw! — GridLock Replay`
                 : `GridLock Replay — ${playerNames || cleanGameId}`;
 
-        const description = `Watch the ${game.gridSize}×${game.gridSize} GridLock game replay: ${playerNames}`;
+        const description = `Watch the ${escapeHtml(String(game.gridSize))}×${escapeHtml(String(game.gridSize))} GridLock game replay: ${playerNames}`;
 
         const html = `<!DOCTYPE html>
 <html lang="en">

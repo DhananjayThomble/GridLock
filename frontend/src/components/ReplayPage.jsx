@@ -1,7 +1,7 @@
 // src/components/ReplayPage.jsx
 // Animated game replay viewer with play/pause, speed control, and scrubber
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import useThemeColors from '../hooks/useThemeColors';
@@ -206,7 +206,7 @@ const ReplayPage = () => {
     const playerCount = replayData?.playerCount || 2;
     const sizes = useGridSizes(gridSize);
 
-    const gameState = useCallback(() => {
+    const gameState = useMemo(() => {
         if (!replayData) return null;
         let state = initEmptyState(replayData.gridSize, replayData.playerCount);
         const moves = replayData.moveHistory || [];
@@ -216,7 +216,7 @@ const ReplayPage = () => {
             }
         }
         return state;
-    }, [replayData, moveIndex])();
+    }, [replayData, moveIndex]);
 
     const totalMoves = replayData?.moveHistory?.length || 0;
 
@@ -262,6 +262,15 @@ const ReplayPage = () => {
 
     // ── Share replay link ────────────────────────────────────────────────────
     const [shareStatus, setShareStatus] = useState(null);
+    const shareTimeoutRef = useRef(null);
+
+    // Cleanup share timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
+        };
+    }, []);
+
     const handleShare = async () => {
         const url = `https://gridlock.snapurl.in/replay/${gameId}`;
         if (navigator.share) {
@@ -279,7 +288,8 @@ const ReplayPage = () => {
                 setShareStatus(null);
             }
         }
-        setTimeout(() => setShareStatus(null), 2000);
+        if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
+        shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
     };
 
     // ── Render helpers ───────────────────────────────────────────────────────
