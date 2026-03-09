@@ -215,7 +215,7 @@ textarea::placeholder {
 
 /* Score bar progress bars — base heights */
 .score-progress-thin {
-  height: 0.375rem;
+  height: 0.5rem;
 }
 
 .score-progress-thick {
@@ -261,7 +261,7 @@ textarea::placeholder {
   }
 
   .score-progress-thin {
-    height: 0.375rem;
+    height: 0.5rem;
   }
 
   .score-progress-thick {
@@ -280,7 +280,7 @@ textarea::placeholder {
   }
 
   .score-progress-thin {
-    height: 0.5rem;
+    height: 0.625rem;
   }
 
   .score-progress-thick {

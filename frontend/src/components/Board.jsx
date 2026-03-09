@@ -707,33 +707,52 @@ const Board = () => {
 
           {/* All scores */}
           <div className="rounded-xl p-3 mb-5 space-y-1" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            {ids.map((pid) => {
-              const cfg  = getConfig(pid);
-              const playerColor = getCSSVar(cfg.colorVar);
-              const name = gameState?.[`${pid}Name`] || `Player ${pid.slice(6)}`;
-              const score = winnerData.scores?.[pid] ?? 0;
-              const isWin = !winnerData.isDraw && winnerData.winner === pid;
-              const isCPU = !!gameState?.[`${pid}IsCPU`];
-              return (
-                <div
-                  key={pid}
-                  className="flex justify-between items-center px-2 py-1 rounded-lg"
-                  style={isWin ? { backgroundColor: 'var(--winner-bg)' } : undefined}
-                >
-                  <span className="font-semibold text-sm" style={{ color: isWin ? playerColor : 'var(--text-secondary)' }}>
-                    {isCPU ? (
-                      <>{name} 🤖 {isWin && '🏆'}</>
-                    ) : (
-                      <Link to={`/profile/${encodeURIComponent(name)}`} className="hover:underline">
-                        {name}
-                      </Link>
-                    )}
-                    {!isCPU && isWin && ' 🏆'}
-                  </span>
-                  <span className="font-extrabold text-base" style={{ color: playerColor }}>{score}</span>
-                </div>
-              );
-            })}
+            {(() => {
+              // Determine max score for draw highlighting
+              const maxScore = winnerData.isDraw
+                ? Math.max(...ids.map(pid => winnerData.scores?.[pid] ?? 0))
+                : null;
+
+              return ids.map((pid) => {
+                const cfg  = getConfig(pid);
+                const playerColor = getCSSVar(cfg.colorVar);
+                const name = gameState?.[`${pid}Name`] || `Player ${pid.slice(6)}`;
+                const score = winnerData.scores?.[pid] ?? 0;
+                const isWin = !winnerData.isDraw && winnerData.winner === pid;
+                const isCPU = !!gameState?.[`${pid}IsCPU`];
+                // In a draw: players who share the max score are "tied", others are losers
+                const isTied = winnerData.isDraw && score === maxScore;
+                const isDrawLoser = winnerData.isDraw && score < maxScore;
+
+                return (
+                  <div
+                    key={pid}
+                    className="flex justify-between items-center px-2 py-1 rounded-lg"
+                    style={{
+                      ...(isWin ? { backgroundColor: 'var(--winner-bg)' } : {}),
+                      ...(isTied ? {
+                        backgroundColor: 'var(--winner-bg)',
+                        borderLeft: '3px solid var(--winner-gold)',
+                      } : {}),
+                      ...(isDrawLoser ? { opacity: 0.5 } : {}),
+                    }}
+                  >
+                    <span className="font-semibold text-sm" style={{ color: isWin || isTied ? playerColor : 'var(--text-secondary)' }}>
+                      {isCPU ? (
+                        <>{name} 🤖 {isWin && '🏆'}{isTied && ' 🤝'}</>
+                      ) : (
+                        <Link to={`/profile/${encodeURIComponent(name)}`} className="hover:underline">
+                          {name}
+                        </Link>
+                      )}
+                      {!isCPU && isWin && ' 🏆'}
+                      {!isCPU && isTied && ' 🤝'}
+                    </span>
+                    <span className="font-extrabold text-base" style={{ color: playerColor }}>{score}</span>
+                  </div>
+                );
+              });
+            })()}
           </div>
 
           {/* Post-game stats card */}

@@ -451,7 +451,7 @@ const Lobby = () => {
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
-            <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-secondary)' }}>
               Instant match with random opponents
             </p>
           </div>

@@ -96,9 +96,9 @@ const PostGameStatsCard = ({
     if (!is1v1) {
       return (
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>⚡ ELO</span>
-          <span className="text-xs italic" style={{ color: 'var(--text-muted)' }} data-testid="elo-1v1-note">
-            1v1 games only
+          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>⚡ ELO</span>
+          <span className="text-xs italic" style={{ color: 'var(--text-secondary)' }} data-testid="elo-1v1-note">
+            ℹ️ 1v1 games only
           </span>
         </div>
       );
