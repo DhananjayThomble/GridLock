@@ -751,7 +751,6 @@ const Board = () => {
               );
             })}
           </div>
-          
 
           {/* Post-game stats card */}
           <PostGameStatsCard
