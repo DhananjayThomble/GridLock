@@ -67,6 +67,11 @@
   --text-on-accent:   #ffffff;
 
   --overlay-bg:       rgba(0, 0, 0, 0.6);
+
+  /* Spectator mode */
+  --spectator-text:   #8b949e;
+  --spectator-bg:     rgba(139, 148, 158, 0.12);
+  --spectator-border: rgba(139, 148, 158, 0.25);
 }
 
 [data-theme="light"] {
@@ -132,6 +137,11 @@
   --text-on-accent:   #ffffff;
 
   --overlay-bg:       rgba(0, 0, 0, 0.6);
+
+  /* Spectator mode */
+  --spectator-text:   #57606a;
+  --spectator-bg:     rgba(87, 96, 106, 0.10);
+  --spectator-border: rgba(87, 96, 106, 0.20);
 }
 
 /* ── Theme transition (only during toggle) ─────────────────────────────────── */
@@ -198,6 +208,15 @@ textarea::placeholder {
 }
 .stats-card-fade-in {
   animation: stats-fade-in 0.4s ease-out both;
+}
+
+/* ── Spectator banner pulse ────────────────────────────────────────────────── */
+@keyframes spectator-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+.spectator-banner {
+  animation: spectator-pulse 3s ease-in-out infinite;
 }
 
 /* ── Mobile & Responsive ───────────────────────────────────────────────────── */
