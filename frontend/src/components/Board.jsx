@@ -40,8 +40,8 @@ function useGridSizes(gridSize) {
       // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
       // More aggressive on mobile to let the board fill available space
       const reservedH = w < 640 ? 160 : w < 768 ? 220 : 260;
-      // Horizontal padding: minimal on mobile for maximum board width
-      const reservedW = w < 640 ? 8 : w < 768 ? 48 : 64;
+      // Horizontal padding: minimal on mobile (board goes nearly edge-to-edge)
+      const reservedW = w < 640 ? 4 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -608,7 +608,7 @@ const Board = () => {
           style={{
             height: sizes.lineThickness,
             backgroundColor: lineColor || 'var(--line-empty)',
-            opacity: owner ? 1 : isMyTurn ? 0.7 : 0.35,
+            opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
             transition: 'opacity 0.15s, background-color 0.15s',
           }}
@@ -645,7 +645,7 @@ const Board = () => {
           style={{
             width: sizes.lineThickness,
             backgroundColor: lineColor || 'var(--line-empty)',
-            opacity: owner ? 1 : isMyTurn ? 0.7 : 0.35,
+            opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
             transition: 'opacity 0.15s, background-color 0.15s',
           }}
