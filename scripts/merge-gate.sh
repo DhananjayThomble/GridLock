@@ -49,20 +49,32 @@ if [ "$TOTAL_REVIEWS" -lt "$MIN_REVIEW_COMMENTS" ]; then
   exit 1
 fi
 
-# 2. Check CI status via JSON API
-echo "   Checking CI status..."
-FAILED=$(gh pr checks "$PR_NUMBER" --repo "$REPO" --json state --jq '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length' 2>/dev/null || echo "-1")
+# 2. Run CI locally (GitHub Actions quota exhausted — all checks run here)
+echo "   Running local CI..."
 
-if [ "$FAILED" = "-1" ]; then
-  echo -e "${YELLOW}⚠️  Could not query CI status (API error or missing scope). Skipping CI gate.${NC}"
-  echo -e "${YELLOW}   GitHub branch protection will still enforce required checks on merge.${NC}"
-elif [ "$FAILED" -gt 0 ]; then
-  echo -e "${RED}❌ BLOCKED: ${FAILED} CI check(s) not passing.${NC}"
-  gh pr checks "$PR_NUMBER" --repo "$REPO" 2>/dev/null || true
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# Frontend build + lint
+echo "   → Frontend build & lint..."
+if ! (cd "$REPO_ROOT/frontend" && npx eslint src/ --quiet 2>&1); then
+  echo -e "${RED}❌ BLOCKED: Frontend lint failed.${NC}"
   exit 1
-else
-  echo -e "   CI: ${GREEN}OK${NC}"
 fi
+if ! (cd "$REPO_ROOT/frontend" && npm run build --silent 2>&1 | tail -3); then
+  echo -e "${RED}❌ BLOCKED: Frontend build failed.${NC}"
+  exit 1
+fi
+echo -e "   → Frontend: ${GREEN}OK${NC}"
+
+# Backend tests
+echo "   → Backend tests..."
+if ! (cd "$REPO_ROOT/backend" && npm test --silent 2>&1 | tail -5); then
+  echo -e "${RED}❌ BLOCKED: Backend tests failed.${NC}"
+  exit 1
+fi
+echo -e "   → Backend: ${GREEN}OK${NC}"
+
+echo -e "   Local CI: ${GREEN}ALL PASSED${NC}"
 
 # 3. Check if PR touches touch/gesture files → needs phone-tested label
 CHANGED_FILES=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json files --jq '.files[].path')
