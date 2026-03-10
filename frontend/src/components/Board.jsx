@@ -12,6 +12,7 @@ import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../u
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 import PostGameStatsCard from './PostGameStatsCard';
+import BoardZoomWrapper from './BoardZoomWrapper';
 import { countLines } from '../utils/postGameUtils';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
@@ -36,26 +37,26 @@ function useGridSizes(gridSize) {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      // Reserve space for ScoreBar + header + toolbar
-      const reservedH = w < 640 ? 200 : w < 768 ? 240 : 260;
-      // Horizontal padding: board-container padding (8px mobile) + outer margin
-      const reservedW = w < 640 ? 32 : w < 768 ? 48 : 64;
+      // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
+      // More aggressive on mobile to let the board fill available space
+      const reservedH = w < 640 ? 160 : w < 768 ? 220 : 260;
+      // Horizontal padding: tighter on mobile for more board space
+      const reservedW = w < 640 ? 16 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
       const cells = gridSize || 3;
 
       // Total grid units: (cells+1) dots + cells lines/boxes per axis
-      // Each dot ≈ 0.18 * box, so effective unit ≈ box + 0.18*box = 1.18*box
-      // Simpler: treat as (cells * 2 + 1) uniform units
       const units = cells * 2 + 1;
 
       const fromW = Math.floor(availW / units);
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Clamp: minimum 24px so it's tappable, max 90-100px tiered by viewport
-      const maxBox = w < 640 ? 90 : w < 1024 ? 96 : 100;
+      // Minimum 24px so it's tappable; no hard max — let the board fill space
+      // Only cap on desktop to keep it visually reasonable
+      const maxBox = w >= 1024 ? 120 : Infinity;
       box = Math.max(24, Math.min(box, maxBox));
 
       const dot = Math.max(6, Math.round(box * 0.18));
@@ -1026,12 +1027,12 @@ const Board = () => {
 
         {/* ── Board ── */}
         <div className="flex flex-1 items-center justify-center w-full">
+        <BoardZoomWrapper enabled={true}>
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
-            touchAction: 'pan-y',
             padding: '12px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
@@ -1066,6 +1067,7 @@ const Board = () => {
             </div>
           ))}
         </div>
+        </BoardZoomWrapper>
         </div>
 
         {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}

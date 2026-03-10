@@ -225,7 +225,7 @@ textarea::placeholder {
 .board-container {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  max-width: min(90vw, 500px);
+  max-width: 95vw;
 }
 
 /* Score bar player name — responsive width via CSS clamp */
@@ -256,7 +256,7 @@ textarea::placeholder {
 /* On mobile: board centers and fits within viewport width */
 @media (max-width: 640px) {
   .board-container {
-    max-width: calc(100vw - 2rem);
+    max-width: calc(100vw - 1rem);
     margin-left: auto;
     margin-right: auto;
     /* Remove excessive padding on mobile */
@@ -278,7 +278,7 @@ textarea::placeholder {
 /* ── Responsive breakpoints — tablet (768px+) ─────────────────────────────── */
 @media (min-width: 768px) {
   .board-container {
-    max-width: min(70vw, 560px);
+    max-width: min(80vw, 600px);
   }
 
   .score-progress-thin {
@@ -340,6 +340,20 @@ textarea::placeholder {
   .board-container [role="button"] {
     position: relative;
     z-index: 1;
+  }
+  /* Expand tap area on touch devices without affecting visual layout */
+  .board-container [role="button"]::before {
+    content: '';
+    position: absolute;
+    inset: -16px;
+    z-index: 1;
+  }
+}
+
+/* Hide zoom controls on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .zoom-controls {
+    display: none !important;
   }
 }
 
