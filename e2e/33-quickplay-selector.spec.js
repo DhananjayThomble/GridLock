@@ -48,18 +48,15 @@ test.describe('Quick Play Player Count Selector', () => {
       { timeout: 10_000 }
     );
 
-    // Click 3P or "3 Players" option
+    // Click 3P option
     const threePlayerBtn = page.locator('button:has-text("3P"), button:has-text("3 Players")').first();
-    if (await threePlayerBtn.isVisible().catch(() => false)) {
-      await threePlayerBtn.click();
+    await expect(threePlayerBtn).toBeVisible({ timeout: 5_000 });
+    await threePlayerBtn.click();
 
-      // Give a moment for the UI to update
-      await page.waitForTimeout(500);
-
-      // Verify the 3P radio is now the checked one
-      const activeRadio = page.locator('[role="radio"][aria-checked="true"]');
-      await expect(activeRadio).toHaveText(/3P/i);
-    }
+    // Verify selection changed
+    await page.waitForTimeout(500);
+    const selectedRadio = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(selectedRadio).toContainText(/3/);
   });
 
   test('cancel returns to lobby', async ({ page }) => {
