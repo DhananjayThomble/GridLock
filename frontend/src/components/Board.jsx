@@ -30,7 +30,7 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 
 // ─── Responsive sizing hook ───────────────────────────────────────────────────
 function useGridSizes(gridSize) {
-  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48 });
+  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
 
   useEffect(() => {
     function calculate() {
@@ -55,12 +55,17 @@ function useGridSizes(gridSize) {
       let box = Math.min(fromW, fromH);
 
       // Minimum 24px so it's tappable; cap per breakpoint to prevent oversized cells
-      // Issue #4: Infinity on mobile removed upper guard — use reasonable caps
       const maxBox = w < 640 ? 100 : w < 1024 ? 110 : 120;
       box = Math.max(24, Math.min(box, maxBox));
 
-      const dot = Math.max(6, Math.round(box * 0.18));
-      setSizes({ dot, line: box, box });
+      // Dot size: minimum 10px on mobile for better tap targets (was 6)
+      const minDot = w < 640 ? 10 : 8;
+      const dot = Math.max(minDot, Math.round(box * 0.22));
+
+      // Line thickness: proportional to box size, minimum 8px
+      const lineThickness = Math.max(8, Math.round(box * 0.12));
+
+      setSizes({ dot, line: box, box, lineThickness });
     }
     calculate();
     window.addEventListener('resize', calculate);
@@ -585,26 +590,27 @@ const Board = () => {
     return (
       <div
         key={`h-${r}-${c}`}
-        style={{ width: sizes.line, height: sizes.dot, flexShrink: 0 }}
-        className="flex items-center px-0.5"
+        onClick={() => handleLineClick('horizontal', r, c)}
+        onTouchStart={touchHandlers.onTouchStart}
+        onTouchEnd={touchHandlers.onTouchEnd}
+        role="button"
+        aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
+        aria-disabled={!isMyTurn}
+        tabIndex={isMyTurn ? 0 : -1}
+        onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
+        style={{ width: sizes.line, height: sizes.dot, flexShrink: 0, touchAction: 'manipulation' }}
+        className={`flex items-center justify-center ${
+          owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
+        }`}
       >
         <div
-          onClick={() => handleLineClick('horizontal', r, c)}
-          onTouchStart={touchHandlers.onTouchStart}
-          onTouchEnd={touchHandlers.onTouchEnd}
-          role="button"
-          aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn}
-          tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
-          className={`h-2 w-full rounded line-hover-glow ${
-            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
-          }`}
+          className="w-full rounded"
           style={{
+            height: sizes.lineThickness,
             backgroundColor: lineColor || 'var(--line-empty)',
-            opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'manipulation',
+            opacity: owner ? 1 : isMyTurn ? 0.7 : 0.35,
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            transition: 'opacity 0.15s, background-color 0.15s',
           }}
         />
       </div>
@@ -621,26 +627,27 @@ const Board = () => {
     return (
       <div
         key={`v-${r}-${c}`}
-        style={{ width: sizes.dot, height: sizes.line, flexShrink: 0 }}
-        className="flex justify-center py-0.5"
+        onClick={() => handleLineClick('vertical', r, c)}
+        onTouchStart={touchHandlers.onTouchStart}
+        onTouchEnd={touchHandlers.onTouchEnd}
+        role="button"
+        aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
+        aria-disabled={!isMyTurn}
+        tabIndex={isMyTurn ? 0 : -1}
+        onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
+        style={{ width: sizes.dot, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
+        className={`flex items-center justify-center ${
+          owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
+        }`}
       >
         <div
-          onClick={() => handleLineClick('vertical', r, c)}
-          onTouchStart={touchHandlers.onTouchStart}
-          onTouchEnd={touchHandlers.onTouchEnd}
-          role="button"
-          aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn}
-          tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
-          className={`w-2 h-full rounded line-hover-glow ${
-            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
-          }`}
+          className="h-full rounded"
           style={{
+            width: sizes.lineThickness,
             backgroundColor: lineColor || 'var(--line-empty)',
-            opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'manipulation',
+            opacity: owner ? 1 : isMyTurn ? 0.7 : 0.35,
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            transition: 'opacity 0.15s, background-color 0.15s',
           }}
         />
       </div>
