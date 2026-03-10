@@ -209,7 +209,25 @@ const BoardZoomWrapper = ({ children, enabled = true, resetKey = false }) => {
 
   return (
     <div style={{ position: 'relative', maxWidth: 'fit-content', margin: '0 auto' }}>
-      {/* Zoom controls — positioned above the board, outside overflow container */}
+      {/* Board container with zoom transform */}
+      <div
+        ref={containerRef}
+        style={{
+          overflow: 'hidden',
+          touchAction: scale > 1 ? 'none' : 'pan-y',
+        }}
+      >
+        <div
+          style={{
+            transform: `scale(${scale}) translate(${translate.x}px, ${translate.y}px)`,
+            transformOrigin: 'center center',
+            transition: isTouching ? 'none' : 'transform 0.15s ease-out',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+      {/* Zoom controls — overlaid on top-right corner of board */}
       <div className="zoom-controls">
         <button
           onClick={zoomIn}
