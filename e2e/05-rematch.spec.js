@@ -3,40 +3,7 @@
 // and Leave Game navigation fix.
 
 const { test, expect } = require('@playwright/test');
-const { goToLobby, createGame, joinGame, waitForGameStart, makeMove } = require('./helpers');
-
-/**
- * Play a game to completion. Returns true when winner modal detected.
- */
-async function playToCompletion(pages, maxMoves = 80) {
-  for (let i = 0; i < maxMoves; i++) {
-    let moved = false;
-    for (const page of pages) {
-      try {
-        const text = await page.locator('body').innerText().catch(() => '');
-        if (text.includes('Play Again') || text.includes('Game Over') || text.includes('Winner')) {
-          return true;
-        }
-        if (text.includes('Your turn')) {
-          const ok = await makeMove(page);
-          if (ok) { moved = true; break; }
-        }
-      } catch { continue; }
-    }
-    if (!moved) {
-      for (const page of pages) {
-        try { await page.waitForTimeout(300); break; } catch { continue; }
-      }
-    }
-  }
-  for (const page of pages) {
-    try {
-      const text = await page.locator('body').innerText().catch(() => '');
-      if (text.includes('Play Again')) return true;
-    } catch { continue; }
-  }
-  return false;
-}
+const { goToLobby, createGame, joinGame, waitForGameStart, makeMove, playToCompletion } = require('./helpers');
 
 /** Safe page.waitForTimeout — ignores closed-page errors */
 async function safeWait(page, ms) {
@@ -45,7 +12,7 @@ async function safeWait(page, ms) {
 
 test.describe('Rematch Flow — 2 Player', () => {
 
-  test('Play Again navigates to new game (not blank)', async ({ browser }) => {
+  test('Rematch navigates to new game (not blank)', async ({ browser }) => {
     test.setTimeout(90_000);
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
@@ -63,15 +30,15 @@ test.describe('Rematch Flow — 2 Player', () => {
     const gameOver = await playToCompletion([p1, p2]);
     expect(gameOver, 'Game should complete within move limit').toBe(true);
 
-    // Both players click Play Again simultaneously (rematch needs ALL to click)
+    // Both players click Rematch simultaneously (rematch needs ALL to click)
     await Promise.all([
-      p1.locator('button:has-text("Play Again")').click({ timeout: 5000 }).catch(() => {}),
-      p2.locator('button:has-text("Play Again")').click({ timeout: 5000 }).catch(() => {}),
+      p1.locator('button:has-text("Rematch")').click({ timeout: 5000 }).catch(() => {}),
+      p2.locator('button:has-text("Rematch")').click({ timeout: 5000 }).catch(() => {}),
     ]);
 
     // Wait for winner modal to disappear (URL stays /game, so can't use waitForURL)
     await p1.waitForFunction(
-      () => !document.querySelector('body')?.innerText.includes('Play Again'),
+      () => !document.querySelector('body')?.innerText.includes('Rematch'),
       { timeout: 20_000 }
     ).catch(() => {});
     await safeWait(p1, 1000);
@@ -120,7 +87,7 @@ test.describe('Rematch Flow — 2 Player', () => {
 
 test.describe('Rematch Flow — 3 Player', () => {
 
-  test('Play Again navigates to new game (not blank) — regression for blank screen bug', async ({ browser }) => {
+  test('Rematch navigates to new game (not blank) — regression for blank screen bug', async ({ browser }) => {
     test.setTimeout(120_000);
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
@@ -148,16 +115,16 @@ test.describe('Rematch Flow — 3 Player', () => {
     const gameOver = await playToCompletion([p1, p2, p3], 80);
     expect(gameOver, '3-player game should complete on 3×3 grid').toBe(true);
 
-    // All players click Play Again
+    // All players click Rematch
     await Promise.all([
-      p1.locator('button:has-text("Play Again")').click({ timeout: 5000 }).catch(() => {}),
-      p2.locator('button:has-text("Play Again")').click({ timeout: 5000 }).catch(() => {}),
-      p3.locator('button:has-text("Play Again")').click({ timeout: 5000 }).catch(() => {}),
+      p1.locator('button:has-text("Rematch")').click({ timeout: 5000 }).catch(() => {}),
+      p2.locator('button:has-text("Rematch")').click({ timeout: 5000 }).catch(() => {}),
+      p3.locator('button:has-text("Rematch")').click({ timeout: 5000 }).catch(() => {}),
     ]);
 
     // Wait for modal to disappear
     await p1.waitForFunction(
-      () => !document.querySelector('body')?.innerText.includes('Play Again'),
+      () => !document.querySelector('body')?.innerText.includes('Rematch'),
       { timeout: 25_000 }
     ).catch(() => {});
     await safeWait(p1, 1500);

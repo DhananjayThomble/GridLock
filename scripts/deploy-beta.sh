@@ -1,29 +1,46 @@
 #!/usr/bin/env bash
-# /home/ubuntu/projects/GridLock/scripts/deploy-beta.sh
 # Auto-deploy develop branch to beta-gridlock.snapurl.in
-# Called by GitHub webhook or manually
-
+# Called by GitHub webhook on develop push
 set -euo pipefail
 
-REPO_DIR="/home/ubuntu/projects/GridLock"
-BETA_DIR="/var/www/gridlock-beta"
-
-cd "$REPO_DIR"
+BETA_REPO="/home/ubuntu/projects/GridLock-beta"
+BETA_WEB="/var/www/gridlock-beta"
 
 echo "[$(date -u)] Beta deploy starting..."
 
-# Pull latest develop
-git checkout develop 2>/dev/null
-git pull origin develop
+cd "$BETA_REPO"
+git fetch origin develop
+git checkout develop
+git reset --hard origin/develop
 
-# Build frontend
-cd frontend
-VITE_SOCKET_URL=https://gridlock-api.snapurl.in \
-VITE_API_BASE_URL=https://gridlock-api.snapurl.in \
+# ── Backend ──
+cd "$BETA_REPO/backend"
+npm ci --production --silent
+MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
+  pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
+  MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
+  pm2 start "$BETA_REPO/backend/server.js" --name gridlock-beta-backend
+
+sleep 2
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/health)
+if [ "$HTTP_CODE" != "200" ]; then
+  echo "❌ Beta backend health check failed (HTTP $HTTP_CODE)"
+  exit 1
+fi
+
+# ── Frontend ──
+cd "$BETA_REPO/frontend"
+npm ci --silent
+VITE_BASE_PATH=/ \
+VITE_SOCKET_URL=https://beta-gridlock.snapurl.in \
+VITE_API_BASE_URL=https://beta-gridlock.snapurl.in \
 VITE_SITE_URL=https://beta-gridlock.snapurl.in \
 npm run build --silent
 
-# Deploy
-sudo cp -r dist/* "$BETA_DIR/"
+sudo rm -rf "$BETA_WEB"/*
+sudo cp -r dist/. "$BETA_WEB/"
+sudo chown -R www-data:www-data "$BETA_WEB/"
 
-echo "[$(date -u)] Beta deploy complete"
+pm2 save --silent
+
+echo "[$(date -u)] Beta deploy complete ✅"

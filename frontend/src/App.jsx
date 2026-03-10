@@ -7,12 +7,14 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import Leaderboard from './components/Leaderboard';
 import Profile from './components/Profile';
 import TournamentLobby from './components/TournamentLobby';
 import JoinGame from './components/JoinGame';
+import ReplayPage from './components/ReplayPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -21,7 +23,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
 
   return (
     <>
@@ -86,6 +88,14 @@ const AppLayout = () => {
               </ErrorBoundary>
             )}
           />
+          <Route
+            path="/replay/:gameId"
+            element={(
+              <ErrorBoundary>
+                <ReplayPage />
+              </ErrorBoundary>
+            )}
+          />
         </Routes>
       </div>
     </>
@@ -94,9 +104,11 @@ const AppLayout = () => {
 
 function App() {
   return (
-    <Router basename={basePath}>
-      <AppLayout />
-    </Router>
+    <ThemeProvider>
+      <Router basename={basePath}>
+        <AppLayout />
+      </Router>
+    </ThemeProvider>
   );
 }
 

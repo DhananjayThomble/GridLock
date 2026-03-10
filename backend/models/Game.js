@@ -52,6 +52,12 @@ const GameSchema = new mongoose.Schema({
         index: true,
     },
 
+    matchType: {
+        type: String,
+        enum: ['private', 'public'],
+        default: 'private',
+    },
+
     createdAt: {
         type: Date,
         default: Date.now,
@@ -76,6 +82,15 @@ const GameSchema = new mongoose.Schema({
         reason: { type: String, default: null },
         reconnectWindowMs: { type: Number, default: 60000 },
     },
+
+    // Move history for game replay
+    moveHistory: [{
+        player: { type: String, required: true },
+        row: { type: Number, required: true },
+        col: { type: Number, required: true },
+        type: { type: String, enum: ['h', 'v'], required: true },
+        timestamp: { type: Date, default: Date.now },
+    }],
 }, {
     versionKey: false,
 });
@@ -85,5 +100,8 @@ GameSchema.pre('save', function(next) {
     if (!this.lastActivityAt) this.lastActivityAt = this.updatedAt;
     next();
 });
+
+// TTL index: auto-delete finished games after 30 days (replay retention)
+GameSchema.index({ finishedAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60, partialFilterExpression: { finishedAt: { $exists: true, $ne: null } } });
 
 module.exports = mongoose.model('Game', GameSchema);

@@ -54,7 +54,7 @@ test.describe('Game UI & Mechanics', () => {
     await expect(page.locator('button:has-text("Stats")')).toBeVisible();
   });
 
-  test('winner modal shows Play Again and Leave Game after game ends', async ({ browser }) => {
+  test('winner modal shows Rematch and Leave Game after game ends', async ({ browser }) => {
     // Play a full 3×3 game (12 lines) to trigger winner modal
     const ctx1 = await browser.newContext();
     const ctx2 = await browser.newContext();
@@ -78,7 +78,7 @@ test.describe('Game UI & Mechanics', () => {
       // Check if game over
       await p1.waitForTimeout(300);
       const bodyText = await p1.locator('body').innerText();
-      if (bodyText.includes('Game Over') || bodyText.includes('Play Again') || bodyText.includes('Winner')) {
+      if (bodyText.includes('Game Over') || bodyText.includes('Rematch') || bodyText.includes('Winner')) {
         gameOver = true;
       }
     }
@@ -87,8 +87,8 @@ test.describe('Game UI & Mechanics', () => {
       // At least one page should show the winner modal
       const p1Text = await p1.locator('body').innerText();
       const p2Text = await p2.locator('body').innerText();
-      const hasModal = p1Text.includes('Play Again') || p2Text.includes('Play Again');
-      expect(hasModal, 'Winner modal should appear with Play Again button').toBe(true);
+      const hasModal = p1Text.includes('Rematch') || p2Text.includes('Rematch');
+      expect(hasModal, 'Winner modal should appear with Rematch button').toBe(true);
     }
     // If game didn't finish in 24 moves (shouldn't happen on 3×3), skip gracefully
 
@@ -116,7 +116,7 @@ test.describe('Game UI & Mechanics', () => {
       await makeMove(current);
       await p1.waitForTimeout(200);
       const t = await p1.locator('body').innerText();
-      if (t.includes('Play Again') || t.includes('Leave Game')) { gameOver = true; }
+      if (t.includes('Rematch') || t.includes('Leave Game')) { gameOver = true; }
     }
 
     if (gameOver) {

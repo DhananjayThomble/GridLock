@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
-const { calculateNewState, initializeGameState } = require('../utils/gameLogic');
+const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter } = require('../middleware/rateLimiter');
 const gameStore = require('../stores/gameStore');
@@ -10,11 +10,15 @@ const disconnectStore = require('../stores/disconnectStore');
 const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardUpdateService');
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
+const matchmaking = require('../services/matchmaking');
+const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 
-const DISCONNECT_TIMEOUT_MS = 60_000;
+const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 60_000;
+const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 
 // Node-local timer handles only — state visibility is handled via disconnectStore (Redis)
 const localTimers = new Map(); // key: `${gameId}:${playerId}` -> { timer, socketId }
+const rematchTimers = new Map(); // key: gameId -> timeout handle
 
 const PLAYER_COLORS = {
     player1: '#3B82F6',
@@ -102,6 +106,19 @@ function generateSessionToken() {
     return crypto.randomBytes(24).toString('hex');
 }
 
+/**
+ * Generate a unique 6-char hex game ID with collision check against gameStore.
+ * Retries up to maxAttempts times. Returns null if all attempts collide.
+ */
+async function generateUniqueGameId(maxAttempts = 5) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const candidate = crypto.randomBytes(4).toString('hex').substring(0, 6).toUpperCase();
+        const existing = await gameStore.getGame(candidate);
+        if (!existing) return candidate;
+    }
+    return null;
+}
+
 function countFilledPlayers(game) {
     return Object.keys(game.players).filter((pid) => !!game.players[pid]).length;
 }
@@ -161,6 +178,82 @@ function findPlayerBySocket(game, socketId) {
     return null;
 }
 
+/**
+ * Count CPU players in a game.
+ */
+function countCPUPlayers(game) {
+    let count = 0;
+    for (let i = 1; i <= game.playerCount; i++) {
+        if (game.players[`player${i}`]?.isCPU) count++;
+    }
+    return count;
+}
+
+/**
+ * Check if a game is a tournament game.
+ */
+function isTournamentGame(game) {
+    return !!(game.metadata?.tournamentId);
+}
+
+/**
+ * Build rotated players map: shifts turn order by 1 position.
+ * player1 becomes player2's old player, etc.
+ */
+function buildRotatedPlayers(oldGame, newGameId) {
+    const count = oldGame.playerCount;
+    const rotated = {};
+    for (let i = 1; i <= count; i++) {
+        // Slot i gets the player from slot ((i - 2 + count) % count) + 1
+        const sourceSlot = `player${((i - 2 + count) % count) + 1}`;
+        const targetSlot = `player${i}`;
+        const oldPlayer = oldGame.players[sourceSlot];
+        if (oldPlayer) {
+            rotated[targetSlot] = {
+                id: oldPlayer.isCPU ? `cpu-${newGameId}-${i}` : oldPlayer.id,
+                username: oldPlayer.username,
+                avatar: oldPlayer.avatar,
+                color: PLAYER_COLORS[targetSlot],
+                token: oldPlayer.isCPU ? `cpu-token-${newGameId}-${i}` : oldPlayer.token,
+                disconnectedAt: null,
+                ...(oldPlayer.isCPU ? { isCPU: true } : {}),
+            };
+        }
+    }
+    return rotated;
+}
+
+/**
+ * Start the rematch timeout for a game. After REMATCH_TIMEOUT_MS,
+ * if not all players have voted, emit rematch_failed.
+ */
+function startRematchTimeout(io, log, gameId, game) {
+    // Clear any existing timer
+    if (rematchTimers.has(gameId)) {
+        clearTimeout(rematchTimers.get(gameId));
+    }
+
+    const timer = setTimeout(async () => {
+        rematchTimers.delete(gameId);
+        try {
+            const voteCount = await rematchStore.getVoteCount(gameId);
+            const cpuVotes = countCPUPlayers(game);
+            const totalVotes = voteCount + cpuVotes;
+            if (totalVotes < game.playerCount) {
+                io.to(gameId).emit('rematch_failed', {
+                    reason: 'Not everyone wants to rematch',
+                });
+                await rematchStore.clearVotes(gameId);
+                log.info('Rematch timeout — not unanimous', { gameId, votes: totalVotes, needed: game.playerCount });
+            }
+        } catch (err) {
+            log.error('Rematch timeout handler failed', { gameId, error: err.message });
+        }
+    }, REMATCH_TIMEOUT_MS);
+
+    rematchTimers.set(gameId, timer);
+}
+
 async function persistGame(game, status = null, metadata = null) {
     const now = new Date();
     const finalStatus = status || gameStatusFromPlayers(game);
@@ -174,6 +267,8 @@ async function persistGame(game, status = null, metadata = null) {
         lastActivityAt: now,
         updatedAt: now,
     };
+    if (game.moveHistory) payload.moveHistory = game.moveHistory;
+    if (game.matchType) payload.matchType = game.matchType;
     if (metadata) payload.metadata = { ...(game.metadata || {}), ...metadata };
     if (finalStatus === 'finished' || finalStatus === 'abandoned') payload.finishedAt = now;
     await Game.findOneAndUpdate(
@@ -190,7 +285,8 @@ async function markGameFinished(gameId, reason = null) {
 }
 
 async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p1, p2 }) {
-    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const gameId = await generateUniqueGameId();
+    if (!gameId) throw new Error('Failed to generate unique game ID after retries');
     const p1Token = generateSessionToken();
     const p2Token = generateSessionToken();
 
@@ -313,6 +409,7 @@ async function loadGameFromDB(cleanGameId, log) {
         gameState: doc.gameState,
         createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
         metadata: doc.metadata || {},
+        moveHistory: doc.moveHistory || [],
     };
     await gameStore.setGame(cleanGameId, game);
     log.info('Loaded game from DB on cache-miss', { gameId: cleanGameId });
@@ -338,6 +435,7 @@ async function restoreActiveGames(log) {
                 gameState: doc.gameState,
                 createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
                 metadata: doc.metadata || {},
+                moveHistory: doc.moveHistory || [],
             });
         }
         if (docs.length > 0) log.info('Recovered active games from database', { count: docs.length });
@@ -477,6 +575,17 @@ function scheduleCPUMove(io, log, gameId, delay) {
             }
 
             game.gameState = newState;
+
+            // Record CPU move in history for replay
+            if (!game.moveHistory) game.moveHistory = [];
+            game.moveHistory.push({
+                player: currentPlayerId,
+                row: move.r,
+                col: move.c,
+                type: move.type === 'horizontal' ? 'h' : 'v',
+                timestamp: new Date(),
+            });
+
             await gameStore.setGame(gameId, game);
 
             const status = newState.winner ? 'finished' : 'playing';
@@ -488,6 +597,11 @@ function scheduleCPUMove(io, log, gameId, delay) {
                 io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
                 updateLeaderboard(game, newState.winner, log);
                 await handleTournamentGameCompletion(io, log, gameId, game, newState.winner);
+                // Defensive cleanup: clear any lingering rematch timer
+                if (rematchTimers.has(gameId)) {
+                    clearTimeout(rematchTimers.get(gameId));
+                    rematchTimers.delete(gameId);
+                }
                 setTimeout(async () => {
                     await gameStore.deleteGame(gameId);
                     await rematchStore.clearVotes(gameId);
@@ -628,7 +742,8 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
-                const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const gameId = await generateUniqueGameId();
+                if (!gameId) { socket.emit('error', 'Failed to generate game ID. Please try again.'); return; }
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
                 const sessionToken = generateSessionToken();
 
@@ -725,10 +840,21 @@ function attachSocketHandlers(io, log) {
 
                 // Spectator path: join room read-only and receive live updates
                 if (isSpectatorJoinRequest(joinMode)) {
+                    // Prevent spectator from rejoining as player mid-game
+                    // (they chose spectator mode — they stay as spectator)
                     socket.join(cleanGameId);
                     socket.data.gameId = cleanGameId;
                     socket.data.playerId = 'spectator';
                     socket.data.isSpectator = true;
+                    socket.data.spectatorUsername = cleanUsername;
+
+                    // Track spectator count
+                    // TODO: This is a non-atomic read-modify-write. Under concurrent spectator
+                    // joins, the count can drift by ±1. Consider Redis HINCRBY for accuracy.
+                    if (!game.spectatorCount) game.spectatorCount = 0;
+                    game.spectatorCount++;
+                    await gameStore.setGame(cleanGameId, game);
+
                     socket.emit('game_started', {
                         gameId: cleanGameId,
                         playerId: 'spectator',
@@ -737,8 +863,11 @@ function attachSocketHandlers(io, log) {
                         playerCount: game.playerCount,
                         players: getPlayersList(game),
                         gameState: buildGameStateWithPlayers(game),
+                        spectatorCount: game.spectatorCount,
                     });
-                    socket.to(cleanGameId).emit('spectator_joined', { username: cleanUsername });
+                    // Notify all in room (players + other spectators) of updated count
+                    io.to(cleanGameId).emit('spectator_count', { count: game.spectatorCount });
+                    socket.to(cleanGameId).emit('spectator_joined', { username: cleanUsername, count: game.spectatorCount });
                     return;
                 }
 
@@ -782,6 +911,12 @@ function attachSocketHandlers(io, log) {
                         socket.to(cleanGameId).emit('player_reconnected', { playerId, username: cleanUsername });
                         return;
                     }
+                }
+
+                // Guard: prevent spectator from escalating to player by re-emitting join_game
+                if (socket.data.isSpectator) {
+                    socket.emit('error', 'Spectators cannot join as players. Leave and rejoin to play.');
+                    return;
                 }
 
                 // New join path
@@ -878,6 +1013,17 @@ function attachSocketHandlers(io, log) {
                 if (newState.error) { socket.emit('error', newState.error); return; }
 
                 game.gameState = newState;
+
+                // Record move in history for replay
+                if (!game.moveHistory) game.moveHistory = [];
+                game.moveHistory.push({
+                    player: playerId,
+                    row: r,
+                    col: c,
+                    type: type === 'horizontal' ? 'h' : 'v',
+                    timestamp: new Date(),
+                });
+
                 // Write back to shared store BEFORE broadcasting
                 await gameStore.setGame(cleanGameId, game);
 
@@ -891,6 +1037,11 @@ function attachSocketHandlers(io, log) {
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
                     await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
+                    // Defensive cleanup: clear any lingering rematch timer
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
@@ -937,12 +1088,20 @@ function attachSocketHandlers(io, log) {
                 const game = await gameStore.getGame(cleanGameId);
                 if (!game) { socket.emit('error', 'Game not found'); return; }
 
+                // Block spectators
                 const requestingPlayerId = findPlayerBySocket(game, socket.id);
                 if (!requestingPlayerId) { socket.emit('error', 'Player not found in game'); return; }
+                if (socket.data?.isSpectator) { socket.emit('error', 'Spectators cannot request rematch'); return; }
 
                 const player = game.players[requestingPlayerId];
                 if (!player || player.token !== sessionToken) {
                     socket.emit('error', 'Unauthorized rematch request');
+                    return;
+                }
+
+                // Block tournament games
+                if (isTournamentGame(game)) {
+                    socket.emit('error', 'Rematch is not available in tournament games');
                     return;
                 }
 
@@ -952,17 +1111,35 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
+                // Debounce: check if already voted
+                const alreadyVoted = await rematchStore.hasVoted(cleanGameId, requestingPlayerId);
+                if (alreadyVoted) { return; }
+
+                // Auto-decline disconnected players
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const pid = `player${i}`;
+                    const p = game.players[pid];
+                    if (p && !p.isCPU && p.disconnectedAt) {
+                        io.to(cleanGameId).emit('rematch_failed', {
+                            reason: `${p.username || 'A player'} has disconnected`,
+                        });
+                        await rematchStore.clearVotes(cleanGameId);
+                        return;
+                    }
+                }
+
                 // Add vote to shared Redis store — visible across ALL nodes
                 const { count: humanCount } = await rematchStore.addVote(cleanGameId, requestingPlayerId);
 
-                // Auto-count CPU players as having voted (they can't send request_rematch)
-                let cpuVotes = 0;
-                for (let i = 1; i <= game.playerCount; i++) {
-                    const pid = `player${i}`;
-                    if (game.players[pid]?.isCPU) cpuVotes++;
-                }
+                // Auto-count CPU players as having voted
+                const cpuVotes = countCPUPlayers(game);
                 const totalVotes = humanCount + cpuVotes;
                 io.to(cleanGameId).emit('rematch_count', { count: totalVotes, total: game.playerCount });
+
+                // Start rematch timeout on first vote
+                if (humanCount === 1 && !rematchTimers.has(cleanGameId)) {
+                    startRematchTimeout(io, log, cleanGameId, game);
+                }
 
                 // Push notification for rematch request to other players (fire-and-forget)
                 try {
@@ -984,32 +1161,26 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (totalVotes >= game.playerCount) {
-                    const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                    // Clear the rematch timeout
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
+
+                    const newGameId = await generateUniqueGameId();
+                    if (!newGameId) { socket.emit('error', 'Failed to generate rematch game ID'); return; }
                     const initialState = initializeGameState(game.gridSize, game.playerCount);
                     const newGame = {
                         id: newGameId,
                         gridSize: game.gridSize,
                         playerCount: game.playerCount,
-                        players: {},
+                        players: buildRotatedPlayers(game, newGameId),
                         gameState: initialState,
                         createdAt: Date.now(),
                         metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
                         cpuDifficulty: game.cpuDifficulty || null,
                     };
-                    for (let i = 1; i <= game.playerCount; i++) {
-                        const pid = `player${i}`;
-                        const oldPlayer = game.players[pid];
-                        if (oldPlayer) {
-                            newGame.players[pid] = {
-                                id: oldPlayer.isCPU ? `cpu-${newGameId}-${i}` : oldPlayer.id,
-                                username: oldPlayer.username,
-                                avatar: oldPlayer.avatar, color: PLAYER_COLORS[pid],
-                                token: oldPlayer.isCPU ? `cpu-token-${newGameId}-${i}` : oldPlayer.token,
-                                disconnectedAt: null,
-                                ...(oldPlayer.isCPU ? { isCPU: true } : {}),
-                            };
-                        }
-                    }
+
                     await gameStore.setGame(newGameId, newGame);
                     await rematchStore.clearVotes(cleanGameId);
                     await persistGame(newGame, 'playing');
@@ -1029,10 +1200,359 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── rematch_cancel ─────────────────────────────────────────────────────
+        socket.on('rematch_cancel', async ({ gameId, sessionToken }) => {
+            try {
+                if (rateLimited('rematch_cancel')) return;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const game = await gameStore.getGame(cleanGameId);
+                if (!game) { socket.emit('error', 'Game not found'); return; }
+
+                const requestingPlayerId = findPlayerBySocket(game, socket.id);
+                if (!requestingPlayerId) { socket.emit('error', 'Player not found in game'); return; }
+
+                const player = game.players[requestingPlayerId];
+                if (!player || player.token !== sessionToken) {
+                    socket.emit('error', 'Unauthorized rematch cancel');
+                    return;
+                }
+
+                // Only allow cancel after game has finished
+                if (!game.gameState?.winner) {
+                    socket.emit('error', 'Rematch cancel only valid after game has finished');
+                    return;
+                }
+
+                const { count: humanCount, wasRemoved } = await rematchStore.removeVote(cleanGameId, requestingPlayerId);
+                if (!wasRemoved) return; // wasn't voted
+
+                const cpuVotes = countCPUPlayers(game);
+                const totalVotes = humanCount + cpuVotes;
+                io.to(cleanGameId).emit('rematch_count', { count: totalVotes, total: game.playerCount });
+
+                // If no human votes remain, clear the timeout
+                if (humanCount === 0 && rematchTimers.has(cleanGameId)) {
+                    clearTimeout(rematchTimers.get(cleanGameId));
+                    rematchTimers.delete(cleanGameId);
+                }
+            } catch (error) {
+                log.error('Error processing rematch cancel', { error: error.message, stack: error.stack });
+                socket.emit('error', 'Failed to cancel rematch request');
+            }
+        });
+
+        // ── queue_join (Quick Play matchmaking) ──────────────────────────────
+        socket.on('queue_join', async ({ username, avatar, gridSize, playerCount }) => {
+            try {
+                if (rateLimited('queue_join')) return;
+
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) { socket.emit('error', uResult.error); return; }
+                const cleanUsername = uResult.value;
+                const cleanAvatar = sanitizeAvatar(avatar);
+
+                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
+
+                const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
+                if (!pcResult.valid) { socket.emit('error', pcResult.error); return; }
+
+                const result = matchmaking.joinQueue(socket.id, cleanUsername, cleanAvatar, gridResult.value, pcResult.value);
+
+                if (result.rejected) {
+                    socket.emit('error', result.reason);
+                    return;
+                }
+
+                if (result.matched) {
+                    // Verify all matched sockets are still connected before game creation
+                    const players = result.players;
+                    const connected = [];
+                    const disconnected = [];
+                    for (const p of players) {
+                        const s = io.sockets.sockets.get(p.socketId);
+                        if (s && s.connected) {
+                            connected.push(p);
+                        } else {
+                            disconnected.push(p);
+                        }
+                    }
+
+                    if (disconnected.length > 0) {
+                        // Re-queue connected players
+                        for (const p of connected) {
+                            const requeue = matchmaking.joinQueue(p.socketId, p.username, p.avatar, p.gridSize, p.playerCount);
+                            const ps = io.sockets.sockets.get(p.socketId);
+                            if (ps && requeue.queued) {
+                                ps.data.queueKey = requeue.queueKey;
+                                ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey, queueCounts: matchmaking.getAllQueueCounts() });
+                                const timer = setTimeout(() => {
+                                    if (matchmaking.isInQueue(p.socketId)) {
+                                        ps.emit('queue_timeout', { suggestion: 'cpu' });
+                                    }
+                                }, QUEUE_TIMEOUT_MS);
+                                matchmaking.setTimeoutTimer(p.socketId, timer);
+                            }
+                        }
+                        log.info('Matched player disconnected before game creation, re-queued remaining', {
+                            disconnected: disconnected.map(p => p.username),
+                            requeued: connected.map(p => p.username),
+                        });
+                        return;
+                    }
+
+                    // Create game for matched players
+                    const host = players[0];
+                    const gameId = await generateUniqueGameId();
+                    if (!gameId) { socket.emit('error', 'Failed to generate game ID'); return; }
+                    const initialState = initializeGameState(host.gridSize, host.playerCount);
+
+                    const game = {
+                        id: gameId,
+                        gridSize: host.gridSize,
+                        playerCount: host.playerCount,
+                        players: {},
+                        gameState: initialState,
+                        createdAt: Date.now(),
+                        matchType: 'public',
+                        metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                    };
+
+                    for (let i = 0; i < players.length; i++) {
+                        const slot = `player${i + 1}`;
+                        const p = players[i];
+                        const token = generateSessionToken();
+                        game.players[slot] = {
+                            id: p.socketId,
+                            username: p.username,
+                            avatar: p.avatar,
+                            color: PLAYER_COLORS[slot],
+                            token,
+                            disconnectedAt: null,
+                        };
+                    }
+
+                    // Guard: reject if any two slots share the same player ID
+                    const slotIds = Object.values(game.players).map((p) => p.id);
+                    if (new Set(slotIds).size !== slotIds.length) {
+                        log.error('Self-match guard triggered in Quick Play — re-queuing affected players', { gameId, slotIds });
+                        // Re-queue all matched players so they aren't silently dropped
+                        for (const p of players) {
+                            const ps = io.sockets.sockets.get(p.socketId);
+                            if (ps && ps.connected) {
+                                const requeue = matchmaking.joinQueue(p.socketId, p.username, p.avatar, p.gridSize, p.playerCount);
+                                if (requeue.queued) {
+                                    ps.data.queueKey = requeue.queueKey;
+                                    ps.emit('queue_status', { position: requeue.position, queueSize: requeue.queueSize, queueKey: requeue.queueKey, queueCounts: matchmaking.getAllQueueCounts() });
+                                    const timer = setTimeout(() => {
+                                        if (matchmaking.isInQueue(p.socketId)) {
+                                            ps.emit('queue_timeout', { suggestion: 'cpu' });
+                                        }
+                                    }, QUEUE_TIMEOUT_MS);
+                                    matchmaking.setTimeoutTimer(p.socketId, timer);
+                                }
+                            }
+                        }
+                        return;
+                    }
+
+                    await gameStore.setGame(gameId, game);
+                    await persistGame(game, game.playerCount === players.length ? 'playing' : 'waiting');
+
+                    // Notify all matched players
+                    for (let i = 0; i < players.length; i++) {
+                        const slot = `player${i + 1}`;
+                        const p = players[i];
+                        const playerSocket = io.sockets.sockets.get(p.socketId);
+                        if (playerSocket) {
+                            playerSocket.join(gameId);
+                            playerSocket.data.gameId = gameId;
+                            playerSocket.data.playerId = slot;
+                            playerSocket.data.queueKey = undefined;
+
+                            const gameStateWithPlayers = buildGameStateWithPlayers(game);
+                            playerSocket.emit('queue_matched', {
+                                gameId,
+                                playerId: slot,
+                                sessionToken: game.players[slot].token,
+                                gridSize: game.gridSize,
+                                playerCount: game.playerCount,
+                                players: getPlayersList(game),
+                                gameState: gameStateWithPlayers,
+                            });
+                        }
+                    }
+
+                    if (players.length === game.playerCount) {
+                        io.to(gameId).emit('all_players_joined', { gameId });
+                    }
+
+                    log.info('Quick Play match created', { gameId, playerCount: game.playerCount, players: players.map((p) => p.username) });
+                } else {
+                    // Player queued — broadcast status to ALL waiters and set timeout
+                    socket.data.queueKey = result.queueKey;
+
+                    // Notify every player in this queue of the updated status
+                    const waiters = matchmaking.getWaiters(result.queueKey);
+                    for (const waiterId of waiters) {
+                        const waiterSocket = io.sockets.sockets.get(waiterId);
+                        if (waiterSocket) {
+                            const status = matchmaking.getQueueStatus(waiterId);
+                            if (status) {
+                                waiterSocket.emit('queue_status', {
+                                    position: status.position,
+                                    queueSize: status.queueSize,
+                                    queueKey: status.queueKey,
+                                    queueCounts: matchmaking.getAllQueueCounts(),
+                                });
+                            }
+                        }
+                    }
+
+                    // Timeout: auto-create CPU game after QUEUE_TIMEOUT_MS
+                    const timeoutTimer = setTimeout(async () => {
+                        try {
+                            if (!matchmaking.isInQueue(socket.id)) return;
+
+                            // Retrieve player info before leaving queue
+                            const qStatus = matchmaking.getQueueStatus(socket.id);
+                            if (!qStatus) return;
+                            const qKey = qStatus.queueKey;
+                            const queueArr = matchmaking.queues.get(qKey);
+                            const entry = queueArr?.find((e) => e.socketId === socket.id);
+                            if (!entry) return;
+
+                            const pGridSize = entry.gridSize;
+                            const pPlayerCount = entry.playerCount;
+                            const pUsername = entry.username;
+                            const pAvatar = entry.avatar;
+
+                            // Remove player from queue
+                            matchmaking.leaveQueue(socket.id);
+
+                            // Create a game with CPU opponent(s) filling remaining slots
+                            const cpuGameId = await generateUniqueGameId();
+                            if (!cpuGameId) { socket.emit('error', 'Failed to generate game ID'); return; }
+                            const cpuInitialState = initializeGameState(pGridSize, pPlayerCount);
+                            const cpuSessionToken = generateSessionToken();
+                            const cpuDifficulty = 'medium';
+
+                            const cpuGame = {
+                                id: cpuGameId,
+                                gridSize: pGridSize,
+                                playerCount: pPlayerCount,
+                                players: {
+                                    player1: {
+                                        id: socket.id,
+                                        username: pUsername,
+                                        avatar: pAvatar,
+                                        color: PLAYER_COLORS.player1,
+                                        token: cpuSessionToken,
+                                        disconnectedAt: null,
+                                    },
+                                },
+                                gameState: cpuInitialState,
+                                createdAt: Date.now(),
+                                metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                                cpuDifficulty,
+                            };
+
+                            // Fill remaining slots with CPU players
+                            for (let ci = 1; ci < pPlayerCount; ci++) {
+                                const cpuSlot = `player${ci + 1}`;
+                                cpuGame.players[cpuSlot] = {
+                                    id: `cpu-${cpuGameId}-${ci - 1}`,
+                                    username: CPU_NAMES[ci - 1] || `Bot-${ci}`,
+                                    avatar: CPU_AVATARS[ci - 1] || '🤖',
+                                    color: PLAYER_COLORS[cpuSlot],
+                                    token: `cpu-token-${cpuGameId}-${ci - 1}`,
+                                    disconnectedAt: null,
+                                    isCPU: true,
+                                };
+                            }
+
+                            await gameStore.setGame(cpuGameId, cpuGame);
+                            socket.join(cpuGameId);
+                            socket.data.gameId = cpuGameId;
+                            socket.data.playerId = 'player1';
+                            socket.data.queueKey = undefined;
+
+                            await persistGame(cpuGame, 'playing');
+
+                            const cpuGameState = buildGameStateWithPlayers(cpuGame);
+                            socket.emit('queue_matched', {
+                                gameId: cpuGameId,
+                                playerId: 'player1',
+                                sessionToken: cpuSessionToken,
+                                gridSize: cpuGame.gridSize,
+                                playerCount: cpuGame.playerCount,
+                                players: getPlayersList(cpuGame),
+                                gameState: cpuGameState,
+                                cpuDifficulty: cpuGame.cpuDifficulty,
+                            });
+
+                            io.to(cpuGameId).emit('all_players_joined', { gameId: cpuGameId });
+
+                            // If first turn belongs to CPU, trigger it
+                            const firstCpuPlayer = cpuGame.players[cpuGame.gameState.currentPlayer];
+                            if (firstCpuPlayer && firstCpuPlayer.isCPU) {
+                                const cpuDelay = CPU_DELAYS[cpuDifficulty] || 1200;
+                                scheduleCPUMove(io, log, cpuGameId, cpuDelay);
+                            }
+
+                            log.info('Quick Play timeout — CPU game created', { gameId: cpuGameId, username: pUsername, cpuSlots: pPlayerCount - 1 });
+                        } catch (err) {
+                            log.error('Quick Play timeout CPU fallback failed', { error: err.message, stack: err.stack });
+                            socket.emit('queue_timeout', { suggestion: 'cpu' });
+                        }
+                    }, QUEUE_TIMEOUT_MS);
+                    matchmaking.setTimeoutTimer(socket.id, timeoutTimer);
+                }
+            } catch (error) {
+                log.error('Error handling queue_join', { error: error.message, stack: error.stack });
+                socket.emit('error', 'Failed to join matchmaking queue');
+            }
+        });
+
+        // ── queue_leave ────────────────────────────────────────────────────────
+        socket.on('queue_leave', () => {
+            if (!socketLimiter.allow(socket.id, 'queue_leave')) return;
+
+            const info = matchmaking.playerIndex.get(socket.id);
+            const queueKey = info?.queueKey;
+            matchmaking.leaveQueue(socket.id);
+            socket.data.queueKey = undefined;
+            socket.emit('queue_left', {});
+
+            // Broadcast updated status to remaining waiters
+            if (queueKey) {
+                const waiters = matchmaking.getWaiters(queueKey);
+                for (const waiterId of waiters) {
+                    const waiterSocket = io.sockets.sockets.get(waiterId);
+                    if (waiterSocket) {
+                        const status = matchmaking.getQueueStatus(waiterId);
+                        if (status) {
+                            waiterSocket.emit('queue_status', {
+                                position: status.position,
+                                queueSize: status.queueSize,
+                                queueKey: status.queueKey,
+                                queueCounts: matchmaking.getAllQueueCounts(),
+                            });
+                        }
+                    }
+                }
+            }
+        });
+
         // ── disconnect ─────────────────────────────────────────────────────────
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
+            matchmaking.leaveQueue(socket.id);
 
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
@@ -1046,9 +1566,20 @@ function attachSocketHandlers(io, log) {
                     reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
                 });
 
-                // If game already finished, just persist and skip forfeit flow
+                // If game already finished, handle rematch vote auto-decline then persist
                 if (game.gameState?.winner) {
+                    // Auto-decline: remove this player's rematch vote
+                    await rematchStore.removeVote(gameId, playerId);
+                    // Emit rematch_failed since a player disconnected
+                    io.to(gameId).emit('rematch_failed', {
+                        reason: `${player.username || 'A player'} disconnected`,
+                    });
                     await rematchStore.clearVotes(gameId);
+                    // Clear rematch timer
+                    if (rematchTimers.has(gameId)) {
+                        clearTimeout(rematchTimers.get(gameId));
+                        rematchTimers.delete(gameId);
+                    }
                     await gameStore.setGame(gameId, game);
                     persistGame(game, 'finished').catch((err) =>
                         log.error('Persist after disconnect failed', { gameId, error: err.message })
@@ -1082,14 +1613,16 @@ function attachSocketHandlers(io, log) {
                         const currentPlayer = currentGame.players[playerId];
                         if (!currentPlayer || !currentPlayer.disconnectedAt) return;
 
-                        // Forfeit: pick first still-connected player as winner
+                        // Forfeit: pick remaining player with highest score as winner
                         const remaining = [];
                         for (let i = 1; i <= currentGame.playerCount; i++) {
                             const pid = `player${i}`;
                             const p = currentGame.players[pid];
                             if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
                         }
-                        const winner = remaining.length > 0 ? remaining[0] : 'draw';
+
+                        const scores = currentGame.gameState?.scores || {};
+                        const winner = pickForfeitWinner(remaining, scores);
                         currentGame.gameState.winner = winner;
 
                         await gameStore.setGame(gameId, currentGame);
@@ -1109,6 +1642,11 @@ function attachSocketHandlers(io, log) {
                         await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
+                        // Defensive cleanup: clear any lingering rematch timer
+                        if (rematchTimers.has(gameId)) {
+                            clearTimeout(rematchTimers.get(gameId));
+                            rematchTimers.delete(gameId);
+                        }
                         setTimeout(async () => {
                             await gameStore.deleteGame(gameId);
                             await rematchStore.clearVotes(gameId);
@@ -1133,7 +1671,24 @@ function attachSocketHandlers(io, log) {
                 const hintedPlayerId = socket.data?.playerId;
                 const hintedIsSpectator = socket.data?.isSpectator === true || hintedPlayerId === 'spectator';
                 if (hintedGameId && hintedPlayerId) {
-                    if (hintedIsSpectator) return;
+                    if (hintedIsSpectator) {
+                        // Decrement spectator count and notify remaining participants
+                        try {
+                            const hintedGame = await gameStore.getGame(hintedGameId);
+                            if (hintedGame) {
+                                hintedGame.spectatorCount = Math.max(0, (hintedGame.spectatorCount || 1) - 1);
+                                await gameStore.setGame(hintedGameId, hintedGame);
+                                io.to(hintedGameId).emit('spectator_count', { count: hintedGame.spectatorCount });
+                                io.to(hintedGameId).emit('spectator_left', {
+                                    username: socket.data.spectatorUsername || 'A spectator',
+                                    count: hintedGame.spectatorCount,
+                                });
+                            }
+                        } catch (err) {
+                            log.error('Spectator disconnect cleanup failed', { gameId: hintedGameId, error: err.message });
+                        }
+                        return;
+                    }
                     const hintedGame = await gameStore.getGame(hintedGameId);
                     if (hintedGame?.players?.[hintedPlayerId]?.id === socket.id) {
                         await processPlayerDisconnect(hintedGameId, hintedGame, hintedPlayerId);
