@@ -1,159 +1,91 @@
 /**
- * Tests for forfeit winner selection logic.
+ * Tests for pickForfeitWinner — the production forfeit winner selection logic.
  *
  * When a player disconnects and the forfeit timer fires, the winner should be
  * the remaining connected player with the **highest score**, NOT just the first
- * player by array index.
+ * player by array index.  Ties return 'draw', consistent with calculateWinner.
  *
  * Ref: GitHub issue #148
  */
 
-describe('Forfeit winner selection', () => {
-    /**
-     * Helper that mirrors the forfeit winner logic in socketHandlers.js.
-     * Extracted here so we can unit-test it in isolation.
-     */
-    function pickForfeitWinner(currentGame, disconnectedPlayerId) {
-        const remaining = [];
-        for (let i = 1; i <= currentGame.playerCount; i++) {
-            const pid = `player${i}`;
-            const p = currentGame.players[pid];
-            if (p && pid !== disconnectedPlayerId && !p.disconnectedAt) {
-                remaining.push(pid);
-            }
-        }
+const { pickForfeitWinner } = require('../utils/gameLogic');
 
-        let winner;
-        if (remaining.length === 0) {
-            winner = 'draw';
-        } else if (remaining.length === 1) {
-            winner = remaining[0];
-        } else {
-            winner = remaining.reduce((best, pid) => {
-                const bestScore = currentGame.gameState.scores[best] || 0;
-                const pidScore = currentGame.gameState.scores[pid] || 0;
-                return pidScore > bestScore ? pid : best;
-            }, remaining[0]);
-        }
-
-        return winner;
-    }
-
-    function makeGame(playerCount, players, scores) {
-        return {
-            playerCount,
-            players,
-            gameState: { scores },
-        };
-    }
-
+describe('pickForfeitWinner', () => {
     test('picks the highest-scoring remaining player', () => {
-        const game = makeGame(4, {
-            player1: { username: 'alice' },                         // disconnected
-            player2: { username: 'bob' },
-            player3: { username: 'charlie' },
-            player4: { username: 'diana' },
-        }, {
-            player1: 5,
-            player2: 2,
-            player3: 10,
-            player4: 7,
-        });
+        const remaining = ['player2', 'player3', 'player4'];
+        const scores = { player1: 5, player2: 2, player3: 10, player4: 7 };
 
-        const winner = pickForfeitWinner(game, 'player1');
-        expect(winner).toBe('player3'); // highest score among remaining
+        expect(pickForfeitWinner(remaining, scores)).toBe('player3');
     });
 
     test('picks the highest-scoring player even if they are last by index', () => {
-        const game = makeGame(3, {
-            player1: { username: 'alice' },
-            player2: { username: 'bob' },                          // disconnected
-            player3: { username: 'charlie' },
-        }, {
-            player1: 1,
-            player2: 15,
-            player3: 12,
-        });
+        const remaining = ['player1', 'player3'];
+        const scores = { player1: 1, player2: 15, player3: 12 };
 
-        const winner = pickForfeitWinner(game, 'player2');
-        expect(winner).toBe('player3'); // 12 > 1
+        expect(pickForfeitWinner(remaining, scores)).toBe('player3');
     });
 
-    test('with tied scores, picks the first player deterministically', () => {
-        const game = makeGame(4, {
-            player1: { username: 'alice' },                         // disconnected
-            player2: { username: 'bob' },
-            player3: { username: 'charlie' },
-            player4: { username: 'diana' },
-        }, {
-            player1: 5,
-            player2: 8,
-            player3: 8,
-            player4: 3,
-        });
+    test('returns draw when top scorers are tied', () => {
+        const remaining = ['player2', 'player3', 'player4'];
+        const scores = { player1: 5, player2: 8, player3: 8, player4: 3 };
 
-        const winner = pickForfeitWinner(game, 'player1');
-        // player2 and player3 both have 8; player2 comes first → tiebreak
-        expect(winner).toBe('player2');
+        expect(pickForfeitWinner(remaining, scores)).toBe('draw');
     });
 
     test('with single remaining player, picks that player', () => {
-        const game = makeGame(2, {
-            player1: { username: 'alice' },                         // disconnected
-            player2: { username: 'bob' },
-        }, {
-            player1: 10,
-            player2: 3,
-        });
+        const remaining = ['player2'];
+        const scores = { player1: 10, player2: 3 };
 
-        const winner = pickForfeitWinner(game, 'player1');
-        expect(winner).toBe('player2');
+        expect(pickForfeitWinner(remaining, scores)).toBe('player2');
     });
 
     test('with no remaining players, returns draw', () => {
-        const game = makeGame(2, {
-            player1: { username: 'alice' },                         // disconnected
-            player2: { username: 'bob', disconnectedAt: Date.now() }, // also disconnected
-        }, {
-            player1: 5,
-            player2: 3,
-        });
-
-        const winner = pickForfeitWinner(game, 'player1');
-        expect(winner).toBe('draw');
+        expect(pickForfeitWinner([], { player1: 5, player2: 3 })).toBe('draw');
     });
 
     test('handles missing scores gracefully (defaults to 0)', () => {
-        const game = makeGame(3, {
-            player1: { username: 'alice' },                         // disconnected
-            player2: { username: 'bob' },
-            player3: { username: 'charlie' },
-        }, {
-            // player2 has no score entry, player3 has 0
-            player1: 5,
-            player3: 0,
-        });
+        const remaining = ['player2', 'player3'];
+        const scores = { player1: 5, player3: 0 }; // player2 has no entry
 
-        const winner = pickForfeitWinner(game, 'player1');
-        // Both have 0, player2 comes first → tiebreak
-        expect(winner).toBe('player2');
+        // Both effectively 0 → draw (tied)
+        expect(pickForfeitWinner(remaining, scores)).toBe('draw');
     });
 
-    test('skips players that are also disconnected', () => {
-        const game = makeGame(4, {
-            player1: { username: 'alice' },                         // forfeit target
-            player2: { username: 'bob', disconnectedAt: Date.now() }, // also gone
-            player3: { username: 'charlie' },
-            player4: { username: 'diana' },
-        }, {
-            player1: 5,
-            player2: 20,
-            player3: 3,
-            player4: 10,
-        });
+    test('handles undefined scores object (null guard)', () => {
+        const remaining = ['player1', 'player2'];
 
-        const winner = pickForfeitWinner(game, 'player1');
-        // player2 is disconnected, so between player3(3) and player4(10) → player4
-        expect(winner).toBe('player4');
+        // scores defaults to {} → all 0 → draw
+        expect(pickForfeitWinner(remaining, undefined)).toBe('draw');
+        expect(pickForfeitWinner(remaining)).toBe('draw');
+    });
+
+    // Issue 4: all-zero scores should be a draw
+    test('returns draw when all remaining players have zero scores', () => {
+        const remaining = ['player1', 'player2', 'player3'];
+        const scores = { player1: 0, player2: 0, player3: 0 };
+
+        expect(pickForfeitWinner(remaining, scores)).toBe('draw');
+    });
+
+    // Issue 5: CPU players are eligible to win forfeit
+    test('CPU players can win forfeit by highest score', () => {
+        const remaining = ['player1', 'cpu_easy_1', 'cpu_hard_2'];
+        const scores = { player1: 3, cpu_easy_1: 5, cpu_hard_2: 2 };
+
+        expect(pickForfeitWinner(remaining, scores)).toBe('cpu_easy_1');
+    });
+
+    test('CPU and human players tie results in draw', () => {
+        const remaining = ['player1', 'cpu_medium_1'];
+        const scores = { player1: 7, cpu_medium_1: 7 };
+
+        expect(pickForfeitWinner(remaining, scores)).toBe('draw');
+    });
+
+    test('single CPU player remaining wins', () => {
+        const remaining = ['cpu_easy_1'];
+        const scores = { player1: 10, cpu_easy_1: 2 };
+
+        expect(pickForfeitWinner(remaining, scores)).toBe('cpu_easy_1');
     });
 });
