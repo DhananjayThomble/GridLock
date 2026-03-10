@@ -98,8 +98,6 @@ const Board = () => {
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
-  const [spectatorNotice, setSpectatorNotice] = useState(null);
-  const spectatorTimerRef = useRef(null);
   const [status,         setStatus]         = useState('Connecting…');
   const [showWinner,     setShowWinner]     = useState(false);
   const [winnerData,     setWinnerData]     = useState(null);
@@ -108,7 +106,7 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
-  const [spectatorCount, setSpectatorCount] = useState(0);
+  const [rematchFailed, setRematchFailed] = useState(null); // null or reason string
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
@@ -217,9 +215,6 @@ const Board = () => {
       }
       setWaitingCount(count - filled);
       setStatus(filled < count ? `⏳ Waiting for ${count - filled} more player(s)…` : getStatusFromState(gs));
-
-      // Set initial spectator count if provided
-      if (data.spectatorCount != null) setSpectatorCount(data.spectatorCount);
     };
 
     const onAllJoined = () => {
@@ -315,6 +310,12 @@ const Board = () => {
       setRematchCount({ count: data.count, total: data.total });
     };
 
+    const onRematchFailed = (data) => {
+      setRematchFailed(data.reason || 'Rematch failed');
+      setRematchRequested(false);
+      setRematchCount({ count: 0, total: 0 });
+    };
+
     const onRematchReady = (data) => {
       if (roleRef.current === 'spectator') return;
       const newGameId = data.newGameId;
@@ -337,34 +338,16 @@ const Board = () => {
       setError(`${data.username || 'A player'} forfeited due to disconnect.`);
     };
 
-    const onSpectatorCount = (data) => {
-      setSpectatorCount(data.count || 0);
-    };
-
-    const onSpectatorJoined = (data) => {
-      if (spectatorTimerRef.current) clearTimeout(spectatorTimerRef.current);
-      setSpectatorNotice(`${data.username || 'Someone'} joined as spectator`);
-      spectatorTimerRef.current = setTimeout(() => setSpectatorNotice(null), 3000);
-    };
-
-    const onSpectatorLeft = (data) => {
-      if (spectatorTimerRef.current) clearTimeout(spectatorTimerRef.current);
-      setSpectatorNotice(`${data.username || 'A spectator'} stopped watching`);
-      spectatorTimerRef.current = setTimeout(() => setSpectatorNotice(null), 3000);
-    };
-
     socket.on('game_started',       onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',        onGameUpdate);
     socket.on('error',              onError);
     socket.on('rematch_count',      onRematchCount);
+    socket.on('rematch_failed',     onRematchFailed);
     socket.on('rematch_ready',      onRematchReady);
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
-    socket.on('spectator_count',     onSpectatorCount);
-    socket.on('spectator_joined',    onSpectatorJoined);
-    socket.on('spectator_left',      onSpectatorLeft);
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -380,15 +363,12 @@ const Board = () => {
       socket.off('game_update',         onGameUpdate);
       socket.off('error',               onError);
       socket.off('rematch_count',       onRematchCount);
+      socket.off('rematch_failed',      onRematchFailed);
       socket.off('rematch_ready',       onRematchReady);
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
-      socket.off('spectator_count',     onSpectatorCount);
-      socket.off('spectator_joined',    onSpectatorJoined);
-      socket.off('spectator_left',      onSpectatorLeft);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
-      if (spectatorTimerRef.current) clearTimeout(spectatorTimerRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
 
@@ -479,10 +459,26 @@ const Board = () => {
   };
 
   // ── Rematch handlers ──────────────────────────────────────────────────────────
+  const isCPUGame = gameState?.hasCPU;
+
   const handlePlayAgain = () => {
     initAudio();
-    setRematchRequested(true);
-    socket.emit('request_rematch', { gameId, sessionToken });
+    if (isCPUGame) {
+      // CPU games: instant rematch, no voting UI
+      setRematchRequested(true);
+      setRematchFailed(null);
+      socket.emit('request_rematch', { gameId, sessionToken });
+      return;
+    }
+    if (rematchRequested) {
+      // Cancel the vote
+      setRematchRequested(false);
+      socket.emit('rematch_cancel', { gameId, sessionToken });
+    } else {
+      setRematchRequested(true);
+      setRematchFailed(null);
+      socket.emit('request_rematch', { gameId, sessionToken });
+    }
   };
 
   const handleLeaveGame = () => {
@@ -508,38 +504,6 @@ const Board = () => {
     }
     if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
-  };
-
-  // ── Share replay link handler ──────────────────────────────────────────────
-  const [replayShareStatus, setReplayShareStatus] = useState(null);
-  const replayShareTimeoutRef = useRef(null);
-
-  // Cleanup replay share timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (replayShareTimeoutRef.current) clearTimeout(replayShareTimeoutRef.current);
-    };
-  }, []);
-
-  const handleShareReplay = async () => {
-    const url = `${window.location.origin}/replay/${gameId}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'GridLock Replay', url });
-        setReplayShareStatus('shared');
-      } catch {
-        // user cancelled
-      }
-    } else if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(url);
-        setReplayShareStatus('copied');
-      } catch {
-        setReplayShareStatus(null);
-      }
-    }
-    if (replayShareTimeoutRef.current) clearTimeout(replayShareTimeoutRef.current);
-    replayShareTimeoutRef.current = setTimeout(() => setReplayShareStatus(null), 2000);
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
@@ -850,37 +814,44 @@ const Board = () => {
                 {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
               </button>
             )}
-            <button
-              onClick={handleShareReplay}
-              className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
-              style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--accent)' }}
-              aria-label="Share replay"
-            >
-              {replayShareStatus === 'copied' ? '✅ Copied!' : replayShareStatus === 'shared' ? '✅ Shared!' : '🎬 Replay'}
-            </button>
-            {!isSpectator && !tournamentId && (
+            {!isSpectator && !tournamentId && !rematchFailed && (
               <button
                 onClick={handlePlayAgain}
-                disabled={rematchRequested}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all ${
+                disabled={isCPUGame && rematchRequested}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
                   rematchRequested
-                    ? 'cursor-not-allowed'
+                    ? 'active:scale-95'
                     : 'active:scale-95 hover:shadow-lg'
                 }`}
                 style={{
                   background: rematchRequested
                     ? 'var(--bg-surface)'
                     : `linear-gradient(135deg, var(--accent), var(--accent-hover))`,
-                  ...(rematchRequested && { color: 'var(--text-muted)' }),
+                  color: rematchRequested ? 'var(--text-secondary)' : 'var(--text-on-accent)',
+                  border: rematchRequested ? '1px solid var(--border-color)' : 'none',
+                  opacity: (isCPUGame && rematchRequested) ? 0.6 : 1,
                 }}
               >
-                {rematchRequested ? (
-                  rematchCount.count >= rematchCount.total && rematchCount.total > 0
-                    ? <>🚀 Starting...</>
-                    : <>⏳ Waiting...</>
+                {isCPUGame ? (
+                  rematchRequested
+                    ? <>⏳ Starting rematch…</>
+                    : <>🔄 Rematch</>
+                ) : rematchRequested ? (
+                  rematchCount.total > 0
+                    ? <>⏳ Waiting ({rematchCount.count}/{rematchCount.total}) <span style={{ opacity: 0.7, fontWeight: 400, fontStyle: 'italic' }}>· Cancel</span></>
+                    : <>⏳ Waiting... <span style={{ opacity: 0.7, fontWeight: 400, fontStyle: 'italic' }}>· Cancel</span></>
                 ) : (
-                  <>🔄 Play Again</>
+                  <>🔄 Rematch{rematchCount.total > 0 ? ` (${rematchCount.count}/${rematchCount.total})` : ''}</>
                 )}
+              </button>
+            )}
+            {!isSpectator && !tournamentId && rematchFailed && (
+              <button
+                onClick={handleLeaveGame}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--warning)', border: '1px solid var(--border-color)' }}
+              >
+                🏠 Back to Lobby
               </button>
             )}
             {tournamentId && (
@@ -898,11 +869,16 @@ const Board = () => {
             </button>
           </div>
 
-          {/* Rematch counter */}
-          {rematchCount.count > 0 && (
+          {/* Rematch status messages */}
+          {rematchFailed && (
+            <div className="mt-3 text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+              {rematchFailed}
+            </div>
+          )}
+          {!isCPUGame && !rematchFailed && rematchCount.count > 0 && (
             <div className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <span className="font-semibold">
-                {rematchCount.count} / {rematchCount.total}
+                {rematchCount.count}/{rematchCount.total}
               </span> players ready for rematch
             </div>
           )}
@@ -955,18 +931,9 @@ const Board = () => {
             scores={gameState.scores || {}}
             gridSize={gridSize || 3}
             currentPlayer={gameState.currentPlayer}
-            spectatorCount={spectatorCount}
           />
         );
       })()}
-
-      {/* ── Spectator count badge (visible on game-over when ScoreBar is hidden) ── */}
-      {gameState && gameState.gameOver && spectatorCount > 0 && (
-        <div className="flex items-center justify-center gap-1 py-1 text-xs font-medium" style={{ color: 'var(--spectator-text)' }}>
-          <span>👀</span>
-          <span>{spectatorCount} watching</span>
-        </div>
-      )}
 
       {/* ── Main content area (pushes below fixed ScoreBar) ── */}
       <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
@@ -999,27 +966,9 @@ const Board = () => {
             )}
           </div>
 
-          {/* Spectator banner */}
-          {isSpectator && (
-            <div
-              className="flex items-center justify-center gap-2 mb-2 px-4 py-2 rounded-xl text-sm font-semibold spectator-banner"
-              style={{
-                backgroundColor: 'var(--spectator-bg)',
-                border: '1px solid var(--spectator-border)',
-                color: 'var(--spectator-text)',
-              }}
-            >
-              <span className="text-lg">👀</span>
-              <span>Spectating</span>
-              <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>— watching only</span>
-            </div>
-          )}
-
-          {/* Spectator count badge — rendered in ScoreBar only (avoid duplication) */}
-
           {/* You are */}
           <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
-            You are <span className="font-bold" style={{ color: isSpectator ? 'var(--spectator-text)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
+            You are <span className="font-bold" style={{ color: isSpectator ? 'var(--accent)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
             {gameState?.hasCPU && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>vs CPU</span>}
             {tournamentId && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>🏆 Tournament Match</span>}
           </p>
@@ -1049,7 +998,7 @@ const Board = () => {
               Share the room code: <strong>{gameId}</strong>
               <button
                 onClick={() => {
-                  const url = `${window.location.origin}/join/${gameId}`;
+                  const url = `https://gridlock.snapurl.in/join/${gameId}`;
                   navigator.clipboard?.writeText(url).then(() => {
                     setShowCopied(true);
                     setTimeout(() => setShowCopied(false), 2000);
@@ -1068,12 +1017,6 @@ const Board = () => {
           {error && (
             <div className="mt-2 rounded-lg px-4 py-2 text-xs" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
               ⚠️ {error}
-            </div>
-          )}
-
-          {spectatorNotice && (
-            <div className="mt-2 rounded-lg px-4 py-2 text-xs" style={{ backgroundColor: 'var(--spectator-bg)', border: '1px solid var(--spectator-border)', color: 'var(--spectator-text)' }}>
-              👀 {spectatorNotice}
             </div>
           )}
         </div>

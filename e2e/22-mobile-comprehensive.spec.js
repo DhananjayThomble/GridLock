@@ -132,13 +132,13 @@ test.describe('Mobile Comprehensive (375×667)', () => {
         await makeMove(current);
         await p1.waitForTimeout(300);
         const t = await p1.locator('body').innerText();
-        if (t.includes('Game Over') || t.includes('Play Again')) { gameOver = true; }
+        if (t.includes('Game Over') || t.includes('Rematch')) { gameOver = true; }
       }
 
       if (gameOver) {
         // Modal should be visible
         const body = await p1.locator('body').innerText();
-        expect(body).toMatch(/Game Over|Play Again|Winner/);
+        expect(body).toMatch(/Game Over|Rematch|Winner/);
 
         // Modal shouldn't overflow
         const scrollWidth = await p1.evaluate(() => document.documentElement.scrollWidth);

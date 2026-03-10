@@ -29,7 +29,7 @@ async function playCpuGameToCompletion(page, { username = 'StatsPlayer' } = {}) 
   // Play moves until game over — use aria-disabled="false" to target clickable lines
   for (let i = 0; i < 80; i++) {
     const body = await page.locator('body').innerText();
-    if (body.includes('Game Over') || body.includes('Play Again') || body.includes('Wins!') || body.includes('Draw')) {
+    if (body.includes('Game Over') || body.includes('Rematch') || body.includes('Wins!') || body.includes('Draw')) {
       break;
     }
 

@@ -14,9 +14,11 @@ const matchmaking = require('../services/matchmaking');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 60_000;
+const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 
 // Node-local timer handles only — state visibility is handled via disconnectStore (Redis)
 const localTimers = new Map(); // key: `${gameId}:${playerId}` -> { timer, socketId }
+const rematchTimers = new Map(); // key: gameId -> timeout handle
 
 const PLAYER_COLORS = {
     player1: '#3B82F6',
@@ -174,6 +176,82 @@ function findPlayerBySocket(game, socketId) {
         }
     }
     return null;
+}
+
+/**
+ * Count CPU players in a game.
+ */
+function countCPUPlayers(game) {
+    let count = 0;
+    for (let i = 1; i <= game.playerCount; i++) {
+        if (game.players[`player${i}`]?.isCPU) count++;
+    }
+    return count;
+}
+
+/**
+ * Check if a game is a tournament game.
+ */
+function isTournamentGame(game) {
+    return !!(game.metadata?.tournamentId);
+}
+
+/**
+ * Build rotated players map: shifts turn order by 1 position.
+ * player1 becomes player2's old player, etc.
+ */
+function buildRotatedPlayers(oldGame, newGameId) {
+    const count = oldGame.playerCount;
+    const rotated = {};
+    for (let i = 1; i <= count; i++) {
+        // Slot i gets the player from slot ((i - 2 + count) % count) + 1
+        const sourceSlot = `player${((i - 2 + count) % count) + 1}`;
+        const targetSlot = `player${i}`;
+        const oldPlayer = oldGame.players[sourceSlot];
+        if (oldPlayer) {
+            rotated[targetSlot] = {
+                id: oldPlayer.isCPU ? `cpu-${newGameId}-${i}` : oldPlayer.id,
+                username: oldPlayer.username,
+                avatar: oldPlayer.avatar,
+                color: PLAYER_COLORS[targetSlot],
+                token: oldPlayer.isCPU ? `cpu-token-${newGameId}-${i}` : oldPlayer.token,
+                disconnectedAt: null,
+                ...(oldPlayer.isCPU ? { isCPU: true } : {}),
+            };
+        }
+    }
+    return rotated;
+}
+
+/**
+ * Start the rematch timeout for a game. After REMATCH_TIMEOUT_MS,
+ * if not all players have voted, emit rematch_failed.
+ */
+function startRematchTimeout(io, log, gameId, game) {
+    // Clear any existing timer
+    if (rematchTimers.has(gameId)) {
+        clearTimeout(rematchTimers.get(gameId));
+    }
+
+    const timer = setTimeout(async () => {
+        rematchTimers.delete(gameId);
+        try {
+            const voteCount = await rematchStore.getVoteCount(gameId);
+            const cpuVotes = countCPUPlayers(game);
+            const totalVotes = voteCount + cpuVotes;
+            if (totalVotes < game.playerCount) {
+                io.to(gameId).emit('rematch_failed', {
+                    reason: 'Not everyone wants to rematch',
+                });
+                await rematchStore.clearVotes(gameId);
+                log.info('Rematch timeout — not unanimous', { gameId, votes: totalVotes, needed: game.playerCount });
+            }
+        } catch (err) {
+            log.error('Rematch timeout handler failed', { gameId, error: err.message });
+        }
+    }, REMATCH_TIMEOUT_MS);
+
+    rematchTimers.set(gameId, timer);
 }
 
 async function persistGame(game, status = null, metadata = null) {
@@ -519,6 +597,11 @@ function scheduleCPUMove(io, log, gameId, delay) {
                 io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
                 updateLeaderboard(game, newState.winner, log);
                 await handleTournamentGameCompletion(io, log, gameId, game, newState.winner);
+                // Defensive cleanup: clear any lingering rematch timer
+                if (rematchTimers.has(gameId)) {
+                    clearTimeout(rematchTimers.get(gameId));
+                    rematchTimers.delete(gameId);
+                }
                 setTimeout(async () => {
                     await gameStore.deleteGame(gameId);
                     await rematchStore.clearVotes(gameId);
@@ -954,6 +1037,11 @@ function attachSocketHandlers(io, log) {
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
                     await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
+                    // Defensive cleanup: clear any lingering rematch timer
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
@@ -1000,12 +1088,20 @@ function attachSocketHandlers(io, log) {
                 const game = await gameStore.getGame(cleanGameId);
                 if (!game) { socket.emit('error', 'Game not found'); return; }
 
+                // Block spectators
                 const requestingPlayerId = findPlayerBySocket(game, socket.id);
                 if (!requestingPlayerId) { socket.emit('error', 'Player not found in game'); return; }
+                if (socket.data?.isSpectator) { socket.emit('error', 'Spectators cannot request rematch'); return; }
 
                 const player = game.players[requestingPlayerId];
                 if (!player || player.token !== sessionToken) {
                     socket.emit('error', 'Unauthorized rematch request');
+                    return;
+                }
+
+                // Block tournament games
+                if (isTournamentGame(game)) {
+                    socket.emit('error', 'Rematch is not available in tournament games');
                     return;
                 }
 
@@ -1015,17 +1111,35 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
+                // Debounce: check if already voted
+                const alreadyVoted = await rematchStore.hasVoted(cleanGameId, requestingPlayerId);
+                if (alreadyVoted) { return; }
+
+                // Auto-decline disconnected players
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const pid = `player${i}`;
+                    const p = game.players[pid];
+                    if (p && !p.isCPU && p.disconnectedAt) {
+                        io.to(cleanGameId).emit('rematch_failed', {
+                            reason: `${p.username || 'A player'} has disconnected`,
+                        });
+                        await rematchStore.clearVotes(cleanGameId);
+                        return;
+                    }
+                }
+
                 // Add vote to shared Redis store — visible across ALL nodes
                 const { count: humanCount } = await rematchStore.addVote(cleanGameId, requestingPlayerId);
 
-                // Auto-count CPU players as having voted (they can't send request_rematch)
-                let cpuVotes = 0;
-                for (let i = 1; i <= game.playerCount; i++) {
-                    const pid = `player${i}`;
-                    if (game.players[pid]?.isCPU) cpuVotes++;
-                }
+                // Auto-count CPU players as having voted
+                const cpuVotes = countCPUPlayers(game);
                 const totalVotes = humanCount + cpuVotes;
                 io.to(cleanGameId).emit('rematch_count', { count: totalVotes, total: game.playerCount });
+
+                // Start rematch timeout on first vote
+                if (humanCount === 1 && !rematchTimers.has(cleanGameId)) {
+                    startRematchTimeout(io, log, cleanGameId, game);
+                }
 
                 // Push notification for rematch request to other players (fire-and-forget)
                 try {
@@ -1047,6 +1161,12 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (totalVotes >= game.playerCount) {
+                    // Clear the rematch timeout
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
+
                     const newGameId = await generateUniqueGameId();
                     if (!newGameId) { socket.emit('error', 'Failed to generate rematch game ID'); return; }
                     const initialState = initializeGameState(game.gridSize, game.playerCount);
@@ -1054,26 +1174,13 @@ function attachSocketHandlers(io, log) {
                         id: newGameId,
                         gridSize: game.gridSize,
                         playerCount: game.playerCount,
-                        players: {},
+                        players: buildRotatedPlayers(game, newGameId),
                         gameState: initialState,
                         createdAt: Date.now(),
                         metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
                         cpuDifficulty: game.cpuDifficulty || null,
                     };
-                    for (let i = 1; i <= game.playerCount; i++) {
-                        const pid = `player${i}`;
-                        const oldPlayer = game.players[pid];
-                        if (oldPlayer) {
-                            newGame.players[pid] = {
-                                id: oldPlayer.isCPU ? `cpu-${newGameId}-${i}` : oldPlayer.id,
-                                username: oldPlayer.username,
-                                avatar: oldPlayer.avatar, color: PLAYER_COLORS[pid],
-                                token: oldPlayer.isCPU ? `cpu-token-${newGameId}-${i}` : oldPlayer.token,
-                                disconnectedAt: null,
-                                ...(oldPlayer.isCPU ? { isCPU: true } : {}),
-                            };
-                        }
-                    }
+
                     await gameStore.setGame(newGameId, newGame);
                     await rematchStore.clearVotes(cleanGameId);
                     await persistGame(newGame, 'playing');
@@ -1090,6 +1197,51 @@ function attachSocketHandlers(io, log) {
             } catch (error) {
                 log.error('Error processing rematch request', { error: error.message, stack: error.stack });
                 socket.emit('error', 'Failed to process rematch request');
+            }
+        });
+
+        // ── rematch_cancel ─────────────────────────────────────────────────────
+        socket.on('rematch_cancel', async ({ gameId, sessionToken }) => {
+            try {
+                if (rateLimited('rematch_cancel')) return;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const game = await gameStore.getGame(cleanGameId);
+                if (!game) { socket.emit('error', 'Game not found'); return; }
+
+                const requestingPlayerId = findPlayerBySocket(game, socket.id);
+                if (!requestingPlayerId) { socket.emit('error', 'Player not found in game'); return; }
+
+                const player = game.players[requestingPlayerId];
+                if (!player || player.token !== sessionToken) {
+                    socket.emit('error', 'Unauthorized rematch cancel');
+                    return;
+                }
+
+                // Only allow cancel after game has finished
+                if (!game.gameState?.winner) {
+                    socket.emit('error', 'Rematch cancel only valid after game has finished');
+                    return;
+                }
+
+                const { count: humanCount, wasRemoved } = await rematchStore.removeVote(cleanGameId, requestingPlayerId);
+                if (!wasRemoved) return; // wasn't voted
+
+                const cpuVotes = countCPUPlayers(game);
+                const totalVotes = humanCount + cpuVotes;
+                io.to(cleanGameId).emit('rematch_count', { count: totalVotes, total: game.playerCount });
+
+                // If no human votes remain, clear the timeout
+                if (humanCount === 0 && rematchTimers.has(cleanGameId)) {
+                    clearTimeout(rematchTimers.get(cleanGameId));
+                    rematchTimers.delete(cleanGameId);
+                }
+            } catch (error) {
+                log.error('Error processing rematch cancel', { error: error.message, stack: error.stack });
+                socket.emit('error', 'Failed to cancel rematch request');
             }
         });
 
@@ -1414,9 +1566,20 @@ function attachSocketHandlers(io, log) {
                     reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
                 });
 
-                // If game already finished, just persist and skip forfeit flow
+                // If game already finished, handle rematch vote auto-decline then persist
                 if (game.gameState?.winner) {
+                    // Auto-decline: remove this player's rematch vote
+                    await rematchStore.removeVote(gameId, playerId);
+                    // Emit rematch_failed since a player disconnected
+                    io.to(gameId).emit('rematch_failed', {
+                        reason: `${player.username || 'A player'} disconnected`,
+                    });
                     await rematchStore.clearVotes(gameId);
+                    // Clear rematch timer
+                    if (rematchTimers.has(gameId)) {
+                        clearTimeout(rematchTimers.get(gameId));
+                        rematchTimers.delete(gameId);
+                    }
                     await gameStore.setGame(gameId, game);
                     persistGame(game, 'finished').catch((err) =>
                         log.error('Persist after disconnect failed', { gameId, error: err.message })
@@ -1477,6 +1640,11 @@ function attachSocketHandlers(io, log) {
                         await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
+                        // Defensive cleanup: clear any lingering rematch timer
+                        if (rematchTimers.has(gameId)) {
+                            clearTimeout(rematchTimers.get(gameId));
+                            rematchTimers.delete(gameId);
+                        }
                         setTimeout(async () => {
                             await gameStore.deleteGame(gameId);
                             await rematchStore.clearVotes(gameId);
