@@ -345,11 +345,10 @@ textarea::placeholder {
 
 /* ── Zoom controls (Issue #10: extracted from inline styles) ── */
 .zoom-controls {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
   display: flex;
+  justify-content: flex-end;
   gap: 4px;
+  padding: 0 4px 6px 0;
   z-index: 50;
 }
 
@@ -358,15 +357,16 @@ textarea::placeholder {
   background-color: var(--bg-surface);
   color: var(--text-primary);
   border-radius: 50%;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border-color);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 .zoom-btn:active {

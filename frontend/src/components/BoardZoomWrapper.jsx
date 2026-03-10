@@ -208,28 +208,8 @@ const BoardZoomWrapper = ({ children, enabled = true, resetKey = false }) => {
   if (!enabled) return <>{children}</>;
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        overflow: 'hidden',
-        touchAction: scale > 1 ? 'none' : 'pan-y',
-        position: 'relative',
-        maxWidth: 'fit-content',
-        margin: '0 auto',
-        display: 'flex',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        style={{
-          transform: `scale(${scale}) translate(${translate.x}px, ${translate.y}px)`,
-          transformOrigin: 'center center',
-          transition: isTouching ? 'none' : 'transform 0.15s ease-out',
-        }}
-      >
-        {children}
-      </div>
-      {/* Issue #10: Zoom controls — styles extracted to CSS classes in index.css */}
+    <div style={{ position: 'relative', maxWidth: 'fit-content', margin: '0 auto' }}>
+      {/* Zoom controls — positioned above the board, outside overflow container */}
       <div className="zoom-controls">
         <button
           onClick={zoomIn}
@@ -254,6 +234,24 @@ const BoardZoomWrapper = ({ children, enabled = true, resetKey = false }) => {
             ↺
           </button>
         )}
+      </div>
+      {/* Board container with zoom transform */}
+      <div
+        ref={containerRef}
+        style={{
+          overflow: 'hidden',
+          touchAction: scale > 1 ? 'none' : 'pan-y',
+        }}
+      >
+        <div
+          style={{
+            transform: `scale(${scale}) translate(${translate.x}px, ${translate.y}px)`,
+            transformOrigin: 'center center',
+            transition: isTouching ? 'none' : 'transform 0.15s ease-out',
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
