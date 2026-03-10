@@ -89,7 +89,7 @@ const TournamentLobby = () => {
   // Detect bracket overflow to conditionally show scroll affordance
   useEffect(() => {
     const wrapper = bracketRef.current;
-    if (!wrapper) { setBracketOverflows(false); return; }
+    if (!wrapper) return;
     // The actual scrolling container is the first child with overflow-x-auto
     const el = wrapper.querySelector('.overflow-x-auto') || wrapper;
     const check = () => {
@@ -97,11 +97,12 @@ const TournamentLobby = () => {
       const nearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 16;
       setBracketOverflows(overflows && !nearEnd);
     };
-    check();
+    // Defer initial check to avoid synchronous setState in effect body
+    const frame = requestAnimationFrame(check);
     const ro = new ResizeObserver(check);
     ro.observe(el);
     el.addEventListener('scroll', check, { passive: true });
-    return () => { ro.disconnect(); el.removeEventListener('scroll', check); };
+    return () => { cancelAnimationFrame(frame); ro.disconnect(); el.removeEventListener('scroll', check); };
   }, [tournament?.rounds]);
 
   useEffect(() => {

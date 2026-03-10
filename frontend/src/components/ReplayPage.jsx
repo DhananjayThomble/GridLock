@@ -1,7 +1,7 @@
 // src/components/ReplayPage.jsx
 // Animated game replay viewer with play/pause, speed control, and scrubber
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import useThemeColors from '../hooks/useThemeColors';
@@ -162,7 +162,9 @@ const ReplayPage = () => {
     const [moveIndex, setMoveIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speedIdx, setSpeedIdx] = useState(0);
-    const [showWinner, setShowWinner] = useState(false);
+    // Derive showWinner from moveIndex reaching the end
+    const isAtEnd = moveIndex >= totalMoves && totalMoves > 0;
+    const shouldShowWinner = isAtEnd && !!gameState?.winner;
 
     const confettiFired = useRef(false);
     const timerRef = useRef(null);
@@ -237,28 +239,19 @@ const ReplayPage = () => {
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [isPlaying, speedIdx, totalMoves, moveIndex]);
 
-    // Stop playing when reached end
+    // Winner celebration — confetti only (showWinner is now derived)
     useEffect(() => {
-        if (moveIndex >= totalMoves && totalMoves > 0) {
-            setIsPlaying(false);
-        }
-    }, [moveIndex, totalMoves]);
-
-    // Winner celebration
-    useEffect(() => {
-        if (gameState?.winner && moveIndex >= totalMoves && !confettiFired.current) {
+        if (shouldShowWinner && !confettiFired.current) {
             confettiFired.current = true;
-            setShowWinner(true);
             const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             if (!prefersReduced && gameState.winner !== 'draw') {
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             }
         }
-        if (moveIndex < totalMoves) {
+        if (!isAtEnd) {
             confettiFired.current = false;
-            setShowWinner(false);
         }
-    }, [gameState?.winner, moveIndex, totalMoves]);
+    }, [shouldShowWinner, isAtEnd, gameState?.winner]);
 
     // ── Share replay link ────────────────────────────────────────────────────
     const [shareStatus, setShareStatus] = useState(null);
@@ -540,7 +533,7 @@ const ReplayPage = () => {
                     <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
                         Move {moveIndex} / {totalMoves}
                     </span>
-                    {showWinner && replayData.winner && (
+                    {shouldShowWinner && replayData.winner && (
                         <span className="ml-2 text-sm font-bold" style={{ color: 'var(--winner-gold)' }}>
                             {replayData.winner === 'draw' ? '🤝 Draw!' : `🏆 ${replayData.players?.[replayData.winner]?.username || replayData.winner} wins!`}
                         </span>
@@ -566,7 +559,7 @@ const ReplayPage = () => {
                 <div className="flex items-center justify-center gap-3">
                     {/* Reset */}
                     <button
-                        onClick={() => { setMoveIndex(0); setIsPlaying(false); confettiFired.current = false; setShowWinner(false); }}
+                        onClick={() => { setMoveIndex(0); setIsPlaying(false); confettiFired.current = false; }}
                         className="px-3 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
                         style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
                         aria-label="Reset replay"
@@ -580,7 +573,6 @@ const ReplayPage = () => {
                             if (moveIndex >= totalMoves) {
                                 setMoveIndex(0);
                                 confettiFired.current = false;
-                                setShowWinner(false);
                             }
                             setIsPlaying(p => !p);
                         }}
