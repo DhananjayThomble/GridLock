@@ -61,7 +61,7 @@
 
   /* Board-specific */
   --dot-color:        #8b949e;
-  --line-empty:       #21262d;
+  --line-empty:       #3d444d;
   --progress-track:   #30363d;
 
   --text-on-accent:   #ffffff;
@@ -131,7 +131,7 @@
 
   /* Board-specific */
   --dot-color:        #57606a;
-  --line-empty:       #afb8c1;
+  --line-empty:       #b0b8c1;
   --progress-track:   #d0d7de;
 
   --text-on-accent:   #ffffff;
@@ -260,7 +260,7 @@ textarea::placeholder {
     margin-left: auto;
     margin-right: auto;
     /* Remove padding and border on mobile — maximize board space */
-    padding: 2px !important;
+    padding: 4px !important;
     border: none !important;
     border-radius: 0.75rem !important;
     box-shadow: none !important;
