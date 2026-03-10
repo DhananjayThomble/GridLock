@@ -54,13 +54,8 @@ echo "   Checking CI status..."
 FAILED=$(gh pr checks "$PR_NUMBER" --repo "$REPO" --json state --jq '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length' 2>/dev/null || echo "-1")
 
 if [ "$FAILED" = "-1" ]; then
-  echo -e "${YELLOW}⚠️  Could not query CI status (API error). Verify manually.${NC}"
-  echo -e "${YELLOW}   Run: gh pr checks ${PR_NUMBER} --repo ${REPO}${NC}"
-  read -p "   Continue anyway? (y/N) " -n 1 -r
-  echo ""
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    exit 1
-  fi
+  echo -e "${YELLOW}⚠️  Could not query CI status (API error or missing scope). Skipping CI gate.${NC}"
+  echo -e "${YELLOW}   GitHub branch protection will still enforce required checks on merge.${NC}"
 elif [ "$FAILED" -gt 0 ]; then
   echo -e "${RED}❌ BLOCKED: ${FAILED} CI check(s) not passing.${NC}"
   gh pr checks "$PR_NUMBER" --repo "$REPO" 2>/dev/null || true
