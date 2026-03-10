@@ -205,9 +205,37 @@ const initializeGameState = (gridSize, playerCount = 2) => {
     };
 };
 
+/**
+ * Pick the winner among remaining players by highest score.
+ * Returns 'draw' if no remaining players or if top scorers are tied.
+ * @param {Array<string>} remaining - Player IDs still in the game
+ * @param {Object} scores - {player1: N, player2: M, ...}
+ * @returns {string} Winner player ID or 'draw'
+ */
+const pickForfeitWinner = (remaining, scores = {}) => {
+    if (remaining.length === 0) return 'draw';
+    if (remaining.length === 1) return remaining[0];
+
+    // Find highest score among remaining
+    let maxScore = -1;
+    let winners = [];
+    for (const pid of remaining) {
+        const score = scores[pid] || 0;
+        if (score > maxScore) {
+            maxScore = score;
+            winners = [pid];
+        } else if (score === maxScore) {
+            winners.push(pid);
+        }
+    }
+
+    return winners.length === 1 ? winners[0] : 'draw';
+};
+
 module.exports = { 
     calculateNewState, 
     initializeGameState,
     getNextPlayer,
-    calculateWinner
+    calculateWinner,
+    pickForfeitWinner
 };

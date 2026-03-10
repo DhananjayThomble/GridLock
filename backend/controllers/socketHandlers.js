@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
-const { calculateNewState, initializeGameState } = require('../utils/gameLogic');
+const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter } = require('../middleware/rateLimiter');
 const gameStore = require('../stores/gameStore');
@@ -1613,14 +1613,16 @@ function attachSocketHandlers(io, log) {
                         const currentPlayer = currentGame.players[playerId];
                         if (!currentPlayer || !currentPlayer.disconnectedAt) return;
 
-                        // Forfeit: pick first still-connected player as winner
+                        // Forfeit: pick remaining player with highest score as winner
                         const remaining = [];
                         for (let i = 1; i <= currentGame.playerCount; i++) {
                             const pid = `player${i}`;
                             const p = currentGame.players[pid];
                             if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
                         }
-                        const winner = remaining.length > 0 ? remaining[0] : 'draw';
+
+                        const scores = currentGame.gameState?.scores || {};
+                        const winner = pickForfeitWinner(remaining, scores);
                         currentGame.gameState.winner = winner;
 
                         await gameStore.setGame(gameId, currentGame);
