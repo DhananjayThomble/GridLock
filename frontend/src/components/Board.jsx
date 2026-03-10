@@ -605,13 +605,6 @@ const Board = () => {
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
             touchAction: 'manipulation',
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
-            padding: '16px 0',
-            margin: '-16px 0',
-            backgroundClip: 'content-box',
-            boxSizing: 'border-box',
-            WebkitTapHighlightColor: isMyTurn ? `${currentPlayerColor}20` : 'transparent',
-            position: 'relative',
-            zIndex: isMyTurn ? 10 : 1,
           }}
         />
       </div>
@@ -648,13 +641,6 @@ const Board = () => {
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
             touchAction: 'manipulation',
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
-            padding: '0 16px',
-            margin: '0 -16px',
-            backgroundClip: 'content-box',
-            boxSizing: 'border-box',
-            WebkitTapHighlightColor: isMyTurn ? `${currentPlayerColor}20` : 'transparent',
-            position: 'relative',
-            zIndex: isMyTurn ? 10 : 1,
           }}
         />
       </div>
