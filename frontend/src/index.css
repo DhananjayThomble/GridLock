@@ -346,53 +346,6 @@ textarea::placeholder {
   }
 }
 
-/* ── Zoom controls (Issue #10: extracted from inline styles) ── */
-.zoom-controls {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 4px;
-  z-index: 50;
-  opacity: 0.7;
-}
-
-.zoom-controls:active {
-  opacity: 1;
-}
-
-/* Issue #3: 44×44px minimum touch targets (WCAG 2.5.8) */
-.zoom-btn {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border-color);
-  font-size: 0.9rem;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-}
-
-.zoom-btn:active {
-  opacity: 0.7;
-}
-
-.zoom-btn-reset {
-  font-size: 1rem;
-}
-
-/* Hide zoom controls on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  .zoom-controls {
-    display: none !important;
-  }
-}
-
 /* ScoreBar — compact on very small screens */
 @media (max-width: 360px) {
   .score-bar {
