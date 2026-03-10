@@ -12,7 +12,7 @@ import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../u
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 import PostGameStatsCard from './PostGameStatsCard';
-import BoardZoomWrapper from './BoardZoomWrapper';
+
 import { countLines } from '../utils/postGameUtils';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
@@ -149,17 +149,6 @@ const Board = () => {
   const joinMode = location.state?.joinMode || (role === 'spectator' ? 'spectator' : 'player');
   const isSpectator = role === 'spectator';
   const sizes = useGridSizes(gridSize);
-
-  // Issue #5: Only enable zoom on touch devices — avoid mounting handlers on desktop
-  const [isTouchDevice, setIsTouchDevice] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(hover: none) and (pointer: coarse)');
-    const handler = (e) => setIsTouchDevice(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   useEffect(() => {
     roleRef.current = role;
@@ -1046,7 +1035,6 @@ const Board = () => {
 
         {/* ── Board ── */}
         <div className="flex flex-1 items-center justify-center w-full">
-        <BoardZoomWrapper enabled={isTouchDevice} resetKey={showWinner}>
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -1055,8 +1043,7 @@ const Board = () => {
             padding: '8px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
-            touchAction: 'pan-y', // touch-action: pan-y restricts children to vertical pan only;
-            // custom pinch-to-zoom is handled by BoardZoomWrapper
+            touchAction: 'manipulation',
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
         >
@@ -1088,7 +1075,6 @@ const Board = () => {
             </div>
           ))}
         </div>
-        </BoardZoomWrapper>
         </div>
 
         {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
