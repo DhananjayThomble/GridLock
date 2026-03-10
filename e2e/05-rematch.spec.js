@@ -3,40 +3,7 @@
 // and Leave Game navigation fix.
 
 const { test, expect } = require('@playwright/test');
-const { goToLobby, createGame, joinGame, waitForGameStart, makeMove } = require('./helpers');
-
-/**
- * Play a game to completion. Returns true when winner modal detected.
- */
-async function playToCompletion(pages, maxMoves = 80) {
-  for (let i = 0; i < maxMoves; i++) {
-    let moved = false;
-    for (const page of pages) {
-      try {
-        const text = await page.locator('body').innerText().catch(() => '');
-        if (text.includes('Rematch') || text.includes('Game Over') || text.includes('Winner')) {
-          return true;
-        }
-        if (text.includes('Your turn')) {
-          const ok = await makeMove(page);
-          if (ok) { moved = true; break; }
-        }
-      } catch { continue; }
-    }
-    if (!moved) {
-      for (const page of pages) {
-        try { await page.waitForTimeout(300); break; } catch { continue; }
-      }
-    }
-  }
-  for (const page of pages) {
-    try {
-      const text = await page.locator('body').innerText().catch(() => '');
-      if (text.includes('Rematch')) return true;
-    } catch { continue; }
-  }
-  return false;
-}
+const { goToLobby, createGame, joinGame, waitForGameStart, makeMove, playToCompletion } = require('./helpers');
 
 /** Safe page.waitForTimeout — ignores closed-page errors */
 async function safeWait(page, ms) {

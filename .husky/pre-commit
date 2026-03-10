@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e
+cd frontend && npx eslint src/ --quiet
+cd ../backend && npm test --silent
