@@ -40,8 +40,8 @@ function useGridSizes(gridSize) {
       // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
       // More aggressive on mobile to let the board fill available space
       const reservedH = w < 640 ? 160 : w < 768 ? 220 : 260;
-      // Horizontal padding: tighter on mobile for more board space
-      const reservedW = w < 640 ? 16 : w < 768 ? 48 : 64;
+      // Horizontal padding: minimal on mobile for maximum board width
+      const reservedW = w < 640 ? 8 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -1051,7 +1051,7 @@ const Board = () => {
             boardPulse ? 'board-glow' : ''
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
-            padding: '12px',
+            padding: '8px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
             touchAction: 'pan-y', // touch-action: pan-y restricts children to vertical pan only;

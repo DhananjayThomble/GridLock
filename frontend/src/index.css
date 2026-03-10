@@ -256,11 +256,11 @@ textarea::placeholder {
 /* On mobile: board centers and fits within viewport width */
 @media (max-width: 640px) {
   .board-container {
-    max-width: calc(100vw - 1rem);
+    max-width: calc(100vw - 0.5rem);
     margin-left: auto;
     margin-right: auto;
-    /* Remove excessive padding on mobile */
-    padding: 8px !important;
+    /* Tighter padding on mobile for maximum board space */
+    padding: 6px !important;
   }
 
   /* Hide duplicate scoreboard cards on mobile — ScoreBar handles scoring */
