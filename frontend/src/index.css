@@ -2,6 +2,182 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme Variables ───────────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-primary:       #0d1117;
+  --bg-secondary:     #161b22;
+  --bg-tertiary:      #1c2128;
+  --bg-card:          rgba(255,255,255,0.04);
+  --bg-card-hover:    rgba(255,255,255,0.08);
+  --bg-surface:       #21262d;
+
+  --text-primary:     #e6edf3;
+  --text-secondary:   #8b949e;
+  --text-muted:       #848d97;
+  --text-subtle:      rgba(230,237,243,0.15);
+
+  --border-color:     rgba(240,246,252,0.1);
+  --border-color-strong: rgba(240,246,252,0.2);
+
+  --accent:           #58a6ff;
+  --accent-hover:     #79c0ff;
+  --accent-secondary: #79c0ff;
+  --label-color:      #8b949e;
+  --success:          #3fb950;
+  --danger:           #f85149;
+  --warning:          #d29922;
+
+  --gradient-from:    #0d1117;
+  --gradient-via:     #0d1b2a;
+  --gradient-to:      #0d1117;
+
+  --nav-bg:           rgba(13,17,23,0.9);
+  --input-bg:         #21262d;
+  --input-placeholder: rgba(230,237,243,0.3);
+
+  --shadow-color:     rgba(0,0,0,0.3);
+  --glow-accent:      rgba(88,166,255,0.15);
+
+  /* Player slot colors — consistent identity across all UI */
+  --player1-color:    #58a6ff;
+  --player2-color:    #f0883e;
+  --player3-color:    #3fb950;
+  --player4-color:    #bc8cff;
+  --player1-bg:       rgba(88,166,255,0.12);
+  --player2-bg:       rgba(240,136,62,0.12);
+  --player3-bg:       rgba(63,185,80,0.12);
+  --player4-bg:       rgba(188,140,255,0.12);
+
+  /* Winner highlight */
+  --winner-gold:      #FFD700;
+  --winner-bg:        rgba(255,215,0,0.10);
+  --winner-glow:      rgba(255,215,0,0.35);
+  --draw-bg:          rgba(192,192,192,0.10);
+
+  /* Danger button (Leave Game) — WCAG AA compliant */
+  --btn-danger-bg:    #da3633;
+  --btn-danger-text:  #ffffff;
+
+  /* Board-specific */
+  --dot-color:        #8b949e;
+  --line-empty:       #3d444d;
+  --progress-track:   #30363d;
+
+  --text-on-accent:   #ffffff;
+
+  --overlay-bg:       rgba(0, 0, 0, 0.6);
+
+  /* Spectator mode */
+  --spectator-text:   #8b949e;
+  --spectator-bg:     rgba(139, 148, 158, 0.12);
+  --spectator-border: rgba(139, 148, 158, 0.25);
+}
+
+[data-theme="light"] {
+  --bg-primary:       #ffffff;
+  --bg-secondary:     #f6f8fa;
+  --bg-tertiary:      #ffffff;
+  --bg-card:          rgba(0,0,0,0.03);
+  --bg-card-hover:    rgba(0,0,0,0.06);
+  --bg-surface:       #f0f3f6;
+
+  --text-primary:     #1f2328;
+  --text-secondary:   #656d76;
+  --text-muted:       #57606a;
+  --text-subtle:      rgba(31,35,40,0.15);
+
+  --border-color:     rgba(31,35,40,0.15);
+  --border-color-strong: rgba(31,35,40,0.25);
+
+  --accent:           #0969da;
+  --accent-hover:     #0550ae;
+  --accent-secondary: #0550ae;
+  --label-color:      #656d76;
+  --success:          #1a7f37;
+  --danger:           #cf222e;
+  --warning:          #9a6700;
+
+  --gradient-from:    #f6f8fa;
+  --gradient-via:     #edf4fc;
+  --gradient-to:      #f6f8fa;
+
+  --nav-bg:           rgba(255,255,255,0.9);
+  --input-bg:         #ffffff;
+  --input-placeholder: rgba(31,35,40,0.4);
+
+  --shadow-color:     rgba(31,35,40,0.12);
+  --glow-accent:      rgba(9,105,218,0.1);
+
+  /* Player slot colors — consistent identity across all UI */
+  --player1-color:    #0969da;
+  --player2-color:    #b45309;
+  --player3-color:    #1a7f37;
+  --player4-color:    #8250df;
+  --player1-bg:       rgba(9,105,218,0.15);
+  --player2-bg:       rgba(180,83,9,0.15);
+  --player3-bg:       rgba(26,127,55,0.15);
+  --player4-bg:       rgba(130,80,223,0.15);
+
+  /* Winner highlight */
+  --winner-gold:      #996515;
+  --winner-bg:        rgba(153,101,21,0.10);
+  --winner-glow:      rgba(153,101,21,0.30);
+  --draw-bg:          rgba(128,128,128,0.08);
+
+  /* Danger button (Leave Game) — WCAG AA compliant */
+  --btn-danger-bg:    #cf222e;
+  --btn-danger-text:  #ffffff;
+
+  /* Board-specific */
+  --dot-color:        #57606a;
+  --line-empty:       #b0b8c1;
+  --progress-track:   #d0d7de;
+
+  --text-on-accent:   #ffffff;
+
+  --overlay-bg:       rgba(0, 0, 0, 0.6);
+
+  /* Spectator mode */
+  --spectator-text:   #57606a;
+  --spectator-bg:     rgba(87, 96, 106, 0.10);
+  --spectator-border: rgba(87, 96, 106, 0.20);
+}
+
+/* ── Theme transition (only during toggle) ─────────────────────────────────── */
+[data-theme-transitioning] *,
+[data-theme-transitioning] *::before,
+[data-theme-transitioning] *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* ── Selection styling ─────────────────────────────────────────────────────── */
+::selection {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/* ── Global placeholder styling ────────────────────────────────────────────── */
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
+}
+
+/* ── Glassmorphism utility ─────────────────────────────────────────────────── */
+.glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border-color-strong);
+}
+
+/* ── Elevation system ──────────────────────────────────────────────────────── */
+.elevation-0 { background: var(--bg-primary); }
+.elevation-1 { background: var(--bg-secondary); }
+.elevation-2 { background: var(--bg-tertiary); }
+.elevation-3 { background: var(--bg-surface); }
+
 /* GridLock - Game Polish */
 
 /* Smooth color transitions for grid cells */
@@ -25,12 +201,46 @@
   animation: winner-pulse 1.5s ease-in-out infinite;
 }
 
+/* Post-game stats card fade-in */
+@keyframes stats-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.stats-card-fade-in {
+  animation: stats-fade-in 0.4s ease-out both;
+}
+
+/* ── Spectator banner pulse ────────────────────────────────────────────────── */
+@keyframes spectator-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+.spectator-banner {
+  animation: spectator-pulse 3s ease-in-out infinite;
+}
+
 /* ── Mobile & Responsive ───────────────────────────────────────────────────── */
 
 /* Prevent iOS Safari rubber-band scroll on the game board */
 .board-container {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  max-width: min(95vw, 100%);
+}
+
+/* Score bar player name — responsive width via CSS clamp */
+.score-bar-player-name {
+  max-width: clamp(60px, 15vw, 140px);
+  font-size: clamp(0.55rem, 2vw, 0.875rem);
+}
+
+/* Score bar progress bars — base heights */
+.score-progress-thin {
+  height: 0.5rem;
+}
+
+.score-progress-thick {
+  height: 1.25rem;
 }
 
 /* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
@@ -46,11 +256,14 @@
 /* On mobile: board centers and fits within viewport width */
 @media (max-width: 640px) {
   .board-container {
-    max-width: calc(100vw - 2rem);
+    max-width: 100vw;
     margin-left: auto;
     margin-right: auto;
-    /* Remove excessive padding on mobile */
-    padding: 8px !important;
+    /* Remove padding and border on mobile — maximize board space */
+    padding: 4px !important;
+    border: none !important;
+    border-radius: 0.75rem !important;
+    box-shadow: none !important;
   }
 
   /* Hide duplicate scoreboard cards on mobile — ScoreBar handles scoring */
@@ -65,16 +278,64 @@
   }
 }
 
+/* ── Responsive breakpoints — tablet (768px+) ─────────────────────────────── */
+@media (min-width: 768px) {
+  .board-container {
+    max-width: min(80vw, 600px);
+  }
+
+  .score-progress-thin {
+    height: 0.5rem;
+  }
+
+  .score-progress-thick {
+    height: 1.5rem;
+  }
+
+  .game-content {
+    padding-top: 96px;
+  }
+}
+
+/* ── Responsive breakpoints — desktop (1024px+) ──────────────────────────── */
+@media (min-width: 1024px) {
+  .board-container {
+    max-width: min(50vw, 620px);
+  }
+
+  .score-progress-thin {
+    height: 0.625rem;
+  }
+
+  .score-progress-thick {
+    height: 2rem;
+  }
+
+  .game-toolbar button,
+  .lobby-container button {
+    white-space: nowrap;
+  }
+
+  .game-content {
+    padding-top: 100px;
+  }
+}
+
 /* ── Board glow pulse for turn indicator ───────────────────────────────────── */
 @keyframes board-glow-pulse {
-  0% { box-shadow: 0 0 8px 2px rgba(var(--glow-rgb, 59,130,246), 0.5); }
-  50% { box-shadow: 0 0 20px 6px rgba(var(--glow-rgb, 59,130,246), 0.3); }
-  100% { box-shadow: 0 0 0 0 rgba(var(--glow-rgb, 59,130,246), 0); }
+  0% { box-shadow: 0 0 8px 2px rgba(var(--glow-rgb, 88,166,255), 0.5); }
+  50% { box-shadow: 0 0 20px 6px rgba(var(--glow-rgb, 88,166,255), 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--glow-rgb, 88,166,255), 0); }
 }
 
 .board-glow {
   animation: board-glow-pulse 1.2s ease-out;
   border-width: 2px;
+}
+
+/* ── Glow effect for interactive elements in dark mode ─────────────────────── */
+[data-theme="dark"] .hover-glow:hover {
+  box-shadow: 0 0 15px var(--glow-accent);
 }
 
 /* Keep touch targets stable on coarse pointers (avoid overlap between adjacent lines). */
@@ -114,3 +375,221 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* ── Touch input: eliminate 300ms tap delay on interactive elements ─────────── */
+[role="button"],
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* ── Board line glow on hover ──────────────────────────────────────────────── */
+.line-hover-glow {
+  transition: background-color 0.15s, box-shadow 0.2s;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── color-mix() fallbacks ─────────────────────────────────────────────────── */
+.bg-muted-15 {
+  background-color: #e5e7eb;
+}
+.bg-warning-15 {
+  background-color: #fef3c7;
+}
+.bg-warning-12 {
+  background-color: #fef9c3;
+}
+/* Dark-theme fallbacks for browsers without color-mix() support */
+[data-theme="dark"] .bg-muted-15 {
+  background-color: #1f242b;
+}
+[data-theme="dark"] .bg-warning-15 {
+  background-color: #2a2519;
+}
+[data-theme="dark"] .bg-warning-12 {
+  background-color: #242118;
+}
+.border-warning-40 {
+  border-color: var(--warning);
+}
+.border-warning-60 {
+  border-color: var(--warning);
+}
+.border-success-40 {
+  border-color: var(--success);
+}
+@supports (background-color: color-mix(in srgb, red 50%, blue)) {
+  .bg-muted-15 {
+    background-color: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  }
+  .bg-warning-15 {
+    background-color: color-mix(in srgb, var(--warning) 15%, transparent);
+  }
+  .bg-warning-12 {
+    background-color: color-mix(in srgb, var(--warning) 12%, transparent);
+  }
+  .border-warning-40 {
+    border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+  }
+  .border-warning-60 {
+    border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+  }
+  .border-success-40 {
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  }
+}
+
+/* ── Leaderboard responsive table ──────────────────────────────────────────── */
+
+.leaderboard-scroll-wrapper {
+  overflow-x: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Right-edge fade to hint at scrollable content on mobile */
+@media (max-width: 767px) {
+  .leaderboard-scroll-wrapper::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, transparent, var(--bg-primary));
+    pointer-events: none;
+  }
+}
+
+/* Hide "Last Played" column on mobile */
+@media (max-width: 767px) {
+  .leaderboard-last-played {
+    display: none;
+  }
+}
+
+/* ── Lobby "Playing as" ellipsis ───────────────────────────────────────────── */
+.lobby-playing-as {
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.lobby-playing-as .lobby-username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Hover States for Desktop (#107) */
+button, [role="button"], a { cursor: pointer; }
+
+/* Base transitions (apply on both hover-in AND hover-out) */
+button:not(:disabled) {
+  transition: opacity 180ms ease, background-color 180ms ease, transform 120ms ease;
+}
+[role="button"]:not([aria-disabled="true"]) {
+  transition: opacity 150ms ease, transform 120ms ease;
+}
+
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  [role="button"]:not([aria-disabled="true"]):hover {
+    opacity: 0.7;
+  }
+  button:focus-visible, [role="button"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ── Grid edge lines ── */
+  .line-hover-glow[role="button"]:not([aria-disabled="true"]):hover {
+    opacity: 0.9;
+    filter: brightness(1.3);
+    transform: scaleY(1.4);
+  }
+  .line-hover-glow[role="button"][aria-label^="Vertical"]:not([aria-disabled="true"]):hover {
+    transform: scaleX(1.4);
+  }
+
+  /* ── Option selector cards (player count, grid size, difficulty) ──
+     !important needed: React inline styles set background/border/color
+     for selected vs unselected state; CSS hover must override inline. */
+  .lobby-option-card:hover {
+    border-color: var(--accent) !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+    transform: translateY(-1px);
+  }
+
+  /* ── Tab navigation ──
+     !important needed: inline styles set background/color per active tab. */
+  .lobby-tab:hover {
+    background: var(--bg-card-hover) !important;
+    color: var(--text-primary) !important;
+  }
+
+  /* ── Room code button ──
+     !important needed: inline styles set background/border on this element. */
+  .room-code-btn:hover {
+    background: var(--bg-card-hover) !important;
+    border-color: var(--accent) !important;
+    transform: scale(1.03);
+  }
+
+  /* ── Mute button ──
+     !important needed: inline styles set background on this element. */
+  .mute-btn:hover {
+    background: var(--bg-card-hover) !important;
+    transform: scale(1.05);
+  }
+
+  /* ── Post-game buttons ── */
+  .postgame-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px var(--shadow-color);
+  }
+}
+
+/* ── Active (press) states ── */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.97);
+}
+
+/* Active Player Highlight (#111) */
+.score-bar-active-player {
+  background-color: color-mix(in srgb, var(--active-player-color, var(--accent)) 12%, transparent);
+  border-radius: 0.5rem;
+  padding: 2px 4px;
+  transition: background-color 200ms ease;
+}
+@media (min-width: 768px) {
+  .board-container.board-glow-active {
+    box-shadow: 0 0 20px var(--accent);
+    transition: box-shadow 300ms ease;
+  }
+}
+
+@keyframes winner-bounce {
+  0% { transform: scale(1); }
+  20% { transform: scale(1.25); }
+  40% { transform: scale(0.95); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1.05); }
+}
+.winner-avatar-bounce { animation: winner-bounce 0.8s ease-out forwards; }

@@ -47,6 +47,7 @@ coverage/
 # Playwright
 playwright-report/
 test-results/
+e2e/screenshots/
 
 # Temp scripts
 manual-playtest.cjs

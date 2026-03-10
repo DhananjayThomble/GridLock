@@ -10,16 +10,24 @@ const GameController = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center p-8 bg-white shadow-xl rounded-lg">
-            <h1 className="text-4xl font-bold mb-8 text-gray-800">GridLock</h1>
+        <div
+            className="flex flex-col items-center justify-center p-8 shadow-xl rounded-lg"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+        >
+            <h1 className="text-4xl font-bold mb-8" style={{ color: 'var(--text-primary)' }}>GridLock</h1>
             
             <div className="mb-6 flex items-center space-x-4">
-                <label htmlFor="gridSize" className="text-lg font-medium text-gray-700">Grid Size:</label>
+                <label htmlFor="gridSize" className="text-lg font-medium" style={{ color: 'var(--text-secondary)' }}>Grid Size:</label>
                 <select 
                     id="gridSize" 
                     onChange={(e) => handleGridSizeChange(parseInt(e.target.value))} 
                     value={gridSize}
-                    className="border border-gray-300 rounded px-3 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded px-3 py-1 focus:outline-none focus:ring-2"
+                    style={{
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)',
+                    }}
                 >
                     <option value={3}>3x3</option>
                     <option value={4}>4x4</option>
@@ -31,7 +39,7 @@ const GameController = () => {
 
             <Board rows={gridSize} cols={gridSize} />
             
-            <div className="mt-8 text-sm text-gray-500">
+            <div className="mt-8 text-sm" style={{ color: 'var(--text-muted)' }}>
                 <p>Click on lines to connect dots. Complete a box to score!</p>
             </div>
         </div>

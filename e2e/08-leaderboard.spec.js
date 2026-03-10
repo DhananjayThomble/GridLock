@@ -1,15 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { BASE_URL } = require('./helpers');
-
-// API base resolution strategy:
-// 1) Explicit TEST_API_URL wins
-// 2) In CI, default backend is 5000 (see .github/workflows/ci.yml)
-// 3) Local e2e helper script backend is 5105
-const getApiBase = () => {
-  if (process.env.TEST_API_URL) return process.env.TEST_API_URL;
-  if (process.env.CI) return 'http://127.0.0.1:5000';
-  return 'http://127.0.0.1:5105';
-};
+const { BASE_URL, getApiBase } = require('./helpers');
 
 test.describe('Leaderboard API + accessibility smoke', () => {
   test('leaderboard endpoint returns JSON payload', async ({ request }) => {

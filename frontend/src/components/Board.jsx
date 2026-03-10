@@ -5,70 +5,68 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
+import confetti from 'canvas-confetti';
 import { recordGame } from '../utils/sessionStats';
 import ScoreBar from './ScoreBar';
-import { initAudio, toggleMute, isMuted, sounds } from '../utils/sounds';
+import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
+import useThemeColors from '../hooks/useThemeColors';
+import PostGameStatsCard from './PostGameStatsCard';
 
-// ─── Turn toast component ─────────────────────────────────────────────────────
-const TurnToast = ({ visible, color }) => (
-  <div
-    className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none ${
-      visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-4 scale-90'
-    }`}
-  >
-    <div
-      className="px-5 py-2.5 rounded-full font-extrabold text-white text-sm shadow-lg"
-      style={{ background: color || '#10B981' }}
-    >
-      ⚡ YOUR TURN!
-    </div>
-  </div>
-);
+import { countLines } from '../utils/postGameUtils';
 
-// ─── Player config ────────────────────────────────────────────────────────────
+// ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
-  player1: { color: '#3B82F6', bg: 'bg-blue-500',   light: 'bg-blue-100',   border: 'border-blue-500',   text: 'text-blue-600',   label: 'P1' },
-  player2: { color: '#EF4444', bg: 'bg-red-500',    light: 'bg-red-100',    border: 'border-red-500',    text: 'text-red-600',    label: 'P2' },
-  player3: { color: '#10B981', bg: 'bg-emerald-500', light: 'bg-emerald-100', border: 'border-emerald-500', text: 'text-emerald-600', label: 'P3' },
-  player4: { color: '#A855F7', bg: 'bg-purple-500',  light: 'bg-purple-100',  border: 'border-purple-500',  text: 'text-purple-600',  label: 'P4' },
+  player1: { colorVar: '--player1-color', bgVar: '--player1-bg', label: 'P1' },
+  player2: { colorVar: '--player2-color', bgVar: '--player2-bg', label: 'P2' },
+  player3: { colorVar: '--player3-color', bgVar: '--player3-bg', label: 'P3' },
+  player4: { colorVar: '--player4-color', bgVar: '--player4-bg', label: 'P4' },
 };
 
 const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1;
 
+// Helper to get computed CSS variable value at runtime (cached via useThemeColors hook)
+// getCSSVar kept as thin wrapper for inline usage — actual caching happens in the hook
+
 // ─── Responsive sizing hook ───────────────────────────────────────────────────
 function useGridSizes(gridSize) {
-  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48 });
+  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
 
   useEffect(() => {
     function calculate() {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      // Reserve space for ScoreBar + header + toolbar
-      const reservedH = w < 640 ? 220 : 280;
-      // Horizontal padding: board-container padding (8px mobile) + outer margin
-      const reservedW = w < 640 ? 40 : 64;
+      // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
+      // More aggressive on mobile to let the board fill available space
+      // But keep some breathing room so it doesn't feel crammed
+      const reservedH = w < 640 ? 180 : w < 768 ? 220 : 260;
+      // Horizontal padding: minimal on mobile (board goes nearly edge-to-edge)
+      const reservedW = w < 640 ? 4 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
       const cells = gridSize || 3;
 
       // Total grid units: (cells+1) dots + cells lines/boxes per axis
-      // Each dot ≈ 0.18 * box, so effective unit ≈ box + 0.18*box = 1.18*box
-      // Simpler: treat as (cells * 2 + 1) uniform units
       const units = cells * 2 + 1;
 
       const fromW = Math.floor(availW / units);
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Clamp: minimum 20px so it's tappable, max 80px for desktop
-      const maxBox = w < 640 ? 72 : 80;
-      box = Math.max(20, Math.min(box, maxBox));
+      // Minimum 24px so it's tappable; cap per breakpoint to prevent oversized cells
+      const maxBox = w < 640 ? 100 : w < 1024 ? 110 : 120;
+      box = Math.max(24, Math.min(box, maxBox));
 
-      const dot = Math.max(6, Math.round(box * 0.18));
-      setSizes({ dot, line: box, box });
+      // Dot size: minimum 10px on mobile for better tap targets (was 6)
+      const minDot = w < 640 ? 10 : 8;
+      const dot = Math.max(minDot, Math.round(box * 0.22));
+
+      // Line thickness: proportional to box size, minimum 8px
+      const lineThickness = Math.max(8, Math.round(box * 0.12));
+
+      setSizes({ dot, line: box, box, lineThickness });
     }
     calculate();
     window.addEventListener('resize', calculate);
@@ -82,6 +80,8 @@ function useGridSizes(gridSize) {
 const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
+  const themeColors = useThemeColors();
+  const getCSSVar = (varName) => themeColors[varName] || '';
   const {
     username,
     role: initialRole,
@@ -113,13 +113,19 @@ const Board = () => {
   const [muted,          setMuted]          = useState(() => isMuted());
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
+  const [rematchFailed, setRematchFailed] = useState(null); // null or reason string
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
 
+  // ── Post-game stats tracking ──────────────────────────────────────────────────
+  const [moveCount, setMoveCount] = useState({});
+  const [gameDuration, setGameDuration] = useState(null);
+  const prevLineCountRef = useRef(0);
+  const gameStartTimeRef = useRef(null);
+
   // ── Turn indicator state ──────────────────────────────────────────────────────
-  const [showTurnToast, setShowTurnToast] = useState(false);
   const [boardPulse, setBoardPulse] = useState(false);
   const prevPlayerRef = useRef(null);
 
@@ -129,6 +135,7 @@ const Board = () => {
   const prevScoresRef = useRef(null);
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
+  const confettiFiredRef = useRef(false);
   const gameStarted      = useRef(false);
   // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
@@ -159,24 +166,19 @@ const Board = () => {
       // Haptic feedback (vibrate API requires recent user interaction on some devices;
       // this fires during gameplay so the page is already "user-activated")
       try {
-        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+        if (isVibrationEnabled() && 'vibrate' in navigator) navigator.vibrate([100, 50, 100]);
       } catch { /* some browsers throw on vibrate */ }
 
       // Ensure AudioContext is resumed before playing turn sound
       initAudio();
       sounds.turnNotify();
 
-      // Show "YOUR TURN" toast + board glow pulse (deferred to avoid sync setState in effect)
-      const toastTimer = setTimeout(() => {
-        setShowTurnToast(true);
-        setBoardPulse(true);
-      }, 0);
-      const hideToastTimer = setTimeout(() => setShowTurnToast(false), 1500);
+      // Board glow pulse (deferred to avoid sync setState in effect)
+      const pulseTimer = setTimeout(() => setBoardPulse(true), 0);
       const hidePulseTimer = setTimeout(() => setBoardPulse(false), 1200);
 
       return () => {
-        clearTimeout(toastTimer);
-        clearTimeout(hideToastTimer);
+        clearTimeout(pulseTimer);
         clearTimeout(hidePulseTimer);
       };
     }
@@ -245,12 +247,31 @@ const Board = () => {
         });
       }
 
+      // ── Track moves per player & game start time ────────────────────────────
+      const currentLineCount = countLines(gs);
+      if (currentLineCount > prevLineCountRef.current) {
+        const lineOwners = {};
+        if (gs.horizontalLines) gs.horizontalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
+        if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
+        setMoveCount(lineOwners);
+        if (prevLineCountRef.current === 0 && currentLineCount > 0) {
+          // Only set game start if this is truly the first move (1 line).
+          // If currentLineCount > 1 on first update, we reconnected mid-game —
+          // leave gameStartTimeRef null so duration shows "—" instead of wrong values.
+          if (currentLineCount === 1) {
+            gameStartTimeRef.current = Date.now();
+          }
+        }
+      }
+      prevLineCountRef.current = currentLineCount;
+
       setGameState(gs);
       prevScoresRef.current = gs?.scores || null;
 
       setWaitingCount(0);
 
       if (gs.gameOver || gs.winner) {
+        setGameDuration(prev => prev || (gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null));
         const winner = gs.winner;
 
         // Record session stats exactly once (guard against reconnect re-fires)
@@ -258,7 +279,7 @@ const Board = () => {
           gameOverRecorded.current = true;
           const myScore = gs.scores?.[role] || 0;
           const totalBoxes = (gridSize || 3) * (gridSize || 3);
-          const territoryPct = Math.round((myScore / totalBoxes) * 100);
+          const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
           // Win/lose sound
@@ -274,7 +295,7 @@ const Board = () => {
             isDraw:   false,
             name:     gs[`${winner}Name`]   || winner,
             avatar:   gs[`${winner}Avatar`] || '🏆',
-            color:    cfg.color,
+            colorVar: cfg.colorVar,
             scores:   gs.scores,
             playerCount: gs.playerCount || 2,
             winner,
@@ -294,6 +315,12 @@ const Board = () => {
 
     const onRematchCount = (data) => {
       setRematchCount({ count: data.count, total: data.total });
+    };
+
+    const onRematchFailed = (data) => {
+      setRematchFailed(data.reason || 'Rematch failed');
+      setRematchRequested(false);
+      setRematchCount({ count: 0, total: 0 });
     };
 
     const onRematchReady = (data) => {
@@ -323,6 +350,7 @@ const Board = () => {
     socket.on('game_update',        onGameUpdate);
     socket.on('error',              onError);
     socket.on('rematch_count',      onRematchCount);
+    socket.on('rematch_failed',     onRematchFailed);
     socket.on('rematch_ready',      onRematchReady);
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected',  onPlayerReconnected);
@@ -342,6 +370,7 @@ const Board = () => {
       socket.off('game_update',         onGameUpdate);
       socket.off('error',               onError);
       socket.off('rematch_count',       onRematchCount);
+      socket.off('rematch_failed',      onRematchFailed);
       socket.off('rematch_ready',       onRematchReady);
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
@@ -407,11 +436,24 @@ const Board = () => {
     tournamentNavRef.current = false;
   }, [gameId]);
 
+  // ── Winner confetti ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (winnerData && !winnerData.isDraw && !confettiFiredRef.current && !prefersReducedMotion) {
+      confettiFiredRef.current = true;
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    }
+    if (!winnerData) {
+      confettiFiredRef.current = false;
+    }
+  }, [winnerData]);
+
   // ── Move handler ──────────────────────────────────────────────────────────────
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
+    sounds.linePlaced();
   }, [gameState, role, gameId, sessionToken, isSpectator]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
@@ -424,10 +466,26 @@ const Board = () => {
   };
 
   // ── Rematch handlers ──────────────────────────────────────────────────────────
+  const isCPUGame = gameState?.hasCPU;
+
   const handlePlayAgain = () => {
     initAudio();
-    setRematchRequested(true);
-    socket.emit('request_rematch', { gameId, sessionToken });
+    if (isCPUGame) {
+      // CPU games: instant rematch, no voting UI
+      setRematchRequested(true);
+      setRematchFailed(null);
+      socket.emit('request_rematch', { gameId, sessionToken });
+      return;
+    }
+    if (rematchRequested) {
+      // Cancel the vote
+      setRematchRequested(false);
+      socket.emit('rematch_cancel', { gameId, sessionToken });
+    } else {
+      setRematchRequested(true);
+      setRematchFailed(null);
+      socket.emit('request_rematch', { gameId, sessionToken });
+    }
   };
 
   const handleLeaveGame = () => {
@@ -456,9 +514,10 @@ const Board = () => {
   };
 
   // ── Render helpers ────────────────────────────────────────────────────────────
-  const getLineColor = (owner) => {
-    if (!owner) return null;
-    return getConfig(owner).color;
+  const getPlayerColor = (playerId) => {
+    if (!playerId) return null;
+    const cfg = getConfig(playerId);
+    return getCSSVar(cfg.colorVar);
   };
 
   const renderDot = (key) => (
@@ -468,8 +527,8 @@ const Board = () => {
       className="flex items-center justify-center z-10"
     >
       <div
-        className="rounded-full bg-gray-800 shadow"
-        style={{ width: sizes.dot - 2, height: sizes.dot - 2 }}
+        className="rounded-full shadow-sm"
+        style={{ width: sizes.dot - 2, height: sizes.dot - 2, backgroundColor: 'var(--dot-color)' }}
       />
     </div>
   );
@@ -514,31 +573,34 @@ const Board = () => {
   const renderHLine = (r, c) => {
     const owner = gameState.horizontalLines[r]?.[c];
     const isMyTurn = !isSpectator && gameState.currentPlayer === role && !owner;
-    const lineColor = getLineColor(owner);
+    const lineColor = owner ? getPlayerColor(owner) : null;
+    const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const touchHandlers = makeTouchHandler('horizontal', r, c);
 
     return (
       <div
         key={`h-${r}-${c}`}
-        style={{ width: sizes.line, height: sizes.dot, flexShrink: 0 }}
-        className="flex items-center px-0.5"
+        onClick={() => handleLineClick('horizontal', r, c)}
+        onTouchStart={touchHandlers.onTouchStart}
+        onTouchEnd={touchHandlers.onTouchEnd}
+        role="button"
+        aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
+        aria-disabled={!isMyTurn}
+        tabIndex={isMyTurn ? 0 : -1}
+        onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
+        style={{ width: sizes.line, height: sizes.dot, flexShrink: 0, touchAction: 'manipulation' }}
+        className={`flex items-center justify-center ${
+          owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
+        }`}
       >
         <div
-          onClick={() => handleLineClick('horizontal', r, c)}
-          onTouchStart={touchHandlers.onTouchStart}
-          onTouchEnd={touchHandlers.onTouchEnd}
-          role="button"
-          aria-label={`Horizontal line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn}
-          tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
-          className={`h-2 w-full rounded transition-all duration-150 ${
-            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
-          }`}
+          className="w-full rounded"
           style={{
-            backgroundColor: lineColor || '#E5E7EB',
-            opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'manipulation',
+            height: sizes.lineThickness,
+            backgroundColor: lineColor || 'var(--line-empty)',
+            opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
+            boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            transition: 'opacity 0.15s, background-color 0.15s',
           }}
         />
       </div>
@@ -548,31 +610,34 @@ const Board = () => {
   const renderVLine = (r, c) => {
     const owner = gameState.verticalLines[r]?.[c];
     const isMyTurn = !isSpectator && gameState.currentPlayer === role && !owner;
-    const lineColor = getLineColor(owner);
+    const lineColor = owner ? getPlayerColor(owner) : null;
+    const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const touchHandlers = makeTouchHandler('vertical', r, c);
 
     return (
       <div
         key={`v-${r}-${c}`}
-        style={{ width: sizes.dot, height: sizes.line, flexShrink: 0 }}
-        className="flex justify-center py-0.5"
+        onClick={() => handleLineClick('vertical', r, c)}
+        onTouchStart={touchHandlers.onTouchStart}
+        onTouchEnd={touchHandlers.onTouchEnd}
+        role="button"
+        aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
+        aria-disabled={!isMyTurn}
+        tabIndex={isMyTurn ? 0 : -1}
+        onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
+        style={{ width: sizes.dot, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
+        className={`flex items-center justify-center ${
+          owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
+        }`}
       >
         <div
-          onClick={() => handleLineClick('vertical', r, c)}
-          onTouchStart={touchHandlers.onTouchStart}
-          onTouchEnd={touchHandlers.onTouchEnd}
-          role="button"
-          aria-label={`Vertical line row ${r} col ${c}${owner ? ' (taken)' : ''}`}
-          aria-disabled={!isMyTurn}
-          tabIndex={isMyTurn ? 0 : -1}
-          onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
-          className={`w-2 h-full rounded transition-all duration-150 ${
-            owner ? '' : isMyTurn ? 'cursor-pointer hover:opacity-80 active:opacity-60' : 'cursor-default'
-          }`}
+          className="h-full rounded"
           style={{
-            backgroundColor: lineColor || '#E5E7EB',
-            opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
-            touchAction: 'manipulation',
+            width: sizes.lineThickness,
+            backgroundColor: lineColor || 'var(--line-empty)',
+            opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
+            boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            transition: 'opacity 0.15s, background-color 0.15s',
           }}
         />
       </div>
@@ -591,9 +656,8 @@ const Board = () => {
         className="flex items-center justify-center"
       >
         <div
-          className={`w-full h-full flex items-center justify-center rounded transition-all duration-300 ${
-            cfg ? cfg.light : ''
-          }`}
+          className="w-full h-full flex items-center justify-center rounded transition-all duration-300"
+          style={cfg ? { backgroundColor: `var(${cfg.bgVar})` } : undefined}
         >
           {ownerAvatar && (
             <span style={{ fontSize: Math.max(sizes.box * 0.38, 12) }}>
@@ -619,6 +683,7 @@ const Board = () => {
       }`}>
         {ids.map((pid) => {
           const cfg       = getConfig(pid);
+          const playerColor = getCSSVar(cfg.colorVar);
           const name      = gameState[`${pid}Name`]   || `Player ${pid.slice(6)}`;
           const av        = gameState[`${pid}Avatar`] || '👤';
           const score     = gameState.scores?.[pid]   ?? 0;
@@ -631,25 +696,27 @@ const Board = () => {
             <div
               key={pid}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-300 ${
-                isCurrent
-                  ? `${cfg.light} ${cfg.border} scale-110 shadow-lg ring-2 ring-offset-1`
-                  : 'bg-white border-gray-200'
-              } ${waiting ? 'opacity-50' : ''}`}
-              style={isCurrent ? { ringColor: cfg.color, '--tw-ring-color': cfg.color } : undefined}
+                waiting ? 'opacity-50' : ''
+              }`}
+              style={{
+                backgroundColor: isCurrent ? `var(${cfg.bgVar})` : 'var(--bg-secondary)',
+                borderColor: isCurrent ? playerColor : 'var(--border-color)',
+                ...(isCurrent ? { boxShadow: `0 0 12px ${playerColor}30`, transform: 'scale(1.1)' } : {}),
+              }}
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
               <div className="min-w-0 flex-1">
-                <div className={`font-bold text-xs truncate ${isCurrent ? cfg.text : 'text-gray-700'}`}>
+                <div className="font-bold truncate" style={{ color: isCurrent ? playerColor : 'var(--text-primary)', fontSize: count >= 4 ? 'clamp(0.55rem, 2vw, 0.875rem)' : '0.75rem' }}>
                   {waiting ? `P${pid.slice(6)} waiting…` : name}
                   {isCPU && <span className="ml-1">🤖</span>}
-                  {isMe && <span className="ml-1 text-gray-400">(you)</span>}
+                  {isMe && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(you)</span>}
                 </div>
-                <div className="text-lg font-extrabold leading-none" style={{ color: cfg.color }}>
+                <div className="text-lg font-extrabold leading-none" style={{ color: playerColor }}>
                   {score}
                 </div>
               </div>
               {isCurrent && !waiting && (
-                <span className="text-sm font-bold animate-pulse" style={{ color: cfg.color }}>▶</span>
+                <span className="text-sm font-bold animate-pulse" style={{ color: playerColor }}>▶</span>
               )}
             </div>
           );
@@ -663,112 +730,168 @@ const Board = () => {
     if (!showWinner || !winnerData) return null;
     const count = winnerData.playerCount || 2;
     const ids   = Array.from({ length: count }, (_, i) => `player${i + 1}`);
+    // Pre-compute max score for draw highlighting
+    const maxScore = winnerData.isDraw
+      ? Math.max(...ids.map(pid => winnerData.scores?.[pid] ?? 0))
+      : null;
 
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+        <div
+          className="rounded-2xl p-6 w-full max-w-sm md:max-w-lg lg:max-w-xl shadow-2xl text-center"
+          style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+        >
           {winnerData.isDraw ? (
             <>
-              <div className="text-6xl mb-2">🤝</div>
-              <h2 className="text-3xl font-extrabold text-gray-800 mb-1">It's a Draw!</h2>
-              <p className="text-gray-500 mb-4">Great game everyone!</p>
+              <div className="text-6xl mb-2" aria-label="Tied">🤝</div>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--text-primary)' }}>It's a Draw!</h2>
+              <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>Great game everyone!</p>
             </>
           ) : (
             <>
-              <div className="text-6xl mb-2 animate-bounce">{winnerData.avatar}</div>
-              <h2 className="text-3xl font-extrabold mb-1" style={{ color: winnerData.color }}>
+              <div className="text-6xl mb-2 winner-avatar-bounce">{winnerData.avatar}</div>
+              <h2 className="text-3xl font-extrabold mb-1" style={{ color: 'var(--winner-gold)', textShadow: '0 0 12px var(--winner-glow)' }}>
                 {winnerData.name} Wins!
               </h2>
-              <p className="text-gray-500 mb-4">🏆 Champion!</p>
+              <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>🏆 Champion!</p>
             </>
           )}
 
           {/* All scores */}
-          <div className="bg-gray-50 rounded-xl p-3 mb-5 space-y-1">
+          <div className="rounded-xl p-3 mb-5 space-y-1" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             {ids.map((pid) => {
               const cfg  = getConfig(pid);
+              const playerColor = getCSSVar(cfg.colorVar);
               const name = gameState?.[`${pid}Name`] || `Player ${pid.slice(6)}`;
               const score = winnerData.scores?.[pid] ?? 0;
               const isWin = !winnerData.isDraw && winnerData.winner === pid;
               const isCPU = !!gameState?.[`${pid}IsCPU`];
+              // In a draw: players who share the max score are "tied", others are losers
+              const isTied = winnerData.isDraw && score === maxScore;
+              const isDrawLoser = winnerData.isDraw && score < maxScore;
+
               return (
-                <div key={pid} className={`flex justify-between items-center px-2 py-1 rounded-lg ${isWin ? cfg.light : ''}`}>
-                  <span className={`font-semibold text-sm ${isWin ? cfg.text : 'text-gray-600'}`}>
+                <div
+                  key={pid}
+                  className="flex justify-between items-center px-2 py-1 rounded-lg"
+                  style={{
+                    ...(isWin ? { backgroundColor: 'var(--winner-bg)' } : {}),
+                    ...(isTied ? {
+                      backgroundColor: 'var(--draw-bg)',
+                      borderLeft: '3px solid var(--winner-gold)',
+                    } : {}),
+                    ...(isDrawLoser ? { opacity: 0.5 } : {}),
+                  }}
+                >
+                  <span className="font-semibold text-sm" style={{ color: isWin || isTied ? playerColor : 'var(--text-secondary)' }}>
                     {isCPU ? (
-                      <>{name} 🤖 {isWin && '🏆'}</>
+                      <>{name} 🤖 {isWin && '🏆'}{isTied && <span aria-label="Tied"> 🤝</span>}</>
                     ) : (
                       <Link to={`/profile/${encodeURIComponent(name)}`} className="hover:underline">
                         {name}
                       </Link>
                     )}
                     {!isCPU && isWin && ' 🏆'}
+                    {!isCPU && isTied && <span aria-label="Tied"> 🤝</span>}
                   </span>
-                  <span className="font-extrabold text-base" style={{ color: cfg.color }}>{score}</span>
+                  <span className="font-extrabold text-base" style={{ color: playerColor }}>{score}</span>
                 </div>
               );
             })}
           </div>
 
+          {/* Post-game stats card */}
+          <PostGameStatsCard
+            gameState={gameState}
+            scores={winnerData.scores}
+            playerIds={ids}
+            gridSize={gridSize}
+            moveCount={moveCount}
+            gameDuration={gameDuration}
+            role={role}
+            winnerData={winnerData}
+          />
+
           <div className="flex gap-2">
             {!isSpectator && (
               <button
                 onClick={handleShareResult}
-                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
+                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)' }}
                 aria-label="Share result"
               >
                 {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
               </button>
             )}
-            {!isSpectator && !tournamentId && (
+            {!isSpectator && !tournamentId && !rematchFailed && (
               <button
                 onClick={handlePlayAgain}
-                disabled={rematchRequested}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-white text-sm transition-all ${
-                  rematchRequested 
-                    ? 'bg-gray-400 cursor-not-allowed' 
+                disabled={isCPUGame && rematchRequested}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                  rematchRequested
+                    ? 'active:scale-95'
                     : 'active:scale-95 hover:shadow-lg'
                 }`}
-                style={{ 
-                  background: rematchRequested 
-                    ? undefined 
-                    : 'linear-gradient(135deg,#3B82F6,#2563EB)' 
+                style={{
+                  background: rematchRequested
+                    ? 'var(--bg-surface)'
+                    : `linear-gradient(135deg, var(--accent), var(--accent-hover))`,
+                  color: rematchRequested ? 'var(--text-secondary)' : 'var(--text-on-accent)',
+                  border: rematchRequested ? '1px solid var(--border-color)' : 'none',
+                  opacity: (isCPUGame && rematchRequested) ? 0.6 : 1,
                 }}
               >
-                {rematchRequested ? (
-                  <>⏳ Waiting...</>
+                {isCPUGame ? (
+                  rematchRequested
+                    ? <>⏳ Starting rematch…</>
+                    : <>🔄 Rematch</>
+                ) : rematchRequested ? (
+                  rematchCount.total > 0
+                    ? <>⏳ Waiting ({rematchCount.count}/{rematchCount.total}) <span style={{ opacity: 0.7, fontWeight: 400, fontStyle: 'italic' }}>· Cancel</span></>
+                    : <>⏳ Waiting... <span style={{ opacity: 0.7, fontWeight: 400, fontStyle: 'italic' }}>· Cancel</span></>
                 ) : (
-                  <>🔄 Play Again</>
+                  <>🔄 Rematch{rematchCount.total > 0 ? ` (${rematchCount.count}/${rematchCount.total})` : ''}</>
                 )}
               </button>
             )}
+            {!isSpectator && !tournamentId && rematchFailed && (
+              <button
+                onClick={handleLeaveGame}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--warning)', border: '1px solid var(--border-color)' }}
+              >
+                🏠 Back to Lobby
+              </button>
+            )}
             {tournamentId && (
-              <div className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center text-amber-600 bg-amber-50">
-                <span className="w-4 h-4 border-2 border-amber-400/40 border-t-amber-400 rounded-full animate-spin inline-block mr-2 align-middle" />
+              <div className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center" style={{ color: 'var(--warning)', backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)` }}>
+                <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin inline-block mr-2 align-middle" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'var(--warning)' }} />
                 Next match loading…
               </div>
             )}
             <button
               onClick={tournamentId ? () => navigate('/tournament', { state: { tournament: tournamentSnapshot, tournamentId, username, avatar } }) : handleLeaveGame}
-              className="flex-1 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 text-sm transition-all active:scale-95"
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+              style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
             >
               {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
             </button>
           </div>
 
-          {/* Rematch counter */}
-          {rematchCount.count > 0 && (
-            <div className="mt-3 text-sm text-gray-600">
+          {/* Rematch status messages */}
+          {rematchFailed && (
+            <div className="mt-3 text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+              {rematchFailed}
+            </div>
+          )}
+          {!isCPUGame && !rematchFailed && rematchCount.count > 0 && (
+            <div className="mt-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <span className="font-semibold">
-                {rematchCount.count} / {rematchCount.total}
+                {rematchCount.count}/{rematchCount.total}
               </span> players ready for rematch
             </div>
           )}
 
-          <div className="mt-4 text-xl space-x-1">
-            {['🎉','✨','🎊','🏆','🎉'].map((e, i) => (
-              <span key={i} className="inline-block animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>{e}</span>
-            ))}
-          </div>
         </div>
       </div>
     );
@@ -777,13 +900,13 @@ const Board = () => {
   // ── Loading / waiting state ────────────────────────────────────────────────────
   if (!gameState) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6 text-center">
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <div className="text-5xl mb-4 animate-pulse">🎮</div>
-        <h2 className="text-xl font-bold text-gray-700 mb-2">Waiting for game data…</h2>
-        <p className="text-gray-500 text-sm">Game ID: <span className="font-mono font-bold">{gameId}</span></p>
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Waiting for game data…</h2>
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Game ID: <span className="font-mono font-bold">{gameId}</span></p>
         <div className="mt-4 flex gap-1 justify-center">
           {[0,1,2].map(i => (
-            <div key={i} className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />
+            <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent)', animationDelay: `${i*0.15}s` }} />
           ))}
         </div>
       </div>
@@ -792,11 +915,11 @@ const Board = () => {
 
   // ── Main render ───────────────────────────────────────────────────────────────
   const isMyTurnNow = !isSpectator && gameState.currentPlayer === role;
+  const myPlayerColor = getCSSVar(getConfig(role).colorVar);
 
   return (
-    <div className="game-layout flex flex-col items-center bg-gray-50" style={{ minHeight: '100dvh' }}>
+    <div className="game-layout flex flex-col items-center" style={{ minHeight: '100dvh', backgroundColor: 'var(--bg-primary)' }}>
       {renderWinnerModal()}
-      <TurnToast visible={showTurnToast} color={getConfig(role).color} />
 
       {/* ── Live ScoreBar (fixed top) ── */}
       {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
@@ -808,7 +931,7 @@ const Board = () => {
             id: pid,
             username: gameState[`${pid}Name`] || cfg.label,
             avatar: gameState[`${pid}Avatar`] || cfg.label,
-            color: cfg.color,
+            color: getCSSVar(cfg.colorVar),
           };
         });
         return (
@@ -822,26 +945,28 @@ const Board = () => {
       })()}
 
       {/* ── Main content area (pushes below fixed ScoreBar) ── */}
-      <div className="game-content w-full flex flex-col items-center px-2 sm:px-6 pb-4">
+      <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
 
         {/* ── Header: Room code + You are + Status ── */}
         <div className="w-full max-w-2xl mb-2 sm:mb-3">
           {/* Room code badge — always visible, copyable */}
           <div className="flex items-center justify-center gap-2 mb-1">
-            <span className="text-xs text-gray-400 uppercase tracking-wide">Room</span>
+            <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
             <button
               onClick={handleCopyId}
-              className="font-mono text-sm font-bold bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full transition-colors border border-gray-200"
+              className="font-mono text-sm font-bold px-3 py-1 rounded-full transition-colors room-code-btn"
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               title="Tap to copy room code"
               aria-label="Copy room code"
             >
               {gameId}
             </button>
-            {showCopied && <span className="text-xs text-green-500 animate-pulse">Copied!</span>}
+            {showCopied && <span className="text-xs animate-pulse" style={{ color: 'var(--success)' }}>Copied!</span>}
             {gameState.gameOver && !isSpectator && (
               <button
                 onClick={handleShareResult}
-                className="text-sm px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors border border-emerald-200"
+                className="text-sm px-2 py-1 rounded-full transition-colors"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)', border: '1px solid var(--border-color)' }}
                 title="Share result"
                 aria-label="Share game result"
               >
@@ -851,26 +976,33 @@ const Board = () => {
           </div>
 
           {/* You are */}
-          <p className="text-xs text-gray-400 text-center mb-1">
-            You are <span className="font-bold" style={{ color: isSpectator ? '#4F46E5' : getConfig(role).color }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
-            {gameState?.hasCPU && <span className="ml-2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-semibold">vs CPU</span>}
-            {tournamentId && <span className="ml-2 bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-semibold">🏆 Tournament Match</span>}
+          <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
+            You are <span className="font-bold" style={{ color: isSpectator ? 'var(--accent)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
+            {gameState?.hasCPU && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>vs CPU</span>}
+            {tournamentId && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>🏆 Tournament Match</span>}
           </p>
 
           {/* Status pill */}
           <div className="flex justify-center">
-            <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300 ${
-              isMyTurnNow
-                ? 'bg-green-100 text-green-700 scale-105 shadow-md ring-2 ring-green-300'
-                : 'bg-gray-100 text-gray-600'
-            }`}>
+            <div
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300"
+              style={isMyTurnNow ? {
+                backgroundColor: `color-mix(in srgb, var(--success) 15%, transparent)`,
+                color: 'var(--success)',
+                transform: 'scale(1.05)',
+                boxShadow: `0 0 12px color-mix(in srgb, var(--success) 20%, transparent)`,
+              } : {
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-secondary)',
+              }}
+            >
               {status}
             </div>
           </div>
 
           {/* Waiting banner */}
           {waitingCount > 0 && (
-            <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-amber-700 text-xs text-center">
+            <div className="mt-2 rounded-lg px-4 py-2 text-xs text-center" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)', color: 'var(--warning)' }}>
               ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
               Share the room code: <strong>{gameId}</strong>
               <button
@@ -881,7 +1013,8 @@ const Board = () => {
                     setTimeout(() => setShowCopied(false), 2000);
                   });
                 }}
-                className="ml-2 inline-flex items-center gap-1 bg-amber-200 hover:bg-amber-300 text-amber-800 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
+                className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
+                style={{ backgroundColor: `color-mix(in srgb, var(--warning) 20%, transparent)`, color: 'var(--warning)' }}
                 title="Copy invite link"
                 aria-label="Copy invite link"
               >
@@ -891,7 +1024,7 @@ const Board = () => {
           )}
 
           {error && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-red-600 text-xs">
+            <div className="mt-2 rounded-lg px-4 py-2 text-xs" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
               ⚠️ {error}
             </div>
           )}
@@ -901,15 +1034,19 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
+        <div className="flex flex-1 items-center justify-center w-full">
         <div
-          className={`relative bg-white rounded-2xl shadow-xl border select-none board-container mx-auto transition-shadow duration-300 ${
-            boardPulse ? 'board-glow' : 'border-gray-100'
-          }`}
+          className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
+            boardPulse ? 'board-glow' : ''
+          } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
-            touchAction: 'pan-y',
-            padding: '12px',
-            maxWidth: '500px',
-            ...(boardPulse ? { borderColor: getConfig(role).color, '--glow-rgb': getConfig(role).color.match(/\w\w/g).map(h => parseInt(h, 16)).join(',') } : {}),
+            padding: '8px',
+            backgroundColor: 'var(--bg-tertiary)',
+            border: `1px solid var(--border-color)`,
+            // 'manipulation' enables native pinch-to-zoom + pan but disables
+            // double-tap zoom delay, keeping tap response fast for line clicks
+            touchAction: 'manipulation',
+            ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
         >
           {gameState.horizontalLines.map((row, r) => (
@@ -940,26 +1077,27 @@ const Board = () => {
             </div>
           ))}
         </div>
+        </div>
 
         {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
         <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
           {/* Mute button — moved OUT of board */}
           <button
             onClick={() => { initAudio(); handleToggleMute(); }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm mute-btn"
+            style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', minHeight: '44px', minWidth: '44px' }}
             title={muted ? 'Unmute sounds' : 'Mute sounds'}
             aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-            style={{ minHeight: '44px', minWidth: '44px' }}
           >
             <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
-            <span className="text-xs text-gray-600 hidden sm:inline">{muted ? 'Unmute' : 'Mute'}</span>
+            <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>{muted ? 'Unmute' : 'Mute'}</span>
           </button>
 
           {/* Leave button */}
           <button
             onClick={() => navigate('/')}
-            className="flex-1 px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ minHeight: '44px' }}
+            className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
+            style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>

@@ -43,6 +43,8 @@ class SocketRateLimiter {
             join_game:       { maxPerWindow: 10, windowMs: 60_000 },   // 10 joins/min
             make_move:       { maxPerWindow: 60, windowMs: 60_000 },   // 60 moves/min (fast play)
             request_rematch: { maxPerWindow: 5,  windowMs: 60_000 },   // 5 rematch requests/min
+            queue_join:      { maxPerWindow: 8,  windowMs: 60_000 },   // 8 queue joins/min (allows re-queue on player count change)
+            queue_leave:     { maxPerWindow: 10, windowMs: 60_000 },   // 10 queue leaves/min
         };
     }
 
