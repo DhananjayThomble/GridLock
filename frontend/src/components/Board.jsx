@@ -39,7 +39,8 @@ function useGridSizes(gridSize) {
 
       // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
       // More aggressive on mobile to let the board fill available space
-      const reservedH = w < 640 ? 160 : w < 768 ? 220 : 260;
+      // But keep some breathing room so it doesn't feel crammed
+      const reservedH = w < 640 ? 180 : w < 768 ? 220 : 260;
       // Horizontal padding: minimal on mobile (board goes nearly edge-to-edge)
       const reservedW = w < 640 ? 4 : w < 768 ? 48 : 64;
 
