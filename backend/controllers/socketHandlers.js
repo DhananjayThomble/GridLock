@@ -1613,14 +1613,27 @@ function attachSocketHandlers(io, log) {
                         const currentPlayer = currentGame.players[playerId];
                         if (!currentPlayer || !currentPlayer.disconnectedAt) return;
 
-                        // Forfeit: pick first still-connected player as winner
+                        // Forfeit: pick remaining player with highest score as winner
                         const remaining = [];
                         for (let i = 1; i <= currentGame.playerCount; i++) {
                             const pid = `player${i}`;
                             const p = currentGame.players[pid];
                             if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
                         }
-                        const winner = remaining.length > 0 ? remaining[0] : 'draw';
+
+                        let winner;
+                        if (remaining.length === 0) {
+                            winner = 'draw';
+                        } else if (remaining.length === 1) {
+                            winner = remaining[0];
+                        } else {
+                            // Pick the remaining player with the highest score
+                            winner = remaining.reduce((best, pid) => {
+                                const bestScore = currentGame.gameState.scores[best] || 0;
+                                const pidScore = currentGame.gameState.scores[pid] || 0;
+                                return pidScore > bestScore ? pid : best;
+                            }, remaining[0]);
+                        }
                         currentGame.gameState.winner = winner;
 
                         await gameStore.setGame(gameId, currentGame);
