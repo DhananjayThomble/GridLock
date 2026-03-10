@@ -23,6 +23,15 @@ REVIEW_PATTERN="## Review Cycle"
 MERGE_STRATEGY="${2:---squash}"
 TOUCH_FILES=("Board.jsx" "BoardZoomWrapper.jsx")
 
+REPO_ROOT=$(git rev-parse --show-toplevel)
+ORIGINAL_BRANCH=$(git -C "$REPO_ROOT" branch --show-current)
+
+# Restore original branch on exit (success or failure)
+cleanup() {
+  git -C "$REPO_ROOT" checkout "$ORIGINAL_BRANCH" > /dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
 if [ -z "${1:-}" ]; then
   echo -e "${RED}Usage: ./scripts/merge-gate.sh <PR_NUMBER> [--squash|--merge|--rebase]${NC}"
   exit 1
@@ -53,8 +62,18 @@ fi
 # 2. Checkout the PR branch before running CI (ensure we test the actual PR code)
 PR_BRANCH=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName --jq '.headRefName')
 echo "   Checking out PR branch: ${PR_BRANCH}..."
-REPO_ROOT=$(git rev-parse --show-toplevel)
-(cd "$REPO_ROOT" && git fetch origin "$PR_BRANCH" && git checkout "$PR_BRANCH" && git pull origin "$PR_BRANCH") > /dev/null 2>&1
+
+if ! (cd "$REPO_ROOT" && git fetch origin "$PR_BRANCH" && git checkout "$PR_BRANCH" && git pull origin "$PR_BRANCH"); then
+  echo -e "${RED}❌ BLOCKED: Failed to checkout PR branch '${PR_BRANCH}'.${NC}"
+  exit 1
+fi
+
+# Verify checkout actually succeeded (belt-and-suspenders)
+CURRENT_BRANCH=$(git -C "$REPO_ROOT" branch --show-current)
+if [ "$CURRENT_BRANCH" != "$PR_BRANCH" ]; then
+  echo -e "${RED}❌ BLOCKED: Expected branch '${PR_BRANCH}' but on '${CURRENT_BRANCH}'.${NC}"
+  exit 1
+fi
 
 # 3. Run CI locally (GitHub Actions quota exhausted — all checks run here)
 echo "   Running local CI on branch ${PR_BRANCH}..."

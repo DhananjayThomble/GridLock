@@ -12,11 +12,17 @@ HOURS="${1:-24}"
 REVIEW_PATTERN="## Review Cycle"
 MIN_REVIEW_CYCLES=2
 
+# Validate hours is a positive integer
+if ! [[ "$HOURS" =~ ^[0-9]+$ ]]; then
+  echo "Error: hours must be a positive integer"
+  exit 1
+fi
+
 # Get PRs merged in the time window
 SINCE=$(date -u -d "${HOURS} hours ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-${HOURS}H +%Y-%m-%dT%H:%M:%SZ)
 
-# List recently merged PRs
-MERGED_PRS=$(gh pr list --repo "$REPO" --state merged --json number,title,mergedAt,comments --jq \
+# List recently merged PRs (limit 200 for large time windows)
+MERGED_PRS=$(gh pr list --repo "$REPO" --state merged --limit 200 --json number,title,mergedAt,comments --jq \
   "[.[] | select(.mergedAt >= \"$SINCE\")] | .[] | {number, title, mergedAt, reviewCycles: ([.comments[].body | select(contains(\"$REVIEW_PATTERN\"))] | length)}")
 
 if [ -z "$MERGED_PRS" ]; then
@@ -32,13 +38,13 @@ while IFS= read -r pr; do
   MERGED_AT=$(echo "$pr" | jq -r '.mergedAt')
   
   if [ "$CYCLES" -lt "$MIN_REVIEW_CYCLES" ]; then
-    VIOLATIONS="${VIOLATIONS}⚠️ PR #${PR_NUM} (${PR_TITLE}) — merged at ${MERGED_AT} with only ${CYCLES} review cycle comment(s)\n"
+    VIOLATIONS="${VIOLATIONS}$(printf '⚠️ PR #%s (%s) — merged at %s with only %s review cycle(s)\n' "$PR_NUM" "$PR_TITLE" "$MERGED_AT" "$CYCLES")"
   fi
 done <<< "$(echo "$MERGED_PRS" | jq -c '.')"
 
 if [ -n "$VIOLATIONS" ]; then
   echo "🚨 REVIEW VIOLATIONS FOUND (last ${HOURS}h):"
-  echo -e "$VIOLATIONS"
+  echo "$VIOLATIONS"
   exit 1
 else
   echo "✅ All ${HOURS}h merged PRs have ≥${MIN_REVIEW_CYCLES} review cycles."
