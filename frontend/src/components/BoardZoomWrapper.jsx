@@ -6,7 +6,8 @@ import React, { useRef, useCallback, useEffect, useReducer } from 'react';
  * - One-finger drag (when zoomed > 1x): pan
  * - One-finger tap: passes through to line click handlers
  *
- * TODO: Add keyboard +/- zoom shortcuts for accessibility (issue #9)
+ * TODO: Add keyboard +/- zoom shortcuts for accessibility (issue #9).
+ *       This component is mobile-focused; keyboard zoom is a known limitation.
  */
 
 // Issue #6: Use useReducer instead of dual state+ref sync pattern
@@ -34,16 +35,18 @@ function zoomReducer(state, action) {
   }
 }
 
-const BoardZoomWrapper = ({ children, enabled = true }) => {
+const BoardZoomWrapper = ({ children, enabled = true, resetKey = false }) => {
   const containerRef = useRef(null);
   const [zoomState, dispatch] = useReducer(zoomReducer, initialZoomState);
   const { scale, translate, isTouching } = zoomState;
 
-  // Refs for gesture math only — single source of truth is the reducer
+  // Refs = synchronous truth for gesture math (60fps touch handlers can't wait for React re-renders)
+  // Reducer = React state for rendering (synced from refs after each gesture frame)
   const pinchRef = useRef({ initialDistance: 0, initialScale: 1 });
-  const panRef = useRef({ startX: 0, startY: 0, startTranslateX: 0, startTranslateY: 0, moved: false });
+  const panRef = useRef({ startX: 0, startY: 0, startTranslateX: 0, startTranslateY: 0 });
   const scaleRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
+  const rectRef = useRef(null);
 
   const getDistance = useCallback((t1, t2) => {
     return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -53,7 +56,8 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
     if (s <= 1) return { x: 0, y: 0 };
     const container = containerRef.current;
     if (!container) return { x: tx, y: ty };
-    const rect = container.getBoundingClientRect();
+    // Use cached rect from touchstart; fallback to live call
+    const rect = rectRef.current || container.getBoundingClientRect();
     const maxX = (rect.width * (s - 1)) / (2 * s);
     const maxY = (rect.height * (s - 1)) / (2 * s);
     return {
@@ -64,6 +68,8 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
 
   const handleTouchStart = useCallback((e) => {
     dispatch({ type: 'SET_TOUCHING', isTouching: true });
+    // Cache container rect to avoid getBoundingClientRect() on every touchmove frame
+    rectRef.current = containerRef.current?.getBoundingClientRect() ?? null;
     if (e.touches.length === 2) {
       const dist = getDistance(e.touches[0], e.touches[1]);
       pinchRef.current = { initialDistance: dist, initialScale: scaleRef.current };
@@ -73,7 +79,6 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
         startY: e.touches[0].clientY,
         startTranslateX: translateRef.current.x,
         startTranslateY: translateRef.current.y,
-        moved: false,
       };
     }
   }, [getDistance]);
@@ -97,7 +102,6 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
       const dy = (e.touches[0].clientY - panRef.current.startY) / scaleRef.current;
 
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-        panRef.current.moved = true;
         e.preventDefault();
       }
 
@@ -165,6 +169,15 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
     };
   }, [constrainTranslate]);
 
+  // Issue #3: Reset zoom when game ends so winner modal isn't under zoomed board
+  useEffect(() => {
+    if (resetKey) {
+      scaleRef.current = 1;
+      translateRef.current = { x: 0, y: 0 };
+      dispatch({ type: 'RESET' });
+    }
+  }, [resetKey]);
+
   const zoomIn = useCallback(() => {
     const newScale = Math.min(4, scaleRef.current + 0.5);
     scaleRef.current = newScale;
@@ -199,7 +212,8 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
         overflow: 'hidden',
         touchAction: scale > 1 ? 'none' : 'pan-y',
         position: 'relative',
-        width: '100%',
+        maxWidth: 'fit-content',
+        margin: '0 auto',
         display: 'flex',
         justifyContent: 'center',
       }}

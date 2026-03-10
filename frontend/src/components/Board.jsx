@@ -605,6 +605,10 @@ const Board = () => {
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
             touchAction: 'manipulation',
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            padding: '16px 0',
+            margin: '-16px 0',
+            backgroundClip: 'content-box',
+            boxSizing: 'border-box',
           }}
         />
       </div>
@@ -641,6 +645,10 @@ const Board = () => {
             opacity: owner ? 1 : isMyTurn ? undefined : 0.5,
             touchAction: 'manipulation',
             boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            padding: '0 16px',
+            margin: '0 -16px',
+            backgroundClip: 'content-box',
+            boxSizing: 'border-box',
           }}
         />
       </div>
@@ -1038,7 +1046,7 @@ const Board = () => {
 
         {/* ── Board ── */}
         <div className="flex flex-1 items-center justify-center w-full">
-        <BoardZoomWrapper enabled={isTouchDevice}>
+        <BoardZoomWrapper enabled={isTouchDevice} resetKey={showWinner}>
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -1047,7 +1055,8 @@ const Board = () => {
             padding: '12px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
-            touchAction: 'pan-y', // Issue #8: explicit — inherited from wrapper but kept for clarity
+            touchAction: 'pan-y', // touch-action: pan-y restricts children to vertical pan only;
+            // custom pinch-to-zoom is handled by BoardZoomWrapper
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
         >

@@ -225,7 +225,7 @@ textarea::placeholder {
 .board-container {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  max-width: 95vw;
+  max-width: min(95vw, 100%);
 }
 
 /* Score bar player name — responsive width via CSS clamp */
@@ -339,16 +339,6 @@ textarea::placeholder {
 @media (pointer: coarse) {
   .board-container [role="button"] {
     position: relative;
-    z-index: 1;
-  }
-  /* Expand tap area on touch devices without affecting visual layout.
-     NOTE (Issue #7): inset: -16px can cause overlapping pseudo-elements on
-     small grids (box < ~40px). Acceptable trade-off for tap accessibility;
-     cap expansion if small-grid overlap reports increase. */
-  .board-container [role="button"]::before {
-    content: '';
-    position: absolute;
-    inset: -16px;
     z-index: 1;
   }
 }
