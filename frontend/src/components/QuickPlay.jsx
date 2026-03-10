@@ -9,7 +9,7 @@ const QUEUE_TIMEOUT_SEC = 30;
 const CPU_SUGGEST_SEC   = 15;
 const CPU_AUTO_SEC      = QUEUE_TIMEOUT_SEC;
 
-const QuickPlay = ({ gridSize, playerCount, queueSize: initialQueueSize, onCancel, onPlayCPU }) => {
+const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU }) => {
   const [elapsed, setElapsed] = useState(0);
   const [queueSize, setQueueSize] = useState(initialQueueSize || 1);
   const [showCpuOption, setShowCpuOption] = useState(false);
@@ -130,7 +130,7 @@ const QuickPlay = ({ gridSize, playerCount, queueSize: initialQueueSize, onCance
               {timedOut ? 'No opponents found' : 'Searching for opponents…'}
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Grid: {gridSize}×{gridSize} · Players: {playerCount}
+              Grid: {gridSize}×{gridSize} · Players: 2 (Classic Duel)
             </p>
           </div>
 

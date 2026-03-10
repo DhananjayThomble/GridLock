@@ -268,7 +268,8 @@ const Lobby = () => {
     localStorage.setItem('gridlock_username', name);
     setQuickPlaying(true);
     setQueueSize(1);
-    socket.emit('queue_join', { username: name, avatar: selectedAvatar, gridSize, playerCount });
+    // Always default Quick Play to 2P for fastest matching
+    socket.emit('queue_join', { username: name, avatar: selectedAvatar, gridSize, playerCount: 2 });
   };
 
   const handleQuickPlayCancel = () => {
@@ -284,7 +285,7 @@ const Lobby = () => {
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     if (!socket.connected) socket.connect();
     setCreating(true);
-    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers: playerCount - 1, cpuDifficulty: 'medium' }, (res) => {
+    socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount: 2, cpuPlayers: 1, cpuDifficulty: 'medium' }, (res) => {
       if (res?.error) {
         setCreating(false);
         setUsernameError(res.error);
@@ -299,7 +300,7 @@ const Lobby = () => {
             gameId: res.gameId,
             role: res.playerId,
             avatar: selectedAvatar,
-            playerCount,
+            playerCount: 2,
             sessionToken: res.sessionToken,
             cpuDifficulty: 'medium',
           },
@@ -995,7 +996,6 @@ const Lobby = () => {
       {quickPlaying && (
         <QuickPlay
           gridSize={gridSize}
-          playerCount={playerCount}
           queueSize={queueSize}
           onCancel={handleQuickPlayCancel}
           onPlayCPU={handleQuickPlayCPU}
