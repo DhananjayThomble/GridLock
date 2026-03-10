@@ -3,13 +3,10 @@
 const { test, expect } = require('@playwright/test');
 const { goToLobby, BASE_URL } = require('./helpers');
 
-const BASE = process.env.TEST_BASE_URL
-  || (process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta');
-
 test.describe('Quick Play Player Count Selector', () => {
 
   test.beforeEach(async ({ page }) => {
-    await goToLobby(page, BASE);
+    await goToLobby(page, BASE_URL);
     // Fill username so Quick Play button works
     await page.fill('input[placeholder="Enter your name…"]', 'TestPlayer');
   });

@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 echo "═══════════════════════════════════════"
 echo "  GridLock Local CI"
@@ -20,10 +19,10 @@ run_step() {
   echo -e "\n${YELLOW}▶ $name${NC}"
   if "$@"; then
     echo -e "${GREEN}✅ $name passed${NC}"
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     echo -e "${RED}❌ $name failed${NC}"
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
     return 1
   fi
 }

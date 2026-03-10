@@ -168,4 +168,28 @@ async function createCpuGame(page, {
   );
 }
 
-module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, createCpuGame, getApiBase, BASE_URL };
+/**
+ * Play a game to completion by alternating moves.
+ * Returns true when game over is detected (Rematch/Game Over/Winner/wins!).
+ */
+async function playToCompletion(pages, maxMoves = 80) {
+  for (let i = 0; i < maxMoves; i++) {
+    let moved = false;
+    for (const page of pages) {
+      try {
+        const text = await page.locator('body').innerText().catch(() => '');
+        if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+        if (text.includes('Your turn')) {
+          const ok = await makeMove(page);
+          if (ok) { moved = true; break; }
+        }
+      } catch { continue; }
+    }
+    if (!moved) {
+      await pages[0].waitForTimeout(300);
+    }
+  }
+  return false;
+}
+
+module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, createCpuGame, getApiBase, BASE_URL, playToCompletion };

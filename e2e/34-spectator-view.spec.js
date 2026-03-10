@@ -51,9 +51,19 @@ test.describe('Spectator View', () => {
       { timeout: 15_000 }
     );
 
-    // Spectator should NOT have clickable (interactive) lines
+    // Positive control: verify that a PLAYER's board has clickable lines
+    // (proves the selector works and isn't vacuously matching nothing)
+    const [t1, t2] = await Promise.all([
+      p1.locator('body').innerText(),
+      p2.locator('body').innerText(),
+    ]);
+    const activePage = t1.includes('Your turn') ? p1 : p2;
+    const playerClickable = await activePage.locator('[role="button"][aria-disabled="false"]').count();
+    expect(playerClickable, 'Active player should have clickable lines (positive control)').toBeGreaterThan(0);
+
+    // Now verify spectator has NO clickable lines
     const clickableLines = await spectator.locator('[role="button"][aria-disabled="false"]').count();
-    expect(clickableLines).toBe(0);
+    expect(clickableLines, 'Spectator should have zero clickable lines').toBe(0);
 
     // Board dots/grid should still be visible
     const boardContainer = spectator.locator('.board-container');

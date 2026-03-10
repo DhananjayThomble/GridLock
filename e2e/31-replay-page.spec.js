@@ -3,9 +3,6 @@
 const { test, expect } = require('@playwright/test');
 const { goToLobby, BASE_URL } = require('./helpers');
 
-const BASE = process.env.TEST_BASE_URL
-  || (process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta');
-
 /**
  * Mock the replay API at route level so we can test the ReplayPage component
  * without needing a real completed game in the database.
@@ -61,7 +58,7 @@ test.describe('Replay Page', () => {
 
   test('renders replay page with valid game data', async ({ page }) => {
     await mockReplayData(page, 'TEST01', VALID_REPLAY);
-    await page.goto(`${BASE}/replay/TEST01`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/replay/TEST01`, { waitUntil: 'networkidle' });
 
     // Should show "Game Replay" header
     await expect(page.locator('text=Game Replay')).toBeVisible({ timeout: 10_000 });
@@ -76,7 +73,7 @@ test.describe('Replay Page', () => {
 
   test('play/pause controls work', async ({ page }) => {
     await mockReplayData(page, 'TEST01', VALID_REPLAY);
-    await page.goto(`${BASE}/replay/TEST01`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/replay/TEST01`, { waitUntil: 'networkidle' });
     await expect(page.locator('text=Game Replay')).toBeVisible({ timeout: 10_000 });
 
     // Auto-play starts, so Pause should be visible
@@ -103,7 +100,7 @@ test.describe('Replay Page', () => {
 
   test('speed selector cycles through 1x/2x/4x', async ({ page }) => {
     await mockReplayData(page, 'TEST01', VALID_REPLAY);
-    await page.goto(`${BASE}/replay/TEST01`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/replay/TEST01`, { waitUntil: 'networkidle' });
     await expect(page.locator('text=Game Replay')).toBeVisible({ timeout: 10_000 });
 
     // Pause first so we can inspect speed buttons
@@ -130,7 +127,7 @@ test.describe('Replay Page', () => {
 
   test('move counter updates as replay progresses', async ({ page }) => {
     await mockReplayData(page, 'TEST01', VALID_REPLAY);
-    await page.goto(`${BASE}/replay/TEST01`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/replay/TEST01`, { waitUntil: 'networkidle' });
     await expect(page.locator('text=Game Replay')).toBeVisible({ timeout: 10_000 });
 
     // Wait for a few moves to play
@@ -145,7 +142,7 @@ test.describe('Replay Page', () => {
 
   test('"Play GridLock" CTA button links to lobby', async ({ page }) => {
     await mockReplayData(page, 'TEST01', VALID_REPLAY);
-    await page.goto(`${BASE}/replay/TEST01`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/replay/TEST01`, { waitUntil: 'networkidle' });
     await expect(page.locator('text=Game Replay')).toBeVisible({ timeout: 10_000 });
 
     const ctaBtn = page.locator('button:has-text("Play GridLock")');
@@ -159,7 +156,7 @@ test.describe('Replay Page', () => {
 
   test('invalid replay ID shows error/404 state', async ({ page }) => {
     await mockReplayData(page, 'INVALID', null);
-    await page.goto(`${BASE}/replay/INVALID`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/replay/INVALID`, { waitUntil: 'networkidle' });
 
     // Should show error state
     await expect(page.locator('text=/Game Not Found|not found|Something went wrong/i')).toBeVisible({ timeout: 10_000 });
