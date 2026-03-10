@@ -1,24 +1,49 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useReducer } from 'react';
 
 /**
  * Wraps the game board with pinch-to-zoom and pan support.
  * - Two-finger pinch: zoom in/out (1x to 4x)
  * - One-finger drag (when zoomed > 1x): pan
  * - One-finger tap: passes through to line click handlers
+ *
+ * TODO: Add keyboard +/- zoom shortcuts for accessibility (issue #9)
  */
+
+// Issue #6: Use useReducer instead of dual state+ref sync pattern
+const initialZoomState = { scale: 1, translate: { x: 0, y: 0 }, isTouching: false };
+
+function zoomReducer(state, action) {
+  switch (action.type) {
+    case 'SET_SCALE':
+      return { ...state, scale: action.scale };
+    case 'SET_TRANSLATE':
+      return { ...state, translate: action.translate };
+    case 'SET_TOUCHING':
+      return { ...state, isTouching: action.isTouching };
+    case 'UPDATE_GESTURE':
+      return {
+        ...state,
+        scale: action.scale ?? state.scale,
+        translate: action.translate ?? state.translate,
+        isTouching: action.isTouching ?? state.isTouching,
+      };
+    case 'RESET':
+      return initialZoomState;
+    default:
+      return state;
+  }
+}
+
 const BoardZoomWrapper = ({ children, enabled = true }) => {
   const containerRef = useRef(null);
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const [isTouching, setIsTouching] = useState(false);
+  const [zoomState, dispatch] = useReducer(zoomReducer, initialZoomState);
+  const { scale, translate, isTouching } = zoomState;
+
+  // Refs for gesture math only — single source of truth is the reducer
   const pinchRef = useRef({ initialDistance: 0, initialScale: 1 });
   const panRef = useRef({ startX: 0, startY: 0, startTranslateX: 0, startTranslateY: 0, moved: false });
   const scaleRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
-
-  // Keep refs in sync with state for use in event handlers
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-  useEffect(() => { translateRef.current = translate; }, [translate]);
 
   const getDistance = useCallback((t1, t2) => {
     return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -29,7 +54,6 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
     const container = containerRef.current;
     if (!container) return { x: tx, y: ty };
     const rect = container.getBoundingClientRect();
-    // Allow panning up to half the container dimension beyond center
     const maxX = (rect.width * (s - 1)) / (2 * s);
     const maxY = (rect.height * (s - 1)) / (2 * s);
     return {
@@ -39,13 +63,11 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
   }, []);
 
   const handleTouchStart = useCallback((e) => {
-    setIsTouching(true);
+    dispatch({ type: 'SET_TOUCHING', isTouching: true });
     if (e.touches.length === 2) {
-      // Pinch start
       const dist = getDistance(e.touches[0], e.touches[1]);
       pinchRef.current = { initialDistance: dist, initialScale: scaleRef.current };
     } else if (e.touches.length === 1 && scaleRef.current > 1) {
-      // Pan start (only when zoomed)
       panRef.current = {
         startX: e.touches[0].clientX,
         startY: e.touches[0].clientY,
@@ -64,13 +86,11 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
       const newScale = Math.max(1, Math.min(4,
         pinchRef.current.initialScale * (dist / pinchRef.current.initialDistance)
       ));
-      setScale(newScale);
       scaleRef.current = newScale;
-
-      // Constrain translation at new scale
       const constrained = constrainTranslate(translateRef.current.x, translateRef.current.y, newScale);
-      setTranslate(constrained);
       translateRef.current = constrained;
+      // Batch single state update
+      dispatch({ type: 'UPDATE_GESTURE', scale: newScale, translate: constrained });
     } else if (e.touches.length === 1 && scaleRef.current > 1) {
       // Pan
       const dx = (e.touches[0].clientX - panRef.current.startX) / scaleRef.current;
@@ -84,49 +104,90 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
       const newTx = panRef.current.startTranslateX + dx;
       const newTy = panRef.current.startTranslateY + dy;
       const constrained = constrainTranslate(newTx, newTy, scaleRef.current);
-      setTranslate(constrained);
       translateRef.current = constrained;
+      dispatch({ type: 'SET_TRANSLATE', translate: constrained });
     }
   }, [getDistance, constrainTranslate]);
 
   const handleTouchEnd = useCallback((e) => {
     if (e.touches.length === 0) {
-      setIsTouching(false);
-      // If scale snapped back to ~1, reset fully
       if (scaleRef.current < 1.05) {
-        setScale(1);
-        setTranslate({ x: 0, y: 0 });
         scaleRef.current = 1;
         translateRef.current = { x: 0, y: 0 };
+        dispatch({ type: 'RESET' });
+      } else {
+        dispatch({ type: 'SET_TOUCHING', isTouching: false });
       }
     }
   }, []);
 
+  // Issue #1: Attach touch handlers with { passive: false } via useEffect
+  // React registers touch handlers as passive — e.preventDefault() is silently ignored.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // Issue #2: Reset zoom on orientation change so board doesn't pan off-screen
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      scaleRef.current = 1;
+      translateRef.current = { x: 0, y: 0 };
+      dispatch({ type: 'RESET' });
+    };
+
+    // Use both events for broad browser support
+    window.addEventListener('orientationchange', handleOrientationChange);
+    // Also listen to resize to catch orientation changes on browsers that
+    // don't fire orientationchange (and re-constrain on window resize)
+    const handleResize = () => {
+      if (scaleRef.current > 1) {
+        const constrained = constrainTranslate(
+          translateRef.current.x, translateRef.current.y, scaleRef.current
+        );
+        translateRef.current = constrained;
+        dispatch({ type: 'SET_TRANSLATE', translate: constrained });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [constrainTranslate]);
+
   const zoomIn = useCallback(() => {
     const newScale = Math.min(4, scaleRef.current + 0.5);
-    setScale(newScale);
     scaleRef.current = newScale;
+    dispatch({ type: 'SET_SCALE', scale: newScale });
   }, []);
 
   const zoomOut = useCallback(() => {
     const newScale = Math.max(1, scaleRef.current - 0.5);
-    setScale(newScale);
     scaleRef.current = newScale;
     if (newScale <= 1) {
-      setTranslate({ x: 0, y: 0 });
       translateRef.current = { x: 0, y: 0 };
+      dispatch({ type: 'RESET' });
     } else {
       const constrained = constrainTranslate(translateRef.current.x, translateRef.current.y, newScale);
-      setTranslate(constrained);
       translateRef.current = constrained;
+      dispatch({ type: 'UPDATE_GESTURE', scale: newScale, translate: constrained });
     }
   }, [constrainTranslate]);
 
   const resetZoom = useCallback(() => {
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
     scaleRef.current = 1;
     translateRef.current = { x: 0, y: 0 };
+    dispatch({ type: 'RESET' });
   }, []);
 
   if (!enabled) return <>{children}</>;
@@ -134,9 +195,6 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
   return (
     <div
       ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       style={{
         overflow: 'hidden',
         touchAction: scale > 1 ? 'none' : 'pan-y',
@@ -155,55 +213,19 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
       >
         {children}
       </div>
-      {/* Zoom controls — always visible on touch devices */}
-      <div
-        className="zoom-controls"
-        style={{
-          position: 'absolute',
-          bottom: 8,
-          right: 8,
-          display: 'flex',
-          gap: 4,
-          zIndex: 50,
-        }}
-      >
+      {/* Issue #10: Zoom controls — styles extracted to CSS classes in index.css */}
+      <div className="zoom-controls">
         <button
           onClick={zoomIn}
           aria-label="Zoom in"
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-            borderRadius: '50%',
-            width: 36,
-            height: 36,
-            border: '1px solid var(--border-color)',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className="zoom-btn"
         >
           +
         </button>
         <button
           onClick={zoomOut}
           aria-label="Zoom out"
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-            borderRadius: '50%',
-            width: 36,
-            height: 36,
-            border: '1px solid var(--border-color)',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
+          className="zoom-btn"
         >
           −
         </button>
@@ -211,19 +233,7 @@ const BoardZoomWrapper = ({ children, enabled = true }) => {
           <button
             onClick={resetZoom}
             aria-label="Reset zoom"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              borderRadius: '50%',
-              width: 36,
-              height: 36,
-              border: '1px solid var(--border-color)',
-              fontSize: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
+            className="zoom-btn zoom-btn-reset"
           >
             ↺
           </button>

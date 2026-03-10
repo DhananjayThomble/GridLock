@@ -54,9 +54,9 @@ function useGridSizes(gridSize) {
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Minimum 24px so it's tappable; no hard max — let the board fill space
-      // Only cap on desktop to keep it visually reasonable
-      const maxBox = w >= 1024 ? 120 : Infinity;
+      // Minimum 24px so it's tappable; cap per breakpoint to prevent oversized cells
+      // Issue #4: Infinity on mobile removed upper guard — use reasonable caps
+      const maxBox = w < 640 ? 100 : w < 1024 ? 110 : 120;
       box = Math.max(24, Math.min(box, maxBox));
 
       const dot = Math.max(6, Math.round(box * 0.18));
@@ -143,6 +143,17 @@ const Board = () => {
   const joinMode = location.state?.joinMode || (role === 'spectator' ? 'spectator' : 'player');
   const isSpectator = role === 'spectator';
   const sizes = useGridSizes(gridSize);
+
+  // Issue #5: Only enable zoom on touch devices — avoid mounting handlers on desktop
+  const [isTouchDevice, setIsTouchDevice] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: none) and (pointer: coarse)');
+    const handler = (e) => setIsTouchDevice(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     roleRef.current = role;
@@ -1027,7 +1038,7 @@ const Board = () => {
 
         {/* ── Board ── */}
         <div className="flex flex-1 items-center justify-center w-full">
-        <BoardZoomWrapper enabled={true}>
+        <BoardZoomWrapper enabled={isTouchDevice}>
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -1036,6 +1047,7 @@ const Board = () => {
             padding: '12px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
+            touchAction: 'pan-y', // Issue #8: explicit — inherited from wrapper but kept for clarity
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
         >
