@@ -609,6 +609,9 @@ const Board = () => {
             margin: '-16px 0',
             backgroundClip: 'content-box',
             boxSizing: 'border-box',
+            WebkitTapHighlightColor: isMyTurn ? `${currentPlayerColor}20` : 'transparent',
+            position: 'relative',
+            zIndex: isMyTurn ? 10 : 1,
           }}
         />
       </div>
@@ -649,6 +652,9 @@ const Board = () => {
             margin: '0 -16px',
             backgroundClip: 'content-box',
             boxSizing: 'border-box',
+            WebkitTapHighlightColor: isMyTurn ? `${currentPlayerColor}20` : 'transparent',
+            position: 'relative',
+            zIndex: isMyTurn ? 10 : 1,
           }}
         />
       </div>

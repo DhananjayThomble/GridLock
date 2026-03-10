@@ -114,6 +114,8 @@ const BoardZoomWrapper = ({ children, enabled = true, resetKey = false }) => {
   }, [getDistance, constrainTranslate]);
 
   const handleTouchEnd = useCallback((e) => {
+    // Clear cached rect so next gesture gets a fresh getBoundingClientRect()
+    rectRef.current = null;
     if (e.touches.length === 0) {
       if (scaleRef.current < 1.05) {
         scaleRef.current = 1;
