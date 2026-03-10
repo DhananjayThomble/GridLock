@@ -189,6 +189,7 @@ async function persistGame(game, status = null, metadata = null) {
         lastActivityAt: now,
         updatedAt: now,
     };
+    if (game.moveHistory) payload.moveHistory = game.moveHistory;
     if (game.matchType) payload.matchType = game.matchType;
     if (metadata) payload.metadata = { ...(game.metadata || {}), ...metadata };
     if (finalStatus === 'finished' || finalStatus === 'abandoned') payload.finishedAt = now;
@@ -330,6 +331,7 @@ async function loadGameFromDB(cleanGameId, log) {
         gameState: doc.gameState,
         createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
         metadata: doc.metadata || {},
+        moveHistory: doc.moveHistory || [],
     };
     await gameStore.setGame(cleanGameId, game);
     log.info('Loaded game from DB on cache-miss', { gameId: cleanGameId });
@@ -355,6 +357,7 @@ async function restoreActiveGames(log) {
                 gameState: doc.gameState,
                 createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
                 metadata: doc.metadata || {},
+                moveHistory: doc.moveHistory || [],
             });
         }
         if (docs.length > 0) log.info('Recovered active games from database', { count: docs.length });
@@ -494,6 +497,17 @@ function scheduleCPUMove(io, log, gameId, delay) {
             }
 
             game.gameState = newState;
+
+            // Record CPU move in history for replay
+            if (!game.moveHistory) game.moveHistory = [];
+            game.moveHistory.push({
+                player: currentPlayerId,
+                row: move.r,
+                col: move.c,
+                type: move.type === 'horizontal' ? 'h' : 'v',
+                timestamp: new Date(),
+            });
+
             await gameStore.setGame(gameId, game);
 
             const status = newState.winner ? 'finished' : 'playing';
@@ -916,6 +930,17 @@ function attachSocketHandlers(io, log) {
                 if (newState.error) { socket.emit('error', newState.error); return; }
 
                 game.gameState = newState;
+
+                // Record move in history for replay
+                if (!game.moveHistory) game.moveHistory = [];
+                game.moveHistory.push({
+                    player: playerId,
+                    row: r,
+                    col: c,
+                    type: type === 'horizontal' ? 'h' : 'v',
+                    timestamp: new Date(),
+                });
+
                 // Write back to shared store BEFORE broadcasting
                 await gameStore.setGame(cleanGameId, game);
 
