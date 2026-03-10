@@ -253,24 +253,6 @@ const BoardZoomWrapper = ({ children, enabled = true, resetKey = false }) => {
           </button>
         )}
       </div>
-      {/* Board container with zoom transform */}
-      <div
-        ref={containerRef}
-        style={{
-          overflow: 'hidden',
-          touchAction: scale > 1 ? 'none' : 'pan-y',
-        }}
-      >
-        <div
-          style={{
-            transform: `scale(${scale}) translate(${translate.x}px, ${translate.y}px)`,
-            transformOrigin: 'center center',
-            transition: isTouching ? 'none' : 'transform 0.15s ease-out',
-          }}
-        >
-          {children}
-        </div>
-      </div>
     </div>
   );
 };
