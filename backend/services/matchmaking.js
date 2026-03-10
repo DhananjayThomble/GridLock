@@ -187,6 +187,18 @@ class MatchmakingService {
     }
 
     /**
+     * Get counts for all active queues.
+     * Returns an object like { "2P:3x3": 3, "3P:3x3": 1 }
+     */
+    getAllQueueCounts() {
+        const counts = {};
+        for (const [key, queue] of this.queues.entries()) {
+            if (queue.length > 0) counts[key] = queue.length;
+        }
+        return counts;
+    }
+
+    /**
      * Check if a player is currently in a queue.
      */
     isInQueue(socketId) {

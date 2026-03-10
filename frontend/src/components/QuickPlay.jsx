@@ -1,5 +1,5 @@
 // src/components/QuickPlay.jsx
-// Matchmaking waiting screen — shows queue status, timer, and CPU fallback
+// Matchmaking waiting screen — shows queue status, timer, player count selector, and CPU fallback
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import socket from '../socket';
@@ -9,22 +9,30 @@ const QUEUE_TIMEOUT_SEC = 30;
 const CPU_SUGGEST_SEC   = 15;
 const CPU_AUTO_SEC      = QUEUE_TIMEOUT_SEC;
 
-const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU }) => {
+const PLAYER_OPTIONS = [2, 3, 4];
+
+const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initialQueueSize, username, avatar, onCancel, onPlayCPU }) => {
+  const [selectedPlayerCount, setSelectedPlayerCount] = useState(initialPlayerCount || 2);
   const [elapsed, setElapsed] = useState(0);
   const [queueSize, setQueueSize] = useState(initialQueueSize || 1);
+  const [queueCounts, setQueueCounts] = useState({}); // per-queueKey counts, e.g. { "2P:3x3": 3, "3P:3x3": 1 }
   const [showCpuOption, setShowCpuOption] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const timerRef = useRef(null);
   const overlayRef = useRef(null);
   const showCpuRef = useRef(false);
   const timedOutRef = useRef(false);
+  const selectedPlayerCountRef = useRef(selectedPlayerCount);
+  const radioGroupRef = useRef(null);
 
-  // Queue size initialized from prop; socket events update it afterward
+  // Keep ref in sync
+  useEffect(() => { selectedPlayerCountRef.current = selectedPlayerCount; }, [selectedPlayerCount]);
 
   // Listen for queue_status and queue_timeout socket events
   useEffect(() => {
-    const onStatus = ({ queueSize: qs }) => {
+    const onStatus = ({ queueSize: qs, queueCounts: qc }) => {
       if (qs != null) setQueueSize(qs);
+      if (qc != null) setQueueCounts(qc);
     };
     const onTimeout = () => {
       timedOutRef.current = true;
@@ -58,6 +66,54 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
 
     return () => clearInterval(timerRef.current);
   }, []); // stable — no deps that change
+
+  // Handle player count change — re-queue with new preference
+  const handlePlayerCountChange = useCallback((newCount) => {
+    if (newCount === selectedPlayerCountRef.current) return;
+    setSelectedPlayerCount(newCount);
+
+    // Re-queue: leave current queue, rejoin with new player count
+    socket.emit('queue_leave');
+    socket.emit('queue_join', { username, avatar, playerCount: newCount, gridSize });
+
+    // Reset timer and CPU suggestion state on re-queue
+    setElapsed(0);
+    setShowCpuOption(false);
+    showCpuRef.current = false;
+    setTimedOut(false);
+    timedOutRef.current = false;
+    setQueueSize(1);
+  }, [gridSize, username, avatar]);
+
+  // Roving tabindex arrow key navigation for radiogroup
+  const handleRadioKeyDown = useCallback((e) => {
+    const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+
+    const currentIdx = PLAYER_OPTIONS.indexOf(selectedPlayerCountRef.current);
+    let nextIdx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIdx = (currentIdx + 1) % PLAYER_OPTIONS.length;
+    } else {
+      nextIdx = (currentIdx - 1 + PLAYER_OPTIONS.length) % PLAYER_OPTIONS.length;
+    }
+
+    const newCount = PLAYER_OPTIONS[nextIdx];
+    handlePlayerCountChange(newCount);
+
+    // Focus the newly selected radio button
+    const group = radioGroupRef.current;
+    if (group) {
+      const buttons = group.querySelectorAll('[role="radio"]');
+      if (buttons[nextIdx]) buttons[nextIdx].focus();
+    }
+  }, [handlePlayerCountChange]);
+
+  // Wrap onPlayCPU to pass selected player count
+  const handlePlayCPU = useCallback(() => {
+    if (onPlayCPU) onPlayCPU(selectedPlayerCountRef.current);
+  }, [onPlayCPU]);
 
   // Focus trap: keep focus within the overlay
   const handleKeyDown = useCallback((e) => {
@@ -95,6 +151,16 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
     }
   }, []);
 
+  // Build per-selection queue count display for the current grid size
+  const queueCountDisplay = PLAYER_OPTIONS
+    .map((count) => {
+      const key = `${count}P:${gridSize}x${gridSize}`;
+      const n = queueCounts[key] || 0;
+      return n > 0 ? `${n} searching for ${count}P` : null;
+    })
+    .filter(Boolean)
+    .join(' | ');
+
   return (
     <div
       ref={overlayRef}
@@ -127,11 +193,61 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
               className="text-lg font-bold"
               style={{ color: 'var(--text-primary)' }}
             >
-              {timedOut ? 'No opponents found' : 'Searching for opponents…'}
+              {timedOut ? 'No opponents found' : `Searching for ${selectedPlayerCount}-player match…`}
             </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Grid: {gridSize}×{gridSize} · Players: 2 (Classic Duel)
-            </p>
+          </div>
+
+          {/* Grid size display */}
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}
+          >
+            <span className="text-xs font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Grid</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{gridSize}×{gridSize}</span>
+          </div>
+
+          {/* Player count selector */}
+          <div>
+            <label
+              className="block text-xs font-bold uppercase mb-2"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Players
+            </label>
+            <div
+              ref={radioGroupRef}
+              className="inline-flex rounded-xl overflow-hidden"
+              role="radiogroup"
+              aria-label="Player count"
+              style={{ border: '1px solid var(--border-color-strong)' }}
+              onKeyDown={handleRadioKeyDown}
+            >
+              {PLAYER_OPTIONS.map((count, idx) => {
+                const isSelected = count === selectedPlayerCount;
+                return (
+                  <button
+                    key={count}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={`${count} players`}
+                    tabIndex={isSelected ? 0 : -1}
+                    onClick={() => handlePlayerCountChange(count)}
+                    className="px-5 py-2 text-sm font-bold transition-all min-h-[44px]"
+                    style={{
+                      background: isSelected
+                        ? 'var(--accent)'
+                        : 'var(--bg-surface)',
+                      color: isSelected
+                        ? 'var(--text-on-accent)'
+                        : 'var(--text-secondary)',
+                      borderRight: idx < PLAYER_OPTIONS.length - 1 ? '1px solid var(--border-color-strong)' : 'none',
+                    }}
+                  >
+                    {count}P
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Timer and queue info */}
@@ -146,7 +262,9 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
               <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
                 👥 {queueSize}
               </div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>In queue</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {queueCountDisplay || 'In queue'}
+              </div>
             </div>
           </div>
 
@@ -159,8 +277,8 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
                 <div className="flex-1" style={{ borderTop: '1px solid var(--border-color)' }} />
               </div>
               <button
-                onClick={onPlayCPU}
-                aria-label={timedOut ? 'Play versus CPU instead' : 'Play versus CPU instead?'}
+                onClick={handlePlayCPU}
+                aria-label={timedOut ? `Play versus ${selectedPlayerCount - 1} CPU instead` : `Play versus ${selectedPlayerCount - 1} CPU instead?`}
                 className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 min-h-[44px]"
                 style={{
                   background: timedOut
@@ -170,7 +288,9 @@ const QuickPlay = ({ gridSize, queueSize: initialQueueSize, onCancel, onPlayCPU 
                   color: timedOut ? 'var(--text-on-accent)' : 'var(--text-primary)',
                 }}
               >
-                🤖 {timedOut ? 'Play vs CPU instead' : 'Play vs CPU instead?'}
+                🤖 {timedOut
+                  ? `Play vs ${selectedPlayerCount - 1} CPU instead`
+                  : `Play vs ${selectedPlayerCount - 1} CPU instead?`}
               </button>
             </div>
           )}
