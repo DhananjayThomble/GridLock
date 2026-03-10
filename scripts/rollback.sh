@@ -17,10 +17,24 @@ NC='\033[0m'
 BRANCH="${1:-main}"
 COUNT="${2:-1}"
 
+# Validate count is a positive integer
+if ! [[ "$COUNT" =~ ^[1-9][0-9]*$ ]]; then
+  echo -e "${RED}Error: commit count must be a positive integer${NC}"
+  exit 1
+fi
+
+# Trap for conflict recovery
+trap 'echo -e "${RED}Revert hit a conflict. Resolve manually or run: git revert --abort${NC}"' ERR
+
 echo -e "${YELLOW}⚠️  ROLLBACK: Reverting last ${COUNT} commit(s) on ${BRANCH}${NC}"
 echo ""
 
+# Checkout and pull first so preview is accurate
+git checkout "$BRANCH"
+git pull origin "$BRANCH"
+
 # Show what we're reverting
+echo "Commits to revert:"
 git log "${BRANCH}" --oneline -n "$COUNT"
 echo ""
 
@@ -31,9 +45,6 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "Aborted."
   exit 1
 fi
-
-git checkout "$BRANCH"
-git pull origin "$BRANCH"
 
 if [ "$COUNT" -eq 1 ]; then
   git revert HEAD --no-edit

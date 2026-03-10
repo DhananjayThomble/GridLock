@@ -2,12 +2,11 @@
 set -e
 
 # Lint only staged frontend files (not the entire src/ directory)
-STAGED_FRONTEND=$(git diff --cached --name-only --diff-filter=d -- 'frontend/src/*.js' 'frontend/src/*.jsx' 'frontend/src/**/*.js' 'frontend/src/**/*.jsx' | sed 's|^frontend/||')
+STAGED_FRONTEND=$(git diff --cached --name-only --diff-filter=d -- 'frontend/src/**/*.js' 'frontend/src/**/*.jsx' | sed 's|^frontend/||')
 
 if [ -n "$STAGED_FRONTEND" ]; then
   echo "🔍 Linting staged frontend files..."
-  cd frontend && echo "$STAGED_FRONTEND" | xargs npx eslint --quiet
-  cd ..
+  (cd frontend && echo "$STAGED_FRONTEND" | tr '\n' '\0' | xargs -0 npx eslint --quiet)
 fi
 
 # Run backend tests if any backend files are staged
@@ -15,7 +14,7 @@ STAGED_BACKEND=$(git diff --cached --name-only --diff-filter=d -- 'backend/**')
 
 if [ -n "$STAGED_BACKEND" ]; then
   echo "🧪 Running backend tests..."
-  cd backend && npm test --silent
+  (cd backend && npm test --silent)
 fi
 
 echo "✅ Pre-commit checks passed"
