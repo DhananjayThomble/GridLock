@@ -3,12 +3,12 @@
 # Usage: ./scripts/merge-gate.sh <PR_NUMBER> [--squash|--merge|--rebase]
 #
 # Rules:
-#   - Minimum 2 review cycle comments on the PR
-#   - Build must pass (CI check)
+#   - Minimum 2 review cycle comments matching "## Review Cycle" pattern
+#   - Local CI must pass (lint + build + tests)
 #   - If PR touches touch/gesture files → requires "phone-tested" label
 #
 # NOTE: This script is the ONLY merge path. Never call `gh pr merge` directly.
-# It does not use --admin bypass. enforce_admins is enabled on develop.
+# enforce_admins + required PRs are enabled on develop.
 
 set -euo pipefail
 
@@ -18,7 +18,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 REPO="DhananjayThomble/GridLock"
-MIN_REVIEW_COMMENTS=2
+MIN_REVIEW_CYCLES=2
+REVIEW_PATTERN="## Review Cycle"
 MERGE_STRATEGY="${2:---squash}"
 TOUCH_FILES=("Board.jsx" "BoardZoomWrapper.jsx")
 
@@ -37,29 +38,34 @@ fi
 
 echo "🔍 Checking PR #${PR_NUMBER} merge readiness..."
 
-# 1. Check review cycle comments (actual PR reviews, not just conversation comments)
-REVIEW_COUNT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json reviews --jq '[.reviews[] | select(.state == "COMMENTED" or .state == "APPROVED")] | length')
-COMMENT_COUNT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments --jq '.comments | length')
-TOTAL_REVIEWS=$((REVIEW_COUNT + COMMENT_COUNT))
-echo "   Reviews: ${REVIEW_COUNT}, Comments: ${COMMENT_COUNT}, Total: ${TOTAL_REVIEWS} (minimum: ${MIN_REVIEW_COMMENTS})"
+# 1. Check for actual review cycle comments (must contain "## Review Cycle" pattern)
+# This prevents gaming with dummy comments like "lgtm" or emoji
+REVIEW_CYCLE_COUNT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments --jq "[.comments[].body | select(contains(\"$REVIEW_PATTERN\"))] | length")
+echo "   Review cycle comments: ${REVIEW_CYCLE_COUNT} (minimum: ${MIN_REVIEW_CYCLES})"
 
-if [ "$TOTAL_REVIEWS" -lt "$MIN_REVIEW_COMMENTS" ]; then
-  echo -e "${RED}❌ BLOCKED: PR #${PR_NUMBER} has only ${TOTAL_REVIEWS} review/comments. Minimum ${MIN_REVIEW_COMMENTS} required.${NC}"
-  echo -e "${YELLOW}   Run at least 2 review cycles before merging.${NC}"
+if [ "$REVIEW_CYCLE_COUNT" -lt "$MIN_REVIEW_CYCLES" ]; then
+  echo -e "${RED}❌ BLOCKED: PR #${PR_NUMBER} has only ${REVIEW_CYCLE_COUNT} review cycle comments.${NC}"
+  echo -e "${RED}   Need ${MIN_REVIEW_CYCLES} comments containing '${REVIEW_PATTERN}'.${NC}"
+  echo -e "${YELLOW}   Run at least ${MIN_REVIEW_CYCLES} review cycles using scripts/review-prompt.md before merging.${NC}"
   exit 1
 fi
 
-# 2. Run CI locally (GitHub Actions quota exhausted — all checks run here)
-echo "   Running local CI..."
-
+# 2. Checkout the PR branch before running CI (ensure we test the actual PR code)
+PR_BRANCH=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName --jq '.headRefName')
+echo "   Checking out PR branch: ${PR_BRANCH}..."
 REPO_ROOT=$(git rev-parse --show-toplevel)
+(cd "$REPO_ROOT" && git fetch origin "$PR_BRANCH" && git checkout "$PR_BRANCH" && git pull origin "$PR_BRANCH") > /dev/null 2>&1
+
+# 3. Run CI locally (GitHub Actions quota exhausted — all checks run here)
+echo "   Running local CI on branch ${PR_BRANCH}..."
 
 # Frontend build + lint
-echo "   → Frontend build & lint..."
+echo "   → Frontend lint..."
 if ! (cd "$REPO_ROOT/frontend" && npx eslint src/ --quiet 2>&1); then
   echo -e "${RED}❌ BLOCKED: Frontend lint failed.${NC}"
   exit 1
 fi
+echo "   → Frontend build..."
 if ! (cd "$REPO_ROOT/frontend" && npm run build --silent 2>&1 | tail -3); then
   echo -e "${RED}❌ BLOCKED: Frontend build failed.${NC}"
   exit 1
@@ -76,7 +82,7 @@ echo -e "   → Backend: ${GREEN}OK${NC}"
 
 echo -e "   Local CI: ${GREEN}ALL PASSED${NC}"
 
-# 3. Check if PR touches touch/gesture files → needs phone-tested label
+# 4. Check if PR touches touch/gesture files → needs phone-tested label
 CHANGED_FILES=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json files --jq '.files[].path')
 NEEDS_PHONE_TEST=false
 
@@ -97,7 +103,7 @@ if [ "$NEEDS_PHONE_TEST" = true ]; then
   echo -e "   Phone test: ${GREEN}Verified${NC}"
 fi
 
-# 4. Check PR is mergeable
+# 5. Check PR is mergeable
 MERGEABLE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeable --jq '.mergeable')
 if [ "$MERGEABLE" != "MERGEABLE" ]; then
   echo -e "${RED}❌ BLOCKED: PR is not mergeable (state: ${MERGEABLE}). Fix conflicts.${NC}"
