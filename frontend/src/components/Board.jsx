@@ -1043,6 +1043,8 @@ const Board = () => {
             padding: '8px',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
+            // 'manipulation' enables native pinch-to-zoom + pan but disables
+            // double-tap zoom delay, keeping tap response fast for line clicks
             touchAction: 'manipulation',
             ...(boardPulse ? { borderColor: myPlayerColor, '--glow-rgb': myPlayerColor.match(/\w\w/g)?.map(h => parseInt(h, 16)).join(',') || '88,166,255' } : {}),
           }}
