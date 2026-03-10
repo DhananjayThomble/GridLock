@@ -130,4 +130,40 @@ describe('Replay API', () => {
     expect(res.body.gameId).toBe('TESTGM');
   });
 
+  test('replay handles Mongoose Map for players field', async () => {
+    // The real Mongoose model stores players as a Map, not a plain object.
+    // Seed a game with Map-based players to exercise that branch in replay.js.
+    const Game = require('../models/Game');
+    const mapPlayers = new Map([
+      ['player1', { username: 'MapAlice', avatar: '👩', color: '#e74c3c', token: 'tok-m1', isCPU: false }],
+      ['player2', { username: 'MapBob', avatar: '👨', color: '#3498db', token: 'tok-m2', isCPU: false }],
+    ]);
+
+    Game.findOne.mockImplementationOnce(() => ({
+      lean: () => Promise.resolve({
+        gameId: 'MAPGM',
+        gridSize: 3,
+        playerCount: 2,
+        players: mapPlayers,
+        moveHistory: [
+          { player: 'player1', type: 'h', row: 0, col: 0, timestamp: new Date() },
+        ],
+        gameState: { scores: { player1: 1, player2: 0 }, winner: 'player1' },
+        status: 'completed',
+        createdAt: new Date(),
+        finishedAt: new Date(),
+      }),
+    }));
+
+    const app = createApp();
+    const res = await request(app).get('/api/games/MAPGM/replay');
+
+    expect(res.status).toBe(200);
+    expect(res.body.gameId).toBe('MAPGM');
+    expect(res.body.players.player1.username).toBe('MapAlice');
+    expect(res.body.players.player2.username).toBe('MapBob');
+    // Tokens should be stripped
+    expect(res.body.players.player1.token).toBeUndefined();
+  });
+
 });

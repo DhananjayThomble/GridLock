@@ -35,18 +35,10 @@ test.describe('Quick Play Player Count Selector', () => {
     );
 
     // The 2P option should be active/selected by default
-    // Check for active state — usually a highlighted button or aria-pressed
-    const activeBtn = page.locator('button[aria-pressed="true"], button.active, [data-active="true"]').first();
-    const activeBtnExists = await activeBtn.isVisible().catch(() => false);
-
-    if (activeBtnExists) {
-      const text = await activeBtn.innerText();
-      expect(text).toMatch(/2/);
-    } else {
-      // Fallback: check search text mentions 2-player
-      const bodyText = await page.locator('body').innerText();
-      expect(bodyText).toMatch(/2.?player|2P/i);
-    }
+    // Component uses role="radio" with aria-checked="true"
+    const activeRadio = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(activeRadio).toBeVisible({ timeout: 5_000 });
+    await expect(activeRadio).toHaveText(/2P/i);
   });
 
   test('changing selection updates search context', async ({ page }) => {
@@ -64,10 +56,9 @@ test.describe('Quick Play Player Count Selector', () => {
       // Give a moment for the UI to update
       await page.waitForTimeout(500);
 
-      // Verify the UI reflects the 3-player selection
-      const bodyText = await page.locator('body').innerText();
-      // Should mention 3-player or 3P context in the search area
-      expect(bodyText).toMatch(/3.?player|3P|3×|three/i);
+      // Verify the 3P radio is now the checked one
+      const activeRadio = page.locator('[role="radio"][aria-checked="true"]');
+      await expect(activeRadio).toHaveText(/3P/i);
     }
   });
 

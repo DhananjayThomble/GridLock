@@ -9,6 +9,12 @@ const {
 /**
  * Extract all percentage values visible in the ScoreBar.
  * Returns array of numbers (e.g. [55.6, 33.3, 11.1]).
+ *
+ * NOTE: The regex /(\d+(?:\.\d+)?)\s*%/g could theoretically match
+ * non-score percentages elsewhere on the page. This is mitigated by
+ * scoping the search to the `.score-bar` element. If the page ever
+ * shows other percentages inside `.score-bar`, this helper will need
+ * a more specific selector or data attribute.
  */
 async function getScoreBarPercentages(page) {
   return page.evaluate(() => {

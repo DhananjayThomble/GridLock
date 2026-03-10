@@ -7,52 +7,40 @@ const {
 } = require('./helpers');
 
 test.describe('Spectator View', () => {
+  let ctx1, ctx2, ctx3, p1, p2, spectator, roomCode;
 
-  test('join game as spectator via room code', async ({ browser }) => {
-    const ctx1 = await browser.newContext();
-    const ctx2 = await browser.newContext();
-    const ctx3 = await browser.newContext();
-    const p1 = await ctx1.newPage();
-    const p2 = await ctx2.newPage();
-    const spectator = await ctx3.newPage();
+  test.beforeEach(async ({ browser }) => {
+    ctx1 = await browser.newContext();
+    ctx2 = await browser.newContext();
+    ctx3 = await browser.newContext();
+    p1 = await ctx1.newPage();
+    p2 = await ctx2.newPage();
+    spectator = await ctx3.newPage();
 
     await goToLobby(p1);
-    const roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
+    roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
     await joinGame(p2, { username: 'Bob', roomCode });
     await waitForGameStart(p1, p2);
-
-    // Join as spectator
     await joinGame(spectator, { username: 'Watcher', roomCode, joinMode: 'spectator' });
-
-    // Should be on the game page
-    await expect(spectator.locator('body')).toContainText(/Spectating|spectator|👀/i, { timeout: 15_000 });
-
-    await ctx1.close();
-    await ctx2.close();
-    await ctx3.close();
   });
 
-  test('spectator sees board but cannot click lines', async ({ browser }) => {
-    const ctx1 = await browser.newContext();
-    const ctx2 = await browser.newContext();
-    const ctx3 = await browser.newContext();
-    const p1 = await ctx1.newPage();
-    const p2 = await ctx2.newPage();
-    const spectator = await ctx3.newPage();
+  test.afterEach(async () => {
+    await ctx1.close().catch(() => {});
+    await ctx2.close().catch(() => {});
+    await ctx3.close().catch(() => {});
+  });
 
-    await goToLobby(p1);
-    const roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
-    await joinGame(p2, { username: 'Bob', roomCode });
-    await waitForGameStart(p1, p2);
-    await joinGame(spectator, { username: 'Watcher', roomCode, joinMode: 'spectator' });
+  test('join game as spectator via room code', async () => {
+    await expect(spectator.locator('body')).toContainText(/Spectating|spectator|👀/i, { timeout: 15_000 });
+  });
 
+  test('spectator sees board but cannot click lines', async () => {
     await spectator.waitForFunction(
       () => /Spectating|spectator/i.test(document.body.innerText),
       { timeout: 15_000 }
     );
 
     // Positive control: verify that a PLAYER's board has clickable lines
-    // (proves the selector works and isn't vacuously matching nothing)
     const [t1, t2] = await Promise.all([
       p1.locator('body').innerText(),
       p2.locator('body').innerText(),
@@ -68,48 +56,13 @@ test.describe('Spectator View', () => {
     // Board dots/grid should still be visible
     const boardContainer = spectator.locator('.board-container');
     await expect(boardContainer).toBeVisible({ timeout: 5_000 });
-
-    await ctx1.close();
-    await ctx2.close();
-    await ctx3.close();
   });
 
-  test('spectator sees "👀 Spectating" indicator', async ({ browser }) => {
-    const ctx1 = await browser.newContext();
-    const ctx2 = await browser.newContext();
-    const ctx3 = await browser.newContext();
-    const p1 = await ctx1.newPage();
-    const p2 = await ctx2.newPage();
-    const spectator = await ctx3.newPage();
-
-    await goToLobby(p1);
-    const roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
-    await joinGame(p2, { username: 'Bob', roomCode });
-    await waitForGameStart(p1, p2);
-    await joinGame(spectator, { username: 'Watcher', roomCode, joinMode: 'spectator' });
-
-    // Should see spectating indicator
+  test('spectator sees "👀 Spectating" indicator', async () => {
     await expect(spectator.locator('text=/👀.*Spectat/i')).toBeVisible({ timeout: 15_000 });
-
-    await ctx1.close();
-    await ctx2.close();
-    await ctx3.close();
   });
 
-  test('spectator sees real-time move updates', async ({ browser }) => {
-    const ctx1 = await browser.newContext();
-    const ctx2 = await browser.newContext();
-    const ctx3 = await browser.newContext();
-    const p1 = await ctx1.newPage();
-    const p2 = await ctx2.newPage();
-    const spectator = await ctx3.newPage();
-
-    await goToLobby(p1);
-    const roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
-    await joinGame(p2, { username: 'Bob', roomCode });
-    await waitForGameStart(p1, p2);
-    await joinGame(spectator, { username: 'Watcher', roomCode, joinMode: 'spectator' });
-
+  test('spectator sees real-time move updates', async () => {
     await spectator.waitForFunction(
       () => /Spectating|spectator/i.test(document.body.innerText),
       { timeout: 15_000 }
@@ -135,42 +88,20 @@ test.describe('Spectator View', () => {
       boardBefore,
       { timeout: 10_000 }
     );
-
-    await ctx1.close();
-    await ctx2.close();
-    await ctx3.close();
   });
 
-  test('spectator count shown to players', async ({ browser }) => {
-    const ctx1 = await browser.newContext();
-    const ctx2 = await browser.newContext();
-    const ctx3 = await browser.newContext();
-    const p1 = await ctx1.newPage();
-    const p2 = await ctx2.newPage();
-    const spectator = await ctx3.newPage();
-
-    await goToLobby(p1);
-    const roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
-    await joinGame(p2, { username: 'Bob', roomCode });
-    await waitForGameStart(p1, p2);
-    await joinGame(spectator, { username: 'Watcher', roomCode, joinMode: 'spectator' });
-
+  test('spectator count shown to players', async () => {
     await spectator.waitForFunction(
       () => /Spectating|spectator/i.test(document.body.innerText),
       { timeout: 15_000 }
     );
 
-    // Players should see spectator count indicator (👀 1 or similar)
-    // Check both player pages
+    // Players should see spectator count indicator
     const hasSpectatorCount = await Promise.race([
       p1.waitForFunction(() => /👀\s*\d|spectator.*\d|\d.*spectator/i.test(document.body.innerText), { timeout: 10_000 }).then(() => true).catch(() => false),
       p2.waitForFunction(() => /👀\s*\d|spectator.*\d|\d.*spectator/i.test(document.body.innerText), { timeout: 10_000 }).then(() => true).catch(() => false),
     ]);
     expect(hasSpectatorCount).toBe(true);
-
-    await ctx1.close();
-    await ctx2.close();
-    await ctx3.close();
   });
 
 });

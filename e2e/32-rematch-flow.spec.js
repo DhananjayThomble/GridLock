@@ -139,86 +139,14 @@ test.describe('Rematch Flow', () => {
     );
   });
 
-  test('tournament game → no rematch button shown', async ({ browser }) => {
-    // Tournament games use bracket progression, so the Rematch button must NOT appear.
-    // We simulate a tournament game by intercepting the Socket.IO game-state response
-    // and injecting a tournamentId into the game state.
-    const ctx1 = await browser.newContext();
-    const ctx2 = await browser.newContext();
-    const p1 = await ctx1.newPage();
-    const p2 = await ctx2.newPage();
-
-    // Intercept WebSocket messages to inject tournamentId into game state.
-    // Since direct WS interception is complex in Playwright, we use page.evaluate
-    // to patch the game state after the game loads.
-    await goToLobby(p1);
-    const roomCode = await createGame(p1, { username: 'Alice', playerCount: 2, gridSize: '3×3' });
-    await joinGame(p2, { username: 'Bob', roomCode });
-    await waitForGameStart(p1, p2);
-
-    // Play game to completion
-    const completed = await playToCompletion([p1, p2]);
-    expect(completed).toBe(true);
-
-    // Before checking for Rematch, inject tournamentId into the React state
-    // by evaluating script that sets window.__TOURNAMENT_OVERRIDE, then
-    // dispatch a custom event the Board component can react to.
-    // Alternative approach: directly check that the Rematch button IS shown
-    // for a normal game (positive control), then verify the component code
-    // guards on tournamentId.
-
-    // Positive control: normal game DOES show Rematch button
-    const hasRematch = await Promise.race([
-      p1.locator('button:has-text("Rematch")').waitFor({ timeout: 10_000 }).then(() => true).catch(() => false),
-      p2.locator('button:has-text("Rematch")').waitFor({ timeout: 10_000 }).then(() => true).catch(() => false),
-    ]);
-    expect(hasRematch, 'Normal game should show Rematch button (positive control)').toBe(true);
-
-    // Now simulate tournament context by injecting tournamentId into the
-    // game state via the window socket's game object
-    const winnerPage = hasRematch
-      ? (await p1.locator('button:has-text("Rematch")').count() > 0 ? p1 : p2)
-      : p1;
-
-    // Inject tournamentId and force React re-render by dispatching state update
-    await winnerPage.evaluate(() => {
-      // Find the React fiber root and inject tournamentId
-      const rootEl = document.getElementById('root');
-      if (rootEl && rootEl._reactRootContainer) {
-        // React 17 style
-      }
-      // Use the socket connection to emit a fake state update with tournamentId
-      // Alternatively, directly manipulate the DOM to hide Rematch and show tournament text
-      const rematchBtns = document.querySelectorAll('button');
-      rematchBtns.forEach(btn => {
-        if (/rematch/i.test(btn.textContent)) {
-          // Simulate what the Board component does when tournamentId is set:
-          // it hides the Rematch button and shows "Next match loading…"
-          const parent = btn.parentElement;
-          btn.style.display = 'none';
-          btn.setAttribute('data-tournament-hidden', 'true');
-          const notice = document.createElement('div');
-          notice.textContent = 'Next match loading…';
-          notice.setAttribute('data-testid', 'tournament-notice');
-          parent.appendChild(notice);
-        }
-      });
-    });
-
-    // Verify: after tournament injection, Rematch button should be hidden
-    // and tournament notice should be visible
-    const rematchHidden = await winnerPage.locator('button[data-tournament-hidden="true"]').count();
-    expect(rematchHidden, 'Rematch button should be hidden in tournament mode').toBeGreaterThan(0);
-
-    const tournamentNotice = await winnerPage.locator('[data-testid="tournament-notice"]').count();
-    expect(tournamentNotice, 'Tournament "Next match loading…" notice should appear').toBeGreaterThan(0);
-
-    // Also verify that the text "Rematch" is NOT visible to the user
-    const visibleRematch = await winnerPage.locator('button:has-text("Rematch"):visible').count();
-    expect(visibleRematch, 'No visible Rematch button in tournament mode').toBe(0);
-
-    await ctx1.close();
-    await ctx2.close();
-  });
+  // TODO: "tournament game → no rematch button shown" — removed because it was a no-op.
+  // Board.jsx guards Rematch on `!tournamentId` (line ~817), but Playwright cannot
+  // intercept/modify WebSocket frames. The previous test resorted to DOM manipulation
+  // (hiding the button via JS), which tested nothing real.
+  // Proper coverage options:
+  //   1. Unit/integration test for the Board component with tournamentId prop
+  //   2. A test-only server route that creates a tournament-context game
+  // The positive case (Rematch IS shown for normal games) is covered by the other
+  // tests in this file.
 
 });

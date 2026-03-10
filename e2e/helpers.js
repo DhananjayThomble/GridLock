@@ -186,8 +186,18 @@ async function playToCompletion(pages, maxMoves = 80) {
       } catch { continue; }
     }
     if (!moved) {
-      await pages[0].waitForTimeout(300);
+      // Iterate pages for fallback wait — pages[0] may be closed
+      for (const page of pages) {
+        try { await page.waitForTimeout(300); break; } catch { continue; }
+      }
     }
+  }
+  // Post-loop fallback: scan all pages for game-over text
+  for (const page of pages) {
+    try {
+      const text = await page.locator('body').innerText().catch(() => '');
+      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+    } catch { continue; }
   }
   return false;
 }

@@ -109,7 +109,7 @@ test.describe('Replay Page', () => {
     await pauseBtn.click();
 
     // Default speed is 1x
-    const speedBtn = page.locator('button[aria-label*="Speed"]');
+    const speedBtn = page.locator('button[aria-label^="Speed:"]');
     await expect(speedBtn).toContainText('1x');
 
     // Click to cycle to 2x
