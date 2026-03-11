@@ -16,6 +16,7 @@ import TournamentLobby from './components/TournamentLobby';
 import JoinGame from './components/JoinGame';
 import ReplayPage from './components/ReplayPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import ReconnectionOverlay from './components/ReconnectionOverlay';
 import './App.css';
 
 // Support /beta sub-path deployment via Vite's BASE_URL
@@ -106,6 +107,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router basename={basePath}>
+        <ReconnectionOverlay />
         <AppLayout />
       </Router>
     </ThemeProvider>

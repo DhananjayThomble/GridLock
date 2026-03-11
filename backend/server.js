@@ -43,7 +43,11 @@ app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     next();
 });
-app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*" }));
+// CORS: prefer explicit origin list; fall back to permissive only in development
+const corsOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+    : (process.env.NODE_ENV === 'production' ? [] : "*");
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
 
@@ -55,7 +59,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock')
 // Socket.io Setup
 const io = new Server(server, {
     cors: {
-        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
+        origin: corsOrigins,
         methods: ["GET", "POST"],
     },
 });

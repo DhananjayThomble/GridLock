@@ -3,7 +3,8 @@ const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
 const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
-const { socketLimiter } = require('../middleware/rateLimiter');
+const { socketLimiter, ipLimiter } = require('../middleware/rateLimiter');
+const { validatePayload } = require('../middleware/payloadValidator');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
@@ -13,7 +14,7 @@ const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService'
 const matchmaking = require('../services/matchmaking');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 
-const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 60_000;
+const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 
 // Node-local timer handles only — state visibility is handled via disconnectStore (Redis)
@@ -628,6 +629,21 @@ function attachSocketHandlers(io, log) {
     io.on('connection', (socket) => {
         log.info('New client connected:', socket.id);
 
+        /**
+         * Extract client IP from socket handshake (respects trust proxy).
+         * @returns {string}
+         */
+        const getSocketIP = () => {
+            return socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
+                || socket.handshake?.address
+                || 'unknown';
+        };
+
+        /**
+         * Check per-socket rate limit for an event.
+         * @param {string} eventName
+         * @returns {boolean} true if rate-limited (caller should return early)
+         */
         const rateLimited = (eventName) => {
             if (!socketLimiter.allow(socket.id, eventName)) {
                 log.warn('Rate limited socket event', { socketId: socket.id, eventName });
@@ -637,10 +653,47 @@ function attachSocketHandlers(io, log) {
             return false;
         };
 
+        /**
+         * Check IP-based rate limit for an event.
+         * @param {string} eventName
+         * @returns {boolean} true if rate-limited
+         */
+        const ipRateLimited = (eventName) => {
+            const ip = getSocketIP();
+            if (!ipLimiter.allow(ip, eventName)) {
+                log.warn('IP rate limited socket event', { ip, socketId: socket.id, eventName });
+                socket.emit('error', 'Too many requests from your network. Please slow down.');
+                return true;
+            }
+            return false;
+        };
+
+        /**
+         * Validate event payload against schema. Returns validated value or null.
+         * @param {string} eventName
+         * @param {*} payload
+         * @returns {object|null} validated payload, or null if invalid (error already emitted)
+         */
+        const validate = (eventName, payload) => {
+            const result = validatePayload(eventName, payload);
+            if (!result.valid) {
+                log.warn('Invalid payload', { socketId: socket.id, eventName, error: result.error });
+                socket.emit('error', result.error);
+                return null;
+            }
+            return result.value;
+        };
+
         // ── create_tournament ─────────────────────────────────────────────────
-        socket.on('create_tournament', async ({ username, avatar, tournamentSize = 4, gridSize = 3 }) => {
+        socket.on('create_tournament', async (rawPayload) => {
             try {
                 if (rateLimited('create_tournament')) return;
+                if (ipRateLimited('create_tournament')) return;
+
+                const validated = validate('create_tournament', rawPayload);
+                if (!validated) return;
+
+                const { username, avatar, tournamentSize = 4, gridSize = 3 } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }
@@ -678,9 +731,14 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── join_tournament ───────────────────────────────────────────────────
-        socket.on('join_tournament', async ({ tournamentId, username, avatar }) => {
+        socket.on('join_tournament', async (rawPayload) => {
             try {
                 if (rateLimited('join_tournament')) return;
+
+                const validated = validate('join_tournament', rawPayload);
+                if (!validated) return;
+
+                const { tournamentId, username, avatar } = validated;
 
                 const tidResult = sanitizeTournamentId(tournamentId);
                 if (!tidResult.valid) { socket.emit('error', tidResult.error); return; }
@@ -722,9 +780,15 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── create_game ────────────────────────────────────────────────────────
-        socket.on('create_game', async ({ gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium' }, callback) => {
+        socket.on('create_game', async (rawPayload, callback) => {
             try {
                 if (rateLimited('create_game')) return;
+                if (ipRateLimited('create_game')) return;
+
+                const validated = validate('create_game', rawPayload);
+                if (!validated) return;
+
+                const { gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium' } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }
@@ -818,9 +882,14 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── join_game ──────────────────────────────────────────────────────────
-        socket.on('join_game', async ({ gameId, username, avatar, sessionToken, joinMode }) => {
+        socket.on('join_game', async (rawPayload) => {
             try {
                 if (rateLimited('join_game')) return;
+
+                const validated = validate('join_game', rawPayload);
+                if (!validated) return;
+
+                const { gameId, username, avatar, sessionToken, joinMode } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -984,9 +1053,14 @@ function attachSocketHandlers(io, log) {
 
 
         // ── make_move ──────────────────────────────────────────────────────────
-        socket.on('make_move', async ({ gameId, playerId, sessionToken, type, r, c }) => {
+        socket.on('make_move', async (rawPayload) => {
             try {
                 if (rateLimited('make_move')) return;
+
+                const validated = validate('make_move', rawPayload);
+                if (!validated) return;
+
+                const { gameId, playerId, sessionToken, type, r, c } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -1077,9 +1151,14 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── request_rematch ────────────────────────────────────────────────────
-        socket.on('request_rematch', async ({ gameId, sessionToken }) => {
+        socket.on('request_rematch', async (rawPayload) => {
             try {
                 if (rateLimited('request_rematch')) return;
+
+                const validated = validate('request_rematch', rawPayload);
+                if (!validated) return;
+
+                const { gameId, sessionToken } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -1201,9 +1280,14 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── rematch_cancel ─────────────────────────────────────────────────────
-        socket.on('rematch_cancel', async ({ gameId, sessionToken }) => {
+        socket.on('rematch_cancel', async (rawPayload) => {
             try {
                 if (rateLimited('rematch_cancel')) return;
+
+                const validated = validate('rematch_cancel', rawPayload);
+                if (!validated) return;
+
+                const { gameId, sessionToken } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -1246,9 +1330,15 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── queue_join (Quick Play matchmaking) ──────────────────────────────
-        socket.on('queue_join', async ({ username, avatar, gridSize, playerCount }) => {
+        socket.on('queue_join', async (rawPayload) => {
             try {
                 if (rateLimited('queue_join')) return;
+                if (ipRateLimited('queue_join')) return;
+
+                const validated = validate('queue_join', rawPayload);
+                if (!validated) return;
+
+                const { username, avatar, gridSize, playerCount } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }

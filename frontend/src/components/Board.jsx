@@ -364,6 +364,12 @@ const Board = () => {
       lastJoinKeyRef.current = joinKey;
     }
 
+    // Re-join game room on socket reconnect (auto-reconnect after disconnect)
+    const onReconnect = () => {
+      socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
+    };
+    socket.io.on('reconnect', onReconnect);
+
     return () => {
       socket.off('game_started',        onGameStarted);
       socket.off('all_players_joined',  onAllJoined);
@@ -375,6 +381,7 @@ const Board = () => {
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
+      socket.io.off('reconnect', onReconnect);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
