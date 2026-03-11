@@ -115,4 +115,25 @@ describe('GET /health/deep', () => {
     mongoose.connection.db = originalDb;
     findOneSpy.mockRestore();
   });
+
+  test('sanitizes error messages in production mode', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    // Force Socket.IO failure so sanitizeError is exercised in production path
+    const originalIo = app.locals.io;
+    app.locals.io = null;
+
+    const res = await request(app).get('/health/deep');
+
+    expect(res.status).toBe(503);
+    // In production, error should be generic "check failed", not the real message
+    expect(res.body.checks.socketIO.error).toBe('check failed');
+    // Must NOT leak internal details
+    expect(res.body.checks.socketIO.error).not.toContain('Socket.IO');
+
+    // Restore
+    app.locals.io = originalIo;
+    process.env.NODE_ENV = originalNodeEnv;
+  });
 });

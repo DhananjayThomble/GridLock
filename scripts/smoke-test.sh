@@ -36,11 +36,12 @@ echo ""
 
 # --- 1. Deep Health Check ---
 echo "--- Deep Health Check ---"
-HTTP_CODE=$(curl -s -o /tmp/smoke-health.json -w '%{http_code}' \
-  --max-time 10 "${BASE_URL}/health/deep" 2>/dev/null || echo "000")
+rm -f /tmp/smoke-health.json
+HTTP_CODE=$(curl -sf -o /tmp/smoke-health.json -w '%{http_code}' \
+  --max-time 10 "${BASE_URL}/health/deep" 2>/dev/null) || HTTP_CODE="000"
 
 if [ "$HTTP_CODE" = "200" ]; then
-  STATUS=$(cat /tmp/smoke-health.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+  STATUS=$(python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" < /tmp/smoke-health.json 2>/dev/null || echo "unknown")
   print_result "pass" "GET /health/deep" "HTTP $HTTP_CODE, status=$STATUS"
 else
   BODY=$(cat /tmp/smoke-health.json 2>/dev/null || echo "(no body)")
