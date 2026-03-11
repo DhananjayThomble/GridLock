@@ -51,6 +51,13 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
+            # ── Path assumptions ──────────────────────────────────────
+            # These paths assume the EC2 directory structure:
+            #   ~/projects/GridLock       — dev/build worktree (scripts live here)
+            #   ~/projects/GridLock-prod  — production clone (deploy target)
+            # See INFRASTRUCTURE.md for the full layout.
+            # ──────────────────────────────────────────────────────────
+
             # Update deploy scripts from dev worktree first
             cd ~/projects/GridLock
             git fetch origin main
