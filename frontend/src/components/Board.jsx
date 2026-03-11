@@ -7,7 +7,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import confetti from 'canvas-confetti';
 import { recordGame } from '../utils/sessionStats';
-import { recordOpponent } from '../hooks/useRecentOpponents';
+import { recordOpponent } from '../utils/recentOpponentsStore';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
@@ -285,6 +285,15 @@ const Board = () => {
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
 
           // Record recent opponents (skip CPU players)
+          // Known limitations of localStorage-only tracking:
+          // - If the user closes the browser before `game_over` fires, the opponent
+          //   is NOT recorded (no beforeunload handler; localStorage write requires
+          //   the game_over event to determine outcome).
+          // - If this user is the forfeiter (disconnect timeout), the opponent IS
+          //   recorded on the opponent's device but NOT on this device (since this
+          //   client never receives game_over).
+          // - Cross-device play under the same username won't merge opponent lists
+          //   (localStorage is per-browser).
           const pc = gs.playerCount || 2;
           for (let i = 1; i <= pc; i++) {
             const pid = `player${i}`;

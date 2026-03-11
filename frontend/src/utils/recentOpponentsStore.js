@@ -1,4 +1,4 @@
-// src/hooks/useRecentOpponents.js
+// src/utils/recentOpponentsStore.js
 // Manages recent opponents list in localStorage — last 10 unique players
 
 const STORAGE_KEY = 'gridlock_recent_opponents';
@@ -20,7 +20,10 @@ const MAX_OPPONENTS = 10;
 export const getRecentOpponents = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    // Guard: valid JSON that isn't an array would crash consumers
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }

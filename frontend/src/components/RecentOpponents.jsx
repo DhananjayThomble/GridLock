@@ -1,9 +1,9 @@
 // src/components/RecentOpponents.jsx
 // Shows last 10 unique opponents with one-tap invite functionality
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRecentOpponents, clearRecentOpponents } from '../hooks/useRecentOpponents';
+import { getRecentOpponents, clearRecentOpponents } from '../utils/recentOpponentsStore';
 import socket from '../socket';
 
 /** Format a timestamp as a relative date string */
@@ -26,22 +26,49 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
   const [expanded, setExpanded] = useState(false);
   const [invitingId, setInvitingId] = useState(null);
   const [toast, setToast] = useState(null);
-  const [toastTimer, setToastTimer] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  // Timer IDs stored as refs — they don't affect rendering (#5)
+  const toastTimerRef = useRef(null);
+  const confirmTimerRef = useRef(null);
+  const copiedTimerRef = useRef(null);
   const navigate = useNavigate();
 
   const refreshOpponents = useCallback(() => {
     setOpponents(getRecentOpponents());
   }, []);
 
-  // Cleanup toast timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (toastTimer) clearTimeout(toastTimer);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     };
-  }, [toastTimer]);
+  }, []);
+
+  // #11: Listen for storage events to refresh list when updated from other tabs
+  // Also refresh on window focus for same-tab updates
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'gridlock_recent_opponents') {
+        refreshOpponents();
+      }
+    };
+    const handleFocus = () => {
+      if (expanded) refreshOpponents();
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [expanded, refreshOpponents]);
 
   const handleInvite = (opponentName) => {
-    const name = username?.trim();
+    // #6: Guard username before .trim()
+    const name = username?.trim() || '';
     if (!name || invitingId) return;
 
     if (!socket.connected) socket.connect();
@@ -64,15 +91,14 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
 
       if (res?.gameId) {
         // Show toast with room code
-        if (toastTimer) clearTimeout(toastTimer);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToast({
           gameId: res.gameId,
           opponent: opponentName,
           playerId: res.playerId,
           sessionToken: res.sessionToken,
         });
-        const timer = setTimeout(() => setToast(null), 8000);
-        setToastTimer(timer);
+        toastTimerRef.current = setTimeout(() => setToast(null), 8000);
       }
     });
 
@@ -83,9 +109,10 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
 
   const handleGoToGame = () => {
     if (!toast) return;
+    // #6: Guard username before .trim()
     navigate('/game', {
       state: {
-        username: username.trim(),
+        username: username?.trim() || '',
         gridSize: gridSize || 3,
         gameId: toast.gameId,
         role: toast.playerId,
@@ -96,13 +123,29 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
     });
   };
 
+  // #3: Two-tap confirm pattern for destructive clear action
   const handleClear = () => {
+    if (!confirmingClear) {
+      setConfirmingClear(true);
+      // Auto-reset after 3 seconds if not confirmed
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = setTimeout(() => setConfirmingClear(false), 3000);
+      return;
+    }
+    // Second tap — actually clear
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setConfirmingClear(false);
     clearRecentOpponents();
     setOpponents([]);
   };
 
+  // #10: Visual feedback for copy
   const handleCopyCode = (code) => {
-    navigator.clipboard?.writeText(code).catch(() => {});
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
   };
 
   if (opponents.length === 0 && !expanded) return null;
@@ -176,16 +219,13 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
                     <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                       <span>{formatRelativeDate(opp.lastPlayed)}</span>
                       <span style={{ color: 'var(--border-color-strong)' }}>·</span>
+                      {/* #9: Always show draws count (0D) for consistent column width */}
                       <span>
                         <span style={{ color: 'var(--success)' }}>{opp.wins}W</span>
                         {' '}
                         <span style={{ color: 'var(--danger)' }}>{opp.losses}L</span>
-                        {opp.draws > 0 && (
-                          <>
-                            {' '}
-                            <span style={{ color: 'var(--warning)' }}>{opp.draws}D</span>
-                          </>
-                        )}
+                        {' '}
+                        <span style={{ color: 'var(--warning)' }}>{opp.draws}D</span>
                       </span>
                     </div>
                   </div>
@@ -223,22 +263,27 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
                 </div>
               ))}
 
-              {/* Clear history button */}
+              {/* #3: Clear history with two-tap confirm */}
               <button
                 onClick={handleClear}
                 className="w-full text-xs transition-all py-1 mt-1"
-                style={{ color: 'var(--text-subtle)' }}
-                aria-label="Clear recent opponents history"
+                style={{
+                  color: confirmingClear ? 'var(--danger)' : 'var(--text-subtle)',
+                  fontWeight: confirmingClear ? '600' : 'normal',
+                }}
+                aria-label={confirmingClear ? 'Confirm clear recent opponents' : 'Clear recent opponents history'}
               >
-                Clear recent opponents
+                {confirmingClear ? 'Are you sure? Tap again to clear' : 'Clear recent opponents'}
               </button>
             </>
           )}
 
           {/* Toast notification */}
+          {/* #8: role="status" + aria-live="polite" — room creation isn't critical enough for assertive alert */}
           {toast && (
             <div
-              role="alert"
+              role="status"
+              aria-live="polite"
               className="rounded-xl p-3 mt-2 space-y-2"
               style={{
                 background: 'color-mix(in srgb, var(--success) 15%, transparent)',
@@ -254,17 +299,18 @@ const RecentOpponents = ({ username, avatar, gridSize, playerCount }) => {
                     Send this code to {toast.opponent}
                   </p>
                 </div>
+                {/* #10: Visual feedback on copy */}
                 <button
                   onClick={() => handleCopyCode(toast.gameId)}
                   className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                   style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color-strong)',
-                    color: 'var(--text-secondary)',
+                    background: copied ? 'var(--success)' : 'var(--bg-card)',
+                    border: `1px solid ${copied ? 'var(--success)' : 'var(--border-color-strong)'}`,
+                    color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                   }}
-                  aria-label={`Copy room code ${toast.gameId}`}
+                  aria-label={copied ? 'Copied!' : `Copy room code ${toast.gameId}`}
                 >
-                  📋 Copy
+                  {copied ? '✓ Copied' : '📋 Copy'}
                 </button>
               </div>
               <button
