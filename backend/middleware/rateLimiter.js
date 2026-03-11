@@ -105,6 +105,7 @@ class SocketRateLimiter {
             queue_leave:        { maxPerWindow: 10, windowMs: 60_000 },   // 10 queue leaves/min
             create_tournament:  { maxPerWindow: 3,  windowMs: 60_000 },   // 3 tournament creates/min
             join_tournament:    { maxPerWindow: 5,  windowMs: 60_000 },   // 5 tournament joins/min
+            send_game_invite:   { maxPerWindow: 10, windowMs: 60_000 },   // 10 invites/min
         };
     }
 

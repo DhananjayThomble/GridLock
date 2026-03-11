@@ -30,6 +30,28 @@ const PLAYER_COLORS = {
     player4: '#A855F7',
 };
 
+// Fix #5: Sender-side rate limiter for game invites — max 10 invites per 5 min per socket
+const inviteSenderLimiter = {
+    // Map<socketId, { count, windowStart }>
+    _trackers: new Map(),
+    _maxPerWindow: 10,
+    _windowMs: 5 * 60_000,
+    allow(socketId) {
+        if (process.env.NODE_ENV === 'test') return true;
+        const now = Date.now();
+        const tracker = this._trackers.get(socketId);
+        if (!tracker || now - tracker.windowStart >= this._windowMs) {
+            this._trackers.set(socketId, { count: 1, windowStart: now });
+            return true;
+        }
+        tracker.count++;
+        return tracker.count <= this._maxPerWindow;
+    },
+    cleanup(socketId) {
+        this._trackers.delete(socketId);
+    },
+};
+
 // In-memory tournament state (per-node, as requested by issue #19)
 const tournaments = new Map(); // tournamentId -> tournament
 const tournamentGames = new Map(); // gameId -> { tournamentId, roundIndex, matchIndex }
@@ -1608,27 +1630,56 @@ function attachSocketHandlers(io, log) {
         socket.on('send_game_invite', async (rawPayload) => {
             try {
                 if (rateLimited('send_game_invite')) return;
-                const { gameId, targetUsername, fromUsername } = rawPayload || {};
-
-                if (!gameId || !targetUsername || !fromUsername) {
-                    socket.emit('error', 'Missing invite fields');
-                    return;
-                }
+                const validated = validate('send_game_invite', rawPayload);
+                if (!validated) return;
+                const { gameId, targetUsername } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
-
-                const fromResult = sanitizeUsername(fromUsername);
-                if (!fromResult.valid) { socket.emit('error', fromResult.error); return; }
+                const cleanGameId = gidResult.value;
 
                 const toResult = sanitizeUsername(targetUsername);
                 if (!toResult.valid) { socket.emit('error', toResult.error); return; }
 
+                // Fix #3: Verify game exists and is joinable
+                let game = await gameStore.getGame(cleanGameId);
+                if (!game) {
+                    game = await loadGameFromDB(cleanGameId, log);
+                    if (!game) { socket.emit('error', 'Game not found'); return; }
+                }
+
+                // Only allow invites for games that are waiting for players
+                const filled = countFilledPlayers(game);
+                if (filled >= game.playerCount) {
+                    socket.emit('error', 'Game is already full');
+                    return;
+                }
+
+                // Fix #1: Derive fromUsername from socket identity, not client payload
+                const senderPlayerId = findPlayerBySocket(game, socket.id);
+                if (!senderPlayerId) {
+                    socket.emit('error', 'You are not a player in this game');
+                    return;
+                }
+                const senderUsername = game.players[senderPlayerId].username;
+
+                // Fix #5: Sender-side rate limit — max 10 invites per 5 min per socket
+                if (!inviteSenderLimiter.allow(socket.id)) {
+                    socket.emit('error', 'Too many invites sent. Please slow down.');
+                    return;
+                }
+
+                // Prevent self-invite
+                if (toResult.value === senderUsername) {
+                    socket.emit('error', 'Cannot invite yourself');
+                    return;
+                }
+
                 sendPushToUser(toResult.value, {
                     title: '🎮 Game Invite!',
-                    body: `${fromResult.value} invited you to play!`,
-                    url: `/join/${gidResult.value}`,
-                    tag: `invite-${gidResult.value}`,
+                    body: `${senderUsername} invited you to play!`,
+                    url: `/join/${cleanGameId}`,
+                    tag: `invite-${cleanGameId}`,
                 }).catch(() => {});
 
                 socket.emit('invite_sent', { targetUsername: toResult.value });
@@ -1672,6 +1723,7 @@ function attachSocketHandlers(io, log) {
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
+            inviteSenderLimiter.cleanup(socket.id);
             matchmaking.leaveQueue(socket.id);
 
             const processPlayerDisconnect = async (gameId, game, playerId) => {

@@ -122,8 +122,31 @@ async function sendPushToUser(username, payload) {
     return results;
 }
 
+// Fix #4: Periodic cleanup of stale rate limit entries to prevent unbounded growth
+const CLEANUP_INTERVAL_MS = 30 * 60_000; // 30 minutes
+const STALE_THRESHOLD_MS = 2 * 60 * 60_000; // 2 hours
+
+function sweepRateLimitMaps() {
+    const cutoff = Date.now() - STALE_THRESHOLD_MS;
+
+    for (const [username, ts] of lastPushTimestamps.entries()) {
+        if (ts < cutoff) lastPushTimestamps.delete(username);
+    }
+
+    for (const [username, log] of hourlyPushLog.entries()) {
+        // Prune old entries
+        while (log.length > 0 && log[0] < cutoff) log.shift();
+        if (log.length === 0) hourlyPushLog.delete(username);
+    }
+}
+
+const _cleanupInterval = process.env.NODE_ENV !== 'test'
+    ? setInterval(sweepRateLimitMaps, CLEANUP_INTERVAL_MS)
+    : null;
+if (_cleanupInterval) _cleanupInterval.unref();
+
 module.exports = {
     sendPushToUser,
     isUserOnlineInGame,
-    _internal: { lastPushTimestamps, DEBOUNCE_MS, hourlyPushLog, HOURLY_LIMIT, HOURLY_WINDOW_MS, checkHourlyLimit, recordHourlySend },
+    _internal: { lastPushTimestamps, DEBOUNCE_MS, hourlyPushLog, HOURLY_LIMIT, HOURLY_WINDOW_MS, checkHourlyLimit, recordHourlySend, sweepRateLimitMaps },
 };

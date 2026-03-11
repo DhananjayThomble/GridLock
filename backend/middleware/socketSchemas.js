@@ -74,6 +74,11 @@ const schemas = {
         username: usernameField,
         avatar: avatarField,
     }),
+
+    send_game_invite: Joi.object({
+        gameId: gameIdField,
+        targetUsername: usernameField,
+    }),
 };
 
 /**
