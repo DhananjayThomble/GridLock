@@ -51,21 +51,18 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
+            # ── Path assumptions ──────────────────────────────────────
+            # These paths assume the EC2 directory structure:
+            #   ~/projects/GridLock       — dev/build worktree (scripts live here)
+            #   ~/projects/GridLock-prod  — production clone (deploy target)
+            # See INFRASTRUCTURE.md for the full layout.
+            # ──────────────────────────────────────────────────────────
+
+            # Update deploy scripts from dev worktree first
             cd ~/projects/GridLock
             git fetch origin main
             git checkout main
             git pull origin main
 
-            cd backend
-            npm ci --production
-
-            pm2 reload gridlock-backend --update-env || pm2 start server.js --name gridlock-backend
-
-            sleep 3
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health)
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "❌ Health check failed (HTTP $HTTP_CODE)"
-              pm2 logs gridlock-backend --lines 20 --nostream
-              exit 1
-            fi
-            echo "✅ Deployment successful — health check passed"
+            # Run the deploy script against the dedicated prod directory
+            ./scripts/deploy-backend.sh
