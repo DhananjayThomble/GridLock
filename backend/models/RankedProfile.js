@@ -139,7 +139,7 @@ const RankedProfileSchema = new mongoose.Schema(
         placementGames: {
             type: [
                 {
-                    result: { type: String, enum: ['win', 'loss'] },
+                    result: { type: String, enum: ['win', 'loss', 'draw'] },
                     opponentElo: { type: Number },
                     eloAfter: { type: Number },
                     playedAt: { type: Date, default: Date.now },
@@ -154,6 +154,11 @@ const RankedProfileSchema = new mongoose.Schema(
             min: 0,
         },
         losses: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        draws: {
             type: Number,
             default: 0,
             min: 0,

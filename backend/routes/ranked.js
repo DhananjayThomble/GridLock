@@ -1,5 +1,6 @@
 // routes/ranked.js
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const RankedProfile = require('../models/RankedProfile');
 const { getTierFromElo, softResetElo } = require('../models/RankedProfile');
@@ -39,9 +40,10 @@ router.get('/profile/:username', async (req, res) => {
                 season: profile.season,
                 wins: profile.wins,
                 losses: profile.losses,
-                gamesPlayed: profile.wins + profile.losses,
-                winRate: (profile.wins + profile.losses) > 0
-                    ? parseFloat(((profile.wins / (profile.wins + profile.losses)) * 100).toFixed(2))
+                draws: profile.draws || 0,
+                gamesPlayed: profile.wins + profile.losses + (profile.draws || 0),
+                winRate: (profile.wins + profile.losses + (profile.draws || 0)) > 0
+                    ? parseFloat(((profile.wins / (profile.wins + profile.losses + (profile.draws || 0))) * 100).toFixed(2))
                     : 0,
                 placementGames: profile.placementGames || [],
                 isInPlacement: (profile.placementGames || []).length < 5,
@@ -69,12 +71,12 @@ router.get('/leaderboard', async (req, res) => {
         const players = await RankedProfile.find({})
             .sort({ elo: -1, wins: -1 })
             .limit(limit)
-            .select('username elo tier tierIcon season wins losses placementGames lastPlayedAt createdAt')
+            .select('username elo tier tierIcon season wins losses draws placementGames lastPlayedAt createdAt')
             .lean();
 
         const leaderboard = players.map((player, index) => {
             const tierInfo = getTierFromElo(player.elo);
-            const gamesPlayed = player.wins + player.losses;
+            const gamesPlayed = player.wins + player.losses + (player.draws || 0);
             return {
                 rank: index + 1,
                 username: player.username,
@@ -84,6 +86,7 @@ router.get('/leaderboard', async (req, res) => {
                 season: player.season,
                 wins: player.wins,
                 losses: player.losses,
+                draws: player.draws || 0,
                 gamesPlayed,
                 winRate: gamesPlayed > 0
                     ? parseFloat(((player.wins / gamesPlayed) * 100).toFixed(2))
@@ -114,7 +117,13 @@ router.post('/season-reset', async (req, res) => {
         return res.status(503).json({ success: false, error: 'Admin API key not configured on server' });
     }
     const providedKey = req.headers['x-admin-key'];
-    if (!providedKey || providedKey !== adminKey) {
+    if (!providedKey) {
+        return res.status(401).json({ success: false, error: 'Unauthorized — invalid or missing admin key' });
+    }
+    // Use timing-safe comparison to prevent timing attacks
+    const adminBuf = Buffer.from(adminKey);
+    const providedBuf = Buffer.from(providedKey);
+    if (adminBuf.length !== providedBuf.length || !crypto.timingSafeEqual(adminBuf, providedBuf)) {
         return res.status(401).json({ success: false, error: 'Unauthorized — invalid or missing admin key' });
     }
 
@@ -136,6 +145,7 @@ router.post('/season-reset', async (req, res) => {
                     placementGames: [],
                     wins: 0,
                     losses: 0,
+                    draws: 0,
                     cooldownUntil: null,
                 },
             },

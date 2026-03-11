@@ -695,11 +695,9 @@ async function tryRankedMatch(io, log, triggerSocket) {
 
             if (eloDiff > effectiveRange) continue;
 
-            // Match found! Remove both from queue
-            rankedQueue.splice(j, 1);
-            rankedQueue.splice(i, 1);
-            rankedQueueIndex.delete(a.socketId);
-            rankedQueueIndex.delete(b.socketId);
+            // Match found! Remove both from queue (remove higher index first)
+            removeFromRankedQueue(b.socketId);
+            removeFromRankedQueue(a.socketId);
 
             // Create a ranked game
             await createRankedGame(io, log, a, b);
@@ -803,8 +801,10 @@ async function createRankedGame(io, log, playerA, playerB) {
  * Uses zero-sum ELO: both players exchange the same amount.
  */
 async function handleRankedDisconnect(io, gameId, disconnectedPlayerId, game, log) {
+    // Atomically claim this game to prevent TOCTOU race with handleRankedGameEnd
     const rankedInfo = rankedGameMap.get(gameId);
     if (!rankedInfo) return;
+    rankedGameMap.delete(gameId);
 
     const disconnectedPlayer = game.players[disconnectedPlayerId];
     if (!disconnectedPlayer) return;
@@ -891,9 +891,6 @@ async function handleRankedDisconnect(io, gameId, disconnectedPlayerId, game, lo
         });
     }
 
-    // Clean up ranked game map
-    rankedGameMap.delete(gameId);
-
     log.info('Ranked disconnect penalty applied', {
         gameId,
         disconnected: disconnectedUsername,
@@ -909,8 +906,10 @@ async function handleRankedDisconnect(io, gameId, disconnectedPlayerId, game, lo
  * Accepts `io` as first parameter for socket emission.
  */
 async function handleRankedGameEnd(io, gameId, winnerPlayerId, game, log) {
+    // Atomically claim this game to prevent TOCTOU race with handleRankedDisconnect
     const rankedInfo = rankedGameMap.get(gameId);
     if (!rankedInfo) return;
+    rankedGameMap.delete(gameId);
 
     const isDraw = winnerPlayerId === 'draw';
     const player1 = game.players.player1;
@@ -962,13 +961,14 @@ async function handleRankedGameEnd(io, gameId, winnerPlayerId, game, log) {
     profile1.elo = Math.max(0, preElo1 + eloChange1);
     profile2.elo = Math.max(0, preElo2 + eloChange2);
 
-    // Update win/loss counters
+    // Update win/loss/draw counters
     if (result1 === 'win') profile1.wins += 1;
     else if (result1 === 'loss') profile1.losses += 1;
-    // draws don't increment win/loss
+    else if (result1 === 'draw') profile1.draws += 1;
 
     if (result2 === 'win') profile2.wins += 1;
     else if (result2 === 'loss') profile2.losses += 1;
+    else if (result2 === 'draw') profile2.draws += 1;
 
     profile1.lastPlayedAt = new Date();
     profile2.lastPlayedAt = new Date();
@@ -976,14 +976,14 @@ async function handleRankedGameEnd(io, gameId, winnerPlayerId, game, log) {
     // Record placement games using pre-mutation opponent ELO (Fix #9)
     if (isPlacement1) {
         profile1.placementGames.push({
-            result: result1 === 'draw' ? (eloChange1 >= 0 ? 'win' : 'loss') : result1,
+            result: result1,
             opponentElo: preElo2,
             eloAfter: profile1.elo,
         });
     }
     if (isPlacement2) {
         profile2.placementGames.push({
-            result: result2 === 'draw' ? (eloChange2 >= 0 ? 'win' : 'loss') : result2,
+            result: result2,
             opponentElo: preElo1,
             eloAfter: profile2.elo,
         });
@@ -1020,9 +1020,6 @@ async function handleRankedGameEnd(io, gameId, winnerPlayerId, game, log) {
             placementProgress: isPlacement2 ? `${profile2.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
         });
     }
-
-    // Clean up ranked game map
-    rankedGameMap.delete(gameId);
 
     log.info('Ranked game ended', {
         gameId,
@@ -2153,9 +2150,7 @@ function attachSocketHandlers(io, log) {
 
                 // Remove from queue if already in it (O(1) check via rankedQueueIndex)
                 if (rankedQueueIndex.has(socket.id)) {
-                    const idx = rankedQueue.findIndex(e => e.socketId === socket.id);
-                    if (idx !== -1) rankedQueue.splice(idx, 1);
-                    rankedQueueIndex.delete(socket.id);
+                    removeFromRankedQueue(socket.id);
                 }
 
                 const entry = {
