@@ -4,6 +4,15 @@ const { sanitizeUsername } = require('../utils/sanitize');
 
 const router = express.Router();
 
+// GET /api/push/vapid-public-key — return VAPID public key for frontend subscription
+router.get('/vapid-public-key', (req, res) => {
+    const key = process.env.VAPID_PUBLIC_KEY;
+    if (!key) {
+        return res.status(503).json({ error: 'Push notifications not configured' });
+    }
+    res.json({ publicKey: key });
+});
+
 // POST /api/push/subscribe — upsert subscription by endpoint
 router.post('/subscribe', async (req, res) => {
     try {
@@ -36,7 +45,23 @@ router.post('/subscribe', async (req, res) => {
     }
 });
 
-// DELETE /api/push/unsubscribe — remove subscription by endpoint
+// POST /api/push/unsubscribe — remove subscription by endpoint
+router.post('/unsubscribe', async (req, res) => {
+    try {
+        const { endpoint } = req.body;
+        if (!endpoint) {
+            return res.status(400).json({ error: 'Missing endpoint' });
+        }
+
+        await PushSubscription.deleteOne({ endpoint });
+        res.json({ message: 'Subscription removed' });
+    } catch (err) {
+        console.error('[PUSH] Unsubscribe error:', err.message);
+        res.status(500).json({ error: 'Failed to remove subscription' });
+    }
+});
+
+// DELETE /api/push/unsubscribe — backwards-compatible alias
 router.delete('/unsubscribe', async (req, res) => {
     try {
         const { endpoint } = req.body;

@@ -750,6 +750,19 @@ function attachSocketHandlers(io, log) {
                 if (tournament.participants.length === tournament.tournamentSize) {
                     tournament.status = 'in_progress';
                     tournament.rounds = initializeBracket(tournament.participants);
+
+                    // Push notification: "Tournament starting in 2 min!" to all participants
+                    for (const p of tournament.participants) {
+                        try {
+                            sendPushToUser(p.username, {
+                                title: '🏆 Tournament Starting!',
+                                body: 'Tournament starting in 2 min! Get ready!',
+                                url: `/tournament/${cleanTournamentId}`,
+                                tag: `tournament-start-${cleanTournamentId}`,
+                            }).catch(() => {});
+                        } catch (_) { /* push is best-effort */ }
+                    }
+
                     await maybeStartTournamentRound(io, tournament, 0);
                     io.to(`tournament:${cleanTournamentId}`).emit('tournament_update', {
                         tournament: buildTournamentSnapshot(tournament),
@@ -1449,6 +1462,21 @@ function attachSocketHandlers(io, log) {
                         io.to(gameId).emit('all_players_joined', { gameId });
                     }
 
+                    // Push notification: "Your Quick Play match is ready!" for backgrounded players
+                    for (const p of players) {
+                        try {
+                            const pSocket = io.sockets.sockets.get(p.socketId);
+                            // If socket exists but document is hidden (player backgrounded tab), send push
+                            // We can't check visibility server-side, so push to all — SW deduplicates via tag
+                            sendPushToUser(p.username, {
+                                title: '⚡ Match Found!',
+                                body: 'Your Quick Play match is ready!',
+                                url: `/join/${gameId}`,
+                                tag: `quickplay-${gameId}`,
+                            }).catch(() => {});
+                        } catch (_) { /* push is best-effort */ }
+                    }
+
                     log.info('Quick Play match created', { gameId, playerCount: game.playerCount, players: players.map((p) => p.username) });
                 } else {
                     // Player queued — broadcast status to ALL waiters and set timeout
@@ -1573,6 +1601,40 @@ function attachSocketHandlers(io, log) {
             } catch (error) {
                 log.error('Error handling queue_join', { error: error.message, stack: error.stack });
                 socket.emit('error', 'Failed to join matchmaking queue');
+            }
+        });
+
+        // ── send_game_invite ──────────────────────────────────────────────────
+        socket.on('send_game_invite', async (rawPayload) => {
+            try {
+                if (rateLimited('send_game_invite')) return;
+                const { gameId, targetUsername, fromUsername } = rawPayload || {};
+
+                if (!gameId || !targetUsername || !fromUsername) {
+                    socket.emit('error', 'Missing invite fields');
+                    return;
+                }
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+
+                const fromResult = sanitizeUsername(fromUsername);
+                if (!fromResult.valid) { socket.emit('error', fromResult.error); return; }
+
+                const toResult = sanitizeUsername(targetUsername);
+                if (!toResult.valid) { socket.emit('error', toResult.error); return; }
+
+                sendPushToUser(toResult.value, {
+                    title: '🎮 Game Invite!',
+                    body: `${fromResult.value} invited you to play!`,
+                    url: `/join/${gidResult.value}`,
+                    tag: `invite-${gidResult.value}`,
+                }).catch(() => {});
+
+                socket.emit('invite_sent', { targetUsername: toResult.value });
+            } catch (error) {
+                log.error('Error sending game invite push', { error: error.message });
+                socket.emit('error', 'Failed to send invite');
             }
         });
 
