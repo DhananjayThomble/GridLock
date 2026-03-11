@@ -557,8 +557,25 @@ const Lobby = () => {
             )}
           </div>
 
-          {/* ── Quick Play Button ── */}
+          {/* ── Daily Challenge + Quick Play ── */}
           <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => navigate('/daily')}
+              disabled={creating || !username.trim()}
+              aria-label="Daily Challenge — one puzzle per day, global leaderboard"
+              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60 mb-2"
+              style={{
+                background: 'linear-gradient(135deg, var(--warning), var(--danger))',
+                color: 'var(--text-on-accent)',
+                boxShadow: '0 4px 16px color-mix(in srgb, var(--warning) 40%, transparent)',
+              }}
+            >
+              🎯 Daily Challenge
+            </button>
+            <p className="text-xs text-center mb-3" style={{ color: 'var(--text-secondary)' }}>
+              Same puzzle for everyone · One attempt per day
+            </p>
+
             <button
               onClick={handleQuickPlay}
               disabled={quickPlaying || creating || !username.trim()}
