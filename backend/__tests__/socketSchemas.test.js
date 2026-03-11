@@ -35,6 +35,11 @@ describe('validatePayload', () => {
         username: 'Alice',
       });
       expect(result.valid).toBe(false);
+      // Client-facing error should be generic (no schema details leaked)
+      expect(result.error).not.toContain('gridSize');
+      expect(result.error).not.toContain('"gridSize"');
+      // Detailed error should be available for server-side logging
+      expect(result.detailedError).toBeDefined();
     });
 
     test('strips unknown fields', () => {
@@ -102,6 +107,18 @@ describe('validatePayload', () => {
         sessionToken: 'a'.repeat(48),
         type: 'horizontal',
         r: -1,
+        c: 0,
+      });
+      expect(result.valid).toBe(false);
+    });
+
+    test('rejects coordinates exceeding max grid size', () => {
+      const result = validatePayload('make_move', {
+        gameId: 'ABCD12',
+        playerId: 'player1',
+        sessionToken: 'a'.repeat(48),
+        type: 'horizontal',
+        r: 7,
         c: 0,
       });
       expect(result.valid).toBe(false);

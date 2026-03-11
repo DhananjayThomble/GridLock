@@ -365,6 +365,10 @@ const Board = () => {
     }
 
     // Re-join game room on socket reconnect (socket.io assigns new socket.id)
+    // Note: In React StrictMode (dev only), rapid mount/unmount can cause a brief
+    // window where the reconnect listener from the first mount fires after cleanup.
+    // This is harmless — the server ignores duplicate join_game for the same session,
+    // and the second mount re-registers the listener immediately.
     const onReconnect = () => {
       socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
     };

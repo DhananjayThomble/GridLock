@@ -26,11 +26,66 @@ const healthLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// ─── Shared rate-check logic ─────────────────────────────────────────────────
+
+/**
+ * Check and increment a rate limit counter within a tracker Map.
+ * Shared by both SocketRateLimiter and IPRateLimiter to avoid duplication.
+ *
+ * @param {Map} trackerMap - Map<key, { count, windowStart }>
+ * @param {string} key - The counter key (event name, '__global__', etc.)
+ * @param {{ maxPerWindow: number, windowMs: number }} limit
+ * @param {number} now - Current timestamp (Date.now())
+ * @returns {boolean} true if allowed
+ */
+function checkRateLimit(trackerMap, key, limit, now) {
+    if (!trackerMap.has(key)) {
+        trackerMap.set(key, { count: 1, windowStart: now });
+        return true;
+    }
+
+    const tracker = trackerMap.get(key);
+
+    // Reset window if expired
+    if (now - tracker.windowStart >= limit.windowMs) {
+        tracker.count = 1;
+        tracker.windowStart = now;
+        return true;
+    }
+
+    tracker.count++;
+    return tracker.count <= limit.maxPerWindow;
+}
+
+/**
+ * Purge stale entries from a Map<key, Map<subkey, { windowStart }>>
+ * Shared by both SocketRateLimiter and IPRateLimiter.
+ *
+ * @param {Map} trackers - The outer tracker map
+ * @param {number} maxAge - Max age in ms before an entry is considered stale
+ */
+function purgeStaleEntries(trackers, maxAge) {
+    const now = Date.now();
+    for (const [id, events] of trackers.entries()) {
+        let allStale = true;
+        for (const [, tracker] of events.entries()) {
+            if (now - tracker.windowStart < maxAge) {
+                allStale = false;
+                break;
+            }
+        }
+        if (allStale) {
+            trackers.delete(id);
+        }
+    }
+}
+
 // ─── Socket.IO Rate Limiter ──────────────────────────────────────────────────
 
 /**
  * In-memory per-socket event rate tracker
- * Tracks event counts per socket per time window
+ * Tracks event counts per socket per time window.
+ * No upper-bound cap needed: socket IDs are bounded by max concurrent connections.
  */
 class SocketRateLimiter {
     constructor() {
@@ -69,7 +124,7 @@ class SocketRateLimiter {
         const now = Date.now();
 
         // ── Global per-socket rate check (all events combined) ──
-        if (!this._checkLimit(socketTracker, '__global__', this.globalLimit, now)) {
+        if (!checkRateLimit(socketTracker, '__global__', this.globalLimit, now)) {
             return false;
         }
 
@@ -77,30 +132,7 @@ class SocketRateLimiter {
         const limit = this.limits[eventName];
         if (!limit) return true; // No event-specific limit configured
 
-        return this._checkLimit(socketTracker, eventName, limit, now);
-    }
-
-    /**
-     * Internal: check and increment a rate limit counter
-     * @returns {boolean} true if allowed
-     */
-    _checkLimit(socketTracker, key, limit, now) {
-        if (!socketTracker.has(key)) {
-            socketTracker.set(key, { count: 1, windowStart: now });
-            return true;
-        }
-
-        const tracker = socketTracker.get(key);
-
-        // Reset window if expired
-        if (now - tracker.windowStart >= limit.windowMs) {
-            tracker.count = 1;
-            tracker.windowStart = now;
-            return true;
-        }
-
-        tracker.count++;
-        return tracker.count <= limit.maxPerWindow;
+        return checkRateLimit(socketTracker, eventName, limit, now);
     }
 
     /**
@@ -115,34 +147,27 @@ class SocketRateLimiter {
      * Periodic cleanup of stale entries (call every few minutes)
      */
     purgeStale() {
-        const now = Date.now();
-        const maxAge = 5 * 60_000; // 5 minutes
-
-        for (const [socketId, events] of this.trackers.entries()) {
-            let allStale = true;
-            for (const [, tracker] of events.entries()) {
-                if (now - tracker.windowStart < maxAge) {
-                    allStale = false;
-                    break;
-                }
-            }
-            if (allStale) {
-                this.trackers.delete(socketId);
-            }
-        }
+        purgeStaleEntries(this.trackers, 5 * 60_000);
     }
 }
 
 // ─── IP-Based Rate Limiter for Socket Events ────────────────────────────────
 
 /**
+ * Upper bound on tracked IPs to prevent OOM from IP-space exhaustion.
+ * When exceeded, new IPs are rejected (fail-closed) until stale entries are purged.
+ */
+const MAX_IP_TRACKER_SIZE = 10_000;
+
+/**
  * Tracks event rates by IP address (for events like queue_join, create_game
  * where per-socket limits aren't enough — a user can open multiple sockets).
  */
 class IPRateLimiter {
-    constructor() {
+    constructor(maxTrackerSize = MAX_IP_TRACKER_SIZE) {
         // Map<ip, Map<eventName, { count, windowStart }>>
         this.trackers = new Map();
+        this.maxTrackerSize = maxTrackerSize;
 
         this.limits = {
             queue_join:        { maxPerWindow: 3, windowMs: 60_000 },   // 3 queue_join/min per IP
@@ -152,7 +177,10 @@ class IPRateLimiter {
     }
 
     /**
-     * Check if an event from an IP should be allowed
+     * Check if an event from an IP should be allowed.
+     * Fail-closed: if the tracker map exceeds maxTrackerSize and this is a new IP,
+     * reject the request to prevent unbounded memory growth (OOM vector).
+     *
      * @param {string} ip
      * @param {string} eventName
      * @returns {boolean}
@@ -164,48 +192,24 @@ class IPRateLimiter {
         if (!limit) return true;
 
         if (!this.trackers.has(ip)) {
+            // OOM guard: reject new IPs when at capacity (fail-closed)
+            if (this.trackers.size >= this.maxTrackerSize) {
+                return false;
+            }
             this.trackers.set(ip, new Map());
         }
 
         const ipTracker = this.trackers.get(ip);
         const now = Date.now();
 
-        if (!ipTracker.has(eventName)) {
-            ipTracker.set(eventName, { count: 1, windowStart: now });
-            return true;
-        }
-
-        const tracker = ipTracker.get(eventName);
-
-        if (now - tracker.windowStart >= limit.windowMs) {
-            tracker.count = 1;
-            tracker.windowStart = now;
-            return true;
-        }
-
-        tracker.count++;
-        return tracker.count <= limit.maxPerWindow;
+        return checkRateLimit(ipTracker, eventName, limit, now);
     }
 
     /**
      * Periodic cleanup of stale entries
      */
     purgeStale() {
-        const now = Date.now();
-        const maxAge = 5 * 60_000;
-
-        for (const [ip, events] of this.trackers.entries()) {
-            let allStale = true;
-            for (const [, tracker] of events.entries()) {
-                if (now - tracker.windowStart < maxAge) {
-                    allStale = false;
-                    break;
-                }
-            }
-            if (allStale) {
-                this.trackers.delete(ip);
-            }
-        }
+        purgeStaleEntries(this.trackers, 5 * 60_000);
     }
 }
 
@@ -231,4 +235,6 @@ module.exports = {
     ipLimiter,
     SocketRateLimiter,
     IPRateLimiter,
+    checkRateLimit,
+    MAX_IP_TRACKER_SIZE,
 };

@@ -14,6 +14,8 @@ const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService'
 const matchmaking = require('../services/matchmaking');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 
+// Intentionally reduced from 60s → 30s for faster game flow.
+// Players get 30s to reconnect before forfeiting; keeps games moving.
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 
@@ -629,9 +631,15 @@ function attachSocketHandlers(io, log) {
     io.on('connection', (socket) => {
         log.info('New client connected:', socket.id);
 
-        const socketIP = socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()
-            || socket.handshake?.address
-            || 'unknown';
+        // Use the raw transport address — NOT x-forwarded-for, which clients can spoof.
+        // Socket.IO doesn't inherit Express's trust-proxy settings, so XFF is unvalidated.
+        // If deployed behind a known reverse proxy, configure TRUSTED_PROXY_IPS env var
+        // and only then fall back to XFF for the real client IP.
+        const rawAddr = socket.conn?.remoteAddress || socket.handshake?.address || 'unknown';
+        const trustedProxies = process.env.TRUSTED_PROXY_IPS ? process.env.TRUSTED_PROXY_IPS.split(',') : [];
+        const socketIP = (trustedProxies.length > 0 && trustedProxies.includes(rawAddr))
+            ? (socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || rawAddr)
+            : rawAddr;
 
         const rateLimited = (eventName) => {
             if (!socketLimiter.allow(socket.id, eventName)) {
@@ -651,11 +659,12 @@ function attachSocketHandlers(io, log) {
         /**
          * Validate and sanitize a socket event payload.
          * Returns the validated payload or null (with error emitted).
+         * Detailed validation errors are logged server-side only; clients get generic messages.
          */
         const validate = (eventName, payload) => {
             const result = validatePayload(eventName, payload);
             if (!result.valid) {
-                log.warn('Payload validation failed', { socketId: socket.id, eventName, error: result.error });
+                log.warn('Payload validation failed', { socketId: socket.id, eventName, error: result.detailedError || result.error });
                 socket.emit('error', result.error);
                 return null;
             }
@@ -676,7 +685,7 @@ function attachSocketHandlers(io, log) {
                 const size = Number(tournamentSize);
                 if (![4, 8].includes(size)) { socket.emit('error', 'Tournament size must be 4 or 8'); return; }
 
-                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
                 if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
 
                 const tournamentId = generateTournamentId();
@@ -765,7 +774,7 @@ function attachSocketHandlers(io, log) {
                 const cleanUsername = uResult.value;
                 const cleanAvatar = sanitizeAvatar(avatar);
 
-                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
                 if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
 
                 const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
@@ -1304,7 +1313,7 @@ function attachSocketHandlers(io, log) {
                 const cleanUsername = uResult.value;
                 const cleanAvatar = sanitizeAvatar(avatar);
 
-                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
                 if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
 
                 const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
@@ -1569,7 +1578,7 @@ function attachSocketHandlers(io, log) {
 
         // ── queue_leave ────────────────────────────────────────────────────────
         socket.on('queue_leave', () => {
-            if (!socketLimiter.allow(socket.id, 'queue_leave')) return;
+            if (rateLimited('queue_leave')) return;
 
             const info = matchmaking.playerIndex.get(socket.id);
             const queueKey = info?.queueKey;

@@ -9,7 +9,8 @@ const usernameField = Joi.string().trim().min(1).max(30).required();
 const avatarField = Joi.string().trim().max(8).allow('', null).optional();
 const gameIdField = Joi.string().trim().alphanum().min(4).max(8).required();
 const sessionTokenField = Joi.string().trim().hex().length(48).required();
-const gridSizeField = Joi.number().integer().min(2).max(10).required();
+// Max grid size matches frontend GRID_OPTIONS (3–6). Backend game logic supports up to 6.
+const gridSizeField = Joi.number().integer().min(2).max(6).required();
 const playerCountField = Joi.number().integer().min(2).max(4).optional().default(2);
 
 // ─── Event schemas ───────────────────────────────────────────────────────────
@@ -37,8 +38,9 @@ const schemas = {
         playerId: Joi.string().pattern(/^player[1-4]$/).required(),
         sessionToken: sessionTokenField,
         type: Joi.string().valid('horizontal', 'vertical').required(),
-        r: Joi.number().integer().min(0).max(20).required(),
-        c: Joi.number().integer().min(0).max(20).required(),
+        // Max coordinate derived from max grid size (6): lines span 0..gridSize, so max index = 6
+        r: Joi.number().integer().min(0).max(6).required(),
+        c: Joi.number().integer().min(0).max(6).required(),
     }),
 
     request_rematch: Joi.object({
@@ -62,10 +64,12 @@ const schemas = {
         username: usernameField,
         avatar: avatarField,
         tournamentSize: Joi.number().integer().valid(4, 8).optional().default(4),
-        gridSize: Joi.number().integer().min(2).max(10).optional().default(3),
+        gridSize: Joi.number().integer().min(2).max(6).optional().default(3),
     }),
 
     join_tournament: Joi.object({
+        // Tournament IDs are generated as "T" + 5 uppercase hex chars (e.g., "TA3F2B").
+        // Using alphanum().length(6) to match — case-insensitive input is uppercased by the handler.
         tournamentId: Joi.string().trim().alphanum().length(6).required(),
         username: usernameField,
         avatar: avatarField,
@@ -73,10 +77,31 @@ const schemas = {
 };
 
 /**
+ * Map Joi validation error types to generic, client-safe messages.
+ * Detailed schema information is logged server-side only — never sent to clients.
+ */
+const GENERIC_VALIDATION_MESSAGES = {
+    'any.required':     'A required field is missing.',
+    'string.empty':     'A required field is empty.',
+    'string.min':       'A field value is too short.',
+    'string.max':       'A field value is too long.',
+    'string.pattern.base': 'A field has an invalid format.',
+    'string.alphanum':  'A field contains invalid characters.',
+    'string.hex':       'A field has an invalid format.',
+    'string.length':    'A field has an invalid length.',
+    'number.base':      'A field must be a number.',
+    'number.min':       'A numeric value is too low.',
+    'number.max':       'A numeric value is too high.',
+    'number.integer':   'A field must be a whole number.',
+    'any.only':         'A field has an invalid value.',
+    'object.unknown':   'Unexpected fields in payload.',
+};
+
+/**
  * Validate a socket event payload against its schema.
  * @param {string} eventName
  * @param {*} payload
- * @returns {{ valid: boolean, value?: object, error?: string }}
+ * @returns {{ valid: boolean, value?: object, error?: string, detailedError?: string }}
  */
 function validatePayload(eventName, payload) {
     const schema = schemas[eventName];
@@ -93,7 +118,12 @@ function validatePayload(eventName, payload) {
     });
 
     if (error) {
-        return { valid: false, error: error.details[0]?.message || 'Validation error' };
+        const detail = error.details[0];
+        const joiType = detail?.type || 'unknown';
+        // Generic message for clients; detailed error kept for server-side logging
+        const clientMessage = GENERIC_VALIDATION_MESSAGES[joiType] || 'Invalid request. Please check your input.';
+        const detailedError = detail?.message || 'Validation error';
+        return { valid: false, error: clientMessage, detailedError };
     }
 
     return { valid: true, value };

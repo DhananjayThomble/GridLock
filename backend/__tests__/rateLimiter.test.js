@@ -1,4 +1,4 @@
-const { SocketRateLimiter, IPRateLimiter } = require('../middleware/rateLimiter');
+const { SocketRateLimiter, IPRateLimiter, checkRateLimit, MAX_IP_TRACKER_SIZE } = require('../middleware/rateLimiter');
 
 describe('SocketRateLimiter', () => {
   const originalNodeEnv = process.env.NODE_ENV;
@@ -164,5 +164,44 @@ describe('IPRateLimiter', () => {
     expect(limiter.trackers.has('stale-ip')).toBe(false);
 
     jest.useRealTimers();
+  });
+
+  test('rejects new IPs when tracker map reaches maxTrackerSize (OOM guard)', () => {
+    const limiter = new IPRateLimiter(3); // tiny cap for testing
+    // Fill up the tracker with 3 IPs
+    for (let i = 0; i < 3; i++) {
+      expect(limiter.allow(`10.0.0.${i}`, 'queue_join')).toBe(true);
+    }
+    // 4th IP should be rejected (fail-closed)
+    expect(limiter.allow('10.0.0.99', 'queue_join')).toBe(false);
+    // Existing IPs should still work
+    expect(limiter.allow('10.0.0.0', 'queue_join')).toBe(true);
+  });
+
+  test('MAX_IP_TRACKER_SIZE is exported and reasonable', () => {
+    expect(MAX_IP_TRACKER_SIZE).toBe(10_000);
+  });
+});
+
+describe('checkRateLimit (shared)', () => {
+  test('allows up to maxPerWindow then blocks', () => {
+    const tracker = new Map();
+    const limit = { maxPerWindow: 3, windowMs: 60_000 };
+    const now = Date.now();
+
+    expect(checkRateLimit(tracker, 'test', limit, now)).toBe(true);
+    expect(checkRateLimit(tracker, 'test', limit, now)).toBe(true);
+    expect(checkRateLimit(tracker, 'test', limit, now)).toBe(true);
+    expect(checkRateLimit(tracker, 'test', limit, now)).toBe(false);
+  });
+
+  test('resets after window expires', () => {
+    const tracker = new Map();
+    const limit = { maxPerWindow: 1, windowMs: 1_000 };
+    const now = Date.now();
+
+    expect(checkRateLimit(tracker, 'test', limit, now)).toBe(true);
+    expect(checkRateLimit(tracker, 'test', limit, now)).toBe(false);
+    expect(checkRateLimit(tracker, 'test', limit, now + 1_001)).toBe(true);
   });
 });
