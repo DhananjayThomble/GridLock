@@ -69,10 +69,39 @@ The deploy script:
 ./scripts/deploy-beta.sh
 ```
 
-### Frontend
+### Frontend (GitHub Pages)
 
-Frontend is deployed via GitHub Pages workflow (`.github/workflows/deploy-pages.yml`).
-See issue #185 for the dedicated deploy script.
+```bash
+# Deploy to production (builds + pushes to gh-pages)
+./scripts/deploy-frontend.sh
+
+# Preview build without pushing (validates everything works)
+./scripts/deploy-frontend.sh --dry-run
+```
+
+**Custom environment (optional):**
+```bash
+VITE_API_BASE_URL=http://localhost:5000 \
+VITE_SOCKET_URL=http://localhost:5000 \
+  ./scripts/deploy-frontend.sh --dry-run
+```
+
+The deploy script:
+1. Builds the frontend in the dev worktree (`frontend/`)
+2. Creates a **git worktree** at `/tmp/gh-pages-deploy` for the `gh-pages` branch
+3. Cleans old files and copies the fresh `dist/` output
+4. Adds `CNAME` (`gridlock.snapurl.in`) and `404.html` (SPA routing)
+5. Commits with deploy message (commit hash + timestamp)
+6. Pushes to `gh-pages`
+7. Removes the worktree
+
+**Safety:** The script **never** checks out `gh-pages` in the main worktree.
+This prevents the `node_modules` deletion that broke production on 2026-03-11.
+A trap handler cleans up the worktree on any failure or interruption.
+
+**CI/CD:** The GitHub Actions workflow (`.github/workflows/deploy-pages.yml`)
+uses GitHub's deploy-pages action for automated deployments on push to `main`.
+For manual deploys from the server, use the script above.
 
 ## Safety Rules
 
