@@ -75,10 +75,12 @@ const GameHistory = () => {
     const result = searchParams.get('result') || '';
     const playerCount = searchParams.get('playerCount') || '';
     const gridSize = searchParams.get('gridSize') || '';
+    const pageParam = parseInt(searchParams.get('page'), 10);
 
     if (result) setResultFilter(result);
     if (playerCount) setPlayerCountFilter(playerCount);
     if (gridSize) setGridSizeFilter(gridSize);
+    if (pageParam > 0) setPagination(prev => ({ ...prev, page: pageParam }));
 
     if (player) {
       setUsername(player);
