@@ -15,6 +15,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
 const replayRoutes = require('./routes/replay');
+const gameHistoryRoutes = require('./routes/gameHistory');
 
 const app = express();
 const server = http.createServer(app);
@@ -95,6 +96,9 @@ app.use('/api/profile', profileRoutes);
 
 // Push notification API routes
 app.use('/api/push', pushRoutes);
+
+// Game history API routes (must be before /api/games to avoid :gameId collision)
+app.use('/api/games/history', gameHistoryRoutes);
 
 // Game replay API routes
 app.use('/api/games', replayRoutes);

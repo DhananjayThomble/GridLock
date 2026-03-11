@@ -15,6 +15,7 @@ import Profile from './components/Profile';
 import TournamentLobby from './components/TournamentLobby';
 import JoinGame from './components/JoinGame';
 import ReplayPage from './components/ReplayPage';
+import GameHistory from './components/GameHistory';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import './App.css';
@@ -35,6 +36,9 @@ const AppLayout = () => {
           </NavLink>
           <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             Leaderboard
+          </NavLink>
+          <NavLink to="/history" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            History
           </NavLink>
         </nav>
       )}
@@ -62,6 +66,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <Leaderboard />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/history"
+            element={(
+              <ErrorBoundary>
+                <GameHistory />
               </ErrorBoundary>
             )}
           />
