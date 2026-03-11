@@ -27,13 +27,60 @@ function getTierFromElo(elo) {
 }
 
 /**
- * Calculate ranked ELO change.
- * K-factor: 32 during placement (first 5 games), 16 after.
- * Weighted by tier difference between players.
+ * Calculate the zero-sum ELO exchange for a ranked game.
+ * Returns the absolute ELO change that the winner gains and the loser loses.
+ *
+ * @param {number} winnerElo
+ * @param {number} loserElo
+ * @param {boolean} winnerIsPlacement
+ * @param {boolean} loserIsPlacement
+ * @returns {number} Absolute ELO change (always >= 0)
+ */
+function calculateRankedEloExchange(winnerElo, loserElo, winnerIsPlacement = false, loserIsPlacement = false) {
+    const safeWinner = Number.isFinite(winnerElo) ? winnerElo : 1200;
+    const safeLoser = Number.isFinite(loserElo) ? loserElo : 1200;
+
+    // Use the higher K-factor of the two players so placement players swing more
+    const kWinner = winnerIsPlacement ? 32 : 16;
+    const kLoser = loserIsPlacement ? 32 : 16;
+    const kFactor = Math.max(kWinner, kLoser);
+
+    const expectedWinner = 1 / (1 + Math.pow(10, (safeLoser - safeWinner) / 400));
+    const change = Math.round(kFactor * (1 - expectedWinner));
+    return Math.max(1, change); // At least 1 ELO exchanged
+}
+
+/**
+ * Calculate the zero-sum ELO exchange for a draw.
+ * Returns a signed value: positive means the player gains ELO, negative means they lose.
  *
  * @param {number} playerElo
  * @param {number} opponentElo
- * @param {number} score - 1 for win, 0 for loss (no draws in ranked)
+ * @param {boolean} playerIsPlacement
+ * @param {boolean} opponentIsPlacement
+ * @returns {number} Signed ELO change for the player
+ */
+function calculateRankedDrawExchange(playerElo, opponentElo, playerIsPlacement = false, opponentIsPlacement = false) {
+    const safePlayer = Number.isFinite(playerElo) ? playerElo : 1200;
+    const safeOpponent = Number.isFinite(opponentElo) ? opponentElo : 1200;
+
+    const kPlayer = playerIsPlacement ? 32 : 16;
+    const kOpponent = opponentIsPlacement ? 32 : 16;
+    const kFactor = Math.max(kPlayer, kOpponent);
+
+    const expectedPlayer = 1 / (1 + Math.pow(10, (safeOpponent - safePlayer) / 400));
+    const change = Math.round(kFactor * (0.5 - expectedPlayer));
+    return change;
+}
+
+/**
+ * Calculate ranked ELO change (legacy single-player interface).
+ * K-factor: 32 during placement (first 5 games), 16 after.
+ * Uses standard Elo expected-score formula.
+ *
+ * @param {number} playerElo
+ * @param {number} opponentElo
+ * @param {number} score - 1 for win, 0 for loss, 0.5 for draw
  * @param {boolean} isPlacement - whether the player is still in placement
  * @returns {number} New ELO rating
  */
@@ -43,13 +90,8 @@ function calculateRankedElo(playerElo, opponentElo, score, isPlacement = false) 
 
     const kFactor = isPlacement ? 32 : 16;
 
-    // Weight by tier difference: larger K when fighting higher-tier opponents
-    const eloDiff = safeOpponent - safePlayer;
-    const tierWeight = 1 + Math.max(0, eloDiff) / 400; // up to 2x for 400+ ELO gap
-
     const expectedScore = 1 / (1 + Math.pow(10, (safeOpponent - safePlayer) / 400));
-    const adjustedK = kFactor * tierWeight;
-    const newElo = Math.round(safePlayer + adjustedK * (score - expectedScore));
+    const newElo = Math.round(safePlayer + kFactor * (score - expectedScore));
     return Math.max(0, newElo);
 }
 
@@ -162,6 +204,8 @@ const RankedProfile = mongoose.model('RankedProfile', RankedProfileSchema);
 module.exports = RankedProfile;
 module.exports.getTierFromElo = getTierFromElo;
 module.exports.calculateRankedElo = calculateRankedElo;
+module.exports.calculateRankedEloExchange = calculateRankedEloExchange;
+module.exports.calculateRankedDrawExchange = calculateRankedDrawExchange;
 module.exports.softResetElo = softResetElo;
 module.exports.PLACEMENT_GAMES_REQUIRED = PLACEMENT_GAMES_REQUIRED;
 module.exports.COOLDOWN_DURATION_MS = COOLDOWN_DURATION_MS;

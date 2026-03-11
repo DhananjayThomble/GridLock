@@ -229,13 +229,29 @@ const Lobby = () => {
       setRankedPlaying(false);
     };
 
+    // Fix #4: Listen for ranked_game_result — show ELO change after ranked games
+    const onRankedGameResult = ({ result, eloChange, newElo, tier, tierIcon, isPlacement, placementProgress }) => {
+      setRankedElo(newElo);
+      if (tier) setRankedTier(tier);
+      if (tierIcon) setRankedTierIcon(tierIcon);
+      if (placementProgress) setRankedPlacementProgress(placementProgress);
+      // Store result in sessionStorage so game-end screen can display it
+      try {
+        sessionStorage.setItem('gridlock_ranked_result', JSON.stringify({
+          result, eloChange, newElo, tier, tierIcon, isPlacement, placementProgress,
+        }));
+      } catch { /* sessionStorage full — ignore */ }
+    };
+
     socket.on('ranked_queue_matched', onRankedMatched);
     socket.on('ranked_queue_status', onRankedStatus);
     socket.on('ranked_cooldown', onRankedCooldown);
+    socket.on('ranked_game_result', onRankedGameResult);
     return () => {
       socket.off('ranked_queue_matched', onRankedMatched);
       socket.off('ranked_queue_status', onRankedStatus);
       socket.off('ranked_cooldown', onRankedCooldown);
+      socket.off('ranked_game_result', onRankedGameResult);
     };
   }, [navigate, username, selectedAvatar]);
 

@@ -14,7 +14,7 @@ const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService'
 const matchmaking = require('../services/matchmaking');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 const RankedProfile = require('../models/RankedProfile');
-const { calculateRankedElo, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
+const { calculateRankedElo, calculateRankedEloExchange, calculateRankedDrawExchange, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
 
 // Intentionally reduced from 60s → 30s for faster game flow.
 // Players get 30s to reconnect before forfeiting; keeps games moving.
@@ -35,7 +35,7 @@ const PLAYER_COLORS = {
 // ── Ranked matchmaking queue (in-memory, 2P only) ───────────────────────────
 // Each entry: { socketId, username, avatar, elo, gridSize, joinedAt }
 const rankedQueue = [];
-const rankedQueueIndex = new Map(); // socketId → index tracking
+const rankedQueueIndex = new Map(); // socketId → username (for O(1) duplicate check)
 const rankedGameMap = new Map(); // gameId → { player1Username, player2Username } for ranked games
 const RANKED_ELO_RANGE = 200;
 const RANKED_ELO_EXPAND_AFTER_MS = 30_000; // Expand matching after 30s wait
@@ -800,8 +800,9 @@ async function createRankedGame(io, log, playerA, playerB) {
 
 /**
  * Handle ranked game disconnect: apply auto-loss + cooldown to the disconnecting player.
+ * Uses zero-sum ELO: both players exchange the same amount.
  */
-async function handleRankedDisconnect(gameId, disconnectedPlayerId, game, log) {
+async function handleRankedDisconnect(io, gameId, disconnectedPlayerId, game, log) {
     const rankedInfo = rankedGameMap.get(gameId);
     if (!rankedInfo) return;
 
@@ -823,37 +824,72 @@ async function handleRankedDisconnect(gameId, disconnectedPlayerId, game, log) {
 
     if (!disconnectedProfile || !opponentProfile) return;
 
+    // Capture pre-game ELO BEFORE any mutations (Fix #9)
+    const preDisconnectedElo = disconnectedProfile.elo;
+    const preOpponentElo = opponentProfile.elo;
+
     const isPlacementDisc = disconnectedProfile.isInPlacement();
     const isPlacementOpp = opponentProfile.isInPlacement();
 
-    // Disconnected player gets a loss + cooldown
-    const newDisconnectedElo = calculateRankedElo(disconnectedProfile.elo, opponentProfile.elo, 0, isPlacementDisc);
-    disconnectedProfile.elo = newDisconnectedElo;
+    // Zero-sum exchange: opponent wins, disconnected player loses (Fix #3)
+    const eloChange = calculateRankedEloExchange(preOpponentElo, preDisconnectedElo, isPlacementOpp, isPlacementDisc);
+
+    // Disconnected player loses ELO + gets cooldown
+    disconnectedProfile.elo = Math.max(0, preDisconnectedElo - eloChange);
     disconnectedProfile.losses += 1;
     disconnectedProfile.cooldownUntil = new Date(Date.now() + COOLDOWN_DURATION_MS);
     disconnectedProfile.lastPlayedAt = new Date();
     if (isPlacementDisc) {
         disconnectedProfile.placementGames.push({
             result: 'loss',
-            opponentElo: opponentProfile.elo,
-            eloAfter: newDisconnectedElo,
+            opponentElo: preOpponentElo,
+            eloAfter: disconnectedProfile.elo,
         });
     }
     await disconnectedProfile.save();
 
-    // Opponent gets a win
-    const newOpponentElo = calculateRankedElo(opponentProfile.elo, disconnectedProfile.elo, 1, isPlacementOpp);
-    opponentProfile.elo = newOpponentElo;
+    // Opponent gains same amount of ELO
+    opponentProfile.elo = preOpponentElo + eloChange;
     opponentProfile.wins += 1;
     opponentProfile.lastPlayedAt = new Date();
     if (isPlacementOpp) {
         opponentProfile.placementGames.push({
             result: 'win',
-            opponentElo: disconnectedProfile.elo,
-            eloAfter: newOpponentElo,
+            opponentElo: preDisconnectedElo,
+            eloAfter: opponentProfile.elo,
         });
     }
     await opponentProfile.save();
+
+    // Emit ranked game results (Fix #4 — these need a frontend listener)
+    const opponentTier = getTierFromElo(opponentProfile.elo);
+    const discTier = getTierFromElo(disconnectedProfile.elo);
+
+    const opponentSocket = io.sockets?.sockets?.get(opponentPlayer.id);
+    if (opponentSocket) {
+        opponentSocket.emit('ranked_game_result', {
+            result: 'win',
+            eloChange: eloChange,
+            newElo: opponentProfile.elo,
+            tier: opponentTier.name,
+            tierIcon: opponentTier.icon,
+            isPlacement: isPlacementOpp,
+            placementProgress: isPlacementOpp ? `${opponentProfile.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+        });
+    }
+
+    const discSocket = io.sockets?.sockets?.get(disconnectedPlayer.id);
+    if (discSocket) {
+        discSocket.emit('ranked_game_result', {
+            result: 'loss',
+            eloChange: -eloChange,
+            newElo: disconnectedProfile.elo,
+            tier: discTier.name,
+            tierIcon: discTier.icon,
+            isPlacement: isPlacementDisc,
+            placementProgress: isPlacementDisc ? `${disconnectedProfile.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+        });
+    }
 
     // Clean up ranked game map
     rankedGameMap.delete(gameId);
@@ -861,92 +897,127 @@ async function handleRankedDisconnect(gameId, disconnectedPlayerId, game, log) {
     log.info('Ranked disconnect penalty applied', {
         gameId,
         disconnected: disconnectedUsername,
-        newElo: newDisconnectedElo,
+        eloChange,
+        newElo: disconnectedProfile.elo,
         cooldownMinutes: COOLDOWN_DURATION_MS / 60000,
     });
 }
 
 /**
- * Handle end of a ranked game (normal completion).
- * Updates ELO for both players and records placement games.
+ * Handle end of a ranked game (normal completion or draw).
+ * Uses zero-sum ELO: both players exchange the same amount.
+ * Accepts `io` as first parameter for socket emission.
  */
-async function handleRankedGameEnd(gameId, winnerPlayerId, game, log) {
+async function handleRankedGameEnd(io, gameId, winnerPlayerId, game, log) {
     const rankedInfo = rankedGameMap.get(gameId);
     if (!rankedInfo) return;
 
-    const loserPlayerId = winnerPlayerId === 'player1' ? 'player2' : 'player1';
-    const winnerPlayer = game.players[winnerPlayerId];
-    const loserPlayer = game.players[loserPlayerId];
+    const isDraw = winnerPlayerId === 'draw';
+    const player1 = game.players.player1;
+    const player2 = game.players.player2;
 
-    if (!winnerPlayer || !loserPlayer) return;
+    if (!player1 || !player2) return;
 
-    const [winnerProfile, loserProfile] = await Promise.all([
-        RankedProfile.findOne({ username: winnerPlayer.username }),
-        RankedProfile.findOne({ username: loserPlayer.username }),
+    const [profile1, profile2] = await Promise.all([
+        RankedProfile.findOne({ username: player1.username }),
+        RankedProfile.findOne({ username: player2.username }),
     ]);
 
-    if (!winnerProfile || !loserProfile) return;
+    if (!profile1 || !profile2) return;
 
-    const isPlacementWinner = winnerProfile.isInPlacement();
-    const isPlacementLoser = loserProfile.isInPlacement();
+    // Capture pre-game ELO BEFORE any mutations (Fix #9)
+    const preElo1 = profile1.elo;
+    const preElo2 = profile2.elo;
 
-    // Winner gets ELO gain
-    const oldWinnerElo = winnerProfile.elo;
-    const newWinnerElo = calculateRankedElo(winnerProfile.elo, loserProfile.elo, 1, isPlacementWinner);
-    winnerProfile.elo = newWinnerElo;
-    winnerProfile.wins += 1;
-    winnerProfile.lastPlayedAt = new Date();
-    if (isPlacementWinner) {
-        winnerProfile.placementGames.push({
-            result: 'win',
-            opponentElo: loserProfile.elo,
-            eloAfter: newWinnerElo,
+    const isPlacement1 = profile1.isInPlacement();
+    const isPlacement2 = profile2.isInPlacement();
+
+    let result1, result2, eloChange1, eloChange2;
+
+    if (isDraw) {
+        // Draw: use draw exchange formula (Fix #8)
+        // For zero-sum draws: player1 change = -player2 change
+        const drawChange1 = calculateRankedDrawExchange(preElo1, preElo2, isPlacement1, isPlacement2);
+        eloChange1 = drawChange1;
+        eloChange2 = -drawChange1;
+        result1 = 'draw';
+        result2 = 'draw';
+    } else {
+        // Win/loss: zero-sum exchange (Fix #3)
+        const winnerIsPlayer1 = winnerPlayerId === 'player1';
+        const winnerElo = winnerIsPlayer1 ? preElo1 : preElo2;
+        const loserElo = winnerIsPlayer1 ? preElo2 : preElo1;
+        const winnerIsPlacement = winnerIsPlayer1 ? isPlacement1 : isPlacement2;
+        const loserIsPlacement = winnerIsPlayer1 ? isPlacement2 : isPlacement1;
+
+        const exchange = calculateRankedEloExchange(winnerElo, loserElo, winnerIsPlacement, loserIsPlacement);
+
+        eloChange1 = winnerIsPlayer1 ? exchange : -exchange;
+        eloChange2 = winnerIsPlayer1 ? -exchange : exchange;
+        result1 = winnerIsPlayer1 ? 'win' : 'loss';
+        result2 = winnerIsPlayer1 ? 'loss' : 'win';
+    }
+
+    // Apply ELO changes
+    profile1.elo = Math.max(0, preElo1 + eloChange1);
+    profile2.elo = Math.max(0, preElo2 + eloChange2);
+
+    // Update win/loss counters
+    if (result1 === 'win') profile1.wins += 1;
+    else if (result1 === 'loss') profile1.losses += 1;
+    // draws don't increment win/loss
+
+    if (result2 === 'win') profile2.wins += 1;
+    else if (result2 === 'loss') profile2.losses += 1;
+
+    profile1.lastPlayedAt = new Date();
+    profile2.lastPlayedAt = new Date();
+
+    // Record placement games using pre-mutation opponent ELO (Fix #9)
+    if (isPlacement1) {
+        profile1.placementGames.push({
+            result: result1 === 'draw' ? (eloChange1 >= 0 ? 'win' : 'loss') : result1,
+            opponentElo: preElo2,
+            eloAfter: profile1.elo,
         });
     }
-    await winnerProfile.save();
-
-    // Loser gets ELO loss
-    const oldLoserElo = loserProfile.elo;
-    const newLoserElo = calculateRankedElo(loserProfile.elo, winnerProfile.elo, 0, isPlacementLoser);
-    loserProfile.elo = newLoserElo;
-    loserProfile.losses += 1;
-    loserProfile.lastPlayedAt = new Date();
-    if (isPlacementLoser) {
-        loserProfile.placementGames.push({
-            result: 'loss',
-            opponentElo: winnerProfile.elo,
-            eloAfter: newLoserElo,
+    if (isPlacement2) {
+        profile2.placementGames.push({
+            result: result2 === 'draw' ? (eloChange2 >= 0 ? 'win' : 'loss') : result2,
+            opponentElo: preElo1,
+            eloAfter: profile2.elo,
         });
     }
-    await loserProfile.save();
+
+    await Promise.all([profile1.save(), profile2.save()]);
 
     // Emit ranked game results to both players
-    const winnerTier = getTierFromElo(newWinnerElo);
-    const loserTier = getTierFromElo(newLoserElo);
+    const tier1 = getTierFromElo(profile1.elo);
+    const tier2 = getTierFromElo(profile2.elo);
 
-    const winnerSocket = io.sockets?.sockets?.get(winnerPlayer.id);
-    if (winnerSocket) {
-        winnerSocket.emit('ranked_game_result', {
-            result: 'win',
-            eloChange: newWinnerElo - oldWinnerElo,
-            newElo: newWinnerElo,
-            tier: winnerTier.name,
-            tierIcon: winnerTier.icon,
-            isPlacement: isPlacementWinner,
-            placementProgress: isPlacementWinner ? `${winnerProfile.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+    const socket1 = io.sockets?.sockets?.get(player1.id);
+    if (socket1) {
+        socket1.emit('ranked_game_result', {
+            result: result1,
+            eloChange: eloChange1,
+            newElo: profile1.elo,
+            tier: tier1.name,
+            tierIcon: tier1.icon,
+            isPlacement: isPlacement1,
+            placementProgress: isPlacement1 ? `${profile1.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
         });
     }
 
-    const loserSocket = io.sockets?.sockets?.get(loserPlayer.id);
-    if (loserSocket) {
-        loserSocket.emit('ranked_game_result', {
-            result: 'loss',
-            eloChange: newLoserElo - oldLoserElo,
-            newElo: newLoserElo,
-            tier: loserTier.name,
-            tierIcon: loserTier.icon,
-            isPlacement: isPlacementLoser,
-            placementProgress: isPlacementLoser ? `${loserProfile.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+    const socket2 = io.sockets?.sockets?.get(player2.id);
+    if (socket2) {
+        socket2.emit('ranked_game_result', {
+            result: result2,
+            eloChange: eloChange2,
+            newElo: profile2.elo,
+            tier: tier2.name,
+            tierIcon: tier2.icon,
+            isPlacement: isPlacement2,
+            placementProgress: isPlacement2 ? `${profile2.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
         });
     }
 
@@ -955,9 +1026,9 @@ async function handleRankedGameEnd(gameId, winnerPlayerId, game, log) {
 
     log.info('Ranked game ended', {
         gameId,
-        winner: winnerPlayer.username,
-        winnerElo: `${oldWinnerElo} → ${newWinnerElo}`,
-        loserElo: `${oldLoserElo} → ${newLoserElo}`,
+        result: isDraw ? 'draw' : `winner=${winnerPlayerId}`,
+        player1Elo: `${preElo1} → ${profile1.elo}`,
+        player2Elo: `${preElo2} → ${profile2.elo}`,
     });
 }
 
@@ -1439,9 +1510,9 @@ function attachSocketHandlers(io, log) {
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
                     await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
-                    // Ranked game ELO update
+                    // Ranked game ELO update (pass io for socket emission + handle draws)
                     if (rankedGameMap.has(cleanGameId)) {
-                        handleRankedGameEnd(cleanGameId, newState.winner, game, log).catch(err =>
+                        handleRankedGameEnd(io, cleanGameId, newState.winner, game, log).catch(err =>
                             log.error('Ranked game end handler failed', { gameId: cleanGameId, error: err.message })
                         );
                     }
@@ -2080,10 +2151,12 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
-                // Remove from queue if already in it
-                const existingIdx = rankedQueue.findIndex(e => e.socketId === socket.id);
-                if (existingIdx !== -1) rankedQueue.splice(existingIdx, 1);
-                rankedQueueIndex.delete(socket.id);
+                // Remove from queue if already in it (O(1) check via rankedQueueIndex)
+                if (rankedQueueIndex.has(socket.id)) {
+                    const idx = rankedQueue.findIndex(e => e.socketId === socket.id);
+                    if (idx !== -1) rankedQueue.splice(idx, 1);
+                    rankedQueueIndex.delete(socket.id);
+                }
 
                 const entry = {
                     socketId: socket.id,
@@ -2099,9 +2172,10 @@ function attachSocketHandlers(io, log) {
                 socket.data.rankedQueue = true;
                 socket.data.rankedUsername = cleanUsername;
 
-                // Emit initial queue status
+                // Emit initial queue status (Fix #13: show actual position, not total size)
+                const queuePosition = rankedQueue.findIndex(e => e.socketId === socket.id) + 1;
                 socket.emit('ranked_queue_status', {
-                    position: rankedQueue.length,
+                    position: queuePosition,
                     queueSize: rankedQueue.length,
                     elo: profile.elo,
                     tier: getTierFromElo(profile.elo).name,
@@ -2221,7 +2295,7 @@ function attachSocketHandlers(io, log) {
 
                         // Ranked anti-smurf: if this was a ranked game, auto-loss + cooldown
                         if (rankedGameMap.has(gameId)) {
-                            handleRankedDisconnect(gameId, playerId, currentGame, log).catch(err =>
+                            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
                                 log.error('Ranked disconnect handler failed', { gameId, error: err.message })
                             );
                         }

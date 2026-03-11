@@ -3,9 +3,9 @@
 import React from 'react';
 
 const TIER_COLORS = {
-  Bronze:   'var(--warning)',
+  Bronze:   '#CD7F32',
   Silver:   'var(--text-secondary)',
-  Gold:     'var(--warning)',
+  Gold:     '#FFD700',
   Platinum: 'var(--accent)',
   Diamond:  'var(--accent-hover)',
 };

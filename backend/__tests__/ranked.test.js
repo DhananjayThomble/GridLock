@@ -29,6 +29,8 @@ const RankedProfile = require('../models/RankedProfile');
 const {
     getTierFromElo,
     calculateRankedElo,
+    calculateRankedEloExchange,
+    calculateRankedDrawExchange,
     softResetElo,
     PLACEMENT_GAMES_REQUIRED,
     COOLDOWN_DURATION_MS,
@@ -85,7 +87,7 @@ describe('getTierFromElo', () => {
 
 // ── ELO Calculation Tests ─────────────────────────────────────────────────────
 
-describe('calculateRankedElo', () => {
+describe('calculateRankedElo (legacy interface)', () => {
     test('winning against equal ELO increases rating', () => {
         const newElo = calculateRankedElo(1200, 1200, 1, false);
         expect(newElo).toBeGreaterThan(1200);
@@ -99,7 +101,6 @@ describe('calculateRankedElo', () => {
     test('placement matches use K-factor 32 (larger swings)', () => {
         const placementWin = calculateRankedElo(1200, 1200, 1, true);
         const normalWin = calculateRankedElo(1200, 1200, 1, false);
-        // Placement K=32, normal K=16, so placement gain should be ~2x normal
         expect(placementWin - 1200).toBeGreaterThan(normalWin - 1200);
     });
 
@@ -118,6 +119,72 @@ describe('calculateRankedElo', () => {
         const result = calculateRankedElo(NaN, undefined, 1, false);
         expect(Number.isFinite(result)).toBe(true);
         expect(result).toBeGreaterThanOrEqual(0);
+    });
+});
+
+// ── Zero-Sum ELO Exchange Tests ───────────────────────────────────────────────
+
+describe('calculateRankedEloExchange (zero-sum)', () => {
+    test('returns positive exchange for equal opponents', () => {
+        const exchange = calculateRankedEloExchange(1200, 1200);
+        expect(exchange).toBeGreaterThan(0);
+        expect(exchange).toBe(8); // K=16, expected=0.5, change=16*(1-0.5)=8
+    });
+
+    test('exchange is zero-sum: winner gains exactly what loser loses', () => {
+        const exchange = calculateRankedEloExchange(1200, 1400);
+        // Winner (1200) gains `exchange`, loser (1400) loses `exchange`
+        const newWinner = 1200 + exchange;
+        const newLoser = 1400 - exchange;
+        // Sum should equal original sum
+        expect(newWinner + newLoser).toBe(1200 + 1400);
+    });
+
+    test('upset win (lower ELO beats higher) gives larger exchange', () => {
+        const upsetExchange = calculateRankedEloExchange(1000, 1400);
+        const equalExchange = calculateRankedEloExchange(1200, 1200);
+        expect(upsetExchange).toBeGreaterThan(equalExchange);
+    });
+
+    test('expected win (higher ELO beats lower) gives smaller exchange', () => {
+        const expectedExchange = calculateRankedEloExchange(1400, 1000);
+        const equalExchange = calculateRankedEloExchange(1200, 1200);
+        expect(expectedExchange).toBeLessThan(equalExchange);
+    });
+
+    test('placement games use higher K-factor', () => {
+        const placementExchange = calculateRankedEloExchange(1200, 1200, true, false);
+        const normalExchange = calculateRankedEloExchange(1200, 1200, false, false);
+        expect(placementExchange).toBeGreaterThan(normalExchange);
+    });
+
+    test('minimum exchange is 1', () => {
+        // Very high ELO beating very low — expected score ≈ 1, so change ≈ 0
+        const exchange = calculateRankedEloExchange(2000, 200);
+        expect(exchange).toBeGreaterThanOrEqual(1);
+    });
+});
+
+describe('calculateRankedDrawExchange', () => {
+    test('draw between equal opponents gives 0 change', () => {
+        const change = calculateRankedDrawExchange(1200, 1200);
+        expect(change).toBe(0);
+    });
+
+    test('draw is zero-sum: changes sum to zero', () => {
+        const change1 = calculateRankedDrawExchange(1200, 1400);
+        const change2 = calculateRankedDrawExchange(1400, 1200);
+        expect(change1 + change2).toBe(0);
+    });
+
+    test('lower-rated player gains ELO from draw against higher-rated', () => {
+        const change = calculateRankedDrawExchange(1000, 1400);
+        expect(change).toBeGreaterThan(0);
+    });
+
+    test('higher-rated player loses ELO from draw against lower-rated', () => {
+        const change = calculateRankedDrawExchange(1400, 1000);
+        expect(change).toBeLessThan(0);
     });
 });
 
@@ -211,9 +278,36 @@ describe('RankedProfile model', () => {
     });
 });
 
-// ── Queue Matching Logic Tests ────────────────────────────────────────────────
+// ── Queue Matching Logic Tests (using actual implementation) ──────────────────
 
 describe('Ranked queue matching', () => {
+    const { rankedQueue, rankedQueueIndex, removeFromRankedQueue } = require('../controllers/socketHandlers')._internal;
+
+    beforeEach(() => {
+        // Clear the queue before each test
+        rankedQueue.length = 0;
+        rankedQueueIndex.clear();
+    });
+
+    test('removeFromRankedQueue removes player and cleans up index', () => {
+        rankedQueue.push({ socketId: 'sock1', username: 'A', elo: 1200, gridSize: 3, joinedAt: Date.now() });
+        rankedQueueIndex.set('sock1', 'A');
+        expect(rankedQueue.length).toBe(1);
+        expect(rankedQueueIndex.has('sock1')).toBe(true);
+
+        removeFromRankedQueue('sock1');
+        expect(rankedQueue.length).toBe(0);
+        expect(rankedQueueIndex.has('sock1')).toBe(false);
+    });
+
+    test('removeFromRankedQueue is a no-op for non-existent socket', () => {
+        rankedQueue.push({ socketId: 'sock1', username: 'A', elo: 1200, gridSize: 3, joinedAt: Date.now() });
+        rankedQueueIndex.set('sock1', 'A');
+
+        removeFromRankedQueue('sock-nonexistent');
+        expect(rankedQueue.length).toBe(1);
+    });
+
     test('players within 200 ELO should match', () => {
         const playerA = { elo: 1200, gridSize: 3, joinedAt: Date.now() };
         const playerB = { elo: 1350, gridSize: 3, joinedAt: Date.now() };
@@ -281,15 +375,25 @@ describe('Season reset integration', () => {
             { username: 'MidElo', elo: 1200, season: 1, wins: 10, losses: 10 },
         ]);
 
-        const profiles = await RankedProfile.find({});
-        for (const profile of profiles) {
-            profile.elo = softResetElo(profile.elo);
-            profile.season += 1;
-            profile.placementGames = [];
-            profile.wins = 0;
-            profile.losses = 0;
-            await profile.save();
-        }
+        // Simulate the new bulk updateMany approach
+        const newSeasonNumber = 2;
+        await RankedProfile.updateMany({}, [
+            {
+                $set: {
+                    elo: {
+                        $max: [
+                            0,
+                            { $round: [{ $add: [{ $multiply: [{ $subtract: ['$elo', 1200] }, 0.5] }, 1200] }, 0] },
+                        ],
+                    },
+                    season: newSeasonNumber,
+                    placementGames: [],
+                    wins: 0,
+                    losses: 0,
+                    cooldownUntil: null,
+                },
+            },
+        ], { updatePipeline: true });
 
         const high = await RankedProfile.findOne({ username: 'HighElo' });
         const low = await RankedProfile.findOne({ username: 'LowElo' });
@@ -339,21 +443,5 @@ describe('Ranked socket schema validation', () => {
         expect(result.valid).toBe(true);
     });
 
-    test('ranked_game_end validates valid payload', () => {
-        const result = validatePayload('ranked_game_end', {
-            gameId: 'AB12CD',
-            winner: 'player1',
-            sessionToken: 'a'.repeat(48),
-        });
-        expect(result.valid).toBe(true);
-    });
-
-    test('ranked_game_end rejects player3 (ranked is 2P only)', () => {
-        const result = validatePayload('ranked_game_end', {
-            gameId: 'AB12CD',
-            winner: 'player3',
-            sessionToken: 'a'.repeat(48),
-        });
-        expect(result.valid).toBe(false);
-    });
+    // ranked_game_end schema removed — it was dead code (server-only event, Fix #5)
 });

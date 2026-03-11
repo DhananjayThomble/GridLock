@@ -90,9 +90,9 @@ const Leaderboard = () => {
   }, []);
 
   // ── Ranked leaderboard fetch ──────────────────────────────────────────────
+  // Re-fetches every time user switches to ranked tab (Fix #11)
   useEffect(() => {
     if (activeTab !== 'ranked') return;
-    if (rankedRows.length > 0) return; // Already fetched
 
     let cancelled = false;
 
@@ -122,7 +122,7 @@ const Leaderboard = () => {
 
     loadRankedLeaderboard();
     return () => { cancelled = true; };
-  }, [activeTab, rankedRows.length]);
+  }, [activeTab]);
 
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
   const rankedTopThree = useMemo(() => rankedRows.slice(0, 3), [rankedRows]);

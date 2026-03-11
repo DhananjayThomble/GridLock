@@ -88,12 +88,6 @@ const schemas = {
     }),
 
     ranked_queue_leave: Joi.object({}),
-
-    ranked_game_end: Joi.object({
-        gameId: gameIdField,
-        winner: Joi.string().pattern(/^player[1-2]$/).required(),
-        sessionToken: sessionTokenField,
-    }),
 };
 
 /**

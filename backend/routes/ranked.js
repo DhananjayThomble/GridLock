@@ -105,33 +105,60 @@ router.get('/leaderboard', async (req, res) => {
  * POST /api/ranked/season-reset
  * Trigger a seasonal soft reset for all ranked profiles.
  * Compresses ELO toward 1200 by 50%, increments season, clears placement.
+ * Requires `x-admin-key` header matching ADMIN_API_KEY env var.
  */
 router.post('/season-reset', async (req, res) => {
+    // Authentication: require admin API key (Fix #2)
+    const adminKey = process.env.ADMIN_API_KEY;
+    if (!adminKey) {
+        return res.status(503).json({ success: false, error: 'Admin API key not configured on server' });
+    }
+    const providedKey = req.headers['x-admin-key'];
+    if (!providedKey || providedKey !== adminKey) {
+        return res.status(401).json({ success: false, error: 'Unauthorized — invalid or missing admin key' });
+    }
+
     try {
-        const profiles = await RankedProfile.find({});
-        let resetCount = 0;
+        // Use bulk updateMany for efficiency — no OOM risk (Fix #7)
+        const currentSeason = await RankedProfile.findOne({}).sort({ season: -1 }).select('season').lean();
+        const newSeasonNumber = (currentSeason?.season || 1) + 1;
 
-        for (const profile of profiles) {
-            const newElo = softResetElo(profile.elo);
-            const tierInfo = getTierFromElo(newElo);
+        const result = await RankedProfile.updateMany({}, [
+            {
+                $set: {
+                    elo: {
+                        $max: [
+                            0,
+                            { $round: [{ $add: [{ $multiply: [{ $subtract: ['$elo', 1200] }, 0.5] }, 1200] }, 0] },
+                        ],
+                    },
+                    season: newSeasonNumber,
+                    placementGames: [],
+                    wins: 0,
+                    losses: 0,
+                    cooldownUntil: null,
+                },
+            },
+        ], { updatePipeline: true });
 
-            profile.elo = newElo;
-            profile.tier = tierInfo.name;
-            profile.tierIcon = tierInfo.icon;
-            profile.season += 1;
-            profile.placementGames = [];
-            profile.wins = 0;
-            profile.losses = 0;
-            profile.cooldownUntil = null;
-
-            await profile.save();
-            resetCount++;
+        // Update tier fields in bulk (tier is derived from elo via pre-save hook,
+        // but updateMany bypasses hooks — so we update tiers with a second bulk op)
+        const tierUpdates = [
+            { filter: { elo: { $gte: 1700 } }, update: { $set: { tier: 'Diamond', tierIcon: '💎' } } },
+            { filter: { elo: { $gte: 1500, $lt: 1700 } }, update: { $set: { tier: 'Platinum', tierIcon: '🏆' } } },
+            { filter: { elo: { $gte: 1300, $lt: 1500 } }, update: { $set: { tier: 'Gold', tierIcon: '🥇' } } },
+            { filter: { elo: { $gte: 1000, $lt: 1300 } }, update: { $set: { tier: 'Silver', tierIcon: '🥈' } } },
+            { filter: { elo: { $lt: 1000 } }, update: { $set: { tier: 'Bronze', tierIcon: '🥉' } } },
+        ];
+        for (const { filter, update } of tierUpdates) {
+            await RankedProfile.updateMany(filter, update);
         }
 
         res.json({
             success: true,
-            message: `Season reset complete. ${resetCount} profiles updated.`,
-            resetCount,
+            message: `Season reset complete. ${result.modifiedCount} profiles updated to season ${newSeasonNumber}.`,
+            resetCount: result.modifiedCount,
+            newSeason: newSeasonNumber,
         });
     } catch (error) {
         console.error('[Ranked] Season reset error:', error.message);
