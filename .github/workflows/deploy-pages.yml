@@ -21,11 +21,14 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # setup-node is retained on self-hosted to pin the Node version,
+      # ensure a consistent PATH, and guarantee the correct npm version
+      # — the system-installed Node may drift from what CI expects.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -37,28 +40,35 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Build production (custom domain — base /)
+      - name: Build production
         run: npm run build
         working-directory: frontend
         env:
           VITE_BASE_PATH: /
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
+          # Same backend URL as VITE_SOCKET_URL (both point to https://gridlock-api.snapurl.in)
           VITE_API_BASE_URL: ${{ secrets.VITE_SOCKET_URL }}
           VITE_SITE_URL: https://gridlock.snapurl.in
 
       - name: Assemble Pages artifact
         run: |
+          mkdir -p pages-out
           cp -r frontend/dist/. pages-out/
+          echo "gridlock.snapurl.in" > pages-out/CNAME
+          cp pages-out/index.html pages-out/404.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: pages-out
 
+  # NOTE: The deploy job only calls actions/deploy-pages (uploads artifacts to
+  # GitHub Pages via API). It doesn't need local server access, so it could
+  # optionally run on ubuntu-latest to free up self-hosted runner capacity.
   deploy:
     name: Deploy
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
