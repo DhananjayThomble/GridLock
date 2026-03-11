@@ -10,6 +10,9 @@ import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import ThemeToggle from './ThemeToggle';
 import SoundSettings from './SoundSettings';
 import QuickPlay from './QuickPlay';
+import RecentOpponents from './RecentOpponents';
+import RankedQueue from './RankedQueue';
+import RankBadge from './RankBadge';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -103,6 +106,14 @@ const Lobby = () => {
   const [usernameError, setUsernameError] = useState('');
   const [gameIdError, setGameIdError] = useState('');
   const [tournamentIdError, setTournamentIdError] = useState('');
+  // Ranked mode state
+  const [rankedPlaying, setRankedPlaying] = useState(false);
+  const [rankedElo, setRankedElo] = useState(1200);
+  const [rankedTier, setRankedTier] = useState('Bronze');
+  const [rankedTierIcon, setRankedTierIcon] = useState('🥉');
+  const [rankedQueueSize, setRankedQueueSize] = useState(1);
+  const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null); // eslint-disable-line no-unused-vars
+  const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
   const navigate = useNavigate();
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
@@ -189,15 +200,76 @@ const Lobby = () => {
     };
   }, [navigate, username, selectedAvatar, gridSize, playerCount]);
 
+  // ── Socket: Ranked matchmaking events ─────────────────────────────────────
+  useEffect(() => {
+    const onRankedMatched = ({ gameId: gid, playerId, sessionToken, gridSize: gs, playerCount: pc }) => {
+      setRankedPlaying(false);
+      navigate('/game', {
+        state: {
+          username: username.trim(),
+          gridSize: gs,
+          gameId: gid,
+          role: playerId,
+          avatar: selectedAvatar,
+          playerCount: pc,
+          sessionToken,
+          ranked: true,
+        },
+      });
+    };
+
+    const onRankedStatus = ({ queueSize: qs, elo, tier, tierIcon }) => {
+      setRankedQueueSize(qs);
+      if (elo != null) setRankedElo(elo);
+      if (tier) setRankedTier(tier);
+      if (tierIcon) setRankedTierIcon(tierIcon);
+    };
+
+    const onRankedCooldown = ({ cooldownUntil }) => {
+      setRankedCooldownUntil(cooldownUntil);
+      setRankedPlaying(false);
+    };
+
+    // Fix #4: Listen for ranked_game_result — show ELO change after ranked games
+    const onRankedGameResult = ({ result, eloChange, newElo, tier, tierIcon, isPlacement, placementProgress }) => {
+      setRankedElo(newElo);
+      if (tier) setRankedTier(tier);
+      if (tierIcon) setRankedTierIcon(tierIcon);
+      if (placementProgress) setRankedPlacementProgress(placementProgress);
+      // Store result in sessionStorage so game-end screen can display it
+      try {
+        sessionStorage.setItem('gridlock_ranked_result', JSON.stringify({
+          result, eloChange, newElo, tier, tierIcon, isPlacement, placementProgress,
+        }));
+      } catch { /* sessionStorage full — ignore */ }
+    };
+
+    socket.on('ranked_queue_matched', onRankedMatched);
+    socket.on('ranked_queue_status', onRankedStatus);
+    socket.on('ranked_cooldown', onRankedCooldown);
+    socket.on('ranked_game_result', onRankedGameResult);
+    return () => {
+      socket.off('ranked_queue_matched', onRankedMatched);
+      socket.off('ranked_queue_status', onRankedStatus);
+      socket.off('ranked_cooldown', onRankedCooldown);
+      socket.off('ranked_game_result', onRankedGameResult);
+    };
+  }, [navigate, username, selectedAvatar]);
+
   // ── Ref for unmount cleanup (captures latest quickPlaying value) ──────────
   const quickPlayingRef = useRef(quickPlaying);
   useEffect(() => { quickPlayingRef.current = quickPlaying; }, [quickPlaying]);
+  const rankedPlayingRef = useRef(rankedPlaying);
+  useEffect(() => { rankedPlayingRef.current = rankedPlaying; }, [rankedPlaying]);
 
   // ── Cleanup: emit queue_leave on unmount if still in queue ──────────────
   useEffect(() => {
     return () => {
       if (quickPlayingRef.current) {
         socket.emit('queue_leave');
+      }
+      if (rankedPlayingRef.current) {
+        socket.emit('ranked_queue_leave', {});
       }
     };
   }, []);
@@ -276,6 +348,25 @@ const Lobby = () => {
     setQuickPlaying(false);
   };
 
+  // ── Ranked Play ──────────────────────────────────────────────────────────
+  const handleRankedPlay = () => {
+    initAudio();
+    const name = username.trim();
+    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    setUsernameError('');
+    if (!socket.connected) socket.connect();
+    localStorage.setItem('gridlock_username', name);
+    setRankedPlaying(true);
+    setRankedQueueSize(1);
+    socket.emit('ranked_queue_join', { username: name, avatar: selectedAvatar, gridSize });
+  };
+
+  const handleRankedCancel = () => {
+    socket.emit('ranked_queue_leave', {});
+    setRankedPlaying(false);
+    setRankedCooldownUntil(null);
+  };
+
   const handleQuickPlayCPU = (selectedCount) => {
     const pc = selectedCount || playerCount;
     socket.emit('queue_leave');
@@ -324,7 +415,7 @@ const Lobby = () => {
     // Auto-prompt push subscription on first game action
     if (!localStorage.getItem('gridlock_push_prompted')) {
       localStorage.setItem('gridlock_push_prompted', 'true');
-      subscribeToPush(name).then((sub) => {
+      subscribeToPush(name, socket.id).then((sub) => {
         if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
@@ -366,7 +457,7 @@ const Lobby = () => {
     // Auto-prompt push subscription on first game action
     if (!localStorage.getItem('gridlock_push_prompted')) {
       localStorage.setItem('gridlock_push_prompted', 'true');
-      subscribeToPush(name).then((sub) => {
+      subscribeToPush(name, socket.id).then((sub) => {
         if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
@@ -467,8 +558,25 @@ const Lobby = () => {
             )}
           </div>
 
-          {/* ── Quick Play Button ── */}
+          {/* ── Daily Challenge + Quick Play ── */}
           <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => navigate('/daily')}
+              disabled={creating || !username.trim()}
+              aria-label="Daily Challenge — one puzzle per day, global leaderboard"
+              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60 mb-2"
+              style={{
+                background: 'linear-gradient(135deg, var(--warning), var(--danger))',
+                color: 'var(--text-on-accent)',
+                boxShadow: '0 4px 16px color-mix(in srgb, var(--warning) 40%, transparent)',
+              }}
+            >
+              🎯 Daily Challenge
+            </button>
+            <p className="text-xs text-center mb-3" style={{ color: 'var(--text-secondary)' }}>
+              Same puzzle for everyone · One attempt per day
+            </p>
+
             <button
               onClick={handleQuickPlay}
               disabled={quickPlaying || creating || !username.trim()}
@@ -486,6 +594,26 @@ const Lobby = () => {
             </button>
             <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-secondary)' }}>
               Instant match with random opponents
+            </p>
+
+            {/* Ranked Play Button */}
+            <button
+              onClick={handleRankedPlay}
+              disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
+              aria-label="Ranked Play — competitive match with ELO rating"
+              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
+              style={{
+                background: (rankedPlaying || creating)
+                  ? 'var(--bg-surface)'
+                  : 'linear-gradient(135deg, var(--warning), var(--danger))',
+                color: (rankedPlaying || creating) ? 'var(--text-muted)' : 'var(--text-on-accent)',
+                boxShadow: (rankedPlaying || creating) ? 'none' : '0 4px 16px color-mix(in srgb, var(--warning) 40%, transparent)',
+              }}
+            >
+              {rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked Play'}
+            </button>
+            <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-secondary)' }}>
+              Competitive 2P · ELO rating · Seasonal tiers
             </p>
           </div>
 
@@ -836,6 +964,14 @@ const Lobby = () => {
 
         <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
 
+        {/* ── Recent Opponents ── */}
+        <RecentOpponents
+          username={username.trim()}
+          avatar={selectedAvatar}
+          gridSize={gridSize}
+          playerCount={playerCount}
+        />
+
         {/* ── Settings Footer Card ── */}
         <div
           className="mt-4 rounded-2xl p-4 space-y-3 settings-card"
@@ -868,7 +1004,7 @@ const Lobby = () => {
                 if (!pushEnabled) {
                   const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
                   try {
-                    const sub = await subscribeToPush(name);
+                    const sub = await subscribeToPush(name, socket.id);
                     if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
                   } catch { /* push subscribe failed — ignore */ }
                 } else {
@@ -1002,6 +1138,19 @@ const Lobby = () => {
           avatar={selectedAvatar}
           onCancel={handleQuickPlayCancel}
           onPlayCPU={handleQuickPlayCPU}
+        />
+      )}
+
+      {/* ── Ranked Queue Overlay ── */}
+      {(rankedPlaying || rankedCooldownUntil) && (
+        <RankedQueue
+          elo={rankedElo}
+          tier={rankedTier}
+          tierIcon={rankedTierIcon}
+          queueSize={rankedQueueSize}
+          placementProgress={rankedPlacementProgress}
+          cooldownUntil={rankedCooldownUntil}
+          onCancel={handleRankedCancel}
         />
       )}
     </div>

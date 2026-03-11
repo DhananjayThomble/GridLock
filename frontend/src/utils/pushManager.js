@@ -1,11 +1,31 @@
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+// Prefer env var, but can fall back to fetching from backend
+let vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || null;
 
-if (!VAPID_PUBLIC_KEY) {
-    console.warn('VITE_VAPID_PUBLIC_KEY is not set. Push notifications will be disabled.');
+const API_BASE = (
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_SOCKET_URL ||
+    ''
+).replace(/\/$/, '');
+
+/**
+ * Fetch VAPID public key from backend if not set via env var.
+ */
+async function getVapidPublicKey() {
+    if (vapidPublicKey) return vapidPublicKey;
+    try {
+        const res = await fetch(`${API_BASE}/api/push/vapid-public-key`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        vapidPublicKey = data.publicKey || null;
+        return vapidPublicKey;
+    } catch {
+        return null;
+    }
 }
 
-export async function subscribeToPush(username) {
-    if (!VAPID_PUBLIC_KEY) return null;
+export async function subscribeToPush(username, socketId) {
+    const key = await getVapidPublicKey();
+    if (!key) return null;
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
 
     const permission = await Notification.requestPermission();
@@ -17,21 +37,14 @@ export async function subscribeToPush(username) {
     if (!subscription) {
         subscription = await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            applicationServerKey: urlBase64ToUint8Array(key),
         });
     }
-
-    // Send to backend
-    const API_BASE = (
-        import.meta.env.VITE_API_BASE_URL ||
-        import.meta.env.VITE_SOCKET_URL ||
-        ''
-    ).replace(/\/$/, '');
 
     const res = await fetch(`${API_BASE}/api/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, subscription: subscription.toJSON() }),
+        body: JSON.stringify({ username, subscription: subscription.toJSON(), socketId }),
     });
 
     if (!res.ok) {
@@ -48,14 +61,8 @@ export async function unsubscribeFromPush() {
     const reg = await navigator.serviceWorker.ready;
     const subscription = await reg.pushManager.getSubscription();
     if (subscription) {
-        const API_BASE = (
-            import.meta.env.VITE_API_BASE_URL ||
-            import.meta.env.VITE_SOCKET_URL ||
-            ''
-        ).replace(/\/$/, '');
-
         await fetch(`${API_BASE}/api/push/unsubscribe`, {
-            method: 'DELETE',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ endpoint: subscription.endpoint }),
         });

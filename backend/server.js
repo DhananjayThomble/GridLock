@@ -16,6 +16,8 @@ const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
 const replayRoutes = require('./routes/replay');
 const gameHistoryRoutes = require('./routes/gameHistory');
+const rankedRoutes = require('./routes/ranked');
+const dailyRoutes = require('./routes/daily');
 
 const app = express();
 const server = http.createServer(app);
@@ -61,6 +63,9 @@ const io = new Server(server, {
     },
 });
 
+// Expose io to Express routes (used by push subscribe for socket verification)
+app.locals.io = io;
+
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
 async function setupRedisAdapter() {
@@ -102,6 +107,12 @@ app.use('/api/games/history', gameHistoryRoutes);
 
 // Game replay API routes
 app.use('/api/games', replayRoutes);
+
+// Ranked mode API routes
+app.use('/api/ranked', rankedRoutes);
+
+// Daily challenge API routes
+app.use('/api/daily', dailyRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {

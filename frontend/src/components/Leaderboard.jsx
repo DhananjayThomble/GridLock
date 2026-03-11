@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import RankBadge from './RankBadge';
 
 const DEFAULT_LIMIT = 20;
 const API_BASE = (
@@ -37,9 +38,14 @@ const parseApiResponse = async (res) => {
 };
 
 const Leaderboard = () => {
+  const [activeTab, setActiveTab] = useState('casual'); // 'casual' | 'ranked'
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [rankedRows, setRankedRows] = useState([]);
+  const [rankedLoading, setRankedLoading] = useState(false);
+  const [rankedError, setRankedError] = useState('');
 
   const [query, setQuery] = useState('');
   const [player, setPlayer] = useState(null);
@@ -83,7 +89,43 @@ const Leaderboard = () => {
     };
   }, []);
 
+  // ── Ranked leaderboard fetch ──────────────────────────────────────────────
+  // Re-fetches every time user switches to ranked tab (Fix #11)
+  useEffect(() => {
+    if (activeTab !== 'ranked') return;
+
+    let cancelled = false;
+
+    const loadRankedLeaderboard = async () => {
+      setRankedLoading(true);
+      setRankedError('');
+      try {
+        const res = await fetch(apiUrl(`/api/ranked/leaderboard?limit=${DEFAULT_LIMIT}`));
+        const data = await parseApiResponse(res);
+
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.error || 'Unable to load ranked leaderboard');
+        }
+
+        if (!cancelled) {
+          setRankedRows(Array.isArray(data.leaderboard) ? data.leaderboard : []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRankedError(err?.message || 'Unable to load ranked leaderboard');
+          setRankedRows([]);
+        }
+      } finally {
+        if (!cancelled) setRankedLoading(false);
+      }
+    };
+
+    loadRankedLeaderboard();
+    return () => { cancelled = true; };
+  }, [activeTab]);
+
   const topThree = useMemo(() => rows.slice(0, 3), [rows]);
+  const rankedTopThree = useMemo(() => rankedRows.slice(0, 3), [rankedRows]);
 
   /* On mobile (<768px), skip ranks 1-3 in table when top-3 cards are shown */
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
@@ -150,6 +192,25 @@ const Leaderboard = () => {
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-4xl font-extrabold sm:text-5xl" style={{ color: 'var(--text-primary)' }}>🏆 Leaderboard</h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--label-color)' }}>Top GridLock players by wins, win rate, then ELO</p>
+
+          {/* Tab Switcher */}
+          <div className="flex justify-center gap-2 mt-4">
+            {[
+              { key: 'casual', label: '🎮 Casual' },
+              { key: 'ranked', label: '⚔️ Ranked' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={activeTab === key
+                  ? { background: 'var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                  : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </header>
 
         <section
@@ -192,74 +253,161 @@ const Leaderboard = () => {
           )}
         </section>
 
-        {loading && (
-          <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading leaderboard…</div>
-        )}
-
-        {!loading && error && (
-          <div className="rounded-2xl p-6" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
-            Could not load leaderboard: {error}
-          </div>
-        )}
-
-        {!loading && !error && rows.length === 0 && (
-          <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
-            No leaderboard data yet. Play some games to claim the top spot.
-          </div>
-        )}
-
-        {!loading && !error && rows.length > 0 && (
+        {/* ── Casual Leaderboard ── */}
+        {activeTab === 'casual' && (
           <>
-            <section className="mb-4 grid gap-3 sm:grid-cols-3">
-              {topThree.map((entry) => (
-                <article key={entry.username} className="rounded-2xl p-4 text-left" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--text-primary)' }}>
-                  <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--warning)' }}>Rank #{entry.rank}</p>
-                  <h3 className="mt-1 text-lg font-bold flex items-center gap-1.5">
-                    {entry.avatar && <span className="text-xl" aria-hidden="true">{entry.avatar}</span>}
-                    <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--text-primary)' }}>
-                      {entry.username}
-                    </Link>
-                  </h3>
-                  <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>ELO {entry.elo} · {entry.winRate}% WR</p>
-                </article>
-              ))}
-            </section>
+            {loading && (
+              <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading leaderboard…</div>
+            )}
 
-            <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
-              <div className="leaderboard-scroll-wrapper">
-                <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
-                  <thead style={{ background: 'var(--bg-card-hover)' }}>
-                    <tr>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Rank</th>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Player</th>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>W/L/D</th>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Win Rate</th>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>ELO</th>
-                      <th className="px-3 py-3 text-xs uppercase tracking-wider leaderboard-last-played" style={{ color: 'var(--label-color)' }}>Last Played</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableRows.map((entry) => (
-                      <tr key={entry.username} style={{ borderTop: '1px solid var(--border-color)' }}>
-                        <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
-                        <td className="px-3 py-3">
-                          <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors inline-flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
-                            {entry.avatar && <span className="text-base" aria-hidden="true">{entry.avatar}</span>}
-                            {entry.username}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-3">{entry.wins}/{entry.losses}/{entry.draws}</td>
-                        <td className="px-3 py-3">{entry.winRate}%</td>
-                        <td className="px-3 py-3">{entry.elo}</td>
-                        <td className="px-3 py-3 leaderboard-last-played">{formatDate(entry.lastPlayedAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {!loading && error && (
+              <div className="rounded-2xl p-6" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
+                Could not load leaderboard: {error}
               </div>
-            </section>
+            )}
 
-            <p className="text-xs mt-3 text-center" style={{color: 'var(--text-muted)'}}>Ranked by ELO. Ties broken by total games played.</p>
+            {!loading && !error && rows.length === 0 && (
+              <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
+                No leaderboard data yet. Play some games to claim the top spot.
+              </div>
+            )}
+
+            {!loading && !error && rows.length > 0 && (
+              <>
+                <section className="mb-4 grid gap-3 sm:grid-cols-3">
+                  {topThree.map((entry) => (
+                    <article key={entry.username} className="rounded-2xl p-4 text-left" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--text-primary)' }}>
+                      <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--warning)' }}>Rank #{entry.rank}</p>
+                      <h3 className="mt-1 text-lg font-bold flex items-center gap-1.5">
+                        {entry.avatar && <span className="text-xl" aria-hidden="true">{entry.avatar}</span>}
+                        <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--text-primary)' }}>
+                          {entry.username}
+                        </Link>
+                      </h3>
+                      <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>ELO {entry.elo} · {entry.winRate}% WR</p>
+                    </article>
+                  ))}
+                </section>
+
+                <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
+                  <div className="leaderboard-scroll-wrapper">
+                    <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
+                      <thead style={{ background: 'var(--bg-card-hover)' }}>
+                        <tr>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Rank</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Player</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>W/L/D</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Win Rate</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>ELO</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider leaderboard-last-played" style={{ color: 'var(--label-color)' }}>Last Played</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableRows.map((entry) => (
+                          <tr key={entry.username} style={{ borderTop: '1px solid var(--border-color)' }}>
+                            <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
+                            <td className="px-3 py-3">
+                              <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors inline-flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
+                                {entry.avatar && <span className="text-base" aria-hidden="true">{entry.avatar}</span>}
+                                {entry.username}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-3">{entry.wins}/{entry.losses}/{entry.draws}</td>
+                            <td className="px-3 py-3">{entry.winRate}%</td>
+                            <td className="px-3 py-3">{entry.elo}</td>
+                            <td className="px-3 py-3 leaderboard-last-played">{formatDate(entry.lastPlayedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <p className="text-xs mt-3 text-center" style={{color: 'var(--text-muted)'}}>Ranked by ELO. Ties broken by total games played.</p>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── Ranked Leaderboard ── */}
+        {activeTab === 'ranked' && (
+          <>
+            {rankedLoading && (
+              <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading ranked leaderboard…</div>
+            )}
+
+            {!rankedLoading && rankedError && (
+              <div className="rounded-2xl p-6" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
+                Could not load ranked leaderboard: {rankedError}
+              </div>
+            )}
+
+            {!rankedLoading && !rankedError && rankedRows.length === 0 && (
+              <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
+                No ranked players yet. Play ranked matches to climb the ladder!
+              </div>
+            )}
+
+            {!rankedLoading && !rankedError && rankedRows.length > 0 && (
+              <>
+                <section className="mb-4 grid gap-3 sm:grid-cols-3">
+                  {rankedTopThree.map((entry) => (
+                    <article key={entry.username} className="rounded-2xl p-4 text-left" style={{ backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--text-primary)' }}>
+                      <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--warning)' }}>Rank #{entry.rank}</p>
+                      <h3 className="mt-1 text-lg font-bold flex items-center gap-1.5">
+                        <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--text-primary)' }}>
+                          {entry.username}
+                        </Link>
+                      </h3>
+                      <div className="mt-1">
+                        <RankBadge tier={entry.tier} tierIcon={entry.tierIcon} elo={entry.elo} size="sm" showElo />
+                      </div>
+                      <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {entry.wins}W / {entry.losses}L · {entry.winRate}% WR
+                        {entry.isInPlacement && <span style={{ color: 'var(--accent)' }}> · Placing</span>}
+                      </p>
+                    </article>
+                  ))}
+                </section>
+
+                <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
+                  <div className="leaderboard-scroll-wrapper">
+                    <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
+                      <thead style={{ background: 'var(--bg-card-hover)' }}>
+                        <tr>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Rank</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Player</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Tier</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>W/L</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Win Rate</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>ELO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rankedRows.map((entry) => (
+                          <tr key={entry.username} style={{ borderTop: '1px solid var(--border-color)' }}>
+                            <td className="px-3 py-3 font-semibold">#{entry.rank}</td>
+                            <td className="px-3 py-3">
+                              <Link to={`/profile/${encodeURIComponent(entry.username)}`} className="hover:underline transition-colors" style={{ color: 'var(--accent)' }}>
+                                {entry.username}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-3">
+                              <RankBadge tier={entry.tier} tierIcon={entry.tierIcon} size="sm" />
+                            </td>
+                            <td className="px-3 py-3">{entry.wins}/{entry.losses}</td>
+                            <td className="px-3 py-3">{entry.winRate}%</td>
+                            <td className="px-3 py-3 font-semibold">{entry.elo}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <p className="text-xs mt-3 text-center" style={{color: 'var(--text-muted)'}}>Ranked by ELO · Season resets every 30 days</p>
+              </>
+            )}
           </>
         )}
       </div>
