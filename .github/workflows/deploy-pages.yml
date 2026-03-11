@@ -43,7 +43,8 @@ jobs:
         env:
           VITE_BASE_PATH: /
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          # Same backend URL as VITE_SOCKET_URL (both point to https://gridlock-api.snapurl.in)
+          VITE_API_BASE_URL: ${{ secrets.VITE_SOCKET_URL }}
           VITE_SITE_URL: https://gridlock.snapurl.in
 
       - name: Assemble Pages artifact
