@@ -33,6 +33,8 @@ module.exports = {
       script: 'server.js',
       cwd: '/home/ubuntu/projects/GridLock-beta/backend',
       env: {
+        // Intentionally 'development' — beta mirrors dev behavior for testing
+        // (verbose logging, detailed errors, no caching). Not a typo.
         NODE_ENV: 'development',
         PORT: 5001,
       },
