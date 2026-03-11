@@ -15,6 +15,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
 const replayRoutes = require('./routes/replay');
+const rankedRoutes = require('./routes/ranked');
 
 const app = express();
 const server = http.createServer(app);
@@ -101,6 +102,9 @@ app.use('/api/push', pushRoutes);
 
 // Game replay API routes
 app.use('/api/games', replayRoutes);
+
+// Ranked mode API routes
+app.use('/api/ranked', rankedRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {

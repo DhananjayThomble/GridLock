@@ -79,6 +79,21 @@ const schemas = {
         gameId: gameIdField,
         targetUsername: usernameField,
     }),
+
+    // Ranked mode events
+    ranked_queue_join: Joi.object({
+        username: usernameField,
+        avatar: avatarField,
+        gridSize: gridSizeField,
+    }),
+
+    ranked_queue_leave: Joi.object({}),
+
+    ranked_game_end: Joi.object({
+        gameId: gameIdField,
+        winner: Joi.string().pattern(/^player[1-2]$/).required(),
+        sessionToken: sessionTokenField,
+    }),
 };
 
 /**
