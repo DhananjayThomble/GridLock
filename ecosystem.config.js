@@ -20,6 +20,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 5000,
+        MONGO_URI: 'mongodb://localhost:27017/gridlock',
       },
       instances: 1,
       autorestart: true,
@@ -37,6 +38,7 @@ module.exports = {
         // (verbose logging, detailed errors, no caching). Not a typo.
         NODE_ENV: 'development',
         PORT: 5001,
+        MONGO_URI: 'mongodb://localhost:27017/gridlock_beta',
       },
       instances: 1,
       autorestart: true,

@@ -52,8 +52,15 @@ app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
 
 // Database Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock')
-.then(() => log.info('MongoDB connected'))
+// In production, MONGO_URI must be explicitly set via PM2 ecosystem config
+// to prevent accidental cross-environment data access.
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock';
+if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
+  console.error('FATAL: MONGO_URI must be set in production. Set it in ecosystem.config.js.');
+  process.exit(1);
+}
+mongoose.connect(MONGO_URI)
+.then(() => log.info('MongoDB connected to', MONGO_URI.replace(/\/\/.*@/, '//<credentials>@')))
 .catch(err => log.error('MongoDB connection error:', err));
 
 // Socket.io Setup
