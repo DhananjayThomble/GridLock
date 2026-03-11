@@ -636,7 +636,7 @@ function attachSocketHandlers(io, log) {
         // If deployed behind a known reverse proxy, configure TRUSTED_PROXY_IPS env var
         // and only then fall back to XFF for the real client IP.
         const rawAddr = socket.conn?.remoteAddress || socket.handshake?.address || 'unknown';
-        const trustedProxies = process.env.TRUSTED_PROXY_IPS ? process.env.TRUSTED_PROXY_IPS.split(',') : [];
+        const trustedProxies = process.env.TRUSTED_PROXY_IPS ? process.env.TRUSTED_PROXY_IPS.split(',').map(s => s.trim()).filter(Boolean) : [];
         const socketIP = (trustedProxies.length > 0 && trustedProxies.includes(rawAddr))
             ? (socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || rawAddr)
             : rawAddr;
