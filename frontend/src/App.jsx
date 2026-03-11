@@ -15,7 +15,10 @@ import Profile from './components/Profile';
 import TournamentLobby from './components/TournamentLobby';
 import JoinGame from './components/JoinGame';
 import ReplayPage from './components/ReplayPage';
+import GameHistory from './components/GameHistory';
+import DailyChallenge from './components/DailyChallenge';
 import ErrorBoundary from './components/ErrorBoundary';
+import ConnectionOverlay from './components/ConnectionOverlay';
 import './App.css';
 
 // Support /beta sub-path deployment via Vite's BASE_URL
@@ -23,7 +26,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
 
   return (
     <>
@@ -34,6 +37,9 @@ const AppLayout = () => {
           </NavLink>
           <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             Leaderboard
+          </NavLink>
+          <NavLink to="/history" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            History
           </NavLink>
         </nav>
       )}
@@ -61,6 +67,22 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <Leaderboard />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/history"
+            element={(
+              <ErrorBoundary>
+                <GameHistory />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/daily"
+            element={(
+              <ErrorBoundary>
+                <DailyChallenge />
               </ErrorBoundary>
             )}
           />
@@ -106,6 +128,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router basename={basePath}>
+        <ConnectionOverlay />
         <AppLayout />
       </Router>
     </ThemeProvider>

@@ -3,7 +3,8 @@ const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
 const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
-const { socketLimiter } = require('../middleware/rateLimiter');
+const { socketLimiter, ipLimiter } = require('../middleware/rateLimiter');
+const { validatePayload } = require('../middleware/socketSchemas');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
 const disconnectStore = require('../stores/disconnectStore');
@@ -11,9 +12,20 @@ const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardU
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
 const matchmaking = require('../services/matchmaking');
+const { generateBoardFromSeed, getTodayDateStr, getDayNumber } = require('../utils/dailyHelpers');
+const DailyResult = require('../models/DailyResult');
+const DailyChallenge = require('../models/DailyChallenge');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
+const RankedProfile = require('../models/RankedProfile');
+const { calculateRankedElo, calculateRankedEloExchange, calculateRankedDrawExchange, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
 
-const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 60_000;
+// Track active daily challenge games: username → gameId
+// Prevents users from starting multiple daily games simultaneously
+const activeDailyGames = new Map();
+
+// Intentionally reduced from 60s → 30s for faster game flow.
+// Players get 30s to reconnect before forfeiting; keeps games moving.
+const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 
 // Node-local timer handles only — state visibility is handled via disconnectStore (Redis)
@@ -25,6 +37,36 @@ const PLAYER_COLORS = {
     player2: '#EF4444',
     player3: '#10B981',
     player4: '#A855F7',
+};
+
+// ── Ranked matchmaking queue (in-memory, 2P only) ───────────────────────────
+// Each entry: { socketId, username, avatar, elo, gridSize, joinedAt }
+const rankedQueue = [];
+const rankedQueueIndex = new Map(); // socketId → username (for O(1) duplicate check)
+const rankedGameMap = new Map(); // gameId → { player1Username, player2Username } for ranked games
+const RANKED_ELO_RANGE = 200;
+const RANKED_ELO_EXPAND_AFTER_MS = 30_000; // Expand matching after 30s wait
+
+// Fix #5: Sender-side rate limiter for game invites — max 10 invites per 5 min per socket
+const inviteSenderLimiter = {
+    // Map<socketId, { count, windowStart }>
+    _trackers: new Map(),
+    _maxPerWindow: 10,
+    _windowMs: 5 * 60_000,
+    allow(socketId) {
+        if (process.env.NODE_ENV === 'test') return true;
+        const now = Date.now();
+        const tracker = this._trackers.get(socketId);
+        if (!tracker || now - tracker.windowStart >= this._windowMs) {
+            this._trackers.set(socketId, { count: 1, windowStart: now });
+            return true;
+        }
+        tracker.count++;
+        return tracker.count <= this._maxPerWindow;
+    },
+    cleanup(socketId) {
+        this._trackers.delete(socketId);
+    },
 };
 
 // In-memory tournament state (per-node, as requested by issue #19)
@@ -333,6 +375,51 @@ async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p
 }
 
 /**
+ * Issue #2: Auto-submit daily challenge result server-side on game_over.
+ * Uses actual game state (scores, moveCount) — no client-supplied data.
+ * Fire-and-forget: errors are logged but don't affect game flow.
+ */
+async function submitDailyChallengeResult(game, log) {
+    if (!game.metadata?.dailyChallenge) return;
+
+    const player1 = game.players?.player1;
+    if (!player1 || player1.isCPU) return;
+
+    const username = player1.username;
+    const score = game.gameState?.scores?.player1 || 0;
+    const moveCount = game.gameState?.moveCount || 0;
+    const duration = Math.round((Date.now() - game.createdAt) / 1000);
+    const today = getTodayDateStr();
+
+    // Clean up active daily game tracking
+    activeDailyGames.delete(username);
+
+    try {
+        // Check for duplicate submission
+        const existing = await DailyResult.findOne({ date: today, username });
+        if (existing) {
+            log.info('Daily result already submitted', { username, date: today });
+            return;
+        }
+
+        await DailyResult.create({
+            date: today,
+            username,
+            score,
+            moves: moveCount,
+            duration,
+            completedAt: new Date(),
+        });
+
+        log.info('Daily challenge result auto-submitted', { username, score, moves: moveCount, duration });
+    } catch (err) {
+        // Duplicate key is fine — means result was already saved
+        if (err.code === 11000) return;
+        throw err;
+    }
+}
+
+/**
  * Auto-submit game results to the leaderboard after a game ends.
  * Runs fire-and-forget (errors are logged but don't affect game flow).
  *
@@ -574,7 +661,12 @@ function scheduleCPUMove(io, log, gameId, delay) {
                 return;
             }
 
+            // Preserve moveCount across state replacement
+            const prevMoveCount = game.gameState.moveCount;
             game.gameState = newState;
+            if (typeof prevMoveCount === 'number') {
+                game.gameState.moveCount = prevMoveCount + 1;
+            }
 
             // Record CPU move in history for replay
             if (!game.moveHistory) game.moveHistory = [];
@@ -594,8 +686,13 @@ function scheduleCPUMove(io, log, gameId, delay) {
             io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
 
             if (newState.winner) {
-                io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                // Issue #3: include totalMoves in game_over
+                io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
                 updateLeaderboard(game, newState.winner, log);
+                // Issue #2: auto-submit daily challenge result server-side
+                submitDailyChallengeResult(game, log).catch(err =>
+                    log.error('Daily result auto-submit failed (CPU path)', { gameId, error: err.message })
+                );
                 await handleTournamentGameCompletion(io, log, gameId, game, newState.winner);
                 // Defensive cleanup: clear any lingering rematch timer
                 if (rematchTimers.has(gameId)) {
@@ -622,11 +719,393 @@ function scheduleCPUMove(io, log, gameId, delay) {
     }, delay);
 }
 
+/**
+ * Remove a socket from the ranked queue.
+ */
+function removeFromRankedQueue(socketId) {
+    const idx = rankedQueue.findIndex(e => e.socketId === socketId);
+    if (idx !== -1) rankedQueue.splice(idx, 1);
+    rankedQueueIndex.delete(socketId);
+}
+
+/**
+ * Try to find a ranked match for a player in the queue.
+ * Matches players within ±200 ELO (expands after 30s wait).
+ */
+async function tryRankedMatch(io, log, triggerSocket) {
+    if (rankedQueue.length < 2) return;
+
+    const now = Date.now();
+
+    // Try to find a pair that matches ELO criteria + same grid size
+    for (let i = 0; i < rankedQueue.length; i++) {
+        for (let j = i + 1; j < rankedQueue.length; j++) {
+            const a = rankedQueue[i];
+            const b = rankedQueue[j];
+
+            if (a.gridSize !== b.gridSize) continue;
+
+            const eloDiff = Math.abs(a.elo - b.elo);
+            const aWaitMs = now - a.joinedAt;
+            const bWaitMs = now - b.joinedAt;
+            const maxWait = Math.max(aWaitMs, bWaitMs);
+
+            // Expand range after 30s wait
+            const effectiveRange = maxWait >= RANKED_ELO_EXPAND_AFTER_MS
+                ? RANKED_ELO_RANGE * 2
+                : RANKED_ELO_RANGE;
+
+            if (eloDiff > effectiveRange) continue;
+
+            // Match found! Remove both from queue (remove higher index first)
+            removeFromRankedQueue(b.socketId);
+            removeFromRankedQueue(a.socketId);
+
+            // Create a ranked game
+            await createRankedGame(io, log, a, b);
+            return;
+        }
+    }
+}
+
+/**
+ * Create a ranked 2P game for two matched players.
+ */
+async function createRankedGame(io, log, playerA, playerB) {
+    const gameId = await generateUniqueGameId();
+    if (!gameId) {
+        log.error('Failed to generate ranked game ID');
+        return;
+    }
+
+    const initialState = initializeGameState(playerA.gridSize, 2);
+    const tokenA = generateSessionToken();
+    const tokenB = generateSessionToken();
+
+    const game = {
+        id: gameId,
+        gridSize: playerA.gridSize,
+        playerCount: 2,
+        players: {
+            player1: {
+                id: playerA.socketId,
+                username: playerA.username,
+                avatar: playerA.avatar,
+                color: PLAYER_COLORS.player1,
+                token: tokenA,
+                disconnectedAt: null,
+            },
+            player2: {
+                id: playerB.socketId,
+                username: playerB.username,
+                avatar: playerB.avatar,
+                color: PLAYER_COLORS.player2,
+                token: tokenB,
+                disconnectedAt: null,
+            },
+        },
+        gameState: initialState,
+        createdAt: Date.now(),
+        matchType: 'ranked',
+        metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS, ranked: true },
+    };
+
+    // Track this as a ranked game
+    rankedGameMap.set(gameId, {
+        player1Username: playerA.username,
+        player2Username: playerB.username,
+    });
+
+    await gameStore.setGame(gameId, game);
+    await persistGame(game, 'playing', { ranked: true });
+
+    // Join sockets to game room and emit matched event
+    const assignments = [
+        { socketId: playerA.socketId, playerId: 'player1', sessionToken: tokenA, username: playerA.username, elo: playerA.elo },
+        { socketId: playerB.socketId, playerId: 'player2', sessionToken: tokenB, username: playerB.username, elo: playerB.elo },
+    ];
+
+    for (const assignment of assignments) {
+        const playerSocket = io.sockets.sockets.get(assignment.socketId);
+        if (playerSocket) {
+            playerSocket.join(gameId);
+            playerSocket.data.gameId = gameId;
+            playerSocket.data.playerId = assignment.playerId;
+            playerSocket.data.rankedQueue = false;
+            playerSocket.data.username = assignment.username;
+
+            const gameStateWithPlayers = buildGameStateWithPlayers(game);
+            playerSocket.emit('ranked_queue_matched', {
+                gameId,
+                playerId: assignment.playerId,
+                sessionToken: assignment.sessionToken,
+                gridSize: game.gridSize,
+                playerCount: 2,
+                players: getPlayersList(game),
+                gameState: gameStateWithPlayers,
+                ranked: true,
+            });
+        }
+    }
+
+    io.to(gameId).emit('all_players_joined', { gameId });
+
+    log.info('Ranked match created', {
+        gameId,
+        player1: playerA.username,
+        player2: playerB.username,
+        eloDiff: Math.abs(playerA.elo - playerB.elo),
+    });
+}
+
+/**
+ * Handle ranked game disconnect: apply auto-loss + cooldown to the disconnecting player.
+ * Uses zero-sum ELO: both players exchange the same amount.
+ */
+async function handleRankedDisconnect(io, gameId, disconnectedPlayerId, game, log) {
+    // Atomically claim this game to prevent TOCTOU race with handleRankedGameEnd
+    const rankedInfo = rankedGameMap.get(gameId);
+    if (!rankedInfo) return;
+    rankedGameMap.delete(gameId);
+
+    const disconnectedPlayer = game.players[disconnectedPlayerId];
+    if (!disconnectedPlayer) return;
+
+    const disconnectedUsername = disconnectedPlayer.username;
+    const opponentPlayerId = disconnectedPlayerId === 'player1' ? 'player2' : 'player1';
+    const opponentPlayer = game.players[opponentPlayerId];
+    if (!opponentPlayer) return;
+
+    const opponentUsername = opponentPlayer.username;
+
+    // Get profiles
+    const [disconnectedProfile, opponentProfile] = await Promise.all([
+        RankedProfile.findOne({ username: disconnectedUsername }),
+        RankedProfile.findOne({ username: opponentUsername }),
+    ]);
+
+    if (!disconnectedProfile || !opponentProfile) return;
+
+    // Capture pre-game ELO BEFORE any mutations (Fix #9)
+    const preDisconnectedElo = disconnectedProfile.elo;
+    const preOpponentElo = opponentProfile.elo;
+
+    const isPlacementDisc = disconnectedProfile.isInPlacement();
+    const isPlacementOpp = opponentProfile.isInPlacement();
+
+    // Zero-sum exchange: opponent wins, disconnected player loses (Fix #3)
+    const eloChange = calculateRankedEloExchange(preOpponentElo, preDisconnectedElo, isPlacementOpp, isPlacementDisc);
+
+    // Disconnected player loses ELO + gets cooldown
+    disconnectedProfile.elo = Math.max(0, preDisconnectedElo - eloChange);
+    disconnectedProfile.losses += 1;
+    disconnectedProfile.cooldownUntil = new Date(Date.now() + COOLDOWN_DURATION_MS);
+    disconnectedProfile.lastPlayedAt = new Date();
+    if (isPlacementDisc) {
+        disconnectedProfile.placementGames.push({
+            result: 'loss',
+            opponentElo: preOpponentElo,
+            eloAfter: disconnectedProfile.elo,
+        });
+    }
+    await disconnectedProfile.save();
+
+    // Opponent gains same amount of ELO
+    opponentProfile.elo = preOpponentElo + eloChange;
+    opponentProfile.wins += 1;
+    opponentProfile.lastPlayedAt = new Date();
+    if (isPlacementOpp) {
+        opponentProfile.placementGames.push({
+            result: 'win',
+            opponentElo: preDisconnectedElo,
+            eloAfter: opponentProfile.elo,
+        });
+    }
+    await opponentProfile.save();
+
+    // Emit ranked game results (Fix #4 — these need a frontend listener)
+    const opponentTier = getTierFromElo(opponentProfile.elo);
+    const discTier = getTierFromElo(disconnectedProfile.elo);
+
+    const opponentSocket = io.sockets?.sockets?.get(opponentPlayer.id);
+    if (opponentSocket) {
+        opponentSocket.emit('ranked_game_result', {
+            result: 'win',
+            eloChange: eloChange,
+            newElo: opponentProfile.elo,
+            tier: opponentTier.name,
+            tierIcon: opponentTier.icon,
+            isPlacement: isPlacementOpp,
+            placementProgress: isPlacementOpp ? `${opponentProfile.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+        });
+    }
+
+    const discSocket = io.sockets?.sockets?.get(disconnectedPlayer.id);
+    if (discSocket) {
+        discSocket.emit('ranked_game_result', {
+            result: 'loss',
+            eloChange: -eloChange,
+            newElo: disconnectedProfile.elo,
+            tier: discTier.name,
+            tierIcon: discTier.icon,
+            isPlacement: isPlacementDisc,
+            placementProgress: isPlacementDisc ? `${disconnectedProfile.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+        });
+    }
+
+    log.info('Ranked disconnect penalty applied', {
+        gameId,
+        disconnected: disconnectedUsername,
+        eloChange,
+        newElo: disconnectedProfile.elo,
+        cooldownMinutes: COOLDOWN_DURATION_MS / 60000,
+    });
+}
+
+/**
+ * Handle end of a ranked game (normal completion or draw).
+ * Uses zero-sum ELO: both players exchange the same amount.
+ * Accepts `io` as first parameter for socket emission.
+ */
+async function handleRankedGameEnd(io, gameId, winnerPlayerId, game, log) {
+    // Atomically claim this game to prevent TOCTOU race with handleRankedDisconnect
+    const rankedInfo = rankedGameMap.get(gameId);
+    if (!rankedInfo) return;
+    rankedGameMap.delete(gameId);
+
+    const isDraw = winnerPlayerId === 'draw';
+    const player1 = game.players.player1;
+    const player2 = game.players.player2;
+
+    if (!player1 || !player2) return;
+
+    const [profile1, profile2] = await Promise.all([
+        RankedProfile.findOne({ username: player1.username }),
+        RankedProfile.findOne({ username: player2.username }),
+    ]);
+
+    if (!profile1 || !profile2) return;
+
+    // Capture pre-game ELO BEFORE any mutations (Fix #9)
+    const preElo1 = profile1.elo;
+    const preElo2 = profile2.elo;
+
+    const isPlacement1 = profile1.isInPlacement();
+    const isPlacement2 = profile2.isInPlacement();
+
+    let result1, result2, eloChange1, eloChange2;
+
+    if (isDraw) {
+        // Draw: use draw exchange formula (Fix #8)
+        // For zero-sum draws: player1 change = -player2 change
+        const drawChange1 = calculateRankedDrawExchange(preElo1, preElo2, isPlacement1, isPlacement2);
+        eloChange1 = drawChange1;
+        eloChange2 = -drawChange1;
+        result1 = 'draw';
+        result2 = 'draw';
+    } else {
+        // Win/loss: zero-sum exchange (Fix #3)
+        const winnerIsPlayer1 = winnerPlayerId === 'player1';
+        const winnerElo = winnerIsPlayer1 ? preElo1 : preElo2;
+        const loserElo = winnerIsPlayer1 ? preElo2 : preElo1;
+        const winnerIsPlacement = winnerIsPlayer1 ? isPlacement1 : isPlacement2;
+        const loserIsPlacement = winnerIsPlayer1 ? isPlacement2 : isPlacement1;
+
+        const exchange = calculateRankedEloExchange(winnerElo, loserElo, winnerIsPlacement, loserIsPlacement);
+
+        eloChange1 = winnerIsPlayer1 ? exchange : -exchange;
+        eloChange2 = winnerIsPlayer1 ? -exchange : exchange;
+        result1 = winnerIsPlayer1 ? 'win' : 'loss';
+        result2 = winnerIsPlayer1 ? 'loss' : 'win';
+    }
+
+    // Apply ELO changes
+    profile1.elo = Math.max(0, preElo1 + eloChange1);
+    profile2.elo = Math.max(0, preElo2 + eloChange2);
+
+    // Update win/loss/draw counters
+    if (result1 === 'win') profile1.wins += 1;
+    else if (result1 === 'loss') profile1.losses += 1;
+    else if (result1 === 'draw') profile1.draws += 1;
+
+    if (result2 === 'win') profile2.wins += 1;
+    else if (result2 === 'loss') profile2.losses += 1;
+    else if (result2 === 'draw') profile2.draws += 1;
+
+    profile1.lastPlayedAt = new Date();
+    profile2.lastPlayedAt = new Date();
+
+    // Record placement games using pre-mutation opponent ELO (Fix #9)
+    if (isPlacement1) {
+        profile1.placementGames.push({
+            result: result1,
+            opponentElo: preElo2,
+            eloAfter: profile1.elo,
+        });
+    }
+    if (isPlacement2) {
+        profile2.placementGames.push({
+            result: result2,
+            opponentElo: preElo1,
+            eloAfter: profile2.elo,
+        });
+    }
+
+    await Promise.all([profile1.save(), profile2.save()]);
+
+    // Emit ranked game results to both players
+    const tier1 = getTierFromElo(profile1.elo);
+    const tier2 = getTierFromElo(profile2.elo);
+
+    const socket1 = io.sockets?.sockets?.get(player1.id);
+    if (socket1) {
+        socket1.emit('ranked_game_result', {
+            result: result1,
+            eloChange: eloChange1,
+            newElo: profile1.elo,
+            tier: tier1.name,
+            tierIcon: tier1.icon,
+            isPlacement: isPlacement1,
+            placementProgress: isPlacement1 ? `${profile1.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+        });
+    }
+
+    const socket2 = io.sockets?.sockets?.get(player2.id);
+    if (socket2) {
+        socket2.emit('ranked_game_result', {
+            result: result2,
+            eloChange: eloChange2,
+            newElo: profile2.elo,
+            tier: tier2.name,
+            tierIcon: tier2.icon,
+            isPlacement: isPlacement2,
+            placementProgress: isPlacement2 ? `${profile2.placementGames.length}/${PLACEMENT_GAMES_REQUIRED}` : null,
+        });
+    }
+
+    log.info('Ranked game ended', {
+        gameId,
+        result: isDraw ? 'draw' : `winner=${winnerPlayerId}`,
+        player1Elo: `${preElo1} → ${profile1.elo}`,
+        player2Elo: `${preElo2} → ${profile2.elo}`,
+    });
+}
+
 function attachSocketHandlers(io, log) {
     restoreActiveGames(log);
 
     io.on('connection', (socket) => {
         log.info('New client connected:', socket.id);
+
+        // Use the raw transport address — NOT x-forwarded-for, which clients can spoof.
+        // Socket.IO doesn't inherit Express's trust-proxy settings, so XFF is unvalidated.
+        // If deployed behind a known reverse proxy, configure TRUSTED_PROXY_IPS env var
+        // and only then fall back to XFF for the real client IP.
+        const rawAddr = socket.conn?.remoteAddress || socket.handshake?.address || 'unknown';
+        const trustedProxies = process.env.TRUSTED_PROXY_IPS ? process.env.TRUSTED_PROXY_IPS.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const socketIP = (trustedProxies.length > 0 && trustedProxies.includes(rawAddr))
+            ? (socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || rawAddr)
+            : rawAddr;
 
         const rateLimited = (eventName) => {
             if (!socketLimiter.allow(socket.id, eventName)) {
@@ -634,13 +1113,37 @@ function attachSocketHandlers(io, log) {
                 socket.emit('error', 'Too many requests. Please slow down.');
                 return true;
             }
+            // IP-based rate limiting for abuse-prone events
+            if (!ipLimiter.allow(socketIP, eventName)) {
+                log.warn('IP rate limited socket event', { ip: socketIP, eventName });
+                socket.emit('error', 'Too many requests from your network. Please slow down.');
+                return true;
+            }
             return false;
         };
 
+        /**
+         * Validate and sanitize a socket event payload.
+         * Returns the validated payload or null (with error emitted).
+         * Detailed validation errors are logged server-side only; clients get generic messages.
+         */
+        const validate = (eventName, payload) => {
+            const result = validatePayload(eventName, payload);
+            if (!result.valid) {
+                log.warn('Payload validation failed', { socketId: socket.id, eventName, error: result.detailedError || result.error });
+                socket.emit('error', result.error);
+                return null;
+            }
+            return result.value;
+        };
+
         // ── create_tournament ─────────────────────────────────────────────────
-        socket.on('create_tournament', async ({ username, avatar, tournamentSize = 4, gridSize = 3 }) => {
+        socket.on('create_tournament', async (rawPayload) => {
             try {
                 if (rateLimited('create_tournament')) return;
+                const validated = validate('create_tournament', rawPayload);
+                if (!validated) return;
+                const { username, avatar, tournamentSize = 4, gridSize = 3 } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }
@@ -648,7 +1151,7 @@ function attachSocketHandlers(io, log) {
                 const size = Number(tournamentSize);
                 if (![4, 8].includes(size)) { socket.emit('error', 'Tournament size must be 4 or 8'); return; }
 
-                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
                 if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
 
                 const tournamentId = generateTournamentId();
@@ -678,9 +1181,12 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── join_tournament ───────────────────────────────────────────────────
-        socket.on('join_tournament', async ({ tournamentId, username, avatar }) => {
+        socket.on('join_tournament', async (rawPayload) => {
             try {
                 if (rateLimited('join_tournament')) return;
+                const validated = validate('join_tournament', rawPayload);
+                if (!validated) return;
+                const { tournamentId, username, avatar } = validated;
 
                 const tidResult = sanitizeTournamentId(tournamentId);
                 if (!tidResult.valid) { socket.emit('error', tidResult.error); return; }
@@ -710,6 +1216,19 @@ function attachSocketHandlers(io, log) {
                 if (tournament.participants.length === tournament.tournamentSize) {
                     tournament.status = 'in_progress';
                     tournament.rounds = initializeBracket(tournament.participants);
+
+                    // Push notification: "Tournament starting in 2 min!" to all participants
+                    for (const p of tournament.participants) {
+                        try {
+                            sendPushToUser(p.username, {
+                                title: '🏆 Tournament Starting!',
+                                body: 'Tournament starting in 2 min! Get ready!',
+                                url: `/tournament/${cleanTournamentId}`,
+                                tag: `tournament-start-${cleanTournamentId}`,
+                            }).catch(() => {});
+                        } catch (_) { /* push is best-effort */ }
+                    }
+
                     await maybeStartTournamentRound(io, tournament, 0);
                     io.to(`tournament:${cleanTournamentId}`).emit('tournament_update', {
                         tournament: buildTournamentSnapshot(tournament),
@@ -722,16 +1241,19 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── create_game ────────────────────────────────────────────────────────
-        socket.on('create_game', async ({ gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium' }, callback) => {
+        socket.on('create_game', async (rawPayload, callback) => {
             try {
                 if (rateLimited('create_game')) return;
+                const validated = validate('create_game', rawPayload);
+                if (!validated) return;
+                const { gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium', dailyChallenge = false, dailySeed = null } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }
                 const cleanUsername = uResult.value;
                 const cleanAvatar = sanitizeAvatar(avatar);
 
-                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
                 if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
 
                 const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
@@ -742,9 +1264,60 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
+                // ── Daily challenge replay protection ────────────────────────
+                const isDailyChallenge = dailyChallenge === true && dailySeed;
+                if (isDailyChallenge) {
+                    // Fix #2: Validate dailySeed matches today's UTC date
+                    const todayStr = getTodayDateStr();
+                    if (dailySeed !== todayStr) {
+                        socket.emit('error', 'Invalid daily challenge seed');
+                        return;
+                    }
+
+                    // Fix #1: Check if user already completed today's challenge
+                    const existingResult = await DailyResult.findOne({ date: todayStr, username: cleanUsername });
+                    if (existingResult) {
+                        socket.emit('error', 'Already completed today\'s challenge');
+                        return;
+                    }
+
+                    // Fix #1: Check if user already has an active daily game
+                    if (activeDailyGames.has(cleanUsername)) {
+                        socket.emit('error', 'You already have an active daily challenge game');
+                        return;
+                    }
+                }
+
                 const gameId = await generateUniqueGameId();
                 if (!gameId) { socket.emit('error', 'Failed to generate game ID. Please try again.'); return; }
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
+
+                // Issue #3: add moveCount tracker to game state
+                initialState.moveCount = 0;
+
+                // Issue #1: server-side board generation for daily challenges
+                // Never trust client board — generate from seed server-side
+                if (isDailyChallenge) {
+                    const board = generateBoardFromSeed(dailySeed, gridResult.value);
+                    // Apply pre-drawn lines onto initial state
+                    // Pre-drawn lines use 1/0; game state uses playerId/null
+                    // Mark pre-drawn lines as 'predrawn' so they don't count as player moves
+                    for (let r = 0; r < board.predrawnH.length; r++) {
+                        for (let c = 0; c < board.predrawnH[r].length; c++) {
+                            if (board.predrawnH[r][c] === 1) {
+                                initialState.horizontalLines[r][c] = 'predrawn';
+                            }
+                        }
+                    }
+                    for (let r = 0; r < board.predrawnV.length; r++) {
+                        for (let c = 0; c < board.predrawnV[r].length; c++) {
+                            if (board.predrawnV[r][c] === 1) {
+                                initialState.verticalLines[r][c] = 'predrawn';
+                            }
+                        }
+                    }
+                }
+
                 const sessionToken = generateSessionToken();
 
                 const game = {
@@ -763,7 +1336,11 @@ function attachSocketHandlers(io, log) {
                     },
                     gameState: initialState,
                     createdAt: Date.now(),
-                    metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                    metadata: {
+                        reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
+                        // Issue #1: track daily challenge metadata for server-side result submission
+                        ...(isDailyChallenge ? { dailyChallenge: true, dailySeed } : {}),
+                    },
                     cpuDifficulty: cpuCount > 0 ? cleanDifficulty : null,
                 };
 
@@ -785,6 +1362,12 @@ function attachSocketHandlers(io, log) {
                 socket.join(gameId);
                 socket.data.gameId = gameId;
                 socket.data.playerId = 'player1';
+                socket.data.username = cleanUsername;
+
+                // Track active daily challenge game
+                if (isDailyChallenge) {
+                    activeDailyGames.set(cleanUsername, gameId);
+                }
 
                 const filled = countFilledPlayers(game);
                 const isFull = filled === game.playerCount;
@@ -792,7 +1375,13 @@ function attachSocketHandlers(io, log) {
                 log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername, cpuPlayers: cpuCount });
 
                 const gameStateWithPlayers = buildGameStateWithPlayers(game);
-                socket.emit('game_created', { gameId, playerId: 'player1', sessionToken });
+                // If a callback was provided, the caller handles its own navigation.
+                // Skip the game_created event emit to avoid a race condition where
+                // the Lobby's listener navigates before the callback-based caller
+                // (e.g., RecentOpponents) can show its toast/UI.
+                if (!callback) {
+                    socket.emit('game_created', { gameId, playerId: 'player1', sessionToken });
+                }
                 socket.emit('game_started', {
                     gameId, playerId: 'player1', sessionToken,
                     gridSize: game.gridSize, playerCount: game.playerCount,
@@ -818,9 +1407,12 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── join_game ──────────────────────────────────────────────────────────
-        socket.on('join_game', async ({ gameId, username, avatar, sessionToken, joinMode }) => {
+        socket.on('join_game', async (rawPayload) => {
             try {
                 if (rateLimited('join_game')) return;
+                const validated = validate('join_game', rawPayload);
+                if (!validated) return;
+                const { gameId, username, avatar, sessionToken, joinMode } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -847,6 +1439,7 @@ function attachSocketHandlers(io, log) {
                     socket.data.playerId = 'spectator';
                     socket.data.isSpectator = true;
                     socket.data.spectatorUsername = cleanUsername;
+                    socket.data.username = cleanUsername;
 
                     // Track spectator count
                     // TODO: This is a non-atomic read-modify-write. Under concurrent spectator
@@ -899,6 +1492,7 @@ function attachSocketHandlers(io, log) {
                         socket.data.gameId = cleanGameId;
                         socket.data.playerId = playerId;
                         socket.data.isSpectator = false;
+                        socket.data.username = cleanUsername;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -941,6 +1535,7 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = cleanGameId;
                 socket.data.playerId = assignedSlot;
                 socket.data.isSpectator = false;
+                socket.data.username = cleanUsername;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -984,9 +1579,12 @@ function attachSocketHandlers(io, log) {
 
 
         // ── make_move ──────────────────────────────────────────────────────────
-        socket.on('make_move', async ({ gameId, playerId, sessionToken, type, r, c }) => {
+        socket.on('make_move', async (rawPayload) => {
             try {
                 if (rateLimited('make_move')) return;
+                const validated = validate('make_move', rawPayload);
+                if (!validated) return;
+                const { gameId, playerId, sessionToken, type, r, c } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -1012,7 +1610,12 @@ function attachSocketHandlers(io, log) {
                 const newState = calculateNewState(game.gameState, game.gridSize, r, c, type);
                 if (newState.error) { socket.emit('error', newState.error); return; }
 
+                // Preserve moveCount across state replacement (calculateNewState doesn't carry it)
+                const prevMoveCount = game.gameState.moveCount;
                 game.gameState = newState;
+                if (typeof prevMoveCount === 'number') {
+                    game.gameState.moveCount = prevMoveCount + 1;
+                }
 
                 // Record move in history for replay
                 if (!game.moveHistory) game.moveHistory = [];
@@ -1033,10 +1636,21 @@ function attachSocketHandlers(io, log) {
                 io.to(cleanGameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
 
                 if (newState.winner) {
-                    io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                    // Issue #3: include totalMoves in game_over
+                    io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
+                    // Issue #2: auto-submit daily challenge result server-side
+                    submitDailyChallengeResult(game, log).catch(err =>
+                        log.error('Daily result auto-submit failed', { gameId: cleanGameId, error: err.message })
+                    );
                     await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
+                    // Ranked game ELO update (pass io for socket emission + handle draws)
+                    if (rankedGameMap.has(cleanGameId)) {
+                        handleRankedGameEnd(io, cleanGameId, newState.winner, game, log).catch(err =>
+                            log.error('Ranked game end handler failed', { gameId: cleanGameId, error: err.message })
+                        );
+                    }
                     // Defensive cleanup: clear any lingering rematch timer
                     if (rematchTimers.has(cleanGameId)) {
                         clearTimeout(rematchTimers.get(cleanGameId));
@@ -1077,9 +1691,12 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── request_rematch ────────────────────────────────────────────────────
-        socket.on('request_rematch', async ({ gameId, sessionToken }) => {
+        socket.on('request_rematch', async (rawPayload) => {
             try {
                 if (rateLimited('request_rematch')) return;
+                const validated = validate('request_rematch', rawPayload);
+                if (!validated) return;
+                const { gameId, sessionToken } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -1201,9 +1818,12 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── rematch_cancel ─────────────────────────────────────────────────────
-        socket.on('rematch_cancel', async ({ gameId, sessionToken }) => {
+        socket.on('rematch_cancel', async (rawPayload) => {
             try {
                 if (rateLimited('rematch_cancel')) return;
+                const validated = validate('rematch_cancel', rawPayload);
+                if (!validated) return;
+                const { gameId, sessionToken } = validated;
 
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
@@ -1246,16 +1866,19 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── queue_join (Quick Play matchmaking) ──────────────────────────────
-        socket.on('queue_join', async ({ username, avatar, gridSize, playerCount }) => {
+        socket.on('queue_join', async (rawPayload) => {
             try {
                 if (rateLimited('queue_join')) return;
+                const validated = validate('queue_join', rawPayload);
+                if (!validated) return;
+                const { username, avatar, gridSize, playerCount } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }
                 const cleanUsername = uResult.value;
                 const cleanAvatar = sanitizeAvatar(avatar);
 
-                const gridResult = validateNumber(gridSize, 2, 10, 'Grid size');
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
                 if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
 
                 const pcResult = validateNumber(playerCount, 2, 4, 'Player count');
@@ -1373,6 +1996,7 @@ function attachSocketHandlers(io, log) {
                             playerSocket.data.gameId = gameId;
                             playerSocket.data.playerId = slot;
                             playerSocket.data.queueKey = undefined;
+                            playerSocket.data.username = p.username;
 
                             const gameStateWithPlayers = buildGameStateWithPlayers(game);
                             playerSocket.emit('queue_matched', {
@@ -1391,10 +2015,26 @@ function attachSocketHandlers(io, log) {
                         io.to(gameId).emit('all_players_joined', { gameId });
                     }
 
+                    // Push notification: "Your Quick Play match is ready!" for backgrounded players
+                    for (const p of players) {
+                        try {
+                            const pSocket = io.sockets.sockets.get(p.socketId);
+                            // If socket exists but document is hidden (player backgrounded tab), send push
+                            // We can't check visibility server-side, so push to all — SW deduplicates via tag
+                            sendPushToUser(p.username, {
+                                title: '⚡ Match Found!',
+                                body: 'Your Quick Play match is ready!',
+                                url: `/join/${gameId}`,
+                                tag: `quickplay-${gameId}`,
+                            }).catch(() => {});
+                        } catch (_) { /* push is best-effort */ }
+                    }
+
                     log.info('Quick Play match created', { gameId, playerCount: game.playerCount, players: players.map((p) => p.username) });
                 } else {
                     // Player queued — broadcast status to ALL waiters and set timeout
                     socket.data.queueKey = result.queueKey;
+                    socket.data.username = cleanUsername;
 
                     // Notify every player in this queue of the updated status
                     const waiters = matchmaking.getWaiters(result.queueKey);
@@ -1480,6 +2120,7 @@ function attachSocketHandlers(io, log) {
                             socket.data.gameId = cpuGameId;
                             socket.data.playerId = 'player1';
                             socket.data.queueKey = undefined;
+                            socket.data.username = cleanUsername;
 
                             await persistGame(cpuGame, 'playing');
 
@@ -1518,9 +2159,72 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── send_game_invite ──────────────────────────────────────────────────
+        socket.on('send_game_invite', async (rawPayload) => {
+            try {
+                if (rateLimited('send_game_invite')) return;
+                const validated = validate('send_game_invite', rawPayload);
+                if (!validated) return;
+                const { gameId, targetUsername } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const toResult = sanitizeUsername(targetUsername);
+                if (!toResult.valid) { socket.emit('error', toResult.error); return; }
+
+                // Fix #3: Verify game exists and is joinable
+                let game = await gameStore.getGame(cleanGameId);
+                if (!game) {
+                    game = await loadGameFromDB(cleanGameId, log);
+                    if (!game) { socket.emit('error', 'Game not found'); return; }
+                }
+
+                // Only allow invites for games that are waiting for players
+                const filled = countFilledPlayers(game);
+                if (filled >= game.playerCount) {
+                    socket.emit('error', 'Game is already full');
+                    return;
+                }
+
+                // Fix #1: Derive fromUsername from socket identity, not client payload
+                const senderPlayerId = findPlayerBySocket(game, socket.id);
+                if (!senderPlayerId) {
+                    socket.emit('error', 'You are not a player in this game');
+                    return;
+                }
+                const senderUsername = game.players[senderPlayerId].username;
+
+                // Fix #5: Sender-side rate limit — max 10 invites per 5 min per socket
+                if (!inviteSenderLimiter.allow(socket.id)) {
+                    socket.emit('error', 'Too many invites sent. Please slow down.');
+                    return;
+                }
+
+                // Prevent self-invite
+                if (toResult.value === senderUsername) {
+                    socket.emit('error', 'Cannot invite yourself');
+                    return;
+                }
+
+                sendPushToUser(toResult.value, {
+                    title: '🎮 Game Invite!',
+                    body: `${senderUsername} invited you to play!`,
+                    url: `/join/${cleanGameId}`,
+                    tag: `invite-${cleanGameId}`,
+                }).catch(() => {});
+
+                socket.emit('invite_sent', { targetUsername: toResult.value });
+            } catch (error) {
+                log.error('Error sending game invite push', { error: error.message });
+                socket.emit('error', 'Failed to send invite');
+            }
+        });
+
         // ── queue_leave ────────────────────────────────────────────────────────
         socket.on('queue_leave', () => {
-            if (!socketLimiter.allow(socket.id, 'queue_leave')) return;
+            if (rateLimited('queue_leave')) return;
 
             const info = matchmaking.playerIndex.get(socket.id);
             const queueKey = info?.queueKey;
@@ -1548,11 +2252,102 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── ranked_queue_join ────────────────────────────────────────────────
+        socket.on('ranked_queue_join', async (rawPayload) => {
+            try {
+                if (rateLimited('ranked_queue_join')) return;
+                const validated = validate('ranked_queue_join', rawPayload);
+                if (!validated) return;
+                const { username, avatar, gridSize } = validated;
+
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) { socket.emit('error', uResult.error); return; }
+                const cleanUsername = uResult.value;
+                const cleanAvatar = sanitizeAvatar(avatar);
+
+                const gridResult = validateNumber(gridSize, 2, 6, 'Grid size');
+                if (!gridResult.valid) { socket.emit('error', gridResult.error); return; }
+
+                // Get or create ranked profile
+                let profile = await RankedProfile.findOne({ username: cleanUsername });
+                if (!profile) {
+                    profile = new RankedProfile({ username: cleanUsername });
+                    await profile.save();
+                }
+
+                // Check cooldown
+                if (profile.isOnCooldown()) {
+                    const remaining = Math.ceil((new Date(profile.cooldownUntil) - new Date()) / 1000);
+                    socket.emit('ranked_cooldown', {
+                        cooldownUntil: profile.cooldownUntil,
+                        remainingSeconds: remaining,
+                    });
+                    socket.emit('error', `You are on cooldown for ${remaining} more seconds`);
+                    return;
+                }
+
+                // Remove from queue if already in it (O(1) check via rankedQueueIndex)
+                if (rankedQueueIndex.has(socket.id)) {
+                    removeFromRankedQueue(socket.id);
+                }
+
+                const entry = {
+                    socketId: socket.id,
+                    username: cleanUsername,
+                    avatar: cleanAvatar,
+                    elo: profile.elo,
+                    gridSize: gridResult.value,
+                    joinedAt: Date.now(),
+                };
+
+                rankedQueue.push(entry);
+                rankedQueueIndex.set(socket.id, cleanUsername);
+                socket.data.rankedQueue = true;
+                socket.data.rankedUsername = cleanUsername;
+
+                // Emit initial queue status (Fix #13: show actual position, not total size)
+                const queuePosition = rankedQueue.findIndex(e => e.socketId === socket.id) + 1;
+                socket.emit('ranked_queue_status', {
+                    position: queuePosition,
+                    queueSize: rankedQueue.length,
+                    elo: profile.elo,
+                    tier: getTierFromElo(profile.elo).name,
+                    tierIcon: getTierFromElo(profile.elo).icon,
+                });
+
+                // Try to find a match
+                await tryRankedMatch(io, log, socket);
+            } catch (error) {
+                log.error('Error handling ranked_queue_join', { error: error.message });
+                socket.emit('error', 'Failed to join ranked queue');
+            }
+        });
+
+        // ── ranked_queue_leave ───────────────────────────────────────────────
+        socket.on('ranked_queue_leave', () => {
+            if (rateLimited('ranked_queue_leave')) return;
+            removeFromRankedQueue(socket.id);
+            socket.data.rankedQueue = false;
+            socket.emit('ranked_queue_left', {});
+        });
+
         // ── disconnect ─────────────────────────────────────────────────────────
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
+            inviteSenderLimiter.cleanup(socket.id);
             matchmaking.leaveQueue(socket.id);
+            removeFromRankedQueue(socket.id);
+
+            // Clean up active daily challenge tracking for this user
+            if (socket.data?.username && activeDailyGames.get(socket.data.username)) {
+                const dailyGameId = activeDailyGames.get(socket.data.username);
+                const dailyGame = await gameStore.getGame(dailyGameId);
+                // Only clean up if the game hasn't finished (result not yet submitted)
+                if (dailyGame && !dailyGame.gameState?.winner) {
+                    activeDailyGames.delete(socket.data.username);
+                }
+            }
 
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
@@ -1640,6 +2435,14 @@ function attachSocketHandlers(io, log) {
                         // Fire-and-forget leaderboard update for forfeit
                         updateLeaderboard(currentGame, winner, log);
                         await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
+
+                        // Ranked anti-smurf: if this was a ranked game, auto-loss + cooldown
+                        if (rankedGameMap.has(gameId)) {
+                            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                                log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+                            );
+                        }
+
                         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 
                         // Defensive cleanup: clear any lingering rematch timer
@@ -1728,4 +2531,9 @@ module.exports._internal = {
     getTournamentJoinError,
     applyTournamentMatchResult,
     scheduleCPUMove,
+    rankedQueue,
+    rankedQueueIndex,
+    rankedGameMap,
+    removeFromRankedQueue,
+    activeDailyGames,
 };
