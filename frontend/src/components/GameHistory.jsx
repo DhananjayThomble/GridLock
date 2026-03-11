@@ -68,6 +68,8 @@ const GameHistory = () => {
   const abortRef = useRef(null);
   // Track whether initial URL params have been applied (#10)
   const initializedRef = useRef(false);
+  // Capture initial page from URL — consumed on first fetch, then null
+  const initialPageRef = useRef(null);
 
   // Read initial state from URL params on mount (#4, #10)
   useEffect(() => {
@@ -80,7 +82,7 @@ const GameHistory = () => {
     if (result) setResultFilter(result);
     if (playerCount) setPlayerCountFilter(playerCount);
     if (gridSize) setGridSizeFilter(gridSize);
-    if (pageParam > 0) setPagination(prev => ({ ...prev, page: pageParam }));
+    initialPageRef.current = pageParam > 0 ? pageParam : null;
 
     if (player) {
       setUsername(player);
@@ -167,8 +169,10 @@ const GameHistory = () => {
         playerCount: playerCountFilter,
         gridSize: gridSizeFilter,
       };
-      fetchHistory(username, 1, filters);
-      syncUrlParams(username, 1, filters);
+      const startPage = initialPageRef.current || 1;
+      initialPageRef.current = null; // consume — subsequent filter changes reset to page 1
+      fetchHistory(username, startPage, filters, { skipStats: startPage > 1 });
+      syncUrlParams(username, startPage, filters);
     }
     return () => {
       if (abortRef.current) abortRef.current.abort();
