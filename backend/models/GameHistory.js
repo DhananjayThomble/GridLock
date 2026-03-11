@@ -18,6 +18,14 @@ const GameHistorySchema = new mongoose.Schema({
 });
 
 GameHistorySchema.index({ username: 1, playedAt: -1 });
+
+// Recommended compound indexes for filtered queries at scale:
+//   { username: 1, result: 1, playedAt: -1 }
+//   { username: 1, playerCount: 1, playedAt: -1 }
+//   { username: 1, gridSize: 1, playedAt: -1 }
+// Currently the { username, playedAt } index handles sorting but filter fields
+// require in-memory filtering. Add these when query volume justifies the write overhead.
+
 // Auto-delete old records after 90 days
 GameHistorySchema.index({ playedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 

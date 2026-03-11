@@ -41,6 +41,15 @@ const formatEloDelta = (delta) => {
   return String(delta);
 };
 
+/** Safely parse a JSON response, returning { error } on non-JSON replies (#5) */
+const parseApiResponse = async (res) => {
+  try {
+    return await res.json();
+  } catch {
+    return { success: false, error: 'Server returned an unexpected response' };
+  }
+};
+
 const GameHistory = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [username, setUsername] = useState('');
@@ -57,17 +66,41 @@ const GameHistory = () => {
   const [gridSizeFilter, setGridSizeFilter] = useState('');
 
   const abortRef = useRef(null);
+  // Track whether initial URL params have been applied (#10)
+  const initializedRef = useRef(false);
 
-  // Read initial username from URL params
+  // Read initial state from URL params on mount (#4, #10)
   useEffect(() => {
     const player = searchParams.get('player');
+    const result = searchParams.get('result') || '';
+    const playerCount = searchParams.get('playerCount') || '';
+    const gridSize = searchParams.get('gridSize') || '';
+
+    if (result) setResultFilter(result);
+    if (playerCount) setPlayerCountFilter(playerCount);
+    if (gridSize) setGridSizeFilter(gridSize);
+
     if (player) {
       setUsername(player);
       setUsernameInput(player);
     }
+
+    initializedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount to read initial URL params
   }, []);
 
-  const fetchHistory = useCallback(async (player, page = 1, filters = {}) => {
+  /** Sync all active filters + page to URL search params (#4) */
+  const syncUrlParams = useCallback((player, page, filters) => {
+    const params = {};
+    if (player) params.player = player;
+    if (page > 1) params.page = String(page);
+    if (filters.result) params.result = filters.result;
+    if (filters.playerCount) params.playerCount = filters.playerCount;
+    if (filters.gridSize) params.gridSize = filters.gridSize;
+    setSearchParams(params, { replace: true });
+  }, [setSearchParams]);
+
+  const fetchHistory = useCallback(async (player, page = 1, filters = {}, options = {}) => {
     if (!player) return;
 
     if (abortRef.current) abortRef.current.abort();
@@ -86,17 +119,19 @@ const GameHistory = () => {
       if (filters.result) params.set('result', filters.result);
       if (filters.playerCount) params.set('playerCount', filters.playerCount);
       if (filters.gridSize) params.set('gridSize', filters.gridSize);
+      // Skip stats on page > 1 — use cached stats from page 1 (#2)
+      if (options.skipStats) params.set('skipStats', 'true');
 
       const res = await fetch(apiUrl(`/api/games/history?${params}`), {
         signal: controller.signal,
       });
 
+      const data = await parseApiResponse(res);
+
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
         throw new Error(data?.error || 'Failed to fetch game history');
       }
 
-      const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch game history');
       }
@@ -104,7 +139,10 @@ const GameHistory = () => {
       if (!controller.signal.aborted) {
         setHistory(data.history || []);
         setPagination(data.pagination || { page: 1, totalPages: 1, totalCount: 0 });
-        setStats(data.stats || null);
+        // Only update stats when the server sent them (page 1)
+        if (data.stats) {
+          setStats(data.stats);
+        }
       }
     } catch (err) {
       if (err?.name !== 'AbortError' && !controller.signal.aborted) {
@@ -118,18 +156,22 @@ const GameHistory = () => {
     }
   }, []);
 
-  // Fetch when username or filters change
+  // Fetch when username or filters change (always resets to page 1)
   useEffect(() => {
+    if (!initializedRef.current) return;
     if (username) {
-      fetchHistory(username, 1, {
+      const filters = {
         result: resultFilter,
         playerCount: playerCountFilter,
         gridSize: gridSizeFilter,
-      });
+      };
+      fetchHistory(username, 1, filters);
+      syncUrlParams(username, 1, filters);
     }
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncUrlParams is stable via useCallback; we intentionally trigger on filter/username changes only
   }, [username, resultFilter, playerCountFilter, gridSizeFilter, fetchHistory]);
 
   const handleSearch = (e) => {
@@ -137,16 +179,19 @@ const GameHistory = () => {
     const trimmed = usernameInput.trim();
     if (trimmed) {
       setUsername(trimmed);
-      setSearchParams({ player: trimmed });
+      // URL will be synced by the useEffect above
     }
   };
 
   const goToPage = (page) => {
-    fetchHistory(username, page, {
+    const filters = {
       result: resultFilter,
       playerCount: playerCountFilter,
       gridSize: gridSizeFilter,
-    });
+    };
+    // Skip stats for page > 1 — frontend uses cached stats (#2)
+    fetchHistory(username, page, filters, { skipStats: page > 1 });
+    syncUrlParams(username, page, filters);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -202,12 +247,17 @@ const GameHistory = () => {
               style={{ backgroundColor: 'var(--accent)' }}
               disabled={loading || !usernameInput.trim()}
             >
-              {loading ? 'Loading…' : 'Search'}
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 rounded-full animate-spin inline-block" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                  Loading…
+                </span>
+              ) : 'Search'}
             </button>
           </form>
         </section>
 
-        {/* Stats Summary */}
+        {/* Stats Summary — uses optional chaining for null safety (#9) */}
         {stats && !error && (
           <section
             className="mb-4 rounded-2xl p-4 backdrop-blur-md sm:p-5"
@@ -232,7 +282,7 @@ const GameHistory = () => {
               </div>
               <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>
                 <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {stats.currentStreak.count > 0
+                  {stats?.currentStreak?.count > 0
                     ? `${stats.currentStreak.count} ${stats.currentStreak.type === 'win' ? '🔥' : stats.currentStreak.type === 'loss' ? '❄️' : '🤝'}`
                     : '—'}
                 </p>
@@ -304,14 +354,15 @@ const GameHistory = () => {
           </section>
         )}
 
-        {/* Loading */}
+        {/* Loading — spinner for consistency with Board/TournamentLobby (#11) */}
         {loading && (
           <div
-            className="rounded-2xl p-8 text-center"
+            className="rounded-2xl p-8 text-center flex flex-col items-center gap-3"
             style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
             role="status"
             aria-label="Loading game history"
           >
+            <span className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
             Loading game history…
           </div>
         )}
@@ -327,21 +378,23 @@ const GameHistory = () => {
           </div>
         )}
 
-        {/* Empty state — no username */}
+        {/* Empty state — no username (#12: role="status") */}
         {!loading && !error && !username && (
           <div
             className="rounded-2xl p-6 text-center"
             style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+            role="status"
           >
             Enter a username above to view game history.
           </div>
         )}
 
-        {/* Empty state — no games */}
+        {/* Empty state — no games (#12: role="status") */}
         {!loading && !error && username && history.length === 0 && (
           <div
             className="rounded-2xl p-6 text-center"
             style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+            role="status"
           >
             No games found{resultFilter || playerCountFilter || gridSizeFilter ? ' with these filters' : ''}. Play some games to see history here!
           </div>
