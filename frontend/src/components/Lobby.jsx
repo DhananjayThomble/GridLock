@@ -10,6 +10,7 @@ import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import ThemeToggle from './ThemeToggle';
 import SoundSettings from './SoundSettings';
 import QuickPlay from './QuickPlay';
+import RecentOpponents from './RecentOpponents';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -835,6 +836,14 @@ const Lobby = () => {
         </div>
 
         <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
+
+        {/* ── Recent Opponents ── */}
+        <RecentOpponents
+          username={username.trim()}
+          avatar={selectedAvatar}
+          gridSize={gridSize}
+          playerCount={playerCount}
+        />
 
         {/* ── Settings Footer Card ── */}
         <div
