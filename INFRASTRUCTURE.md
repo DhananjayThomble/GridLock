@@ -1,5 +1,21 @@
 # GridLock Infrastructure
 
+## Database Mapping
+
+Each environment connects to its own MongoDB database to prevent cross-environment
+data contamination. The `MONGO_URI` is set via PM2's `ecosystem.config.js`.
+
+| Environment | Database           | MONGO_URI                                  | Set via              |
+|-------------|--------------------|--------------------------------------------|----------------------|
+| Production  | `gridlock`         | `mongodb://localhost:27017/gridlock`       | ecosystem.config.js  |
+| Beta        | `gridlock_beta`    | `mongodb://localhost:27017/gridlock_beta`  | ecosystem.config.js  |
+| Test (Jest) | `gridlock-test`    | `mongodb://localhost:27017/gridlock-test`  | Test setup / in-memory |
+| E2E         | `gridlock_e2e_local` | `mongodb://localhost:27017/gridlock_e2e_local` | E2E config       |
+
+> **Production safety:** If `NODE_ENV=production` and `MONGO_URI` is not set,
+> the server exits immediately with a FATAL error. This prevents production
+> from silently falling back to a default database.
+
 ## Directory Layout
 
 ```
