@@ -24,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # setup-node is retained on self-hosted to pin the Node version,
+      # ensure a consistent PATH, and guarantee the correct npm version
+      # — the system-installed Node may drift from what CI expects.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -43,6 +46,10 @@ jobs:
     needs: test
     environment: production
     steps:
+      # TODO: This SSH-to-localhost step is redundant on self-hosted — the
+      # runner already runs on the same EC2 instance. A follow-up should
+      # replace this with direct local execution (run: ./scripts/deploy-backend.sh)
+      # to eliminate the SSH key dependency and reduce latency.
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         with:

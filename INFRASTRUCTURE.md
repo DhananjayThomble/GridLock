@@ -231,6 +231,25 @@ A systemd override at
 `/etc/systemd/system/actions.runner.DhananjayThomble-GridLock.gridlock-ec2.service.d/override.conf`
 sets `Nice=10` so CI jobs don't starve production workloads.
 
+### Security Considerations
+
+> ⚠️ **The self-hosted runner shares the same `ubuntu` user as production.**
+> It has full access to PM2, git credentials, SSH keys, and all project
+> directories. **Treat repository access as production access.**
+
+**Mandatory rules:**
+
+1. **NEVER enable workflows on fork pull requests.** A malicious fork can
+   execute arbitrary code on this machine via a crafted workflow, compromising
+   production data and credentials.
+2. **NEVER add untrusted collaborators** without reviewing runner security
+   implications. Any collaborator with write access can modify workflows and
+   run code on the production server.
+3. **Keep the repo private.** Public repos allow anyone to open a PR — combined
+   with fork PR workflows, this is a full compromise vector.
+4. **Audit workflow changes carefully.** Any change to `.github/workflows/`
+   runs directly on production infrastructure.
+
 ### Re-registering the Runner
 
 If the runner needs to be re-registered (e.g., token expired, repo transferred):
@@ -242,7 +261,7 @@ cd ~/actions-runner
 # Re-register
 ./config.sh --url https://github.com/DhananjayThomble/GridLock \
   --token $(gh api repos/DhananjayThomble/GridLock/actions/runners/registration-token --method POST --jq '.token') \
-  --name gridlock-ec2 --labels self-hosted,linux,x64 --unattended
+  --name gridlock-ec2 --labels self-hosted,Linux,X64 --unattended
 sudo systemctl restart actions.runner.DhananjayThomble-GridLock.gridlock-ec2
 ```
 
