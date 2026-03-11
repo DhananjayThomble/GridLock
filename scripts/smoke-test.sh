@@ -21,10 +21,10 @@ print_result() {
   local status="$1" label="$2" detail="${3:-}"
   if [ "$status" = "pass" ]; then
     echo "✅ $label${detail:+ — $detail}"
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     echo "❌ $label${detail:+ — $detail}"
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
 }
 

@@ -9,6 +9,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const request = require('supertest');
+const Leaderboard = require('../models/Leaderboard');
 const healthcheckRoutes = require('../routes/healthcheck');
 
 let app, server, io;
@@ -82,5 +83,36 @@ describe('GET /health/deep', () => {
     expect(res.body.checks).toHaveProperty('socketIO');
 
     app.locals.io = originalIo;
+  });
+
+  test('returns 503 when MongoDB is down', async () => {
+    // Simulate a full MongoDB failure:
+    // - Mock admin().ping() to reject (connection broken)
+    // - Spy on Leaderboard.findOne to also reject (queries fail)
+    // This mirrors the 2026-03-11 incident where /health returned 200 while mongo was broken
+    const originalDb = mongoose.connection.db;
+    const mockAdmin = { ping: jest.fn().mockRejectedValue(new Error('MongoNetworkError: connection timed out')) };
+    mongoose.connection.db = { admin: () => mockAdmin };
+
+    const findOneSpy = jest
+      .spyOn(Leaderboard, 'findOne')
+      .mockImplementation(() => {
+        throw new Error('MongoNetworkError: connection timed out');
+      });
+
+    const res = await request(app).get('/health/deep');
+
+    expect(res.status).toBe(503);
+    expect(res.body.status).toBe('degraded');
+    expect(res.body.checks.mongoPing.status).toBe('fail');
+    expect(res.body.checks.mongoPing.error).toBeDefined();
+    expect(res.body.checks.mongoRead.status).toBe('fail');
+    expect(res.body.checks.mongoRead.error).toBeDefined();
+    // Socket.IO should still pass independently
+    expect(res.body.checks.socketIO.status).toBe('pass');
+
+    // Restore
+    mongoose.connection.db = originalDb;
+    findOneSpy.mockRestore();
   });
 });

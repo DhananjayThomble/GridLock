@@ -115,10 +115,11 @@ app.use('/api/ranked', rankedRoutes);
 // Daily challenge API routes
 app.use('/api/daily', dailyRoutes);
 
-// Deep health check (post-deploy verification)
+// Deep health check (post-deploy verification) — mounted before the lightweight
+// /health GET and any catch-all routes to ensure /health/deep is always reachable.
 app.use('/health', healthcheckRoutes);
 
-// Health check endpoint
+// Lightweight health check endpoint (for load balancers / uptime monitors)
 app.get('/health', healthLimiter, async (req, res) => {
     const mem = process.memoryUsage();
     res.json({
