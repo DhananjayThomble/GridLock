@@ -1375,7 +1375,13 @@ function attachSocketHandlers(io, log) {
                 log.info('Game created', { gameId, playerCount: game.playerCount, username: cleanUsername, cpuPlayers: cpuCount });
 
                 const gameStateWithPlayers = buildGameStateWithPlayers(game);
-                socket.emit('game_created', { gameId, playerId: 'player1', sessionToken });
+                // If a callback was provided, the caller handles its own navigation.
+                // Skip the game_created event emit to avoid a race condition where
+                // the Lobby's listener navigates before the callback-based caller
+                // (e.g., RecentOpponents) can show its toast/UI.
+                if (!callback) {
+                    socket.emit('game_created', { gameId, playerId: 'player1', sessionToken });
+                }
                 socket.emit('game_started', {
                     gameId, playerId: 'player1', sessionToken,
                     gridSize: game.gridSize, playerCount: game.playerCount,
