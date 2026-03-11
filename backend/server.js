@@ -60,6 +60,9 @@ const io = new Server(server, {
     },
 });
 
+// Expose io to Express routes (used by push subscribe for socket verification)
+app.locals.io = io;
+
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
 async function setupRedisAdapter() {

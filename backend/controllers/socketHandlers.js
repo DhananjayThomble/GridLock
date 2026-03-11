@@ -30,6 +30,28 @@ const PLAYER_COLORS = {
     player4: '#A855F7',
 };
 
+// Fix #5: Sender-side rate limiter for game invites — max 10 invites per 5 min per socket
+const inviteSenderLimiter = {
+    // Map<socketId, { count, windowStart }>
+    _trackers: new Map(),
+    _maxPerWindow: 10,
+    _windowMs: 5 * 60_000,
+    allow(socketId) {
+        if (process.env.NODE_ENV === 'test') return true;
+        const now = Date.now();
+        const tracker = this._trackers.get(socketId);
+        if (!tracker || now - tracker.windowStart >= this._windowMs) {
+            this._trackers.set(socketId, { count: 1, windowStart: now });
+            return true;
+        }
+        tracker.count++;
+        return tracker.count <= this._maxPerWindow;
+    },
+    cleanup(socketId) {
+        this._trackers.delete(socketId);
+    },
+};
+
 // In-memory tournament state (per-node, as requested by issue #19)
 const tournaments = new Map(); // tournamentId -> tournament
 const tournamentGames = new Map(); // gameId -> { tournamentId, roundIndex, matchIndex }
@@ -750,6 +772,19 @@ function attachSocketHandlers(io, log) {
                 if (tournament.participants.length === tournament.tournamentSize) {
                     tournament.status = 'in_progress';
                     tournament.rounds = initializeBracket(tournament.participants);
+
+                    // Push notification: "Tournament starting in 2 min!" to all participants
+                    for (const p of tournament.participants) {
+                        try {
+                            sendPushToUser(p.username, {
+                                title: '🏆 Tournament Starting!',
+                                body: 'Tournament starting in 2 min! Get ready!',
+                                url: `/tournament/${cleanTournamentId}`,
+                                tag: `tournament-start-${cleanTournamentId}`,
+                            }).catch(() => {});
+                        } catch (_) { /* push is best-effort */ }
+                    }
+
                     await maybeStartTournamentRound(io, tournament, 0);
                     io.to(`tournament:${cleanTournamentId}`).emit('tournament_update', {
                         tournament: buildTournamentSnapshot(tournament),
@@ -828,6 +863,7 @@ function attachSocketHandlers(io, log) {
                 socket.join(gameId);
                 socket.data.gameId = gameId;
                 socket.data.playerId = 'player1';
+                socket.data.username = cleanUsername;
 
                 const filled = countFilledPlayers(game);
                 const isFull = filled === game.playerCount;
@@ -893,6 +929,7 @@ function attachSocketHandlers(io, log) {
                     socket.data.playerId = 'spectator';
                     socket.data.isSpectator = true;
                     socket.data.spectatorUsername = cleanUsername;
+                    socket.data.username = cleanUsername;
 
                     // Track spectator count
                     // TODO: This is a non-atomic read-modify-write. Under concurrent spectator
@@ -945,6 +982,7 @@ function attachSocketHandlers(io, log) {
                         socket.data.gameId = cleanGameId;
                         socket.data.playerId = playerId;
                         socket.data.isSpectator = false;
+                        socket.data.username = cleanUsername;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -987,6 +1025,7 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = cleanGameId;
                 socket.data.playerId = assignedSlot;
                 socket.data.isSpectator = false;
+                socket.data.username = cleanUsername;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -1431,6 +1470,7 @@ function attachSocketHandlers(io, log) {
                             playerSocket.data.gameId = gameId;
                             playerSocket.data.playerId = slot;
                             playerSocket.data.queueKey = undefined;
+                            playerSocket.data.username = p.username;
 
                             const gameStateWithPlayers = buildGameStateWithPlayers(game);
                             playerSocket.emit('queue_matched', {
@@ -1449,10 +1489,26 @@ function attachSocketHandlers(io, log) {
                         io.to(gameId).emit('all_players_joined', { gameId });
                     }
 
+                    // Push notification: "Your Quick Play match is ready!" for backgrounded players
+                    for (const p of players) {
+                        try {
+                            const pSocket = io.sockets.sockets.get(p.socketId);
+                            // If socket exists but document is hidden (player backgrounded tab), send push
+                            // We can't check visibility server-side, so push to all — SW deduplicates via tag
+                            sendPushToUser(p.username, {
+                                title: '⚡ Match Found!',
+                                body: 'Your Quick Play match is ready!',
+                                url: `/join/${gameId}`,
+                                tag: `quickplay-${gameId}`,
+                            }).catch(() => {});
+                        } catch (_) { /* push is best-effort */ }
+                    }
+
                     log.info('Quick Play match created', { gameId, playerCount: game.playerCount, players: players.map((p) => p.username) });
                 } else {
                     // Player queued — broadcast status to ALL waiters and set timeout
                     socket.data.queueKey = result.queueKey;
+                    socket.data.username = cleanUsername;
 
                     // Notify every player in this queue of the updated status
                     const waiters = matchmaking.getWaiters(result.queueKey);
@@ -1538,6 +1594,7 @@ function attachSocketHandlers(io, log) {
                             socket.data.gameId = cpuGameId;
                             socket.data.playerId = 'player1';
                             socket.data.queueKey = undefined;
+                            socket.data.username = cleanUsername;
 
                             await persistGame(cpuGame, 'playing');
 
@@ -1576,6 +1633,69 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── send_game_invite ──────────────────────────────────────────────────
+        socket.on('send_game_invite', async (rawPayload) => {
+            try {
+                if (rateLimited('send_game_invite')) return;
+                const validated = validate('send_game_invite', rawPayload);
+                if (!validated) return;
+                const { gameId, targetUsername } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const toResult = sanitizeUsername(targetUsername);
+                if (!toResult.valid) { socket.emit('error', toResult.error); return; }
+
+                // Fix #3: Verify game exists and is joinable
+                let game = await gameStore.getGame(cleanGameId);
+                if (!game) {
+                    game = await loadGameFromDB(cleanGameId, log);
+                    if (!game) { socket.emit('error', 'Game not found'); return; }
+                }
+
+                // Only allow invites for games that are waiting for players
+                const filled = countFilledPlayers(game);
+                if (filled >= game.playerCount) {
+                    socket.emit('error', 'Game is already full');
+                    return;
+                }
+
+                // Fix #1: Derive fromUsername from socket identity, not client payload
+                const senderPlayerId = findPlayerBySocket(game, socket.id);
+                if (!senderPlayerId) {
+                    socket.emit('error', 'You are not a player in this game');
+                    return;
+                }
+                const senderUsername = game.players[senderPlayerId].username;
+
+                // Fix #5: Sender-side rate limit — max 10 invites per 5 min per socket
+                if (!inviteSenderLimiter.allow(socket.id)) {
+                    socket.emit('error', 'Too many invites sent. Please slow down.');
+                    return;
+                }
+
+                // Prevent self-invite
+                if (toResult.value === senderUsername) {
+                    socket.emit('error', 'Cannot invite yourself');
+                    return;
+                }
+
+                sendPushToUser(toResult.value, {
+                    title: '🎮 Game Invite!',
+                    body: `${senderUsername} invited you to play!`,
+                    url: `/join/${cleanGameId}`,
+                    tag: `invite-${cleanGameId}`,
+                }).catch(() => {});
+
+                socket.emit('invite_sent', { targetUsername: toResult.value });
+            } catch (error) {
+                log.error('Error sending game invite push', { error: error.message });
+                socket.emit('error', 'Failed to send invite');
+            }
+        });
+
         // ── queue_leave ────────────────────────────────────────────────────────
         socket.on('queue_leave', () => {
             if (rateLimited('queue_leave')) return;
@@ -1610,6 +1730,7 @@ function attachSocketHandlers(io, log) {
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
+            inviteSenderLimiter.cleanup(socket.id);
             matchmaking.leaveQueue(socket.id);
 
             const processPlayerDisconnect = async (gameId, game, playerId) => {

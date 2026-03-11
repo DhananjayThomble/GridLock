@@ -28,6 +28,7 @@ const { sendPushToUser, isUserOnlineInGame, _internal } = require('../services/p
 beforeEach(() => {
     jest.clearAllMocks();
     _internal.lastPushTimestamps.clear();
+    _internal.hourlyPushLog.clear();
 });
 
 describe('sendPushToUser', () => {
@@ -108,6 +109,65 @@ describe('sendPushToUser', () => {
         await sendPushToUser('eve', { title: 'Test' });
 
         expect(PushSubscription.deleteOne).toHaveBeenCalledWith({ endpoint: sub.endpoint });
+    });
+});
+
+describe('hourly rate limiting', () => {
+    test('checkHourlyLimit returns true when under limit', () => {
+        expect(_internal.checkHourlyLimit('newuser')).toBe(true);
+    });
+
+    test('checkHourlyLimit returns false after 5 pushes', () => {
+        const log = [];
+        const now = Date.now();
+        for (let i = 0; i < 5; i++) {
+            log.push(now - i * 1000); // 5 recent pushes
+        }
+        _internal.hourlyPushLog.set('spammer', log);
+        expect(_internal.checkHourlyLimit('spammer')).toBe(false);
+    });
+
+    test('checkHourlyLimit prunes old entries and allows new pushes', () => {
+        const log = [];
+        const now = Date.now();
+        // 5 entries older than 1 hour
+        for (let i = 0; i < 5; i++) {
+            log.push(now - _internal.HOURLY_WINDOW_MS - 1000 * (i + 1));
+        }
+        _internal.hourlyPushLog.set('olduser', log);
+        expect(_internal.checkHourlyLimit('olduser')).toBe(true);
+        // Verify old entries were pruned
+        expect(_internal.hourlyPushLog.get('olduser').length).toBe(0);
+    });
+
+    test('recordHourlySend adds timestamp to log', () => {
+        _internal.recordHourlySend('tracker');
+        expect(_internal.hourlyPushLog.get('tracker').length).toBe(1);
+        _internal.recordHourlySend('tracker');
+        expect(_internal.hourlyPushLog.get('tracker').length).toBe(2);
+    });
+
+    test('sendPushToUser skips when hourly limit is exceeded', async () => {
+        PushSubscription.find.mockResolvedValue([
+            { endpoint: 'https://push.example/1', keys: { p256dh: 'k', auth: 'a' } },
+        ]);
+        webpush.sendNotification.mockResolvedValue({});
+
+        // Fill hourly log to limit
+        const log = [];
+        const now = Date.now();
+        for (let i = 0; i < _internal.HOURLY_LIMIT; i++) {
+            log.push(now - i * 60_000); // Recent sends within the hour
+        }
+        _internal.hourlyPushLog.set('limited', log);
+
+        // Ensure debounce doesn't interfere
+        _internal.lastPushTimestamps.set('limited', now - _internal.DEBOUNCE_MS - 1);
+
+        const result = await sendPushToUser('limited', { title: 'Should be blocked' });
+
+        expect(result).toBeUndefined();
+        expect(webpush.sendNotification).not.toHaveBeenCalled();
     });
 });
 
