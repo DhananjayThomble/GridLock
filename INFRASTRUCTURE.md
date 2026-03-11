@@ -69,10 +69,39 @@ The deploy script:
 ./scripts/deploy-beta.sh
 ```
 
-### Frontend
+### Frontend (GitHub Pages)
 
-Frontend is deployed via GitHub Pages workflow (`.github/workflows/deploy-pages.yml`).
-See issue #185 for the dedicated deploy script.
+```bash
+# Deploy to production (builds + pushes to gh-pages)
+./scripts/deploy-frontend.sh
+
+# Preview build without pushing (validates everything works)
+./scripts/deploy-frontend.sh --dry-run
+```
+
+**Custom environment (optional):**
+```bash
+VITE_API_BASE_URL=http://localhost:5000 \
+VITE_SOCKET_URL=http://localhost:5000 \
+  ./scripts/deploy-frontend.sh --dry-run
+```
+
+The deploy script:
+1. Builds the frontend in the dev worktree (`frontend/`)
+2. Creates a **git worktree** at `/tmp/gh-pages-deploy` for the `gh-pages` branch
+3. Cleans old files and copies the fresh `dist/` output
+4. Adds `CNAME` (`gridlock.snapurl.in`) and `404.html` (SPA routing)
+5. Commits with deploy message (commit hash + timestamp)
+6. Pushes to `gh-pages`
+7. Removes the worktree
+
+**Safety:** The script **never** checks out `gh-pages` in the main worktree.
+This prevents the `node_modules` deletion that broke production on 2026-03-11.
+A trap handler cleans up the worktree on any failure or interruption.
+
+**CI/CD:** The GitHub Actions workflow (`.github/workflows/deploy-pages.yml`)
+uses GitHub's deploy-pages action for automated deployments on push to `main`.
+For manual deploys from the server, use the script above.
 
 ## Safety Rules
 
@@ -113,6 +142,56 @@ message in the deploy log.
 The trap only activates during the critical deploy window (after `git reset` begins
 and before the health check passes). Outside this window, interruptions just
 release the lock and exit cleanly.
+
+## PM2 Ecosystem Config
+
+All PM2 processes are defined in `ecosystem.config.js` at the repo root.
+
+### Usage
+
+```bash
+# Start all processes
+pm2 start ecosystem.config.js
+
+# Start a specific process
+pm2 start ecosystem.config.js --only gridlock-backend
+
+# Reload all (zero-downtime)
+pm2 reload ecosystem.config.js
+
+# Restart a specific process
+pm2 restart gridlock-backend
+```
+
+### Log Rotation
+
+PM2 log rotation is handled by `pm2-logrotate`:
+
+- **Max file size:** 10M
+- **Retained files:** 5
+- **Compression:** enabled (gzip)
+
+To check/reconfigure:
+
+```bash
+pm2 conf pm2-logrotate
+```
+
+### Boot Persistence
+
+To ensure PM2 processes survive server reboots:
+
+```bash
+# Generate the startup script (requires sudo — run manually)
+pm2 startup
+
+# After starting all desired processes, save the process list
+pm2 save
+```
+
+**Note:** `pm2 startup` outputs a command that must be run with `sudo`.
+Run it once after initial setup, then `pm2 save` to persist the current
+process list. After that, PM2 auto-restarts saved processes on boot.
 
 ## CI/CD
 
