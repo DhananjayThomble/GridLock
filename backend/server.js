@@ -18,6 +18,7 @@ const replayRoutes = require('./routes/replay');
 const gameHistoryRoutes = require('./routes/gameHistory');
 const rankedRoutes = require('./routes/ranked');
 const dailyRoutes = require('./routes/daily');
+const healthcheckRoutes = require('./routes/healthcheck');
 
 const app = express();
 const server = http.createServer(app);
@@ -113,6 +114,9 @@ app.use('/api/ranked', rankedRoutes);
 
 // Daily challenge API routes
 app.use('/api/daily', dailyRoutes);
+
+// Deep health check (post-deploy verification)
+app.use('/health', healthcheckRoutes);
 
 // Health check endpoint
 app.get('/health', healthLimiter, async (req, res) => {
