@@ -19,6 +19,10 @@ const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 const RankedProfile = require('../models/RankedProfile');
 const { calculateRankedElo, calculateRankedEloExchange, calculateRankedDrawExchange, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
 
+// Track active daily challenge games: username → gameId
+// Prevents users from starting multiple daily games simultaneously
+const activeDailyGames = new Map();
+
 // Intentionally reduced from 60s → 30s for faster game flow.
 // Players get 30s to reconnect before forfeiting; keeps games moving.
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
@@ -386,6 +390,9 @@ async function submitDailyChallengeResult(game, log) {
     const moveCount = game.gameState?.moveCount || 0;
     const duration = Math.round((Date.now() - game.createdAt) / 1000);
     const today = getTodayDateStr();
+
+    // Clean up active daily game tracking
+    activeDailyGames.delete(username);
 
     try {
         // Check for duplicate submission
@@ -1257,6 +1264,30 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
+                // ── Daily challenge replay protection ────────────────────────
+                const isDailyChallenge = dailyChallenge === true && dailySeed;
+                if (isDailyChallenge) {
+                    // Fix #2: Validate dailySeed matches today's UTC date
+                    const todayStr = getTodayDateStr();
+                    if (dailySeed !== todayStr) {
+                        socket.emit('error', 'Invalid daily challenge seed');
+                        return;
+                    }
+
+                    // Fix #1: Check if user already completed today's challenge
+                    const existingResult = await DailyResult.findOne({ date: todayStr, username: cleanUsername });
+                    if (existingResult) {
+                        socket.emit('error', 'Already completed today\'s challenge');
+                        return;
+                    }
+
+                    // Fix #1: Check if user already has an active daily game
+                    if (activeDailyGames.has(cleanUsername)) {
+                        socket.emit('error', 'You already have an active daily challenge game');
+                        return;
+                    }
+                }
+
                 const gameId = await generateUniqueGameId();
                 if (!gameId) { socket.emit('error', 'Failed to generate game ID. Please try again.'); return; }
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
@@ -1266,7 +1297,6 @@ function attachSocketHandlers(io, log) {
 
                 // Issue #1: server-side board generation for daily challenges
                 // Never trust client board — generate from seed server-side
-                const isDailyChallenge = dailyChallenge === true && dailySeed;
                 if (isDailyChallenge) {
                     const board = generateBoardFromSeed(dailySeed, gridResult.value);
                     // Apply pre-drawn lines onto initial state
@@ -1333,6 +1363,11 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = gameId;
                 socket.data.playerId = 'player1';
                 socket.data.username = cleanUsername;
+
+                // Track active daily challenge game
+                if (isDailyChallenge) {
+                    activeDailyGames.set(cleanUsername, gameId);
+                }
 
                 const filled = countFilledPlayers(game);
                 const isFull = filled === game.playerCount;
@@ -2298,6 +2333,16 @@ function attachSocketHandlers(io, log) {
             matchmaking.leaveQueue(socket.id);
             removeFromRankedQueue(socket.id);
 
+            // Clean up active daily challenge tracking for this user
+            if (socket.data?.username && activeDailyGames.get(socket.data.username)) {
+                const dailyGameId = activeDailyGames.get(socket.data.username);
+                const dailyGame = await gameStore.getGame(dailyGameId);
+                // Only clean up if the game hasn't finished (result not yet submitted)
+                if (dailyGame && !dailyGame.gameState?.winner) {
+                    activeDailyGames.delete(socket.data.username);
+                }
+            }
+
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
                 if (!player) return;
@@ -2484,4 +2529,5 @@ module.exports._internal = {
     rankedQueueIndex,
     rankedGameMap,
     removeFromRankedQueue,
+    activeDailyGames,
 };

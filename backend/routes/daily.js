@@ -183,8 +183,9 @@ router.get('/leaderboard/:date', async (req, res) => {
             ],
           });
           // Issue #7: fixed percentile for single player — Top 1% not Top 100%
+          // Clamp to 100 to prevent exceeding 100% for top players in small pools
           const percentile = total > 1
-            ? Math.round(((total - rank) / (total - 1)) * 100)
+            ? Math.min(100, Math.round(((total - rank) / (total - 1)) * 100))
             : 100;
           userPosition = {
             rank: rank + 1,
@@ -214,97 +215,11 @@ router.get('/leaderboard/:date', async (req, res) => {
 });
 
 /**
- * POST /api/daily/result
- * Submit a daily challenge result.
- * Issue #6: rate limited.
- * Issue #2: This endpoint is now a fallback — primary submission happens
- * server-side via socketHandlers on game_over. The rate limiter + validation
- * keep this endpoint safe as a secondary path.
+ * POST /api/daily/result — REMOVED
+ * Result submission is now handled exclusively server-side via
+ * submitDailyChallengeResult() in socketHandlers on game_over.
+ * Removing this endpoint prevents client-side score manipulation.
  */
-router.post('/result', resultRateLimiter, async (req, res) => {
-  try {
-    const { error: vErr, value } = resultSchema.validate(req.body);
-    if (vErr) {
-      return res.status(400).json({ success: false, error: vErr.details[0].message });
-    }
-
-    const { username, score, moves, duration, date } = value;
-    const san = sanitizeUsername(username);
-    if (!san.valid) {
-      return res.status(400).json({ success: false, error: san.error || 'Invalid username' });
-    }
-
-    const today = getTodayDateStr();
-    if (date !== today) {
-      return res.status(400).json({
-        success: false,
-        error: 'Can only submit results for today\'s challenge',
-      });
-    }
-
-    // Check if already submitted
-    const existing = await DailyResult.findOne({ date, username: san.value });
-    if (existing) {
-      return res.status(409).json({
-        success: false,
-        error: 'You have already completed today\'s challenge',
-      });
-    }
-
-    const result = await DailyResult.create({
-      date,
-      username: san.value,
-      score,
-      moves,
-      duration,
-      completedAt: new Date(),
-    });
-
-    // Calculate rank
-    const rank = await DailyResult.countDocuments({
-      date,
-      $or: [
-        { score: { $gt: score } },
-        { score, moves: { $lt: moves } },
-        { score, moves, duration: { $lt: duration } },
-      ],
-    });
-    const total = await DailyResult.countDocuments({ date });
-    // Issue #7: fixed percentile for single player
-    const percentile = total > 1
-      ? Math.round(((total - rank) / (total - 1)) * 100)
-      : 100;
-
-    // Get challenge info for day number
-    const challenge = await getOrCreateChallenge(date);
-
-    res.status(201).json({
-      success: true,
-      result: {
-        date: result.date,
-        username: result.username,
-        score: result.score,
-        moves: result.moves,
-        duration: result.duration,
-        completedAt: result.completedAt,
-        rank: rank + 1,
-        total,
-        percentile,
-        dayNumber: challenge.dayNumber,
-      },
-    });
-  } catch (error) {
-    // Duplicate key (race condition)
-    if (error.code === 11000) {
-      return res.status(409).json({
-        success: false,
-        error: 'You have already completed today\'s challenge',
-      });
-    }
-    console.error('[Daily] POST /result error:', error.message);
-    res.status(500).json({ success: false, error: 'Failed to submit result' });
-  }
-});
 
 /**
  * GET /api/daily/streak/:username

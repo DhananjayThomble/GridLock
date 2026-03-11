@@ -322,11 +322,11 @@ describe('Percentile calculation', () => {
     expect(percentile).toBe(100);
   });
 
-  test('two players — first place gets 100%', () => {
+  test('two players — first place gets 100% (clamped)', () => {
     const total = 2;
     const rank = 0;
-    const percentile = total > 1 ? Math.round(((total - rank) / (total - 1)) * 100) : 100;
-    expect(percentile).toBe(200); // This is expected — raw calc, clamped in UI
+    const percentile = total > 1 ? Math.min(100, Math.round(((total - rank) / (total - 1)) * 100)) : 100;
+    expect(percentile).toBe(100);
   });
 
   test('two players — second place gets 0%', () => {

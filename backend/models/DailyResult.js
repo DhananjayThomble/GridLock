@@ -42,7 +42,7 @@ const DailyResultSchema = new mongoose.Schema(
 // Compound unique index — one attempt per user per day
 DailyResultSchema.index({ date: 1, username: 1 }, { unique: true });
 
-// Leaderboard sorting: higher score first, fewer moves as tiebreaker
-DailyResultSchema.index({ date: 1, score: -1, moves: 1 });
+// Leaderboard sorting: higher score first, fewer moves as tiebreaker, then duration
+DailyResultSchema.index({ date: 1, score: -1, moves: 1, duration: 1 });
 
 module.exports = mongoose.model('DailyResult', DailyResultSchema);
