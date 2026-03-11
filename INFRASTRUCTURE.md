@@ -193,7 +193,81 @@ pm2 save
 Run it once after initial setup, then `pm2 save` to persist the current
 process list. After that, PM2 auto-restarts saved processes on boot.
 
+## Self-Hosted GitHub Actions Runner
+
+GitHub Actions free-tier minutes are exhausted, so CI runs on a self-hosted
+runner installed on this EC2 instance.
+
+### Runner Details
+
+| Setting        | Value                                          |
+|----------------|------------------------------------------------|
+| **Name**       | `gridlock-ec2`                                 |
+| **Labels**     | `self-hosted`, `Linux`, `X64`                  |
+| **Install dir**| `~/actions-runner/`                            |
+| **User**       | `ubuntu`                                       |
+| **Nice level** | 10 (via systemd override)                      |
+
+### Systemd Service
+
+```
+actions.runner.DhananjayThomble-GridLock.gridlock-ec2.service
+```
+
+```bash
+# Check status
+sudo systemctl status actions.runner.DhananjayThomble-GridLock.gridlock-ec2
+
+# Restart
+sudo systemctl restart actions.runner.DhananjayThomble-GridLock.gridlock-ec2
+
+# View logs
+journalctl -u actions.runner.DhananjayThomble-GridLock.gridlock-ec2 -f
+```
+
+### Resource Limits
+
+A systemd override at
+`/etc/systemd/system/actions.runner.DhananjayThomble-GridLock.gridlock-ec2.service.d/override.conf`
+sets `Nice=10` so CI jobs don't starve production workloads.
+
+### Security Considerations
+
+> ⚠️ **The self-hosted runner shares the same `ubuntu` user as production.**
+> It has full access to PM2, git credentials, SSH keys, and all project
+> directories. **Treat repository access as production access.**
+
+**Mandatory rules:**
+
+1. **NEVER enable workflows on fork pull requests.** A malicious fork can
+   execute arbitrary code on this machine via a crafted workflow, compromising
+   production data and credentials.
+2. **NEVER add untrusted collaborators** without reviewing runner security
+   implications. Any collaborator with write access can modify workflows and
+   run code on the production server.
+3. **Keep the repo private.** Public repos allow anyone to open a PR — combined
+   with fork PR workflows, this is a full compromise vector.
+4. **Audit workflow changes carefully.** Any change to `.github/workflows/`
+   runs directly on production infrastructure.
+
+### Re-registering the Runner
+
+If the runner needs to be re-registered (e.g., token expired, repo transferred):
+
+```bash
+cd ~/actions-runner
+# Remove old registration
+./config.sh remove --token $(gh api repos/DhananjayThomble/GridLock/actions/runners/registration-token --method POST --jq '.token')
+# Re-register
+./config.sh --url https://github.com/DhananjayThomble/GridLock \
+  --token $(gh api repos/DhananjayThomble/GridLock/actions/runners/registration-token --method POST --jq '.token') \
+  --name gridlock-ec2 --labels self-hosted,Linux,X64 --unattended
+sudo systemctl restart actions.runner.DhananjayThomble-GridLock.gridlock-ec2
+```
+
 ## CI/CD
+
+All CI/CD workflows run on the self-hosted runner (`runs-on: self-hosted`).
 
 The GitHub Actions workflow (`.github/workflows/deploy-backend.yml`) SSHes into
 the server and runs `./scripts/deploy-backend.sh` for automated deployments on

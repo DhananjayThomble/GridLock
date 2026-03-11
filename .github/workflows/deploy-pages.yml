@@ -21,11 +21,14 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # setup-node is retained on self-hosted to pin the Node version,
+      # ensure a consistent PATH, and guarantee the correct npm version
+      # — the system-installed Node may drift from what CI expects.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -59,10 +62,13 @@ jobs:
         with:
           path: pages-out
 
+  # NOTE: The deploy job only calls actions/deploy-pages (uploads artifacts to
+  # GitHub Pages via API). It doesn't need local server access, so it could
+  # optionally run on ubuntu-latest to free up self-hosted runner capacity.
   deploy:
     name: Deploy
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
