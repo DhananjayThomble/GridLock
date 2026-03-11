@@ -8,7 +8,7 @@ const router = express.Router();
 // Fix #6/#7: Rate limiter for subscribe/unsubscribe endpoints
 const pushEndpointLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5,                    // 5 requests per IP per hour
+    max: 20,                   // 20 requests per IP per hour
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
@@ -54,17 +54,13 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
 
         // Fix #6: Verify socket ownership if io is available
         if (req.app.locals.io && socketId) {
-            const socket = req.app.locals.io.sockets.sockets.get(socketId);
-            if (!socket) {
+            const connectedSocket = req.app.locals.io.sockets.sockets.get(socketId);
+            if (!connectedSocket) {
                 return res.status(403).json({ error: 'Invalid socket ID — not connected' });
             }
-            // Verify the socket is associated with the claimed username
-            // Check socket.data for game context where username is stored
-            const gameId = socket.data?.gameId;
-            const playerId = socket.data?.playerId;
-            if (gameId && playerId && playerId !== 'spectator') {
-                // We have game context — could verify username from game store
-                // but for lightweight validation, just check socket is live
+            // Verify the socket's identity matches the claimed username
+            if (connectedSocket.data.username && connectedSocket.data.username !== cleanUsername) {
+                return res.status(403).json({ error: 'Socket identity mismatch' });
             }
         } else if (req.app.locals.io && !socketId) {
             // io is available but no socketId provided — reject

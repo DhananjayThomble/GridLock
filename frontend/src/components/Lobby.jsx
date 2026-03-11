@@ -324,7 +324,7 @@ const Lobby = () => {
     // Auto-prompt push subscription on first game action
     if (!localStorage.getItem('gridlock_push_prompted')) {
       localStorage.setItem('gridlock_push_prompted', 'true');
-      subscribeToPush(name).then((sub) => {
+      subscribeToPush(name, socket.id).then((sub) => {
         if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
@@ -366,7 +366,7 @@ const Lobby = () => {
     // Auto-prompt push subscription on first game action
     if (!localStorage.getItem('gridlock_push_prompted')) {
       localStorage.setItem('gridlock_push_prompted', 'true');
-      subscribeToPush(name).then((sub) => {
+      subscribeToPush(name, socket.id).then((sub) => {
         if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
@@ -868,7 +868,7 @@ const Lobby = () => {
                 if (!pushEnabled) {
                   const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
                   try {
-                    const sub = await subscribeToPush(name);
+                    const sub = await subscribeToPush(name, socket.id);
                     if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
                   } catch { /* push subscribe failed — ignore */ }
                 } else {

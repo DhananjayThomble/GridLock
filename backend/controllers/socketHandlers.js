@@ -863,6 +863,7 @@ function attachSocketHandlers(io, log) {
                 socket.join(gameId);
                 socket.data.gameId = gameId;
                 socket.data.playerId = 'player1';
+                socket.data.username = cleanUsername;
 
                 const filled = countFilledPlayers(game);
                 const isFull = filled === game.playerCount;
@@ -928,6 +929,7 @@ function attachSocketHandlers(io, log) {
                     socket.data.playerId = 'spectator';
                     socket.data.isSpectator = true;
                     socket.data.spectatorUsername = cleanUsername;
+                    socket.data.username = cleanUsername;
 
                     // Track spectator count
                     // TODO: This is a non-atomic read-modify-write. Under concurrent spectator
@@ -980,6 +982,7 @@ function attachSocketHandlers(io, log) {
                         socket.data.gameId = cleanGameId;
                         socket.data.playerId = playerId;
                         socket.data.isSpectator = false;
+                        socket.data.username = cleanUsername;
                         await persistGame(game);
 
                         socket.emit('game_started', {
@@ -1022,6 +1025,7 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = cleanGameId;
                 socket.data.playerId = assignedSlot;
                 socket.data.isSpectator = false;
+                socket.data.username = cleanUsername;
                 const filled = countFilledPlayers(game);
                 const status = filled === game.playerCount ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
@@ -1466,6 +1470,7 @@ function attachSocketHandlers(io, log) {
                             playerSocket.data.gameId = gameId;
                             playerSocket.data.playerId = slot;
                             playerSocket.data.queueKey = undefined;
+                            playerSocket.data.username = p.username;
 
                             const gameStateWithPlayers = buildGameStateWithPlayers(game);
                             playerSocket.emit('queue_matched', {
@@ -1503,6 +1508,7 @@ function attachSocketHandlers(io, log) {
                 } else {
                     // Player queued — broadcast status to ALL waiters and set timeout
                     socket.data.queueKey = result.queueKey;
+                    socket.data.username = cleanUsername;
 
                     // Notify every player in this queue of the updated status
                     const waiters = matchmaking.getWaiters(result.queueKey);
@@ -1588,6 +1594,7 @@ function attachSocketHandlers(io, log) {
                             socket.data.gameId = cpuGameId;
                             socket.data.playerId = 'player1';
                             socket.data.queueKey = undefined;
+                            socket.data.username = cleanUsername;
 
                             await persistGame(cpuGame, 'playing');
 

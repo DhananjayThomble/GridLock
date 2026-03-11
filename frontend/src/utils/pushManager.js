@@ -23,7 +23,7 @@ async function getVapidPublicKey() {
     }
 }
 
-export async function subscribeToPush(username) {
+export async function subscribeToPush(username, socketId) {
     const key = await getVapidPublicKey();
     if (!key) return null;
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
@@ -44,7 +44,7 @@ export async function subscribeToPush(username) {
     const res = await fetch(`${API_BASE}/api/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, subscription: subscription.toJSON() }),
+        body: JSON.stringify({ username, subscription: subscription.toJSON(), socketId }),
     });
 
     if (!res.ok) {
