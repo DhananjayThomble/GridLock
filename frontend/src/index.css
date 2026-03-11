@@ -185,6 +185,11 @@ textarea::placeholder {
   transition: background-color 0.15s ease;
 }
 
+/* ConnectionOverlay spinner */
+@keyframes connection-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Pulse animation for winner name */
 @keyframes winner-pulse {
   0%, 100% {
