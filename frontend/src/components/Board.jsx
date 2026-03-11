@@ -7,6 +7,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import confetti from 'canvas-confetti';
 import { recordGame } from '../utils/sessionStats';
+import { recordOpponent } from '../utils/recentOpponents';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
@@ -282,6 +283,20 @@ const Board = () => {
           const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+
+          // Record recent opponents (skip CPU players)
+          const pc = gs.playerCount || 2;
+          for (let i = 1; i <= pc; i++) {
+            const pid = `player${i}`;
+            if (pid === role) continue; // skip self
+            if (gs[`${pid}IsCPU`]) continue; // skip CPU
+            const oppName = gs[`${pid}Name`];
+            const oppAvatar = gs[`${pid}Avatar`];
+            if (oppName && !oppName.startsWith('Waiting')) {
+              recordOpponent({ username: oppName, avatar: oppAvatar, outcome });
+            }
+          }
+
           // Win/lose sound
           if (winner === role) sounds.gameWin();
           else if (winner !== 'draw') sounds.gameLose();
