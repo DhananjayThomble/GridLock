@@ -95,21 +95,23 @@ DEPLOY_IN_PROGRESS=false
 
 cleanup_on_interrupt() {
     local exit_code=$?
-    # Always release the lock
-    release_lock
+    set +e  # don't let failing rollback commands abort the handler
 
     if [[ "$DEPLOY_IN_PROGRESS" == true ]]; then
         echo ""
-        log "⚠️  Deploy interrupted (signal received) — initiating rollback"
+        log "⚠️  Deploy interrupted — initiating rollback"
         DEPLOY_IN_PROGRESS=false  # prevent re-entrant trap
         do_rollback_internal
         log "🔄 Rollback after interruption complete"
     fi
 
+    # Release lock AFTER rollback so no concurrent deploy races against it
+    release_lock
+
     exit "${exit_code}"
 }
 
-trap cleanup_on_interrupt INT TERM HUP
+trap cleanup_on_interrupt INT TERM HUP EXIT
 
 # ── Rollback (internal, no lock — called from trap or do_rollback) ──
 do_rollback_internal() {
