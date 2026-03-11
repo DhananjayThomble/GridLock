@@ -12,9 +12,16 @@ const { updateLeaderboardWithOptimisticElo } = require('../services/leaderboardU
 const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../services/cpuPlayer');
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
 const matchmaking = require('../services/matchmaking');
+const { generateBoardFromSeed, getTodayDateStr, getDayNumber } = require('../utils/dailyHelpers');
+const DailyResult = require('../models/DailyResult');
+const DailyChallenge = require('../models/DailyChallenge');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 const RankedProfile = require('../models/RankedProfile');
 const { calculateRankedElo, calculateRankedEloExchange, calculateRankedDrawExchange, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
+
+// Track active daily challenge games: username → gameId
+// Prevents users from starting multiple daily games simultaneously
+const activeDailyGames = new Map();
 
 // Intentionally reduced from 60s → 30s for faster game flow.
 // Players get 30s to reconnect before forfeiting; keeps games moving.
@@ -368,6 +375,51 @@ async function createTournamentMatchGame({ tournament, roundIndex, matchIndex, p
 }
 
 /**
+ * Issue #2: Auto-submit daily challenge result server-side on game_over.
+ * Uses actual game state (scores, moveCount) — no client-supplied data.
+ * Fire-and-forget: errors are logged but don't affect game flow.
+ */
+async function submitDailyChallengeResult(game, log) {
+    if (!game.metadata?.dailyChallenge) return;
+
+    const player1 = game.players?.player1;
+    if (!player1 || player1.isCPU) return;
+
+    const username = player1.username;
+    const score = game.gameState?.scores?.player1 || 0;
+    const moveCount = game.gameState?.moveCount || 0;
+    const duration = Math.round((Date.now() - game.createdAt) / 1000);
+    const today = getTodayDateStr();
+
+    // Clean up active daily game tracking
+    activeDailyGames.delete(username);
+
+    try {
+        // Check for duplicate submission
+        const existing = await DailyResult.findOne({ date: today, username });
+        if (existing) {
+            log.info('Daily result already submitted', { username, date: today });
+            return;
+        }
+
+        await DailyResult.create({
+            date: today,
+            username,
+            score,
+            moves: moveCount,
+            duration,
+            completedAt: new Date(),
+        });
+
+        log.info('Daily challenge result auto-submitted', { username, score, moves: moveCount, duration });
+    } catch (err) {
+        // Duplicate key is fine — means result was already saved
+        if (err.code === 11000) return;
+        throw err;
+    }
+}
+
+/**
  * Auto-submit game results to the leaderboard after a game ends.
  * Runs fire-and-forget (errors are logged but don't affect game flow).
  *
@@ -609,7 +661,12 @@ function scheduleCPUMove(io, log, gameId, delay) {
                 return;
             }
 
+            // Preserve moveCount across state replacement
+            const prevMoveCount = game.gameState.moveCount;
             game.gameState = newState;
+            if (typeof prevMoveCount === 'number') {
+                game.gameState.moveCount = prevMoveCount + 1;
+            }
 
             // Record CPU move in history for replay
             if (!game.moveHistory) game.moveHistory = [];
@@ -629,8 +686,13 @@ function scheduleCPUMove(io, log, gameId, delay) {
             io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
 
             if (newState.winner) {
-                io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                // Issue #3: include totalMoves in game_over
+                io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
                 updateLeaderboard(game, newState.winner, log);
+                // Issue #2: auto-submit daily challenge result server-side
+                submitDailyChallengeResult(game, log).catch(err =>
+                    log.error('Daily result auto-submit failed (CPU path)', { gameId, error: err.message })
+                );
                 await handleTournamentGameCompletion(io, log, gameId, game, newState.winner);
                 // Defensive cleanup: clear any lingering rematch timer
                 if (rematchTimers.has(gameId)) {
@@ -1184,7 +1246,7 @@ function attachSocketHandlers(io, log) {
                 if (rateLimited('create_game')) return;
                 const validated = validate('create_game', rawPayload);
                 if (!validated) return;
-                const { gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium' } = validated;
+                const { gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium', dailyChallenge = false, dailySeed = null } = validated;
 
                 const uResult = sanitizeUsername(username);
                 if (!uResult.valid) { socket.emit('error', uResult.error); return; }
@@ -1202,9 +1264,60 @@ function attachSocketHandlers(io, log) {
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
 
+                // ── Daily challenge replay protection ────────────────────────
+                const isDailyChallenge = dailyChallenge === true && dailySeed;
+                if (isDailyChallenge) {
+                    // Fix #2: Validate dailySeed matches today's UTC date
+                    const todayStr = getTodayDateStr();
+                    if (dailySeed !== todayStr) {
+                        socket.emit('error', 'Invalid daily challenge seed');
+                        return;
+                    }
+
+                    // Fix #1: Check if user already completed today's challenge
+                    const existingResult = await DailyResult.findOne({ date: todayStr, username: cleanUsername });
+                    if (existingResult) {
+                        socket.emit('error', 'Already completed today\'s challenge');
+                        return;
+                    }
+
+                    // Fix #1: Check if user already has an active daily game
+                    if (activeDailyGames.has(cleanUsername)) {
+                        socket.emit('error', 'You already have an active daily challenge game');
+                        return;
+                    }
+                }
+
                 const gameId = await generateUniqueGameId();
                 if (!gameId) { socket.emit('error', 'Failed to generate game ID. Please try again.'); return; }
                 const initialState = initializeGameState(gridResult.value, pcResult.value);
+
+                // Issue #3: add moveCount tracker to game state
+                initialState.moveCount = 0;
+
+                // Issue #1: server-side board generation for daily challenges
+                // Never trust client board — generate from seed server-side
+                if (isDailyChallenge) {
+                    const board = generateBoardFromSeed(dailySeed, gridResult.value);
+                    // Apply pre-drawn lines onto initial state
+                    // Pre-drawn lines use 1/0; game state uses playerId/null
+                    // Mark pre-drawn lines as 'predrawn' so they don't count as player moves
+                    for (let r = 0; r < board.predrawnH.length; r++) {
+                        for (let c = 0; c < board.predrawnH[r].length; c++) {
+                            if (board.predrawnH[r][c] === 1) {
+                                initialState.horizontalLines[r][c] = 'predrawn';
+                            }
+                        }
+                    }
+                    for (let r = 0; r < board.predrawnV.length; r++) {
+                        for (let c = 0; c < board.predrawnV[r].length; c++) {
+                            if (board.predrawnV[r][c] === 1) {
+                                initialState.verticalLines[r][c] = 'predrawn';
+                            }
+                        }
+                    }
+                }
+
                 const sessionToken = generateSessionToken();
 
                 const game = {
@@ -1223,7 +1336,11 @@ function attachSocketHandlers(io, log) {
                     },
                     gameState: initialState,
                     createdAt: Date.now(),
-                    metadata: { reconnectWindowMs: DISCONNECT_TIMEOUT_MS },
+                    metadata: {
+                        reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
+                        // Issue #1: track daily challenge metadata for server-side result submission
+                        ...(isDailyChallenge ? { dailyChallenge: true, dailySeed } : {}),
+                    },
                     cpuDifficulty: cpuCount > 0 ? cleanDifficulty : null,
                 };
 
@@ -1246,6 +1363,11 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = gameId;
                 socket.data.playerId = 'player1';
                 socket.data.username = cleanUsername;
+
+                // Track active daily challenge game
+                if (isDailyChallenge) {
+                    activeDailyGames.set(cleanUsername, gameId);
+                }
 
                 const filled = countFilledPlayers(game);
                 const isFull = filled === game.playerCount;
@@ -1482,7 +1604,12 @@ function attachSocketHandlers(io, log) {
                 const newState = calculateNewState(game.gameState, game.gridSize, r, c, type);
                 if (newState.error) { socket.emit('error', newState.error); return; }
 
+                // Preserve moveCount across state replacement (calculateNewState doesn't carry it)
+                const prevMoveCount = game.gameState.moveCount;
                 game.gameState = newState;
+                if (typeof prevMoveCount === 'number') {
+                    game.gameState.moveCount = prevMoveCount + 1;
+                }
 
                 // Record move in history for replay
                 if (!game.moveHistory) game.moveHistory = [];
@@ -1503,9 +1630,14 @@ function attachSocketHandlers(io, log) {
                 io.to(cleanGameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
 
                 if (newState.winner) {
-                    io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores });
+                    // Issue #3: include totalMoves in game_over
+                    io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
+                    // Issue #2: auto-submit daily challenge result server-side
+                    submitDailyChallengeResult(game, log).catch(err =>
+                        log.error('Daily result auto-submit failed', { gameId: cleanGameId, error: err.message })
+                    );
                     await handleTournamentGameCompletion(io, log, cleanGameId, game, newState.winner);
                     // Ranked game ELO update (pass io for socket emission + handle draws)
                     if (rankedGameMap.has(cleanGameId)) {
@@ -2201,6 +2333,16 @@ function attachSocketHandlers(io, log) {
             matchmaking.leaveQueue(socket.id);
             removeFromRankedQueue(socket.id);
 
+            // Clean up active daily challenge tracking for this user
+            if (socket.data?.username && activeDailyGames.get(socket.data.username)) {
+                const dailyGameId = activeDailyGames.get(socket.data.username);
+                const dailyGame = await gameStore.getGame(dailyGameId);
+                // Only clean up if the game hasn't finished (result not yet submitted)
+                if (dailyGame && !dailyGame.gameState?.winner) {
+                    activeDailyGames.delete(socket.data.username);
+                }
+            }
+
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
                 if (!player) return;
@@ -2387,4 +2529,5 @@ module.exports._internal = {
     rankedQueueIndex,
     rankedGameMap,
     removeFromRankedQueue,
+    activeDailyGames,
 };

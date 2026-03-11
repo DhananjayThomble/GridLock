@@ -23,6 +23,9 @@ const schemas = {
         playerCount: playerCountField,
         cpuPlayers: Joi.number().integer().min(0).max(3).optional().default(0),
         cpuDifficulty: Joi.string().valid('easy', 'medium', 'hard').optional().default('medium'),
+        // Issue #1: daily challenge fields — server generates board from seed, never trusts client board
+        dailyChallenge: Joi.boolean().optional().default(false),
+        dailySeed: Joi.string().trim().max(20).optional().allow('', null),
     }),
 
     join_game: Joi.object({
