@@ -3,147 +3,36 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
+const rateLimit = require('express-rate-limit');
 const DailyChallenge = require('../models/DailyChallenge');
 const DailyResult = require('../models/DailyResult');
 const { sanitizeUsername } = require('../utils/sanitize');
+const {
+  LAUNCH_DATE,
+  DEFAULT_GRID_SIZE,
+  getTodayDateStr,
+  getDayNumber,
+  seededRng,
+  dateSeed,
+  generateBoardFromSeed,
+} = require('../utils/dailyHelpers');
 
-// ── Constants ────────────────────────────────────────────────────────────────
-const LAUNCH_DATE = '2026-03-01'; // Day 1 of daily challenges
-const DEFAULT_GRID_SIZE = 3;
+// ── Rate limiters ────────────────────────────────────────────────────────────
+
+// Issue #6: rate limit result submission — max 5 per minute per IP
+const resultRateLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests. Please try again later.' },
+});
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Get today's date string in YYYY-MM-DD (UTC).
- */
-function getTodayDateStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/**
- * Calculate day number from launch date.
- * @param {string} dateStr - YYYY-MM-DD
- * @returns {number} Day number (1-indexed)
- */
-function getDayNumber(dateStr) {
-  const launch = new Date(LAUNCH_DATE + 'T00:00:00Z');
-  const target = new Date(dateStr + 'T00:00:00Z');
-  const diffMs = target - launch;
-  return Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
-}
-
-/**
- * Seeded pseudo-random number generator (mulberry32).
- * Deterministic: same seed → same sequence.
- * @param {number} seed
- * @returns {function} Returns float in [0,1)
- */
-function seededRng(seed) {
-  let t = seed >>> 0;
-  return function () {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
- * Convert a date string to a numeric seed.
- * @param {string} dateStr - YYYY-MM-DD
- * @returns {number}
- */
-function dateSeed(dateStr) {
-  let hash = 0;
-  for (let i = 0; i < dateStr.length; i++) {
-    hash = ((hash << 5) - hash + dateStr.charCodeAt(i)) | 0;
-  }
-  return hash;
-}
-
-/**
- * Generate a deterministic board layout from a seed.
- * Returns arrays of pre-drawn horizontal and vertical lines.
- * Same seed always produces the same board.
- * @param {string} dateStr - YYYY-MM-DD
- * @param {number} gridSize
- * @returns {{ predrawnH: number[][], predrawnV: number[][] }}
- */
-function generateBoardFromSeed(dateStr, gridSize) {
-  const rng = seededRng(dateSeed(dateStr));
-  const rows = gridSize;
-  const cols = gridSize;
-
-  // Total possible lines
-  const totalH = (rows + 1) * cols;
-  const totalV = rows * (cols + 1);
-  const totalLines = totalH + totalV;
-
-  // Pre-draw ~15-25% of lines to create an interesting starting position
-  const predrawnCount = Math.floor(totalLines * (0.15 + rng() * 0.10));
-
-  // Build flat array of all line indices, shuffle, pick first N
-  const allIndices = Array.from({ length: totalLines }, (_, i) => i);
-  // Fisher-Yates shuffle with seeded RNG
-  for (let i = allIndices.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
-  }
-  const predrawnSet = new Set(allIndices.slice(0, predrawnCount));
-
-  // Map back to grid positions
-  const predrawnH = Array(rows + 1)
-    .fill(null)
-    .map(() => Array(cols).fill(0));
-  const predrawnV = Array(rows)
-    .fill(null)
-    .map(() => Array(cols + 1).fill(0));
-
-  let idx = 0;
-  for (let r = 0; r <= rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (predrawnSet.has(idx)) predrawnH[r][c] = 1;
-      idx++;
-    }
-  }
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c <= cols; c++) {
-      if (predrawnSet.has(idx)) predrawnV[r][c] = 1;
-      idx++;
-    }
-  }
-
-  // Post-process: remove any pre-drawn lines that would complete a box
-  // (we want pre-drawn lines to set up the board, not score points)
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const sides = [
-          predrawnH[r][c],
-          predrawnH[r + 1][c],
-          predrawnV[r][c],
-          predrawnV[r][c + 1],
-        ];
-        if (sides.every((s) => s === 1)) {
-          // Box is complete — remove a random side
-          const sideIdx = Math.floor(rng() * 4);
-          if (sideIdx === 0) predrawnH[r][c] = 0;
-          else if (sideIdx === 1) predrawnH[r + 1][c] = 0;
-          else if (sideIdx === 2) predrawnV[r][c] = 0;
-          else predrawnV[r][c + 1] = 0;
-          changed = true;
-        }
-      }
-    }
-  }
-
-  return { predrawnH, predrawnV };
-}
-
-/**
  * Get or create today's challenge document.
+ * Uses findOneAndUpdate + upsert to avoid race conditions (Issue #4).
  * @param {string} [dateStr] - Optional date override
  * @returns {Promise<Object>}
  */
@@ -151,16 +40,12 @@ async function getOrCreateChallenge(dateStr) {
   const date = dateStr || getTodayDateStr();
   const dayNumber = getDayNumber(date);
 
-  let challenge = await DailyChallenge.findOne({ date });
-  if (!challenge) {
-    const seed = date; // Use date string as the canonical seed
-    challenge = await DailyChallenge.create({
-      date,
-      seed,
-      gridSize: DEFAULT_GRID_SIZE,
-      dayNumber,
-    });
-  }
+  // Issue #4: atomic upsert — no race condition on concurrent requests
+  const challenge = await DailyChallenge.findOneAndUpdate(
+    { date },
+    { $setOnInsert: { seed: date, gridSize: DEFAULT_GRID_SIZE, dayNumber } },
+    { upsert: true, new: true }
+  );
   return challenge;
 }
 
@@ -188,6 +73,7 @@ const leaderboardQuerySchema = Joi.object({
  * GET /api/daily/today
  * Returns today's challenge info + whether the user already played.
  * Query param: ?username=xxx
+ * Issue #5: seed is NOT returned to the client.
  */
 router.get('/today', async (req, res) => {
   try {
@@ -220,7 +106,7 @@ router.get('/today', async (req, res) => {
         date: challenge.date,
         dayNumber: challenge.dayNumber,
         gridSize: challenge.gridSize,
-        seed: challenge.seed,
+        // Issue #5: seed removed — only send board, date, dayNumber, gridSize
         board,
       },
       alreadyPlayed,
@@ -243,6 +129,7 @@ router.get('/today', async (req, res) => {
 /**
  * GET /api/daily/leaderboard/:date
  * Paginated leaderboard for a specific date.
+ * Issue #7: fixed percentile calculation for single player.
  */
 router.get('/leaderboard/:date', async (req, res) => {
   try {
@@ -295,13 +182,17 @@ router.get('/leaderboard/:date', async (req, res) => {
               { score: userResult.score, moves: userResult.moves, duration: { $lt: userResult.duration } },
             ],
           });
+          // Issue #7: fixed percentile for single player — Top 1% not Top 100%
+          const percentile = total > 1
+            ? Math.round(((total - rank) / (total - 1)) * 100)
+            : 100;
           userPosition = {
             rank: rank + 1,
             username: userResult.username,
             score: userResult.score,
             moves: userResult.moves,
             duration: userResult.duration,
-            percentile: total > 0 ? Math.round(((total - rank) / total) * 100) : 100,
+            percentile,
           };
         }
       }
@@ -325,9 +216,12 @@ router.get('/leaderboard/:date', async (req, res) => {
 /**
  * POST /api/daily/result
  * Submit a daily challenge result.
- * Validates: not already submitted, date matches today.
+ * Issue #6: rate limited.
+ * Issue #2: This endpoint is now a fallback — primary submission happens
+ * server-side via socketHandlers on game_over. The rate limiter + validation
+ * keep this endpoint safe as a secondary path.
  */
-router.post('/result', async (req, res) => {
+router.post('/result', resultRateLimiter, async (req, res) => {
   try {
     const { error: vErr, value } = resultSchema.validate(req.body);
     if (vErr) {
@@ -376,7 +270,10 @@ router.post('/result', async (req, res) => {
       ],
     });
     const total = await DailyResult.countDocuments({ date });
-    const percentile = total > 0 ? Math.round(((total - rank) / total) * 100) : 100;
+    // Issue #7: fixed percentile for single player
+    const percentile = total > 1
+      ? Math.round(((total - rank) / (total - 1)) * 100)
+      : 100;
 
     // Get challenge info for day number
     const challenge = await getOrCreateChallenge(date);
@@ -412,6 +309,7 @@ router.post('/result', async (req, res) => {
 /**
  * GET /api/daily/streak/:username
  * Returns current streak, best streak, and badges.
+ * Issue #9: safety cap of 400 on streak query.
  */
 router.get('/streak/:username', async (req, res) => {
   try {
@@ -421,8 +319,10 @@ router.get('/streak/:username', async (req, res) => {
     }
 
     const username = san.value;
+    // Issue #9: limit query to 400 results to prevent fetching unbounded data
     const results = await DailyResult.find({ username })
       .sort({ date: -1 })
+      .limit(400)
       .select('date')
       .lean();
 
@@ -496,12 +396,15 @@ router.get('/streak/:username', async (req, res) => {
   }
 });
 
-// Export helpers for testing
+// Issue #8: clean module.exports — router as default, helpers under _test
 module.exports = router;
-module.exports.getDayNumber = getDayNumber;
-module.exports.seededRng = seededRng;
-module.exports.dateSeed = dateSeed;
-module.exports.generateBoardFromSeed = generateBoardFromSeed;
-module.exports.getOrCreateChallenge = getOrCreateChallenge;
-module.exports.getTodayDateStr = getTodayDateStr;
-module.exports.LAUNCH_DATE = LAUNCH_DATE;
+module.exports._test = {
+  getDayNumber,
+  seededRng,
+  dateSeed,
+  generateBoardFromSeed,
+  getOrCreateChallenge,
+  getTodayDateStr,
+  LAUNCH_DATE,
+  DEFAULT_GRID_SIZE,
+};

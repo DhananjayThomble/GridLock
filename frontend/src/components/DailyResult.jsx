@@ -2,48 +2,16 @@
 // Results page after completing daily challenge — score, rank, percentile, share, leaderboard
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiUrl, formatCountdown, getStars, formatDuration } from '../utils/daily';
 
-const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_SOCKET_URL ||
-  ''
-).replace(/\/$/, '');
-
-const apiUrl = (path) => `${API_BASE}${path}`;
-
-/** Countdown timer formatting */
-const formatCountdown = (ms) => {
-  if (ms <= 0) return '00:00:00';
-  const totalSec = Math.floor(ms / 1000);
-  const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-  const s = String(totalSec % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-};
-
-/** Star rating based on score percentage */
-const getStars = (score, gridSize) => {
-  const totalBoxes = gridSize * gridSize;
-  if (totalBoxes === 0) return 1;
-  const pct = score / totalBoxes;
-  if (pct > 0.66) return 3;
-  if (pct >= 0.33) return 2;
-  return 1;
-};
-
-const formatDuration = (seconds) => {
-  if (!seconds && seconds !== 0) return '—';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-};
-
-const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, onBack }) => {
+const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, countdownTarget: initialTarget, onBack }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [userPosition, setUserPosition] = useState(null);
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState(initialCountdown || 0);
+  // Issue #10: use target time for drift-free countdown
+  const [countdownTarget] = useState(() => initialTarget || (Date.now() + (initialCountdown || 0)));
 
   const gridSize = challenge?.gridSize || 3;
   const totalBoxes = gridSize * gridSize;
@@ -77,16 +45,18 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, o
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  // Countdown timer
+  // Issue #10: drift-free countdown — compute from target time each tick
   useEffect(() => {
-    if (countdown <= 0) return;
+    if (!countdownTarget) return;
     const interval = setInterval(() => {
-      setCountdown((prev) => Math.max(0, prev - 1000));
+      const remaining = Math.max(0, countdownTarget - Date.now());
+      setCountdown(remaining);
+      if (remaining <= 0) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
-  }, [countdown]);
+  }, [countdownTarget]);
 
-  // Share result
+  // Issue #14: share text format — "GridLock Daily #N: X/Y boxes in Z moves ⭐⭐⭐"
   const handleShare = async () => {
     const text = `GridLock Daily #${dayNumber}: ${result.score}/${totalBoxes} boxes in ${result.moves} moves ${starStr}\n\ngridlock.snapurl.in`;
 
@@ -115,9 +85,12 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, o
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-md">
-        {/* Header */}
+        {/* Issue #12: use CSS variables for theme-aware gradient */}
         <div className="text-center mb-6">
-          <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent leading-tight">
+          <h1
+            className="text-4xl sm:text-5xl font-extrabold bg-clip-text text-transparent leading-tight"
+            style={{ backgroundImage: 'linear-gradient(to right, var(--warning), var(--danger))' }}
+          >
             Daily #{dayNumber}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--label-color)' }}>

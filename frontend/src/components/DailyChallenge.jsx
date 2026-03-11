@@ -5,25 +5,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { initAudio } from '../utils/sounds';
+import { apiUrl, formatCountdown } from '../utils/daily';
 import DailyResult from './DailyResult';
-
-const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_SOCKET_URL ||
-  ''
-).replace(/\/$/, '');
-
-const apiUrl = (path) => `${API_BASE}${path}`;
-
-/** Countdown timer formatting */
-const formatCountdown = (ms) => {
-  if (ms <= 0) return '00:00:00';
-  const totalSec = Math.floor(ms / 1000);
-  const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-  const s = String(totalSec % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
-};
 
 const DailyChallenge = () => {
   const [username] = useState(() => localStorage.getItem('gridlock_username') || '');
@@ -38,6 +21,8 @@ const DailyChallenge = () => {
   const [countdown, setCountdown] = useState(0);
   const [streak, setStreak] = useState(null);
   const [starting, setStarting] = useState(false);
+  // Issue #10: store target UTC midnight time for drift-free countdown
+  const [countdownTarget, setCountdownTarget] = useState(null);
   const startTimeRef = useRef(null);
   const navigate = useNavigate();
 
@@ -52,6 +37,9 @@ const DailyChallenge = () => {
         setChallenge(data.challenge);
         setAlreadyPlayed(data.alreadyPlayed);
         setExistingResult(data.existingResult);
+        // Issue #10: compute target time from server-provided offset
+        const target = Date.now() + (data.nextPuzzleIn || 0);
+        setCountdownTarget(target);
         setCountdown(data.nextPuzzleIn);
       } else {
         setError(data.error || 'Failed to load challenge');
@@ -82,25 +70,23 @@ const DailyChallenge = () => {
     fetchStreak();
   }, [fetchChallenge, fetchStreak]);
 
-  // Countdown timer
+  // Issue #10: drift-free countdown timer — always compute from target time
   useEffect(() => {
-    if (countdown <= 0) return;
+    if (!countdownTarget) return;
     const interval = setInterval(() => {
-      setCountdown((prev) => {
-        const next = prev - 1000;
-        if (next <= 0) {
-          clearInterval(interval);
-          // Refresh challenge at midnight
-          fetchChallenge();
-          return 0;
-        }
-        return next;
-      });
+      const remaining = Math.max(0, countdownTarget - Date.now());
+      setCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+        fetchChallenge();
+      }
     }, 1000);
     return () => clearInterval(interval);
-  }, [countdown, fetchChallenge]);
+  }, [countdownTarget, fetchChallenge]);
 
   // Listen for game completion
+  // Issue #2: server now auto-submits results, but we still listen for daily_result
+  // or use the game_over totalMoves from server
   useEffect(() => {
     const onGameOver = async (data) => {
       if (!playing) return;
@@ -109,31 +95,42 @@ const DailyChallenge = () => {
       const endTime = Date.now();
       const duration = Math.round((endTime - startTimeRef.current) / 1000);
       const myScore = data.scores?.player1 || 0;
+      // Issue #3: server now provides totalMoves
       const totalMoves = data.totalMoves || 0;
 
-      // Submit result
+      // Issue #2: server auto-submits, but we fetch the result for display
       try {
-        const res = await fetch(apiUrl('/api/daily/result'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username,
+        const res = await fetch(apiUrl(`/api/daily/today?username=${encodeURIComponent(username)}`));
+        const freshData = await res.json();
+        if (freshData.success && freshData.existingResult) {
+          setGameResult({
+            ...freshData.existingResult,
+            dayNumber: challenge?.dayNumber,
+          });
+          setAlreadyPlayed(true);
+          fetchStreak();
+        } else {
+          // Fallback: construct result from game_over data
+          setGameResult({
             score: myScore,
             moves: totalMoves,
             duration,
-            date: challenge.date,
-          }),
-        });
-        const result = await res.json();
-        if (result.success) {
-          setGameResult(result.result);
+            dayNumber: challenge?.dayNumber,
+            date: challenge?.date,
+          });
           setAlreadyPlayed(true);
-          fetchStreak(); // Refresh streak
-        } else {
-          setError(result.error || 'Failed to submit result');
+          fetchStreak();
         }
       } catch {
-        setError('Failed to submit result');
+        // Fallback display
+        setGameResult({
+          score: myScore,
+          moves: totalMoves,
+          duration,
+          dayNumber: challenge?.dayNumber,
+          date: challenge?.date,
+        });
+        setAlreadyPlayed(true);
       }
     };
 
@@ -150,7 +147,8 @@ const DailyChallenge = () => {
     setStarting(true);
     startTimeRef.current = Date.now();
 
-    // Create a CPU game with the seeded board
+    // Issue #1 & #4: only send dailyChallenge + dailySeed — no dailyBoard
+    // Server generates board from seed server-side
     socket.emit(
       'create_game',
       {
@@ -161,8 +159,7 @@ const DailyChallenge = () => {
         cpuPlayers: 1,
         cpuDifficulty: 'hard',
         dailyChallenge: true,
-        dailySeed: challenge.seed,
-        dailyBoard: challenge.board,
+        dailySeed: challenge.date,
       },
       (res) => {
         setStarting(false);
@@ -183,8 +180,6 @@ const DailyChallenge = () => {
               sessionToken: res.sessionToken,
               cpuDifficulty: 'hard',
               dailyChallenge: true,
-              dailySeed: challenge.seed,
-              dailyBoard: challenge.board,
             },
           });
         }
@@ -204,6 +199,7 @@ const DailyChallenge = () => {
         challenge={challenge}
         streak={streak}
         countdown={countdown}
+        countdownTarget={countdownTarget}
         onBack={() => navigate('/')}
       />
     );
@@ -240,9 +236,12 @@ const DailyChallenge = () => {
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-md">
-        {/* Header */}
+        {/* Issue #12: use CSS variables for theme-aware gradient instead of hardcoded Tailwind colors */}
         <div className="text-center mb-6">
-          <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent leading-tight">
+          <h1
+            className="text-4xl sm:text-5xl font-extrabold bg-clip-text text-transparent leading-tight"
+            style={{ backgroundImage: 'linear-gradient(to right, var(--warning), var(--danger))' }}
+          >
             Daily Challenge
           </h1>
           <p className="text-sm mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>
