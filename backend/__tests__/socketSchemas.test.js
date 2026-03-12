@@ -210,4 +210,46 @@ describe('validatePayload', () => {
       expect(result.valid).toBe(false);
     });
   });
+
+  describe('game_chat', () => {
+    test('accepts valid game_chat payload', () => {
+      const result = validatePayload('game_chat', {
+        gameId: 'ABC123',
+        content: 'Hello! 👋',
+      });
+      expect(result.valid).toBe(true);
+      expect(result.value.gameId).toBe('ABC123');
+      expect(result.value.content).toBe('Hello! 👋');
+    });
+
+    test('rejects missing gameId', () => {
+      const result = validatePayload('game_chat', { content: 'Hello! 👋' });
+      expect(result.valid).toBe(false);
+    });
+
+    test('rejects missing content', () => {
+      const result = validatePayload('game_chat', { gameId: 'ABC123' });
+      expect(result.valid).toBe(false);
+    });
+
+    test('rejects empty content', () => {
+      const result = validatePayload('game_chat', { gameId: 'ABC123', content: '' });
+      expect(result.valid).toBe(false);
+    });
+
+    test('rejects content exceeding max length', () => {
+      const result = validatePayload('game_chat', { gameId: 'ABC123', content: 'A'.repeat(51) });
+      expect(result.valid).toBe(false);
+    });
+
+    test('accepts emoji content', () => {
+      const result = validatePayload('game_chat', { gameId: 'ABC123', content: '😂' });
+      expect(result.valid).toBe(true);
+    });
+
+    test('rejects invalid gameId format', () => {
+      const result = validatePayload('game_chat', { gameId: '!@#$%', content: 'Hello! 👋' });
+      expect(result.valid).toBe(false);
+    });
+  });
 });

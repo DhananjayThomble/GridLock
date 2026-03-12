@@ -18,6 +18,7 @@ const DailyChallenge = require('../models/DailyChallenge');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 const RankedProfile = require('../models/RankedProfile');
 const { calculateRankedElo, calculateRankedEloExchange, calculateRankedDrawExchange, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
+const { ALLOWED_QUICK_MESSAGES, ALLOWED_EMOJIS, ALLOWED_CHAT_CONTENT } = require('../constants/chatConstants');
 
 // Track active daily challenge games: username → gameId
 // Prevents users from starting multiple daily games simultaneously
@@ -63,6 +64,38 @@ const inviteSenderLimiter = {
         }
         tracker.count++;
         return tracker.count <= this._maxPerWindow;
+    },
+    cleanup(socketId) {
+        this._trackers.delete(socketId);
+    },
+};
+
+// #216: Chat rate limiter — max 1 msg per 2s, max 10 per minute per socket
+const chatRateLimiter = {
+    // Map<socketId, { timestamps: number[] }>
+    _trackers: new Map(),
+    _minIntervalMs: 2000,
+    _maxPerMinute: 10,
+    _windowMs: 60_000,
+    allow(socketId, _now) {
+        const now = _now || Date.now();
+        let tracker = this._trackers.get(socketId);
+        if (!tracker) {
+            tracker = { timestamps: [] };
+            this._trackers.set(socketId, tracker);
+        }
+        // Prune timestamps older than 1 minute
+        tracker.timestamps = tracker.timestamps.filter(t => now - t < this._windowMs);
+        // Check min interval
+        if (tracker.timestamps.length > 0 && now - tracker.timestamps[tracker.timestamps.length - 1] < this._minIntervalMs) {
+            return false;
+        }
+        // Check per-minute cap
+        if (tracker.timestamps.length >= this._maxPerMinute) {
+            return false;
+        }
+        tracker.timestamps.push(now);
+        return true;
     },
     cleanup(socketId) {
         this._trackers.delete(socketId);
@@ -2331,11 +2364,81 @@ function attachSocketHandlers(io, log) {
             socket.emit('ranked_queue_left', {});
         });
 
+        // ── game_chat (in-game quick chat & emoji reactions — #216) ────────────
+        socket.on('game_chat', async (rawPayload) => {
+            try {
+                if (rateLimited('game_chat')) return;
+                const validated = validate('game_chat', rawPayload);
+                if (!validated) return;
+                const { gameId, content } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                // Validate content is from allowlist
+                if (!ALLOWED_CHAT_CONTENT.has(content)) {
+                    socket.emit('error', 'Invalid chat message');
+                    return;
+                }
+
+                // Load game
+                let game = await gameStore.getGame(cleanGameId);
+                if (!game) {
+                    game = await loadGameFromDB(cleanGameId, log);
+                    if (!game) { socket.emit('error', 'Game not found'); return; }
+                }
+
+                // Game-over guard: reject chat after game has ended
+                if (game.gameState?.winner || game.gameState?.gameOver) {
+                    socket.emit('error', 'Game has ended');
+                    return;
+                }
+
+                // Spectators cannot send
+                if (socket.data?.isSpectator) {
+                    socket.emit('error', 'Spectators cannot send chat messages');
+                    return;
+                }
+
+                // Verify player is in the game
+                const playerId = findPlayerBySocket(game, socket.id);
+                if (!playerId) {
+                    socket.emit('error', 'You are not a player in this game');
+                    return;
+                }
+
+                // Chat-specific rate limit: 1 per 2s, 10 per minute
+                if (!chatRateLimiter.allow(socket.id)) {
+                    socket.emit('error', 'Chat rate limited. Please slow down.');
+                    return;
+                }
+
+                const player = game.players[playerId];
+                const playerIndex = parseInt(playerId.replace('player', ''), 10) - 1;
+                const type = ALLOWED_EMOJIS.includes(content) ? 'emoji' : 'quick';
+
+                io.to(cleanGameId).emit('game_chat_received', {
+                    playerId,
+                    username: player.username,
+                    avatar: player.avatar,
+                    playerIndex,
+                    type,
+                    content,
+                    timestamp: Date.now(),
+                });
+            } catch (error) {
+                log.error('Error processing game_chat', { error: error.message });
+                socket.emit('error', 'Failed to send chat message');
+            }
+        });
+
         // ── disconnect ─────────────────────────────────────────────────────────
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
             socketLimiter.cleanup(socket.id);
             inviteSenderLimiter.cleanup(socket.id);
+            chatRateLimiter.cleanup(socket.id);
             matchmaking.leaveQueue(socket.id);
             removeFromRankedQueue(socket.id);
 
@@ -2536,4 +2639,5 @@ module.exports._internal = {
     rankedGameMap,
     removeFromRankedQueue,
     activeDailyGames,
+    chatRateLimiter,
 };
