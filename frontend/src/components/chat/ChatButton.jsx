@@ -16,10 +16,8 @@ const ChatButton = ({ onClick, disabled, cooldown }) => {
     <button
       onClick={onClick}
       disabled={disabled}
-      className="chat-button fixed z-40 flex items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-90"
+      className="chat-button chat-button-position fixed z-40 flex items-center justify-center rounded-full shadow-lg transition-all duration-200 active:scale-90"
       style={{
-        bottom: '80px',
-        right: '16px',
         width: '48px',
         height: '48px',
         backgroundColor: cooldown ? 'var(--bg-surface)' : 'var(--accent)',

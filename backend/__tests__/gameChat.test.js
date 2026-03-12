@@ -2,21 +2,7 @@
 // Unit tests for in-game quick chat & emoji reactions (#216)
 
 const { validatePayload } = require('../middleware/socketSchemas');
-
-const ALLOWED_QUICK_MESSAGES = [
-    'Good Luck! 🍀', 'GG! 🤝', 'Hello! 👋',
-    'Nice Move! 👍', 'Oops! 😬', 'Wow! 😮', 'No Way! 😲',
-    'Too Easy 😎', 'Better Luck Next Time!', "You're Trapped! 🕸️",
-    'Well Played! 👏', 'Good Game!', 'Close One! 😅',
-    'Thinking... 🤔', 'Hurry Up! ⏰', 'One More! 🔄',
-];
-
-const ALLOWED_EMOJIS = [
-    '😂', '🔥', '💀', '👏', '😱', '🎉', '😤', '🤯',
-    '💪', '🏆', '😭', '❤️', '👀', '🤝', '😈',
-];
-
-const ALLOWED_CHAT_CONTENT = new Set([...ALLOWED_QUICK_MESSAGES, ...ALLOWED_EMOJIS]);
+const { ALLOWED_QUICK_MESSAGES, ALLOWED_EMOJIS, ALLOWED_CHAT_CONTENT } = require('../constants/chatConstants');
 
 describe('game_chat schema validation', () => {
     test('accepts valid quick messages', () => {
@@ -86,13 +72,9 @@ describe('game_chat content allowlist', () => {
 });
 
 describe('chatRateLimiter', () => {
-    // Note: The chat rate limiter bypasses in test mode (NODE_ENV=test).
-    // These tests validate the limiter logic directly by temporarily overriding NODE_ENV.
-
     let chatRateLimiter;
 
     beforeAll(() => {
-        // require after the module is defined
         chatRateLimiter = require('../controllers/socketHandlers')._internal.chatRateLimiter;
     });
 
@@ -106,17 +88,48 @@ describe('chatRateLimiter', () => {
     });
 
     test('cleanup removes tracker for socket', () => {
-        // In test mode allow() always returns true, but cleanup should still work
-        chatRateLimiter.allow('test-socket');
+        chatRateLimiter.allow('test-socket', 1000);
         chatRateLimiter.cleanup('test-socket');
-        // No error means cleanup works
-        expect(true).toBe(true);
+        // After cleanup, next allow should succeed (fresh tracker)
+        expect(chatRateLimiter.allow('test-socket', 2000)).toBe(true);
     });
 
-    test('allow returns true in test mode (rate limiting bypassed)', () => {
-        // NODE_ENV is 'test' during jest runs, so allow() should always return true
-        expect(chatRateLimiter.allow('test-socket')).toBe(true);
-        expect(chatRateLimiter.allow('test-socket')).toBe(true);
-        expect(chatRateLimiter.allow('test-socket')).toBe(true);
+    test('first message is allowed', () => {
+        expect(chatRateLimiter.allow('test-socket', 1000)).toBe(true);
+    });
+
+    test('immediate second message is rate-limited (within 2s interval)', () => {
+        expect(chatRateLimiter.allow('test-socket', 1000)).toBe(true);
+        // Same timestamp — within 2s min interval
+        expect(chatRateLimiter.allow('test-socket', 1000)).toBe(false);
+        // 1s later — still within 2s
+        expect(chatRateLimiter.allow('test-socket', 2000)).toBe(false);
+    });
+
+    test('message after cooldown passes', () => {
+        expect(chatRateLimiter.allow('test-socket', 1000)).toBe(true);
+        // Wait 2001ms (past the 2s min interval)
+        expect(chatRateLimiter.allow('test-socket', 3001)).toBe(true);
+    });
+
+    test('per-minute cap (10 messages) is enforced', () => {
+        let now = 10000;
+        for (let i = 0; i < 10; i++) {
+            expect(chatRateLimiter.allow('test-socket', now)).toBe(true);
+            now += 2100; // space them out past min interval
+        }
+        // 11th message within the minute window should fail
+        expect(chatRateLimiter.allow('test-socket', now)).toBe(false);
+    });
+
+    test('messages allowed again after window expires', () => {
+        let now = 10000;
+        for (let i = 0; i < 10; i++) {
+            chatRateLimiter.allow('test-socket', now);
+            now += 2100;
+        }
+        // Jump past 60s window
+        now = 10000 + 61000;
+        expect(chatRateLimiter.allow('test-socket', now)).toBe(true);
     });
 });

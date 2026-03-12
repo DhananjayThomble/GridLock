@@ -1,5 +1,9 @@
 // frontend/src/components/chat/chatConstants.js
 // Quick chat & emoji constants for in-game chat (#216)
+//
+// ⚠️  Canonical source: backend/constants/chatConstants.js
+// Keep these lists in sync with the backend allowlist.
+// The server validates all messages against its copy.
 
 export const QUICK_MESSAGES = [
   // Greetings

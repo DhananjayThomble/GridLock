@@ -18,6 +18,7 @@ const DailyChallenge = require('../models/DailyChallenge');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
 const RankedProfile = require('../models/RankedProfile');
 const { calculateRankedElo, calculateRankedEloExchange, calculateRankedDrawExchange, getTierFromElo, PLACEMENT_GAMES_REQUIRED, COOLDOWN_DURATION_MS } = require('../models/RankedProfile');
+const { ALLOWED_QUICK_MESSAGES, ALLOWED_EMOJIS, ALLOWED_CHAT_CONTENT } = require('../constants/chatConstants');
 
 // Track active daily challenge games: username → gameId
 // Prevents users from starting multiple daily games simultaneously
@@ -76,9 +77,8 @@ const chatRateLimiter = {
     _minIntervalMs: 2000,
     _maxPerMinute: 10,
     _windowMs: 60_000,
-    allow(socketId) {
-        if (process.env.NODE_ENV === 'test') return true;
-        const now = Date.now();
+    allow(socketId, _now) {
+        const now = _now || Date.now();
         let tracker = this._trackers.get(socketId);
         if (!tracker) {
             tracker = { timestamps: [] };
@@ -2365,19 +2365,6 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── game_chat (in-game quick chat & emoji reactions — #216) ────────────
-        const ALLOWED_QUICK_MESSAGES = [
-            'Good Luck! 🍀', 'GG! 🤝', 'Hello! 👋',
-            'Nice Move! 👍', 'Oops! 😬', 'Wow! 😮', 'No Way! 😲',
-            'Too Easy 😎', 'Better Luck Next Time!', "You're Trapped! 🕸️",
-            'Well Played! 👏', 'Good Game!', 'Close One! 😅',
-            'Thinking... 🤔', 'Hurry Up! ⏰', 'One More! 🔄',
-        ];
-        const ALLOWED_EMOJIS = [
-            '😂', '🔥', '💀', '👏', '😱', '🎉', '😤', '🤯',
-            '💪', '🏆', '😭', '❤️', '👀', '🤝', '😈',
-        ];
-        const ALLOWED_CHAT_CONTENT = new Set([...ALLOWED_QUICK_MESSAGES, ...ALLOWED_EMOJIS]);
-
         socket.on('game_chat', async (rawPayload) => {
             try {
                 if (rateLimited('game_chat')) return;
@@ -2400,6 +2387,12 @@ function attachSocketHandlers(io, log) {
                 if (!game) {
                     game = await loadGameFromDB(cleanGameId, log);
                     if (!game) { socket.emit('error', 'Game not found'); return; }
+                }
+
+                // Game-over guard: reject chat after game has ended
+                if (game.gameState?.winner || game.gameState?.gameOver) {
+                    socket.emit('error', 'Game has ended');
+                    return;
                 }
 
                 // Spectators cannot send

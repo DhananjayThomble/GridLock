@@ -610,12 +610,31 @@ button:active:not(:disabled) {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Chat button positioning — use CSS class instead of hardcoded inline values */
+.chat-button-position {
+  bottom: calc(var(--bottom-bar-height, 64px) + 16px);
+  right: 16px;
+}
+
+/* Base styles for message buttons (moved from inline to enable hover without !important) */
+.chat-msg-btn {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
 .chat-msg-btn:hover {
-  background-color: var(--bg-card-hover) !important;
-  border-color: var(--accent) !important;
+  background-color: var(--bg-card-hover);
+  border-color: var(--accent);
+}
+
+/* Base styles for emoji buttons */
+.chat-emoji-btn {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
 }
 
 .chat-emoji-btn:hover {
-  background-color: var(--bg-card-hover) !important;
+  background-color: var(--bg-card-hover);
   transform: scale(1.15);
 }

@@ -26,20 +26,27 @@ const ChatOverlay = ({ socket, gameId }) => {
   useEffect(() => {
     if (!socket || !gameId) return;
 
+    // Reset bubbles for a fresh game (handles rematch / gameId change).
+    // This is in the subscription callback (not synchronous in the effect body).
+    const currentGameId = gameId;
+
     const onChatReceived = (data) => {
       const newBubble = {
         ...data,
         id: `chat-${++idCounter.current}`,
+        gameId: currentGameId,
       };
 
       setBubbles((prev) => {
+        // Drop stale bubbles from a previous game
+        const current = prev.filter((b) => b.gameId === currentGameId);
         // Filter to keep max per player
-        const playerBubbles = prev.filter((b) => b.playerIndex === data.playerIndex);
-        let updated = prev;
+        const playerBubbles = current.filter((b) => b.playerIndex === data.playerIndex);
+        let updated = current;
         if (playerBubbles.length >= MAX_BUBBLES_PER_PLAYER) {
           // Remove oldest bubble for this player
           const oldestId = playerBubbles[0].id;
-          updated = prev.filter((b) => b.id !== oldestId);
+          updated = current.filter((b) => b.id !== oldestId);
         }
         return [...updated, newBubble];
       });
@@ -51,9 +58,12 @@ const ChatOverlay = ({ socket, gameId }) => {
     };
   }, [socket, gameId]);
 
+  // Filter to only show bubbles for the current game
+  const activeBubbles = bubbles.filter((b) => b.gameId === gameId);
+
   // Group bubbles by playerIndex
   const grouped = {};
-  for (const bubble of bubbles) {
+  for (const bubble of activeBubbles) {
     const idx = bubble.playerIndex ?? 0;
     if (!grouped[idx]) grouped[idx] = [];
     grouped[idx].push(bubble);

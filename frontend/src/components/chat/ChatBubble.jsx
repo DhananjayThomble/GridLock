@@ -1,7 +1,7 @@
 // frontend/src/components/chat/ChatBubble.jsx
 // Floating chat bubble that appears near a player's avatar (#216)
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 const PLAYER_COLORS = [
   'var(--player1-color)',
@@ -13,6 +13,9 @@ const PLAYER_COLORS = [
 const ChatBubble = ({ message, onExpire }) => {
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // Ref to avoid stale closure if parent re-creates onExpire without useCallback
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => { onExpireRef.current = onExpire; }, [onExpire]);
 
   useEffect(() => {
     // Trigger enter animation
@@ -23,7 +26,7 @@ const ChatBubble = ({ message, onExpire }) => {
 
     // Remove after exit animation
     const removeTimer = setTimeout(() => {
-      if (onExpire) onExpire(message.id);
+      if (onExpireRef.current) onExpireRef.current(message.id);
     }, 3500);
 
     return () => {
@@ -31,7 +34,7 @@ const ChatBubble = ({ message, onExpire }) => {
       clearTimeout(exitTimer);
       clearTimeout(removeTimer);
     };
-  }, [message.id, onExpire]);
+  }, [message.id]);
 
   const isEmoji = message.type === 'emoji';
   const playerColor = PLAYER_COLORS[message.playerIndex] || PLAYER_COLORS[0];
