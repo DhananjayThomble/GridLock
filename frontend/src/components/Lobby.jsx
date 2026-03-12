@@ -116,9 +116,13 @@ const Lobby = () => {
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
   const navigate = useNavigate();
 
+  // Ref to track which action is in progress — used by onError to route errors (#211)
+  const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
+
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
+      activeActionRef.current = null;
       setCreating(false);
       navigate('/game', {
         state: { username, gridSize, gameId: gid, role: playerId, avatar: selectedAvatar, playerCount, sessionToken },
@@ -126,11 +130,23 @@ const Lobby = () => {
     };
 
     const onError = (msg) => {
+      const errorMsg = typeof msg === 'string' ? msg : 'Something went wrong';
+      const action = activeActionRef.current;
+      activeActionRef.current = null;
+
+      // Route error to the correct field based on which action triggered it (#211)
+      if (action === 'joinTournament' || action === 'createTournament') {
+        setTournamentIdError(errorMsg);
+      } else if (action === 'join') {
+        setGameIdError(errorMsg);
+      } else {
+        setUsernameError(errorMsg);
+      }
+
       setCreating(false);
       setJoining(false);
       setCreatingTournament(false);
       setJoiningTournament(false);
-      setUsernameError(typeof msg === 'string' ? msg : 'Something went wrong');
     };
 
     socket.on('game_created', onCreated);
