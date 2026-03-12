@@ -87,6 +87,22 @@ describe('sanitizeUsername', () => {
     expect(sanitizeUsername('日本語')).toMatchObject({ valid: true });
   });
 
+  test('accepts Devanagari and other scripts with combining marks', () => {
+    // Devanagari uses combining vowel signs (\\p{M}) e.g. हिन्दी
+    expect(sanitizeUsername('हिन्दी')).toMatchObject({ valid: true, value: 'हिन्दी' });
+    // Thai with combining tone marks
+    expect(sanitizeUsername('สวัสดี')).toMatchObject({ valid: true, value: 'สวัสดี' });
+    // Arabic with harakat (combining marks)
+    expect(sanitizeUsername('مُحَمَّد')).toMatchObject({ valid: true, value: 'مُحَمَّد' });
+  });
+
+  test('accepts latin text with combining accents', () => {
+    // café with combining acute accent (U+0301) vs precomposed é
+    expect(sanitizeUsername('cafe\u0301')).toMatchObject({ valid: true });
+    // Precomposed form should also work (matched by \\p{L})
+    expect(sanitizeUsername('café')).toMatchObject({ valid: true });
+  });
+
   test('strips HTML tags but keeps text around them', () => {
     const result = sanitizeUsername('hello<b>world</b>');
     expect(result.valid).toBe(true);

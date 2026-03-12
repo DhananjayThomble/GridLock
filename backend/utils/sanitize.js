@@ -35,17 +35,15 @@ function sanitizeUsername(input) {
         return { valid: false, value: '', error: 'Username contains invalid characters' };
     }
 
-    // Allowlist: unicode letters, numbers, spaces, hyphens, underscores, emoji
+    // Allowlist: unicode letters, numbers, combining marks, spaces, hyphens, underscores, emoji
+    // \p{M} covers combining marks (vowel signs, viramas, tone marks) for Devanagari, Thai, Arabic, etc.
     // Uses Emoji_Presentation only (not \p{Emoji} which also matches #, *, ©, ® etc.)
-    const allowlistPattern = /^[\p{L}\p{N}\p{Emoji_Presentation}\s\-_]+$/u;
+    const allowlistPattern = /^[\p{L}\p{N}\p{M}\p{Emoji_Presentation}\s\-_]+$/u;
     if (!allowlistPattern.test(cleaned)) {
         return { valid: false, value: '', error: 'Username contains invalid characters' };
     }
 
     // Length check (truncate BEFORE escape to avoid splitting HTML entities)
-    if (cleaned.length === 0) {
-        return { valid: false, value: '', error: 'Username cannot be empty' };
-    }
     if (cleaned.length > 20) {
         cleaned = cleaned.substring(0, 20);
     }
