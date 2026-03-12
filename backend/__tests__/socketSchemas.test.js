@@ -252,4 +252,28 @@ describe('validatePayload', () => {
       expect(result.valid).toBe(false);
     });
   });
+
+  describe('get_tournament_state', () => {
+    test('accepts valid tournament state request', () => {
+      const result = validatePayload('get_tournament_state', { tournamentId: 'T12345' });
+      expect(result.valid).toBe(true);
+      expect(result.value.tournamentId).toBe('T12345');
+    });
+
+    test('rejects missing tournamentId', () => {
+      const result = validatePayload('get_tournament_state', {});
+      expect(result.valid).toBe(false);
+    });
+
+    test('rejects invalid tournamentId format', () => {
+      const result = validatePayload('get_tournament_state', { tournamentId: 'bad' });
+      expect(result.valid).toBe(false);
+    });
+
+    test('trims and accepts whitespace-padded tournamentId', () => {
+      const result = validatePayload('get_tournament_state', { tournamentId: ' T12345 ' });
+      expect(result.valid).toBe(true);
+      expect(result.value.tournamentId).toBe('T12345');
+    });
+  });
 });
