@@ -19,13 +19,31 @@ function sanitizeUsername(input) {
 
     let cleaned = input.trim();
 
-    // Remove control characters and HTML-escape dangerous symbols
+    // Remove control characters
     cleaned = validator.stripLow(cleaned, /* keep_newlines */ false);
-    cleaned = validator.escape(cleaned); // escape &, <, >, ", '
 
-    // Unescape safe chars back (emoji, unicode letters are fine after escape)
-    // Actually, we want the escaped version stored server-side.
-    // The frontend should render escaped text safely.
+    // Check empty after trim + stripLow (pure whitespace/control chars)
+    if (cleaned.length === 0) {
+        return { valid: false, value: '', error: 'Username cannot be empty' };
+    }
+
+    // Strip ALL HTML tags BEFORE escaping — reject script/img/etc. entirely
+    cleaned = cleaned.replace(/<[^>]*>/g, '');
+
+    // If stripping tags left nothing, the input was purely malicious
+    if (cleaned.length === 0) {
+        return { valid: false, value: '', error: 'Username contains invalid characters' };
+    }
+
+    // Allowlist: unicode letters, numbers, spaces, hyphens, underscores, emoji
+    // Reject anything that doesn't match (e.g. &, ;, protocol strings)
+    const allowlistPattern = /^[\p{L}\p{N}\p{Emoji_Presentation}\p{Emoji}\s\-_]+$/u;
+    if (!allowlistPattern.test(cleaned)) {
+        return { valid: false, value: '', error: 'Username contains invalid characters' };
+    }
+
+    // Defense-in-depth: escape any remaining dangerous chars
+    cleaned = validator.escape(cleaned);
 
     // Length check
     if (cleaned.length === 0) {
