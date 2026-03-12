@@ -2,29 +2,8 @@
 
 const { expect } = require('@playwright/test');
 
-// ---------------------------------------------------------------------------
-// Environment config — mirrors playwright.config.js ENV_CONFIGS
-// ---------------------------------------------------------------------------
-const ENV_CONFIGS = {
-  local: {
-    baseURL:   process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta',
-    apiURL:    process.env.CI ? 'http://127.0.0.1:5000' : 'http://127.0.0.1:5105',
-    socketURL: process.env.CI ? 'http://127.0.0.1:5000' : 'http://127.0.0.1:5105',
-  },
-  beta: {
-    baseURL:   'https://beta-gridlock.snapurl.in',
-    apiURL:    'https://gridlock-api.snapurl.in',
-    socketURL: 'https://gridlock-api.snapurl.in',
-  },
-  prod: {
-    baseURL:   'https://gridlock.snapurl.in',
-    apiURL:    'https://gridlock-api.snapurl.in',
-    socketURL: 'https://gridlock-api.snapurl.in',
-  },
-};
-
-const TEST_ENV = (process.env.TEST_ENV || 'local').toLowerCase();
-const envCfg   = ENV_CONFIGS[TEST_ENV] || ENV_CONFIGS.local;
+// Environment config — single source of truth in env-config.js
+const { envCfg } = require('./env-config');
 
 const BASE_URL = process.env.TEST_BASE_URL || envCfg.baseURL;
 
