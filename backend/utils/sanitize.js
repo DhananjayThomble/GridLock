@@ -36,22 +36,22 @@ function sanitizeUsername(input) {
     }
 
     // Allowlist: unicode letters, numbers, spaces, hyphens, underscores, emoji
-    // Reject anything that doesn't match (e.g. &, ;, protocol strings)
-    const allowlistPattern = /^[\p{L}\p{N}\p{Emoji_Presentation}\p{Emoji}\s\-_]+$/u;
+    // Uses Emoji_Presentation only (not \p{Emoji} which also matches #, *, ©, ® etc.)
+    const allowlistPattern = /^[\p{L}\p{N}\p{Emoji_Presentation}\s\-_]+$/u;
     if (!allowlistPattern.test(cleaned)) {
         return { valid: false, value: '', error: 'Username contains invalid characters' };
     }
 
-    // Defense-in-depth: escape any remaining dangerous chars
-    cleaned = validator.escape(cleaned);
-
-    // Length check
+    // Length check (truncate BEFORE escape to avoid splitting HTML entities)
     if (cleaned.length === 0) {
         return { valid: false, value: '', error: 'Username cannot be empty' };
     }
     if (cleaned.length > 20) {
         cleaned = cleaned.substring(0, 20);
     }
+
+    // Defense-in-depth: escape any remaining dangerous chars
+    cleaned = validator.escape(cleaned);
 
     return { valid: true, value: cleaned };
 }

@@ -73,6 +73,15 @@ describe('sanitizeUsername', () => {
     expect(result.value).toContain('Player');
   });
 
+  test('rejects ASCII symbols that old \\p{Emoji} matched (#, *, ©, ®)', () => {
+    expect(sanitizeUsername('#')).toMatchObject({ valid: false });
+    expect(sanitizeUsername('*')).toMatchObject({ valid: false });
+    expect(sanitizeUsername('#hashtag')).toMatchObject({ valid: false });
+    expect(sanitizeUsername('***')).toMatchObject({ valid: false });
+    expect(sanitizeUsername('©')).toMatchObject({ valid: false });
+    expect(sanitizeUsername('®')).toMatchObject({ valid: false });
+  });
+
   test('accepts unicode letters', () => {
     expect(sanitizeUsername('Ñoño')).toMatchObject({ valid: true });
     expect(sanitizeUsername('日本語')).toMatchObject({ valid: true });
