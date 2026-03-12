@@ -1273,6 +1273,82 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── get_tournament_state ──────────────────────────────────────────────
+        // Issue #214: The 4th player joining a tournament may miss the
+        // tournament_game_assigned event because their TournamentLobby
+        // component hasn't mounted its listener yet.  This handler lets
+        // the client query the current tournament state on mount so it
+        // can recover missed game assignments.
+        socket.on('get_tournament_state', async (rawPayload) => {
+            try {
+                if (rateLimited('get_tournament_state')) return;
+                const validated = validate('get_tournament_state', rawPayload);
+                if (!validated) return;
+                const { tournamentId: rawTid } = validated;
+
+                const tidResult = sanitizeTournamentId(rawTid);
+                if (!tidResult.valid) { socket.emit('error', tidResult.error); return; }
+                const cleanTournamentId = tidResult.value;
+
+                const tournament = tournaments.get(cleanTournamentId);
+                if (!tournament) { socket.emit('error', 'Tournament not found'); return; }
+
+                // Find the requesting player in the tournament by socket id
+                const participant = tournament.participants.find((p) => p.socketId === socket.id);
+                if (!participant) {
+                    // Not a participant — just send the snapshot
+                    socket.emit('tournament_update', { tournament: buildTournamentSnapshot(tournament) });
+                    return;
+                }
+
+                // If tournament hasn't started yet, send current state
+                if (tournament.status === 'waiting') {
+                    socket.emit('tournament_update', { tournament: buildTournamentSnapshot(tournament) });
+                    return;
+                }
+
+                // Tournament is in progress or finished — check if this player
+                // has a pending game assignment they may have missed
+                const playerUsername = participant.username;
+
+                for (const round of tournament.rounds) {
+                    for (const match of round.matches) {
+                        if (!match.gameId) continue;
+                        if (match.winner) continue; // game already finished
+                        if (match.player1 !== playerUsername && match.player2 !== playerUsername) continue;
+
+                        // Found a match for this player — look up the game to get session details
+                        const game = await gameStore.getGame(match.gameId);
+                        if (!game) continue;
+
+                        // Find which playerId slot this user occupies
+                        for (let i = 1; i <= game.playerCount; i++) {
+                            const pid = `player${i}`;
+                            const player = game.players[pid];
+                            if (player && player.username === playerUsername) {
+                                // Re-emit the assignment to this socket only
+                                socket.emit('tournament_game_assigned', {
+                                    tournamentId: cleanTournamentId,
+                                    gameId: match.gameId,
+                                    playerId: pid,
+                                    sessionToken: player.token,
+                                    gridSize: tournament.gridSize,
+                                    playerCount: 2,
+                                });
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // No pending game assignment — just send the tournament snapshot
+                socket.emit('tournament_update', { tournament: buildTournamentSnapshot(tournament) });
+            } catch (error) {
+                log.error('Error handling get_tournament_state', { error: error.message });
+                socket.emit('error', 'Failed to get tournament state');
+            }
+        });
+
         // ── create_game ────────────────────────────────────────────────────────
         socket.on('create_game', async (rawPayload, callback) => {
             try {

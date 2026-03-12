@@ -73,6 +73,11 @@ const TournamentLobby = () => {
     socket.on('tournament_joined', onTournamentUpdate);
     socket.on('error', onError);
 
+    // Issue #214: Query current tournament state on mount to catch missed
+    // game assignments. If the tournament started before this component
+    // mounted its listeners, the server will re-emit the assignment.
+    socket.emit('get_tournament_state', { tournamentId });
+
     return () => {
       socket.off('tournament_update', onTournamentUpdate);
       socket.off('tournament_game_assigned', onTournamentGameAssigned);

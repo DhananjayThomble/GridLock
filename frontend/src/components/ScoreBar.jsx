@@ -13,7 +13,7 @@ import React from 'react';
  * @param {string} currentPlayer - ID of the current player
  */
 const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectatorCount }) => {
-  const totalTiles = (gridSize - 1) * (gridSize - 1);
+  const totalTiles = gridSize * gridSize;
   // On mobile with 3-4 players, split into two rows of 2
   const splitIntoRows = players.length > 2;
 
@@ -37,7 +37,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1">
             {players.map((player) => {
               const score = scores?.[player.id] || 0;
-              const percentage = totalTiles > 0 ? (score / totalTiles) * 100 : 0;
+              const percentage = totalTiles > 0 ? Math.min((score / totalTiles) * 100, 100) : 0;
               const isCurrent = currentPlayer === player.id;
 
               return (
@@ -95,7 +95,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
           <div className="flex flex-col gap-1.5">
             {players.map((player) => {
               const score = scores?.[player.id] || 0;
-              const percentage = totalTiles > 0 ? (score / totalTiles) * 100 : 0;
+              const percentage = totalTiles > 0 ? Math.min((score / totalTiles) * 100, 100) : 0;
               const isCurrent = currentPlayer === player.id;
 
               return (
