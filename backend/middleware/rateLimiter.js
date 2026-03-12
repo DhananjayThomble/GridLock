@@ -170,10 +170,15 @@ class IPRateLimiter {
         this.trackers = new Map();
         this.maxTrackerSize = maxTrackerSize;
 
+        // IP-based limits are intentionally higher than per-socket limits because
+        // multiple legitimate users (e.g. household, office, university) share a
+        // single public IP.  Previous values (create_game: 5, queue_join: 3) were
+        // too aggressive and caused false-positive rate limiting during normal
+        // gameplay and automated testing.  See GitHub issue #203.
         this.limits = {
-            queue_join:        { maxPerWindow: 3, windowMs: 60_000 },   // 3 queue_join/min per IP
-            create_game:       { maxPerWindow: 5, windowMs: 60_000 },   // 5 create_game/min per IP
-            create_tournament: { maxPerWindow: 2, windowMs: 60_000 },   // 2 tournament creates/min per IP
+            queue_join:        { maxPerWindow: 10, windowMs: 60_000 },  // 10 queue_join/min per IP
+            create_game:       { maxPerWindow: 15, windowMs: 60_000 },  // 15 create_game/min per IP
+            create_tournament: { maxPerWindow: 2,  windowMs: 60_000 },  // 2 tournament creates/min per IP
         };
     }
 
