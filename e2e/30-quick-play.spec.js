@@ -4,8 +4,7 @@
 const { test, expect } = require('@playwright/test');
 const { goToLobby, BASE_URL } = require('./helpers');
 
-const BASE = process.env.TEST_BASE_URL
-  || (process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta');
+const BASE = BASE_URL;
 
 test.describe('Quick Play', () => {
 

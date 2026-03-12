@@ -1,7 +1,7 @@
 // e2e/04-error-cases.spec.js — Error handling and edge cases
 
 const { test, expect } = require('@playwright/test');
-const { goToLobby, BASE_URL } = require('./helpers');
+const { goToLobby, getApiBase, BASE_URL } = require('./helpers');
 
 test.describe('Error Handling & Edge Cases', () => {
 
@@ -71,7 +71,7 @@ test.describe('Error Handling & Edge Cases', () => {
   });
 
   test('health endpoint responds', async ({ request }) => {
-    const resp = await request.get('http://localhost:5000/health');
+    const resp = await request.get(`${getApiBase()}/health`);
     expect(resp.ok()).toBe(true);
     const body = await resp.json();
     expect(body.status).toBe('ok');

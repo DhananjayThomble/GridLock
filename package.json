@@ -6,6 +6,8 @@
   "scripts": {
     "test:e2e": "TEST_BASE_URL=http://localhost/beta npx playwright test --config=playwright.config.js",
     "test:e2e:local": "bash scripts/test-e2e-local.sh",
+    "test:e2e:beta": "TEST_ENV=beta npx playwright test --config=playwright.config.js",
+    "test:e2e:prod": "TEST_ENV=prod npx playwright test --config=playwright.config.js",
     "test:e2e:report": "npx playwright show-report playwright-report",
     "test:e2e:debug": "TEST_BASE_URL=http://localhost/beta npx playwright test --config=playwright.config.js --debug",
     "test:backend": "cd backend && npm test",

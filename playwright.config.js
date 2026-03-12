@@ -18,9 +18,9 @@
 
 const { defineConfig, devices } = require('@playwright/test');
 
-// CI: vite preview at root /:4173 | Local (via test-e2e-local.sh): :4175 | Raw: /beta
-const DEFAULT_URL = process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta';
-const BASE_URL    = process.env.TEST_BASE_URL || DEFAULT_URL;
+// Environment config — imported from e2e/env-config.js (single source of truth)
+const { envCfg } = require('./e2e/env-config');
+const BASE_URL = process.env.TEST_BASE_URL || envCfg.baseURL;
 
 module.exports = defineConfig({
   testDir: './e2e',

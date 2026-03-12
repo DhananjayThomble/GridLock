@@ -2,19 +2,29 @@
 
 const { expect } = require('@playwright/test');
 
-const BASE_URL = process.env.TEST_BASE_URL
-  || (process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta');
+// Environment config — single source of truth in env-config.js
+const { envCfg } = require('./env-config');
+
+const BASE_URL = process.env.TEST_BASE_URL || envCfg.baseURL;
 
 /**
  * API base resolution strategy:
  * 1) Explicit TEST_API_URL wins
- * 2) In CI, default backend is 5000 (see .github/workflows/ci.yml)
- * 3) Local e2e helper script backend is 5105
+ * 2) Otherwise uses env config based on TEST_ENV
  */
 const getApiBase = () => {
   if (process.env.TEST_API_URL) return process.env.TEST_API_URL;
-  if (process.env.CI) return 'http://127.0.0.1:5000';
-  return 'http://127.0.0.1:5105';
+  return envCfg.apiURL;
+};
+
+/**
+ * Socket URL resolution:
+ * 1) Explicit SOCKET_URL wins
+ * 2) Otherwise uses env config based on TEST_ENV
+ */
+const getSocketUrl = () => {
+  if (process.env.SOCKET_URL) return process.env.SOCKET_URL;
+  return envCfg.socketURL;
 };
 
 /**
@@ -202,4 +212,4 @@ async function playToCompletion(pages, maxMoves = 80) {
   return false;
 }
 
-module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, createCpuGame, getApiBase, BASE_URL, playToCompletion };
+module.exports = { goToLobby, createGame, joinGame, waitForGameStart, getTurnState, makeMove, createCpuGame, getApiBase, getSocketUrl, BASE_URL, playToCompletion };
