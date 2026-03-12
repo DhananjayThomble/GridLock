@@ -598,3 +598,24 @@ button:active:not(:disabled) {
   100% { transform: scale(1.05); }
 }
 .winner-avatar-bounce { animation: winner-bounce 0.8s ease-out forwards; }
+
+/* ── Quick Chat (#216) ─────────────────────────────────────────────────── */
+@keyframes chat-btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+@keyframes chat-panel-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.chat-msg-btn:hover {
+  background-color: var(--bg-card-hover) !important;
+  border-color: var(--accent) !important;
+}
+
+.chat-emoji-btn:hover {
+  background-color: var(--bg-card-hover) !important;
+  transform: scale(1.15);
+}

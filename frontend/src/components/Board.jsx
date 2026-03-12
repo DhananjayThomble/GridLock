@@ -13,6 +13,10 @@ import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../u
 import { generateShareText, shareOrCopy } from '../utils/shareResult';
 import useThemeColors from '../hooks/useThemeColors';
 import PostGameStatsCard from './PostGameStatsCard';
+import ChatButton from './chat/ChatButton';
+import ChatPanel from './chat/ChatPanel';
+import ChatOverlay from './chat/ChatOverlay';
+import { RATE_LIMIT_MS } from './chat/chatConstants';
 
 import { countLines } from '../utils/postGameUtils';
 
@@ -119,6 +123,11 @@ const Board = () => {
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
+
+  // ── Quick chat state (#216) ───────────────────────────────────────────────────
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatCooldown, setChatCooldown] = useState(false);
+  const chatCooldownRef = useRef(null);
 
   // ── Post-game stats tracking ──────────────────────────────────────────────────
   const [moveCount, setMoveCount] = useState({});
@@ -528,6 +537,23 @@ const Board = () => {
     initAudio();
     navigate('/');  // router basename handles /beta prefix automatically
   };
+
+  // ── Quick chat handler (#216) ───────────────────────────────────────────────
+  const handleChatSend = useCallback((content) => {
+    if (chatCooldown || isSpectator || !gameState || gameState.gameOver) return;
+    socket.emit('game_chat', { gameId, content });
+    setChatOpen(false);
+    setChatCooldown(true);
+    if (chatCooldownRef.current) clearTimeout(chatCooldownRef.current);
+    chatCooldownRef.current = setTimeout(() => setChatCooldown(false), RATE_LIMIT_MS);
+  }, [chatCooldown, isSpectator, gameState, gameId]);
+
+  // Cleanup cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (chatCooldownRef.current) clearTimeout(chatCooldownRef.current);
+    };
+  }, []);
 
   // ── Share result handler ────────────────────────────────────────────────────
   const handleShareResult = async () => {
@@ -1114,6 +1140,22 @@ const Board = () => {
           ))}
         </div>
         </div>
+
+        {/* ── Quick Chat (#216) ── */}
+        {gameState && !gameState.gameOver && !isSpectator && (
+          <ChatButton
+            onClick={() => setChatOpen((prev) => !prev)}
+            disabled={chatCooldown}
+            cooldown={chatCooldown}
+          />
+        )}
+        {chatOpen && (
+          <ChatPanel
+            onSend={handleChatSend}
+            onClose={() => setChatOpen(false)}
+          />
+        )}
+        <ChatOverlay socket={socket} gameId={gameId} />
 
         {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
         <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
