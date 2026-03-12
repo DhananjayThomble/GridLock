@@ -96,8 +96,8 @@ describe('IPRateLimiter', () => {
     const limiter = new IPRateLimiter();
     const ip = '192.168.1.1';
 
-    // queue_join: 3 per minute
-    for (let i = 0; i < 3; i++) {
+    // queue_join: 10 per minute (raised from 3 in #203)
+    for (let i = 0; i < 10; i++) {
       expect(limiter.allow(ip, 'queue_join')).toBe(true);
     }
     expect(limiter.allow(ip, 'queue_join')).toBe(false);
@@ -106,7 +106,7 @@ describe('IPRateLimiter', () => {
   test('different IPs have independent limits', () => {
     const limiter = new IPRateLimiter();
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 10; i++) {
       limiter.allow('10.0.0.1', 'queue_join');
     }
     expect(limiter.allow('10.0.0.1', 'queue_join')).toBe(false);
@@ -121,7 +121,7 @@ describe('IPRateLimiter', () => {
     const limiter = new IPRateLimiter();
     const ip = '192.168.1.2';
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 15; i++) {
       limiter.allow(ip, 'create_game');
     }
     expect(limiter.allow(ip, 'create_game')).toBe(false);
