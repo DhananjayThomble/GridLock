@@ -12,7 +12,11 @@ const CPU_AUTO_SEC      = QUEUE_TIMEOUT_SEC;
 const PLAYER_OPTIONS = [2, 3, 4];
 
 const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initialQueueSize, username, avatar, onCancel, onPlayCPU }) => {
-  const [selectedPlayerCount, setSelectedPlayerCount] = useState(initialPlayerCount || 2);
+  const [selectedPlayerCount, setSelectedPlayerCount] = useState(() => {
+    // Persist last Quick Play selection across modal open/close (#213)
+    const saved = parseInt(localStorage.getItem('gridlock-quickplay-playerCount'), 10);
+    return saved >= 2 && saved <= 4 ? saved : (initialPlayerCount || 2);
+  });
   const [elapsed, setElapsed] = useState(0);
   const [queueSize, setQueueSize] = useState(initialQueueSize || 1);
   const [queueCounts, setQueueCounts] = useState({}); // per-queueKey counts, e.g. { "2P:3x3": 3, "3P:3x3": 1 }
@@ -71,6 +75,9 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
   const handlePlayerCountChange = useCallback((newCount) => {
     if (newCount === selectedPlayerCountRef.current) return;
     setSelectedPlayerCount(newCount);
+
+    // Persist selection so it survives modal close/reopen (#213)
+    try { localStorage.setItem('gridlock-quickplay-playerCount', String(newCount)); } catch { /* ignore */ }
 
     // Re-queue: leave current queue, rejoin with new player count
     socket.emit('queue_leave');
