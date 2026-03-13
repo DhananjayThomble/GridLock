@@ -8,9 +8,9 @@ set -euo pipefail
 #   ./scripts/deploy-frontend.sh [--dry-run]
 #
 # Environment variables (optional — defaults to production):
-#   VITE_SOCKET_URL    WebSocket URL   (default: https://gridlock-api.snapurl.in)
-#   VITE_API_BASE_URL  API base URL    (default: https://gridlock-api.snapurl.in)
-#   VITE_SITE_URL      Site URL        (default: https://gridlock.snapurl.in)
+#   VITE_SOCKET_URL    WebSocket URL   (default: https://api.gridlock.pro)
+#   VITE_API_BASE_URL  API base URL    (default: https://api.gridlock.pro)
+#   VITE_SITE_URL      Site URL        (default: https://gridlock.pro)
 #
 # Safety: Uses git worktree to avoid checking out gh-pages in the main worktree.
 #         The main worktree stays on its current branch at all times.
@@ -19,7 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORKTREE_DIR="/tmp/gh-pages-deploy"
-CNAME_DOMAIN="gridlock.snapurl.in"
+CNAME_DOMAIN="gridlock.pro"
 GH_PAGES_BRANCH="gh-pages"
 DRY_RUN=false
 
@@ -69,9 +69,9 @@ DEPLOY_COMMIT="$(git rev-parse --short HEAD)"
 DEPLOY_TIMESTAMP="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
 # --- Set build environment vars -----------------------------------------------
-export VITE_SOCKET_URL="${VITE_SOCKET_URL:-https://gridlock-api.snapurl.in}"
-export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://gridlock-api.snapurl.in}"
-export VITE_SITE_URL="${VITE_SITE_URL:-https://gridlock.snapurl.in}"
+export VITE_SOCKET_URL="${VITE_SOCKET_URL:-https://api.gridlock.pro}"
+export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.gridlock.pro}"
+export VITE_SITE_URL="${VITE_SITE_URL:-https://gridlock.pro}"
 export VITE_BASE_PATH="/"
 
 log "Build env: VITE_API_BASE_URL=$VITE_API_BASE_URL"

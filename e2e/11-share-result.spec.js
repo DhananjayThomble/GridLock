@@ -54,7 +54,7 @@ test.describe('Share Result', () => {
     // Verify clipboard content
     const clipboardText = await p1.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toContain('GridLock');
-    expect(clipboardText).toContain('gridlock.snapurl.in');
+    expect(clipboardText).toContain('gridlock.pro');
     expect(clipboardText).toContain('3×3');
 
     // Verify grid dimensions: should have 3 rows of emoji (each row = 3 emoji = 3*2 or 3*1 chars)

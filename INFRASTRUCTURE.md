@@ -106,7 +106,7 @@ The deploy script:
 1. Builds the frontend in the dev worktree (`frontend/`)
 2. Creates a **git worktree** at `/tmp/gh-pages-deploy` for the `gh-pages` branch
 3. Cleans old files and copies the fresh `dist/` output
-4. Adds `CNAME` (`gridlock.snapurl.in`) and `404.html` (SPA routing)
+4. Adds `CNAME` (`gridlock.pro`) and `404.html` (SPA routing)
 5. Commits with deploy message (commit hash + timestamp)
 6. Pushes to `gh-pages`
 7. Removes the worktree

@@ -2,8 +2,8 @@
 //
 // TEST_ENV controls which environment the E2E suite targets:
 //   local (default) — isolated local backend (port 5105 via test-e2e-local.sh)
-//   beta            — https://beta-gridlock.snapurl.in
-//   prod            — https://gridlock.snapurl.in (API: gridlock-api.snapurl.in)
+//   beta            — https://beta.gridlock.pro
+//   prod            — https://gridlock.pro (API: api.gridlock.pro)
 //
 // Explicit TEST_BASE_URL / TEST_API_URL / SOCKET_URL still override if set.
 
@@ -14,14 +14,14 @@ const ENV_CONFIGS = {
     socketURL: process.env.CI ? 'http://127.0.0.1:5000' : 'http://127.0.0.1:5105',
   },
   beta: {
-    baseURL:   'https://beta-gridlock.snapurl.in',
-    apiURL:    'https://beta-gridlock.snapurl.in',
-    socketURL: 'https://beta-gridlock.snapurl.in',
+    baseURL:   'https://beta.gridlock.pro',
+    apiURL:    'https://beta.gridlock.pro',
+    socketURL: 'https://beta.gridlock.pro',
   },
   prod: {
-    baseURL:   'https://gridlock.snapurl.in',
-    apiURL:    'https://gridlock-api.snapurl.in',
-    socketURL: 'https://gridlock-api.snapurl.in',
+    baseURL:   'https://gridlock.pro',
+    apiURL:    'https://api.gridlock.pro',
+    socketURL: 'https://api.gridlock.pro',
   },
 };
 

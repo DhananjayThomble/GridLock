@@ -11,7 +11,7 @@
 const { io } = require('socket.io-client');
 const fs = require('fs');
 
-const URL = process.argv[2] || 'https://gridlock-api.snapurl.in';
+const URL = process.argv[2] || 'https://api.gridlock.pro';
 const REPORT_FILE = process.argv[3] || `/tmp/playtest-advanced-${Date.now()}.json`;
 const report = { scenarios: [], bugs: [], observations: [] };
 const bug = (sev, d, ctx={}) => { report.bugs.push({severity:sev,description:d,context:ctx}); console.log(`🐛[${sev}] ${d}`); };

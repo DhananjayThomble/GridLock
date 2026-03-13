@@ -9,7 +9,7 @@ const { io } = require('socket.io-client');
 const fs = require('fs');
 
 const ROLE = process.argv[2] || 'creator';
-const URL = process.argv[3] || 'https://gridlock-api.snapurl.in';
+const URL = process.argv[3] || 'https://api.gridlock.pro';
 const REPORT_FILE = process.argv[4] || `/tmp/playtest-${ROLE}-${Date.now()}.json`;
 
 const report = { role: ROLE, url: URL, startedAt: new Date().toISOString(), gamesPlayed: 0, gamesCompleted: 0, bugs: [], observations: [], errors: [], gameResults: [] };

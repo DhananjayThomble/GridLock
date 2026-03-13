@@ -25,7 +25,7 @@ while [ $(date +%s) -lt $END_TIME ]; do
   # --- Phase 1: Socket gameplay tests (all combos) ---
   echo ""
   echo "📡 Phase 1: Socket gameplay (36 configs)"
-  node scripts/playtest-agent.js creator https://gridlock-api.snapurl.in "$REPORT_DIR/socket-cycle${CYCLE}.json" 2>&1 | tee "$REPORT_DIR/socket-cycle${CYCLE}.log"
+  node scripts/playtest-agent.js creator https://api.gridlock.pro "$REPORT_DIR/socket-cycle${CYCLE}.json" 2>&1 | tee "$REPORT_DIR/socket-cycle${CYCLE}.log"
   COMPLETED=$(cat "$REPORT_DIR/socket-cycle${CYCLE}.json" 2>/dev/null | jq -r '.gamesCompleted // 0')
   BUGS=$(cat "$REPORT_DIR/socket-cycle${CYCLE}.json" 2>/dev/null | jq -r '.bugs | length // 0')
   echo "  → Completed: $COMPLETED/36, Bugs: $BUGS"
@@ -36,7 +36,7 @@ while [ $(date +%s) -lt $END_TIME ]; do
   # --- Phase 2: Chaos / fuzz testing ---
   echo ""
   echo "🔥 Phase 2: Chaos testing"
-  node scripts/playtest-agent.js chaos https://gridlock-api.snapurl.in "$REPORT_DIR/chaos-cycle${CYCLE}.json" 2>&1 | tee "$REPORT_DIR/chaos-cycle${CYCLE}.log"
+  node scripts/playtest-agent.js chaos https://api.gridlock.pro "$REPORT_DIR/chaos-cycle${CYCLE}.json" 2>&1 | tee "$REPORT_DIR/chaos-cycle${CYCLE}.log"
   CHAOS_BUGS=$(cat "$REPORT_DIR/chaos-cycle${CYCLE}.json" 2>/dev/null | jq -r '.bugs | length // 0')
   echo "  → Chaos bugs: $CHAOS_BUGS"
 
@@ -46,7 +46,7 @@ while [ $(date +%s) -lt $END_TIME ]; do
   # --- Phase 3: Advanced scenarios (edge cases) ---
   echo ""
   echo "🧪 Phase 3: Advanced scenarios"
-  node scripts/playtest-advanced.js https://gridlock-api.snapurl.in "$REPORT_DIR/advanced-cycle${CYCLE}.json" 2>&1 | tee "$REPORT_DIR/advanced-cycle${CYCLE}.log"
+  node scripts/playtest-advanced.js https://api.gridlock.pro "$REPORT_DIR/advanced-cycle${CYCLE}.json" 2>&1 | tee "$REPORT_DIR/advanced-cycle${CYCLE}.log"
   ADV_BUGS=$(cat "$REPORT_DIR/advanced-cycle${CYCLE}.json" 2>/dev/null | jq -r '.bugs | length // 0')
   echo "  → Advanced bugs: $ADV_BUGS"
 
@@ -57,7 +57,7 @@ while [ $(date +%s) -lt $END_TIME ]; do
   echo ""
   echo "🎭 Phase 4: E2E tests against beta"
   cd /home/ubuntu/projects/GridLock
-  TEST_BASE_URL=https://beta-gridlock.snapurl.in SOCKET_URL=https://gridlock-api.snapurl.in npx playwright test --reporter=json 2>"$REPORT_DIR/e2e-cycle${CYCLE}.err" > "$REPORT_DIR/e2e-cycle${CYCLE}.json"
+  TEST_BASE_URL=https://beta.gridlock.pro SOCKET_URL=https://api.gridlock.pro npx playwright test --reporter=json 2>"$REPORT_DIR/e2e-cycle${CYCLE}.err" > "$REPORT_DIR/e2e-cycle${CYCLE}.json"
   E2E_PASS=$(cat "$REPORT_DIR/e2e-cycle${CYCLE}.json" 2>/dev/null | jq '.stats.expected // 0')
   E2E_FAIL=$(cat "$REPORT_DIR/e2e-cycle${CYCLE}.json" 2>/dev/null | jq '.stats.unexpected // 0')
   echo "  → E2E: $E2E_PASS passed, $E2E_FAIL failed"
