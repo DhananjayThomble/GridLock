@@ -3,7 +3,7 @@
 OUT_DIR=${1:-"/tmp/gridlock-visual-qa"}
 mkdir -p "$OUT_DIR"
 BASE="https://gridlock.pro"
-BETA="https://beta-gridlock.pro"
+BETA="https://beta.gridlock.pro"
 
 PAGES=(
   "/"
