@@ -2,8 +2,8 @@
 # Visual QA: Take screenshots of all production pages at multiple viewports
 OUT_DIR=${1:-"/tmp/gridlock-visual-qa"}
 mkdir -p "$OUT_DIR"
-BASE="https://gridlock.snapurl.in"
-BETA="https://beta-gridlock.snapurl.in"
+BASE="https://gridlock.pro"
+BETA="https://beta.gridlock.pro"
 
 PAGES=(
   "/"

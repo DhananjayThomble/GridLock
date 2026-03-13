@@ -1069,7 +1069,7 @@ const Board = () => {
               Share the room code: <strong>{gameId}</strong>
               <button
                 onClick={() => {
-                  const url = `https://gridlock.snapurl.in/join/${gameId}`;
+                  const url = `https://gridlock.pro/join/${gameId}`;
                   navigator.clipboard?.writeText(url).then(() => {
                     setShowCopied(true);
                     setTimeout(() => setShowCopied(false), 2000);

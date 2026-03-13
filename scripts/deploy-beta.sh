@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Auto-deploy develop branch to beta-gridlock.snapurl.in
+# Auto-deploy develop branch to beta-api.gridlock.pro
 # Called by GitHub webhook on develop push
 set -euo pipefail
 
@@ -32,9 +32,9 @@ fi
 cd "$BETA_REPO/frontend"
 npm ci --silent
 VITE_BASE_PATH=/ \
-VITE_SOCKET_URL=https://beta-gridlock.snapurl.in \
-VITE_API_BASE_URL=https://beta-gridlock.snapurl.in \
-VITE_SITE_URL=https://beta-gridlock.snapurl.in \
+VITE_SOCKET_URL=https://beta-api.gridlock.pro \
+VITE_API_BASE_URL=https://beta-api.gridlock.pro \
+VITE_SITE_URL=https://beta.gridlock.pro \
 npm run build --silent
 
 sudo rm -rf "$BETA_WEB"/*
