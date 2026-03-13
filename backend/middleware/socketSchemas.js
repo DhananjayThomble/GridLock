@@ -91,6 +91,16 @@ const schemas = {
     }),
 
     ranked_queue_leave: Joi.object({}),
+
+    get_tournament_state: Joi.object({
+        tournamentId: Joi.string().trim().alphanum().length(6).required(),
+    }),
+
+    // In-game quick chat (#216)
+    game_chat: Joi.object({
+        gameId: gameIdField,
+        content: Joi.string().trim().min(1).max(50).required(),
+    }),
 };
 
 /**

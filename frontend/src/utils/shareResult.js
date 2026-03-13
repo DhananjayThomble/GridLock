@@ -70,7 +70,7 @@ export function generateShareText(gameState, gridSize, playerCount, role, option
   }
 
   lines.push(grid);
-  lines.push('gridlock.snapurl.in');
+  lines.push('gridlock.pro');
 
   return lines.join('\n');
 }

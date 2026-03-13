@@ -75,7 +75,7 @@ test.describe('Invite Links', () => {
 
     // Check clipboard
     const clipText = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipText).toBe(`https://gridlock.snapurl.in/join/${roomCode}`);
+    expect(clipText).toBe(`https://gridlock.pro/join/${roomCode}`);
 
     await ctx.close();
   });

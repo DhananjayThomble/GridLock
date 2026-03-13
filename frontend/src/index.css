@@ -598,3 +598,43 @@ button:active:not(:disabled) {
   100% { transform: scale(1.05); }
 }
 .winner-avatar-bounce { animation: winner-bounce 0.8s ease-out forwards; }
+
+/* ── Quick Chat (#216) ─────────────────────────────────────────────────── */
+@keyframes chat-btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+@keyframes chat-panel-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Chat button positioning — use CSS class instead of hardcoded inline values */
+.chat-button-position {
+  bottom: calc(var(--bottom-bar-height, 64px) + 16px);
+  right: 16px;
+}
+
+/* Base styles for message buttons (moved from inline to enable hover without !important) */
+.chat-msg-btn {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.chat-msg-btn:hover {
+  background-color: var(--bg-card-hover);
+  border-color: var(--accent);
+}
+
+/* Base styles for emoji buttons */
+.chat-emoji-btn {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+}
+
+.chat-emoji-btn:hover {
+  background-color: var(--bg-card-hover);
+  transform: scale(1.15);
+}

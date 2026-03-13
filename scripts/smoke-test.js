@@ -3,7 +3,7 @@
  * smoke-test.js — API-level smoke test for GridLock backend
  *
  * Usage: node scripts/smoke-test.js [base_url]
- * Default: https://gridlock-api.snapurl.in
+ * Default: https://api.gridlock.pro
  *
  * Tests:
  *   1. WebSocket connect via socket.io-client
@@ -16,7 +16,7 @@
 const path = require('path');
 const { io } = require(path.join(__dirname, '..', 'backend', 'node_modules', 'socket.io-client'));
 
-const BASE_URL = process.argv[2] || 'https://gridlock-api.snapurl.in';
+const BASE_URL = process.argv[2] || 'https://api.gridlock.pro';
 const TIMEOUT_MS = 10000;
 
 function fail(msg) {

@@ -30,7 +30,7 @@ router.get('/:gameId/og', async (req, res) => {
         const cleanGameId = gameId.trim().toUpperCase();
         const game = await Game.findOne({ gameId: cleanGameId }).lean();
 
-        const siteUrl = process.env.SITE_URL || 'https://gridlock.snapurl.in';
+        const siteUrl = process.env.SITE_URL || 'https://gridlock.pro';
         const replayUrl = `${siteUrl}/replay/${cleanGameId}`;
 
         if (!game) {

@@ -2,7 +2,7 @@
 # smoke-test.sh — Post-deploy smoke tests for GridLock backend
 #
 # Usage: ./scripts/smoke-test.sh [base_url]
-# Default: https://gridlock-api.snapurl.in
+# Default: https://api.gridlock.pro
 #
 # Runs:
 #   1. Deep health check (GET /health/deep → 200)
@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-BASE_URL="${1:-https://gridlock-api.snapurl.in}"
+BASE_URL="${1:-https://api.gridlock.pro}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PASS=0
 FAIL=0

@@ -46,15 +46,15 @@ jobs:
         env:
           VITE_BASE_PATH: /
           VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
-          # Same backend URL as VITE_SOCKET_URL (both point to https://gridlock-api.snapurl.in)
+          # Same backend URL as VITE_SOCKET_URL (both point to https://api.gridlock.pro)
           VITE_API_BASE_URL: ${{ secrets.VITE_SOCKET_URL }}
-          VITE_SITE_URL: https://gridlock.snapurl.in
+          VITE_SITE_URL: https://gridlock.pro
 
       - name: Assemble Pages artifact
         run: |
           mkdir -p pages-out
           cp -r frontend/dist/. pages-out/
-          echo "gridlock.snapurl.in" > pages-out/CNAME
+          echo "gridlock.pro" > pages-out/CNAME
           cp pages-out/index.html pages-out/404.html
 
       - name: Upload Pages artifact

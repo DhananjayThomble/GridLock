@@ -58,7 +58,7 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, c
 
   // Issue #14: share text format — "GridLock Daily #N: X/Y boxes in Z moves ⭐⭐⭐"
   const handleShare = async () => {
-    const text = `GridLock Daily #${dayNumber}: ${result.score}/${totalBoxes} boxes in ${result.moves} moves ${starStr}\n\ngridlock.snapurl.in`;
+    const text = `GridLock Daily #${dayNumber}: ${result.score}/${totalBoxes} boxes in ${result.moves} moves ${starStr}\n\ngridlock.pro`;
 
     try {
       if (navigator.clipboard?.writeText) {
