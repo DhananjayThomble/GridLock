@@ -71,4 +71,14 @@
 .app-content-with-nav {
   /* Must exceed .app-nav computed height (~3.1rem) to prevent content overlap */
   padding-top: 3.75rem;
+  /* Prevent bottom content from being clipped on small mobile screens (#212) */
+  padding-bottom: 1rem;
+}
+
+@media (max-width: 430px) {
+  .app-content-with-nav {
+    /* Extra bottom padding on small mobile viewports to clear safe areas and
+       prevent nav/content overlap with lobby option buttons (#212) */
+    padding-bottom: 2rem;
+  }
 }

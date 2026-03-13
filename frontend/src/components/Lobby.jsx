@@ -116,9 +116,13 @@ const Lobby = () => {
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
   const navigate = useNavigate();
 
+  // Ref to track which action is in progress — used by onError to route errors (#211)
+  const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
+
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
+      activeActionRef.current = null;
       setCreating(false);
       navigate('/game', {
         state: { username, gridSize, gameId: gid, role: playerId, avatar: selectedAvatar, playerCount, sessionToken },
@@ -126,11 +130,23 @@ const Lobby = () => {
     };
 
     const onError = (msg) => {
+      const errorMsg = typeof msg === 'string' ? msg : 'Something went wrong';
+      const action = activeActionRef.current;
+      activeActionRef.current = null;
+
+      // Route error to the correct field based on which action triggered it (#211)
+      if (action === 'joinTournament' || action === 'createTournament') {
+        setTournamentIdError(errorMsg);
+      } else if (action === 'join') {
+        setGameIdError(errorMsg);
+      } else {
+        setUsernameError(errorMsg);
+      }
+
       setCreating(false);
       setJoining(false);
       setCreatingTournament(false);
       setJoiningTournament(false);
-      setUsernameError(typeof msg === 'string' ? msg : 'Something went wrong');
     };
 
     socket.on('game_created', onCreated);
@@ -144,6 +160,7 @@ const Lobby = () => {
   // ── Socket: tournament events ─────────────────────────────────────────────
   useEffect(() => {
     const onTournamentCreated = ({ tournament }) => {
+      activeActionRef.current = null;
       setCreatingTournament(false);
       navigate('/tournament', {
         state: { tournament, tournamentId: tournament.tournamentId, username: username.trim(), avatar: selectedAvatar },
@@ -151,6 +168,7 @@ const Lobby = () => {
     };
 
     const onTournamentJoined = ({ tournament }) => {
+      activeActionRef.current = null;
       setJoiningTournament(false);
       navigate('/tournament', {
         state: { tournament, tournamentId: tournament.tournamentId, username: username.trim(), avatar: selectedAvatar },
@@ -313,6 +331,7 @@ const Lobby = () => {
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
+    activeActionRef.current = 'createTournament';
     setCreatingTournament(true);
     socket.emit('create_tournament', { username: name, avatar: selectedAvatar, tournamentSize, gridSize: tournamentGridSize });
   };
@@ -326,6 +345,7 @@ const Lobby = () => {
     if (!id) { setTournamentIdError('Please enter a Tournament ID'); return; }
     setTournamentIdError('');
     if (!socket.connected) socket.connect();
+    activeActionRef.current = 'joinTournament';
     setJoiningTournament(true);
     socket.emit('join_tournament', { tournamentId: id, username: name, avatar: selectedAvatar });
   };
@@ -375,9 +395,11 @@ const Lobby = () => {
     const name = username.trim();
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     if (!socket.connected) socket.connect();
+    activeActionRef.current = 'create';
     setCreating(true);
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount: pc, cpuPlayers: pc - 1, cpuDifficulty: 'medium' }, (res) => {
       if (res?.error) {
+        activeActionRef.current = null;
         setCreating(false);
         setUsernameError(res.error);
         return;
@@ -410,6 +432,7 @@ const Lobby = () => {
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
+    activeActionRef.current = 'create';
     setCreating(true);
     localStorage.setItem('gridlock_username', name);
     // Auto-prompt push subscription on first game action
@@ -452,6 +475,7 @@ const Lobby = () => {
     const tokenKey = `gridlock:session:${id}:${name}`;
     const existingToken = localStorage.getItem(tokenKey) || null;
 
+    activeActionRef.current = 'join';
     setJoining(true);
     localStorage.setItem('gridlock_username', name);
     // Auto-prompt push subscription on first game action
