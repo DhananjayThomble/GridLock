@@ -160,6 +160,7 @@ const Lobby = () => {
   // ── Socket: tournament events ─────────────────────────────────────────────
   useEffect(() => {
     const onTournamentCreated = ({ tournament }) => {
+      activeActionRef.current = null;
       setCreatingTournament(false);
       navigate('/tournament', {
         state: { tournament, tournamentId: tournament.tournamentId, username: username.trim(), avatar: selectedAvatar },
@@ -167,6 +168,7 @@ const Lobby = () => {
     };
 
     const onTournamentJoined = ({ tournament }) => {
+      activeActionRef.current = null;
       setJoiningTournament(false);
       navigate('/tournament', {
         state: { tournament, tournamentId: tournament.tournamentId, username: username.trim(), avatar: selectedAvatar },
