@@ -63,7 +63,7 @@ if [ "$SIO_CODE" = "200" ]; then
   SIO_BODY=$(cat /tmp/smoke-socketio.txt 2>/dev/null || echo "")
   # Socket.IO polling responses are prefixed with a length digit, then JSON containing "sid"
   if echo "$SIO_BODY" | grep -q '"sid"'; then
-    SID=$(echo "$SIO_BODY" | grep -oP '"sid":"[^"]*"' | head -1)
+    SID=$(echo "$SIO_BODY" | grep -o '"sid":"[^"]*"' | head -1)
     print_result "pass" "Socket.IO handshake (polling)" "HTTP $SIO_CODE, $SID"
   else
     print_result "fail" "Socket.IO handshake (polling)" "HTTP $SIO_CODE but no sid in response"
@@ -90,6 +90,7 @@ else
     print_result "fail" "WebSocket upgrade" "HTTP $WS_CODE"
   fi
 fi
+rm -f /tmp/smoke-socketio.txt
 echo ""
 
 # --- Summary ---
