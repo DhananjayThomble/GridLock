@@ -13,6 +13,10 @@ const { chooseCPUMove, CPU_NAMES, CPU_AVATARS, CPU_DELAYS } = require('../servic
 const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService');
 const matchmaking = require('../services/matchmaking');
 const { generateBoardFromSeed, getTodayDateStr, getDayNumber } = require('../utils/dailyHelpers');
+
+// Prometheus metrics — safe to require (no-op if module not installed)
+let promMetrics;
+try { promMetrics = require('../lib/metrics').metrics; } catch (_) { promMetrics = null; }
 const DailyResult = require('../models/DailyResult');
 const DailyChallenge = require('../models/DailyChallenge');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');
@@ -721,6 +725,11 @@ function scheduleCPUMove(io, log, gameId, delay) {
             if (newState.winner) {
                 // Issue #3: include totalMoves in game_over
                 io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
+                // Prometheus: record game completion + duration
+                if (promMetrics) {
+                    promMetrics.gamesCompletedTotal.inc();
+                    if (game.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - game.createdAt) / 1000);
+                }
                 updateLeaderboard(game, newState.winner, log);
                 // Issue #2: auto-submit daily challenge result server-side
                 submitDailyChallengeResult(game, log).catch(err =>
@@ -1747,6 +1756,11 @@ function attachSocketHandlers(io, log) {
                 if (newState.winner) {
                     // Issue #3: include totalMoves in game_over
                     io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
+                    // Prometheus: record game completion + duration
+                    if (promMetrics) {
+                        promMetrics.gamesCompletedTotal.inc();
+                        if (game.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - game.createdAt) / 1000);
+                    }
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
                     // Issue #2: auto-submit daily challenge result server-side
@@ -2611,6 +2625,11 @@ function attachSocketHandlers(io, log) {
                             scores: currentGame.gameState.scores,
                             reason: 'opponent_disconnected',
                         });
+                        // Prometheus: record game completion + duration (forfeit)
+                        if (promMetrics) {
+                            promMetrics.gamesCompletedTotal.inc();
+                            if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
+                        }
                         // Fire-and-forget leaderboard update for forfeit
                         updateLeaderboard(currentGame, winner, log);
                         await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
