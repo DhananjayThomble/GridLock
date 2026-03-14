@@ -63,9 +63,21 @@ if [ "$DRY_RUN" = true ]; then
 fi
 
 log "Deploying to $PROD_WEB..."
-sudo rm -rf "$PROD_WEB"/*
-sudo cp -r "$REPO_DIR/frontend/dist/." "$PROD_WEB/"
-sudo chown -R www-data:www-data "$PROD_WEB/"
+TEMP_DEPLOY=$(mktemp -d)
+cp -r "$REPO_DIR/frontend/dist/." "$TEMP_DEPLOY/"
+sudo chown -R www-data:www-data "$TEMP_DEPLOY/"
+sudo rsync -a --delete "$TEMP_DEPLOY/" "$PROD_WEB/"
+rm -rf "$TEMP_DEPLOY"
+
+# --- Smoke check ---------------------------------------------------------------
+log "Running smoke check..."
+HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' https://gridlock.pro/ --max-time 10)
+if [ "$HTTP_CODE" != "200" ]; then
+  log "❌ Smoke check failed — got HTTP $HTTP_CODE"
+  exit 1
+fi
+log "✅ Smoke check passed (HTTP $HTTP_CODE)"
 
 log "✅ Production frontend deployed to $PROD_WEB"
 log "Site: https://gridlock.pro"
+log "Done."
