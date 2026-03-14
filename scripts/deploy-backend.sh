@@ -126,7 +126,12 @@ do_rollback_internal() {
     cd "$PROD_DIR"
     git reset --hard "$prev_commit"
     cd backend && npm ci --omit=dev --silent 2>&1 | tail -3
-    pm2 reload "$PM2_APP" --update-env
+    if pm2 describe "$PM2_APP" > /dev/null 2>&1; then
+        pm2 reload "$PM2_APP" --update-env
+    else
+        pm2 start "$PROD_DIR/ecosystem.config.js" --only "$PM2_APP"
+        pm2 save
+    fi
 
     local code
     code=$(health_check_retry) || true
@@ -213,9 +218,15 @@ do_deploy() {
     log "Installing production dependencies..."
     npm ci --omit=dev --silent 2>&1 | tail -5
 
-    # Reload PM2
-    log "Reloading PM2 app: $PM2_APP"
-    pm2 reload "$PM2_APP" --update-env
+    # Start or reload PM2 (handle first-time bootstrap)
+    log "Starting/reloading PM2 app: $PM2_APP"
+    if pm2 describe "$PM2_APP" > /dev/null 2>&1; then
+        pm2 reload "$PM2_APP" --update-env
+    else
+        log "⚠️  Process not found — starting fresh from ecosystem.config.js"
+        pm2 start "$PROD_DIR/ecosystem.config.js" --only "$PM2_APP"
+        pm2 save
+    fi
 
     # Health check with retry (5 attempts, 2s apart)
     local code
