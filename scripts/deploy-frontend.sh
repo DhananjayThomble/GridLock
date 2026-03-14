@@ -67,7 +67,7 @@ TEMP_DEPLOY=$(mktemp -d)
 cp -r "$REPO_DIR/frontend/dist/." "$TEMP_DEPLOY/"
 sudo chown -R www-data:www-data "$TEMP_DEPLOY/"
 sudo rsync -a --delete "$TEMP_DEPLOY/" "$PROD_WEB/"
-rm -rf "$TEMP_DEPLOY"
+sudo rm -rf "$TEMP_DEPLOY"
 
 # --- Smoke check ---------------------------------------------------------------
 log "Running smoke check..."
