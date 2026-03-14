@@ -1,4 +1,8 @@
 // server.js - Production-ready multiplayer game server (2-4 players)
+
+// Sentry must be initialized before other requires so it can patch modules
+const sentry = require('./lib/sentry');
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,6 +12,7 @@ const helmet = require('helmet');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
 require('dotenv').config();
+const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics');
 
 const socketHandlers = require('./controllers/socketHandlers');
 const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
@@ -50,6 +55,7 @@ app.use((req, res, next) => {
 app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*" }));
 app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
+app.use(metricsMiddleware); // Prometheus HTTP request tracking
 
 // Database Connection
 // In production, MONGO_URI must be explicitly set via PM2 ecosystem config
@@ -76,6 +82,9 @@ app.locals.io = io;
 
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
+let redisPubClient = null;
+let redisSubClient = null;
+
 async function setupRedisAdapter() {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
@@ -84,15 +93,17 @@ async function setupRedisAdapter() {
     }
 
     try {
-        const pubClient = createClient({ url: redisUrl });
-        const subClient = pubClient.duplicate();
+        redisPubClient = createClient({ url: redisUrl });
+        redisSubClient = redisPubClient.duplicate();
 
-        await Promise.all([pubClient.connect(), subClient.connect()]);
-        io.adapter(createAdapter(pubClient, subClient));
+        await Promise.all([redisPubClient.connect(), redisSubClient.connect()]);
+        io.adapter(createAdapter(redisPubClient, redisSubClient));
         redisEnabled = true;
         log.info('Socket.IO Redis adapter enabled');
     } catch (err) {
         log.error('Failed to enable Redis adapter; continuing in single-instance mode', { error: err.message });
+        redisPubClient = null;
+        redisSubClient = null;
     }
 }
 
@@ -146,42 +157,16 @@ app.get('/health', healthLimiter, async (req, res) => {
     });
 });
 
-// Metrics endpoint (Prometheus format)
+// Prometheus metrics endpoint (prom-client format with default + custom metrics)
 app.get('/metrics', healthLimiter, async (req, res) => {
-    const mem = process.memoryUsage();
-    const activeGames = await gameStore.gameCount();
-    const connectedSockets = io.engine?.clientsCount || 0;
-    const uptimeSeconds = Math.round(process.uptime());
-
-    const lines = [
-        '# HELP gridlock_active_games Number of active games',
-        '# TYPE gridlock_active_games gauge',
-        `gridlock_active_games ${activeGames}`,
-        '',
-        '# HELP gridlock_connected_sockets Number of connected sockets',
-        '# TYPE gridlock_connected_sockets gauge',
-        `gridlock_connected_sockets ${connectedSockets}`,
-        '',
-        '# HELP gridlock_memory_rss_bytes Resident set size in bytes',
-        '# TYPE gridlock_memory_rss_bytes gauge',
-        `gridlock_memory_rss_bytes ${mem.rss}`,
-        '',
-        '# HELP gridlock_memory_heap_used_bytes Heap used in bytes',
-        '# TYPE gridlock_memory_heap_used_bytes gauge',
-        `gridlock_memory_heap_used_bytes ${mem.heapUsed}`,
-        '',
-        '# HELP gridlock_memory_heap_total_bytes Heap total in bytes',
-        '# TYPE gridlock_memory_heap_total_bytes gauge',
-        `gridlock_memory_heap_total_bytes ${mem.heapTotal}`,
-        '',
-        '# HELP gridlock_uptime_seconds Server uptime in seconds',
-        '# TYPE gridlock_uptime_seconds gauge',
-        `gridlock_uptime_seconds ${uptimeSeconds}`,
-        '',
-    ];
-
-    res.set('Content-Type', 'text/plain; version=0.0.4').send(lines.join('\n'));
+    // Update point-in-time gauges before scrape
+    metrics.activeGames.set(await gameStore.gameCount());
+    metrics.connectedSockets.set(io.engine?.clientsCount || 0);
+    return metricsEndpoint(req, res);
 });
+
+// Sentry error handler — must be after all routes, before any other error middleware
+app.use(sentry.errorHandler());
 
 // Start server
 const PORT = process.env.PORT || 5000;
@@ -190,3 +175,42 @@ server.listen(PORT, () => {
     log.info('Environment:', process.env.NODE_ENV || 'development');
     log.info('Log level:', LOG_LEVEL);
 });
+
+// ── Graceful shutdown ───────────────────────────────────────────────────────
+async function gracefulShutdown(signal) {
+    log.info(`${signal} received — starting graceful shutdown`);
+
+    // Stop accepting new connections
+    server.close(() => log.info('HTTP server closed'));
+
+    // Close Socket.IO
+    io.close(() => log.info('Socket.IO server closed'));
+
+    // Close Redis adapter clients (if connected)
+    try {
+        if (redisPubClient) await redisPubClient.quit();
+        if (redisSubClient) await redisSubClient.quit();
+        log.info('Redis adapter clients closed');
+    } catch (err) {
+        log.error('Error closing Redis adapter clients:', err.message);
+    }
+
+    // Close MongoDB
+    try {
+        await mongoose.connection.close();
+        log.info('MongoDB connection closed');
+    } catch (err) {
+        log.error('Error closing MongoDB:', err.message);
+    }
+
+    // Flush Sentry events
+    if (sentry.initialized) {
+        await sentry.Sentry.close(2000);
+    }
+
+    log.info('Graceful shutdown complete');
+    process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
