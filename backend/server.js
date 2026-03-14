@@ -180,6 +180,14 @@ server.listen(PORT, () => {
 async function gracefulShutdown(signal) {
     log.info(`${signal} received — starting graceful shutdown`);
 
+    // Hard timeout — force exit if graceful shutdown hangs
+    const SHUTDOWN_TIMEOUT_MS = 10000;
+    const forceExit = setTimeout(() => {
+        log.error('Graceful shutdown timed out — forcing exit');
+        process.exit(1);
+    }, SHUTDOWN_TIMEOUT_MS);
+    forceExit.unref(); // Don't keep event loop alive just for this timer
+
     // Stop accepting new connections
     server.close(() => log.info('HTTP server closed'));
 
