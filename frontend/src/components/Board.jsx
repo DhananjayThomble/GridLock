@@ -19,6 +19,7 @@ import ChatOverlay from './chat/ChatOverlay';
 import { RATE_LIMIT_MS } from './chat/chatConstants';
 
 import { countLines } from '../utils/postGameUtils';
+import { posthog } from '../lib/posthog';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -240,6 +241,7 @@ const Board = () => {
       if (!gameStarted.current) {
         gameStarted.current = true;
         sounds.gameStart();
+        posthog.capture('game_started', { gridSize, playerCount, gameMode: tournamentId ? 'tournament' : 'casual' });
       }
     };
 
@@ -292,6 +294,14 @@ const Board = () => {
           const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+
+          // Analytics: game completed
+          posthog.capture('game_completed', {
+            gridSize: gridSize || 3,
+            playerCount: gs.playerCount || 2,
+            duration: gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null,
+            winner: winner === role ? 'self' : winner === 'draw' ? 'draw' : 'opponent',
+          });
 
           // Record recent opponents (skip CPU players)
           // Known limitations of localStorage-only tracking:
@@ -396,6 +406,9 @@ const Board = () => {
     if (lastJoinKeyRef.current !== joinKey) {
       socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
       lastJoinKeyRef.current = joinKey;
+      if (joinMode === 'spectator') {
+        posthog.capture('spectator_joined', { gameId });
+      }
     }
 
     // Re-join game room on socket reconnect (socket.io assigns new socket.id)
@@ -530,6 +543,7 @@ const Board = () => {
       setRematchRequested(true);
       setRematchFailed(null);
       socket.emit('request_rematch', { gameId, sessionToken });
+      posthog.capture('rematch_accepted');
     }
   };
 
