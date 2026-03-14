@@ -7,10 +7,6 @@ const plugins = [react()];
 
 // https://vite.dev/config/
 export default defineConfig(async () => {
-  // CF_PAGES is set automatically by Cloudflare Pages build environment.
-  // Production and beta both deploy to EC2 Nginx (not Cloudflare Pages), so
-  // this plugin will NOT load in any current deploy path — it is kept for
-  // potential future use. Remove if Cloudflare Pages is fully abandoned.
   if (process.env.CF_PAGES) {
     const { cloudflare } = await import("@cloudflare/vite-plugin");
     plugins.push(cloudflare());
