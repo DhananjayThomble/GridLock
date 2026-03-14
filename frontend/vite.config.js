@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Only load Cloudflare plugin when CF_PAGES is set (Cloudflare Pages build environment)
+// This avoids breaking local dev, vite preview, and E2E tests
 const plugins = [react()];
 
 // https://vite.dev/config/
