@@ -14,8 +14,10 @@
     "preview:cf": "npm run build && wrangler dev"
   },
   "dependencies": {
+    "@sentry/react": "^10.43.0",
     "axios": "^1.13.5",
     "canvas-confetti": "^1.9.4",
+    "posthog-js": "^1.360.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
