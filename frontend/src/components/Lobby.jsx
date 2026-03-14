@@ -444,6 +444,12 @@ const Lobby = () => {
     }
     const cpuPlayers = cpuEnabled ? cpuCount : 0;
     socket.emit('create_game', { gridSize, username: name, avatar: selectedAvatar, playerCount, cpuPlayers, cpuDifficulty }, (res) => {
+      if (res?.error) {
+        activeActionRef.current = null;
+        setCreating(false);
+        setUsernameError(res.error);
+        return;
+      }
       if (res?.gameId) {
         setCreating(false);
         navigate('/game', {
