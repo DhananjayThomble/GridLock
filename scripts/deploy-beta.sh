@@ -3,6 +3,17 @@
 # Called by GitHub webhook on develop push
 set -euo pipefail
 
+LOCKFILE="/tmp/beta-deploy.lock"
+
+# ── Concurrency Lock ────────────────────────────────────────────
+# Prevent concurrent deploys (e.g. rapid webhook fires).
+# flock -n = non-blocking: if another deploy holds the lock, exit immediately.
+exec 200>"$LOCKFILE"
+if ! flock -n 200; then
+    echo "[$(date -u)] ⚠️  Another beta deploy is already running — skipping."
+    exit 0
+fi
+
 BETA_REPO="/home/ubuntu/projects/GridLock-beta"
 BETA_WEB="/var/www/gridlock-beta"
 
@@ -15,7 +26,7 @@ git reset --hard origin/develop
 
 # ── Backend ──
 cd "$BETA_REPO/backend"
-npm ci --production --silent
+npm ci --production
 MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
   pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
   MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
@@ -30,7 +41,14 @@ fi
 
 # ── Frontend ──
 cd "$BETA_REPO/frontend"
-npm ci --silent
+npm ci
+
+# Validate vite is available before attempting build
+if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
+  echo "❌ vite binary not found after npm ci — frontend deps likely failed"
+  exit 1
+fi
+
 VITE_BASE_PATH=/ \
 VITE_SOCKET_URL=https://beta-api.gridlock.pro \
 VITE_API_BASE_URL=https://beta-api.gridlock.pro \
