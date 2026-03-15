@@ -78,7 +78,7 @@ const WaitingRoom = () => {
     };
 
     const onGameStarted = (data) => {
-      if (data.gameId !== gameId) return;
+      if (!data?.gameId || data.gameId !== gameId) return;
       if (navigatedRef.current) return;
       if (startTimeoutRef.current) {
         clearTimeout(startTimeoutRef.current);
