@@ -120,9 +120,17 @@ const Lobby = () => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
       activeActionRef.current = null;
       setCreating(false);
-      navigate('/game', {
-        state: { username, gridSize, gameId: gid, role: playerId, avatar: selectedAvatar, playerCount, sessionToken },
-      });
+      // If all non-host slots are CPU, skip waiting room → go straight to game
+      const cpuPlayers = cpuEnabled ? cpuCount : 0;
+      if (cpuPlayers >= playerCount - 1) {
+        navigate('/game', {
+          state: { username, gridSize, gameId: gid, role: playerId, avatar: selectedAvatar, playerCount, sessionToken },
+        });
+      } else {
+        navigate(`/waiting/${gid}`, {
+          state: { username, gameId: gid, gridSize, avatar: selectedAvatar, playerCount, sessionToken, isHost: true, cpuDifficulty: cpuEnabled ? cpuDifficulty : null },
+        });
+      }
     };
 
     const onError = (msg) => {
@@ -151,7 +159,7 @@ const Lobby = () => {
       socket.off('game_created', onCreated);
       socket.off('error',        onError);
     };
-  }, [navigate, username, gridSize, selectedAvatar, playerCount]);
+  }, [navigate, username, gridSize, selectedAvatar, playerCount, cpuEnabled, cpuCount, cpuDifficulty]);
 
   // ── Socket: tournament events ─────────────────────────────────────────────
   useEffect(() => {
@@ -428,18 +436,23 @@ const Lobby = () => {
       }
       if (res?.gameId) {
         setCreating(false);
-        navigate('/game', {
-          state: {
-            username: name,
-            gridSize,
-            gameId: res.gameId,
-            role: res.playerId,
-            avatar: selectedAvatar,
-            playerCount,
-            sessionToken: res.sessionToken,
-            cpuDifficulty: cpuEnabled ? cpuDifficulty : null,
-          },
-        });
+        if (cpuPlayers >= playerCount - 1) {
+          navigate('/game', {
+            state: {
+              username: name, gridSize, gameId: res.gameId, role: res.playerId,
+              avatar: selectedAvatar, playerCount, sessionToken: res.sessionToken,
+              cpuDifficulty: cpuEnabled ? cpuDifficulty : null,
+            },
+          });
+        } else {
+          navigate(`/waiting/${res.gameId}`, {
+            state: {
+              username: name, gameId: res.gameId, gridSize, avatar: selectedAvatar,
+              playerCount, sessionToken: res.sessionToken, isHost: true,
+              cpuDifficulty: cpuEnabled ? cpuDifficulty : null,
+            },
+          });
+        }
       }
     });
   };
