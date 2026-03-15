@@ -272,7 +272,6 @@ app.use((err, req, res, _next) => {
 
     res.status(status).json({ error: message });
 });
-});
 
 // Start server
 const PORT = process.env.PORT || 5000;
