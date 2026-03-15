@@ -37,6 +37,8 @@ const WaitingRoom = () => {
   const navigatedRef = useRef(false);
   const startTimeoutRef = useRef(null);
   const startErrorHandlerRef = useRef(null);
+  const cpuDifficultyRef = useRef(cpuDifficulty);
+  cpuDifficultyRef.current = cpuDifficulty;
 
   const shareUrl = `https://gridlock.pro/join/${gameId}`;
 
@@ -97,7 +99,7 @@ const WaitingRoom = () => {
           playerCount: data.playerCount || playerCount,
           gridSize: data.gridSize || gridSize,
           sessionToken: data.sessionToken || sessionToken,
-          cpuDifficulty: data.cpuDifficulty || cpuDifficulty,
+          cpuDifficulty: data.cpuDifficulty || cpuDifficultyRef.current,
         },
       });
     };
@@ -135,7 +137,7 @@ const WaitingRoom = () => {
         socket.emit('leave_waiting_room', { gameId });
       }
     };
-  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
+  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken]);
 
   // Disconnect countdown timers
   // Fix #10: Uses client clock vs server disconnectedAt — countdown may drift
