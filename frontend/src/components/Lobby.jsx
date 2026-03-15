@@ -2,18 +2,14 @@
 // Production-ready lobby — mobile-first, fully adaptive
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { initAudio } from '../utils/sounds';
 import socket from '../socket';
-import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
-import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
-import ThemeToggle from './ThemeToggle';
-import SoundSettings from './SoundSettings';
+import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-import RankBadge from './RankBadge';
-import HeroBanner from './HeroBanner';
+
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -75,9 +71,7 @@ const Lobby = () => {
   const [creating,      setCreating]      = useState(false);
   const [joining,       setJoining]       = useState(false);
   const [joinMode,      setJoinMode]      = useState('player'); // 'player' | 'spectator'
-  const [tab,           setTab]           = useState('create'); // 'create' | 'join' | 'tournament'
-  const [showStats,     setShowStats]     = useState(false);
-  const [stats,         setStats]         = useState(getStats());
+  const [tab,           setTab]           = useState(''); // 'create' | 'join' | 'tournament'
   const [cpuEnabled,    setCpuEnabled]    = useState(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   const [cpuCount,      setCpuCount]      = useState(() => {
     const saved = parseInt(localStorage.getItem('gridlock-cpuCount'), 10);
@@ -100,8 +94,6 @@ const Lobby = () => {
   const [tournamentId, setTournamentId]   = useState('');
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
-  const [installPrompt, setInstallPrompt] = useState(null);
-  const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
   const [quickPlaying, setQuickPlaying] = useState(false);
   const [queueSize, setQueueSize] = useState(1);
   const [usernameError, setUsernameError] = useState('');
@@ -115,6 +107,8 @@ const Lobby = () => {
   const [rankedQueueSize, setRankedQueueSize] = useState(1);
   const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null); // eslint-disable-line no-unused-vars
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
+  const [avatarExpanded, setAvatarExpanded] = useState(false);
+  const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => localStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
   const navigate = useNavigate();
   const usernameInputRef = useRef(null);
 
@@ -307,26 +301,6 @@ const Lobby = () => {
   // cpuCount is clamped to playerCount-1 in the playerCount button handler below.
   // The lazy initializer also cross-validates against stored playerCount.
 
-  // ── PWA Install Prompt ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    if (isStandalone) return;
-
-    const handler = (e) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
-  };
-
   // ── Create Tournament ───────────────────────────────────────────────────────
   const handleCreateTournament = () => {
     const name = username.trim();
@@ -441,7 +415,7 @@ const Lobby = () => {
     if (!localStorage.getItem('gridlock_push_prompted')) {
       localStorage.setItem('gridlock_push_prompted', 'true');
       subscribeToPush(name, socket.id).then((sub) => {
-        if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+        if (sub) { localStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
     const cpuPlayers = cpuEnabled ? cpuCount : 0;
@@ -490,7 +464,7 @@ const Lobby = () => {
     if (!localStorage.getItem('gridlock_push_prompted')) {
       localStorage.setItem('gridlock_push_prompted', 'true');
       subscribeToPush(name, socket.id).then((sub) => {
-        if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+        if (sub) { localStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
     if (!socket.connected) {
@@ -516,8 +490,31 @@ const Lobby = () => {
     >
       <div className="w-full max-w-lg md:max-w-[720px] lg:max-w-[960px]">
 
-        {/* ── Hero Banner (first-time visitors) ── */}
-        <HeroBanner onPlayNow={() => usernameInputRef.current?.focus()} />
+        {/* ── New to GridLock? Banner ── */}
+        {!howToPlayDismissed && (
+          <div
+            className="rounded-xl p-3 px-4 mb-4"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+          >
+            <div className="flex justify-between items-center">
+              <Link to="/how-to-play" className="no-underline flex-1">
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>New to GridLock?</span>
+                <span className="text-[13px] ml-2" style={{ color: 'var(--text-secondary)' }}>Learn the rules in 2 minutes →</span>
+              </Link>
+              <button
+                onClick={() => {
+                  localStorage.setItem('gridlock_how_to_play_dismissed', 'true');
+                  setHowToPlayDismissed(true);
+                }}
+                className="bg-transparent border-none cursor-pointer p-1 px-2 text-base"
+                style={{ color: 'var(--text-muted)' }}
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Title ── */}
         <div className="text-center mb-6">
@@ -533,7 +530,7 @@ const Lobby = () => {
           style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
         >
 
-          {/* ── Username + Avatar ── */}
+          {/* ── Username + Avatar (collapsed by default) ── */}
           <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
             <input
@@ -541,7 +538,7 @@ const Lobby = () => {
               type="text"
               value={username}
               onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && (tab === 'create' ? handleCreate() : handleJoin())}
+              onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
               placeholder="Enter your name…"
               minLength={2}
               maxLength={16}
@@ -551,7 +548,7 @@ const Lobby = () => {
               autoCapitalize="words"
               spellCheck={false}
               inputMode="text"
-              enterKeyHint={tab === 'create' ? 'done' : 'next'}
+              enterKeyHint="done"
               className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
               style={{
                 background: 'var(--input-bg)',
@@ -568,101 +565,239 @@ const Lobby = () => {
               </p>
             </div>
 
-            <label className="block text-xs font-bold uppercase tracking-wider mt-3 mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
-            <div className="grid grid-cols-8 gap-1.5">
-              {AVATARS.map((av) => (
-                <button
-                  key={av}
-                  onClick={() => setSelectedAvatar(av)}
-                  className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
-                    selectedAvatar === av
-                      ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
-                      : ''
-                  }`}
-                  style={selectedAvatar === av
-                    ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
-                    : { background: 'var(--bg-card-hover)' }}
-                >
-                  {av}
-                </button>
-              ))}
+            {/* Avatar — collapsed: show selected + Change button */}
+            <div className="mt-3">
+              {!avatarExpanded ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{selectedAvatar}</span>
+                  <button
+                    onClick={() => setAvatarExpanded(true)}
+                    className="text-xs font-semibold px-3 py-1 rounded-lg transition-all active:scale-95"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  >
+                    Change
+                  </button>
+                  {username && (
+                    <span className="text-xs lobby-playing-as" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                      Playing as <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
+                  <div className="grid grid-cols-8 gap-1.5">
+                    {AVATARS.map((av) => (
+                      <button
+                        key={av}
+                        onClick={() => { setSelectedAvatar(av); setAvatarExpanded(false); }}
+                        className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
+                          selectedAvatar === av
+                            ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
+                            : ''
+                        }`}
+                        style={selectedAvatar === av
+                          ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
+                          : { background: 'var(--bg-card-hover)' }}
+                      >
+                        {av}
+                      </button>
+                    ))}
+                  </div>
+                  {username && (
+                    <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
+                      Playing as {selectedAvatar} <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
+                    </p>
+                  )}
+                </>
+              )}
             </div>
-            {username && (
-              <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
-                Playing as {selectedAvatar} <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
-              </p>
-            )}
           </div>
 
-          {/* ── Daily Challenge + Quick Play ── */}
-          <div className="p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            <button
-              onClick={() => navigate('/daily')}
-              disabled={creating || !username.trim()}
-              aria-label="Daily Challenge — one puzzle per day, global leaderboard"
-              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60 mb-2"
-              style={{
-                background: 'linear-gradient(135deg, var(--warning), var(--danger))',
-                color: 'var(--text-on-accent)',
-                boxShadow: '0 4px 16px color-mix(in srgb, var(--warning) 40%, transparent)',
-              }}
-            >
-              🎯 Daily Challenge
-            </button>
-            <p className="text-xs text-center mb-3" style={{ color: 'var(--text-secondary)' }}>
-              Same puzzle for everyone · One attempt per day
-            </p>
+          {/* ── Create Game (hero — always visible) ── */}
+          <div className="p-5 space-y-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            {/* Players */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Number of Players</label>
+              <div className="grid grid-cols-3 gap-2">
+                {PLAYER_COUNT_OPTIONS.map(({ value, label, icon, desc }) => (
+                  <button
+                    key={value}
+                    onClick={() => {
+                      setPlayerCount(value);
+                      const maxCpu = Math.max(1, value - 1);
+                      if (cpuCount > maxCpu) setCpuCount(maxCpu);
+                    }}
+                    className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
+                    style={playerCount === value
+                      ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  >
+                    <div className="text-lg">{icon}</div>
+                    <div className="text-xs font-bold">{label}</div>
+                    <div className="text-xs">{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
+            {/* Grid size */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Grid Size</label>
+              <div className="grid grid-cols-4 gap-2">
+                {GRID_OPTIONS.map(({ value, label, desc }) => (
+                  <button
+                    key={value}
+                    onClick={() => setGridSize(value)}
+                    className="py-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
+                    style={gridSize === value
+                      ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
+                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  >
+                    <div className="text-sm font-bold">{label}</div>
+                    <div className="text-xs">{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CPU Toggle */}
+            <div>
+              <button
+                onClick={() => setCpuEnabled(!cpuEnabled)}
+                className="w-full py-2.5 px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
+                style={cpuEnabled
+                  ? { background: 'color-mix(in srgb, var(--warning) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }
+                  : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-lg">🤖</span>
+                  <span className="text-sm font-semibold">Play vs CPU</span>
+                </span>
+                <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
+                  <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
+                </span>
+              </button>
+            </div>
+
+            {/* CPU Settings (visible when enabled) */}
+            {cpuEnabled && (
+              <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+                {/* CPU count */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>
+                    CPU Opponents ({cpuCount})
+                  </label>
+                  <div className="flex gap-2" style={{ maxWidth: playerCount - 1 === 1 ? '50%' : '100%' }}>
+                    {Array.from({ length: playerCount - 1 }, (_, i) => i + 1).map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setCpuCount(n)}
+                        className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95 lobby-option-card"
+                        style={cpuCount === n
+                          ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                          : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                      >
+                        {n} 🤖
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Difficulty selector */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Difficulty</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {DIFFICULTY_OPTIONS.map(({ value, label, icon, desc }) => (
+                      <button
+                        key={value}
+                        onClick={() => setCpuDifficulty(value)}
+                        className="py-2 px-2 rounded-xl text-center transition-all active:scale-95"
+                        style={cpuDifficulty === value
+                          ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                          : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                      >
+                        <div className="text-lg">{icon}</div>
+                        <div className="text-xs font-bold">{label}</div>
+                        <div className="text-xs">{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleCreate}
+              disabled={creating || !username.trim()}
+              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
+            >
+              {creating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                  Creating…
+                </span>
+              ) : (
+                '🚀 Create Game'
+              )}
+            </button>
+
+            {/* Quick Play — secondary action below Create */}
             <button
               onClick={handleQuickPlay}
               disabled={quickPlaying || creating || !username.trim()}
               aria-label="Quick Play — instant match with random opponents"
-              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
               style={{
                 background: (quickPlaying || creating)
                   ? 'var(--bg-surface)'
-                  : 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
-                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--text-on-accent)',
-                boxShadow: (quickPlaying || creating) ? 'none' : '0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)',
+                  : 'var(--bg-card)',
+                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--text-primary)',
+                border: '1px solid var(--border-color-strong)',
               }}
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
-            <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-secondary)' }}>
-              Instant match with random opponents
-            </p>
+          </div>
 
-            {/* Ranked Play Button */}
+          {/* ── Daily Challenge & Ranked (always visible) ── */}
+          <div className="px-5 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => navigate('/daily')}
+              disabled={creating || !username.trim()}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
+              style={{
+                background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
+                color: 'var(--warning)',
+              }}
+            >
+              🎯 Daily Challenge
+            </button>
             <button
               onClick={handleRankedPlay}
               disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-              aria-label="Ranked Play — competitive match with ELO rating"
-              className="w-full py-3.5 rounded-xl font-bold text-base transition-all active:scale-95 min-h-[44px] flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
               style={{
-                background: (rankedPlaying || creating)
-                  ? 'var(--bg-surface)'
-                  : 'linear-gradient(135deg, var(--warning), var(--danger))',
-                color: (rankedPlaying || creating) ? 'var(--text-muted)' : 'var(--text-on-accent)',
-                boxShadow: (rankedPlaying || creating) ? 'none' : '0 4px 16px color-mix(in srgb, var(--warning) 40%, transparent)',
+                background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
+                border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 40%, transparent)'}`,
+                color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
               }}
             >
-              {rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked Play'}
+              {rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked'}
             </button>
-            <p className="text-xs text-center mt-1.5" style={{ color: 'var(--text-secondary)' }}>
-              Competitive 2P · ELO rating · Seasonal tiers
-            </p>
           </div>
 
-          {/* ── Tabs ── */}
+          {/* ── Join / Tournament tabs ── */}
           <div className="flex" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {[
-              { key: 'create', label: '🎮 Create Game' },
               { key: 'join',   label: '🔗 Join Game' },
               { key: 'tournament', label: '🏆 Tournament' },
             ].map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => setTab(tab === key ? '' : key)}
                 className={`flex-1 py-3 text-sm font-semibold transition-all lobby-tab ${
                   tab === key ? 'border-b-2' : ''
                 }`}
@@ -676,138 +811,6 @@ const Lobby = () => {
               </button>
             ))}
           </div>
-
-          {/* ── Create Tab ── */}
-          {tab === 'create' && (
-            <div className="p-5 space-y-4">
-              {/* Players */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Number of Players</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {PLAYER_COUNT_OPTIONS.map(({ value, label, icon, desc }) => (
-                    <button
-                      key={value}
-                      onClick={() => {
-                        setPlayerCount(value);
-                        const maxCpu = Math.max(1, value - 1);
-                        if (cpuCount > maxCpu) setCpuCount(maxCpu);
-                      }}
-                      className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
-                      style={playerCount === value
-                        ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
-                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                    >
-                      <div className="text-lg">{icon}</div>
-                      <div className="text-xs font-bold">{label}</div>
-                      <div className="text-xs">{desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Grid size */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Grid Size</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {GRID_OPTIONS.map(({ value, label, desc }) => (
-                    <button
-                      key={value}
-                      onClick={() => setGridSize(value)}
-                      className="py-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
-                      style={gridSize === value
-                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
-                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                    >
-                      <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs">{desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* CPU Toggle */}
-              <div>
-                <button
-                  onClick={() => setCpuEnabled(!cpuEnabled)}
-                  className="w-full py-2.5 px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
-                  style={cpuEnabled
-                    ? { background: 'color-mix(in srgb, var(--warning) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }
-                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="text-lg">🤖</span>
-                    <span className="text-sm font-semibold">Play vs CPU</span>
-                  </span>
-                  <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
-                    <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
-                  </span>
-                </button>
-              </div>
-
-              {/* CPU Settings (visible when enabled) */}
-              {cpuEnabled && (
-                <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-                  {/* CPU count */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>
-                      CPU Opponents ({cpuCount})
-                    </label>
-                    <div className="flex gap-2" style={{ maxWidth: playerCount - 1 === 1 ? '50%' : '100%' }}>
-                      {Array.from({ length: playerCount - 1 }, (_, i) => i + 1).map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => setCpuCount(n)}
-                          className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95 lobby-option-card"
-                          style={cpuCount === n
-                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
-                            : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                        >
-                          {n} 🤖
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Difficulty selector */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Difficulty</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {DIFFICULTY_OPTIONS.map(({ value, label, icon, desc }) => (
-                        <button
-                          key={value}
-                          onClick={() => setCpuDifficulty(value)}
-                          className="py-2 px-2 rounded-xl text-center transition-all active:scale-95"
-                          style={cpuDifficulty === value
-                            ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
-                            : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                        >
-                          <div className="text-lg">{icon}</div>
-                          <div className="text-xs font-bold">{label}</div>
-                          <div className="text-xs">{desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={handleCreate}
-                disabled={creating || !username.trim()}
-                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
-              >
-                {creating ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
-                    Creating…
-                  </span>
-                ) : (
-                  '🚀 Create Game'
-                )}
-              </button>
-            </div>
-          )}
 
           {/* ── Join Tab ── */}
           {tab === 'join' && (
@@ -1007,160 +1010,6 @@ const Lobby = () => {
           gridSize={gridSize}
           playerCount={playerCount}
         />
-
-        {/* ── Settings Footer Card ── */}
-        <div
-          className="mt-4 rounded-2xl p-4 space-y-3 settings-card"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Settings</span>
-          </div>
-
-          {/* Theme Toggle + PWA Install */}
-          <div className="flex items-center justify-center gap-2">
-            <ThemeToggle />
-            {installPrompt && (
-              <button
-                onClick={handleInstall}
-                className="py-2.5 px-4 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2"
-                style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-              >
-                📲 Install App
-              </button>
-            )}
-          </div>
-
-          {/* Push Notification Toggle */}
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>🔔 Push Notifications</span>
-            <button
-              onClick={async () => {
-                const name = username.trim();
-                if (!pushEnabled) {
-                  const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
-                  try {
-                    const sub = await subscribeToPush(name, socket.id);
-                    if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
-                  } catch { /* push subscribe failed — ignore */ }
-                } else {
-                  try {
-                    await unsubscribeFromPush();
-                  } catch { /* push unsubscribe failed — ignore */ }
-                  setPushEnabled(false);
-                  localStorage.removeItem('gridlock_push');
-                }
-              }}
-              className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
-              style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
-              aria-label="Toggle push notifications"
-            >
-              <div
-                className={`w-4 h-4 rounded-full shadow transition-transform ${
-                  pushEnabled ? 'translate-x-5' : 'translate-x-0'
-                }`}
-                style={{ backgroundColor: 'var(--text-primary)' }}
-              />
-            </button>
-          </div>
-
-          {/* Sound & Haptic Settings */}
-          <SoundSettings />
-
-          {/* Session Stats Panel */}
-          <div>
-            <button
-              onClick={() => {
-                const next = !showStats;
-                if (next) setStats(getStats());
-                setShowStats(next);
-              }}
-              className="w-full py-2 text-xs font-semibold transition-all flex items-center justify-center gap-2"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <span>📊 Your Stats</span>
-              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{showStats ? '▲' : '▼'}</span>
-            </button>
-
-            {showStats && (
-              <div className="backdrop-blur-md rounded-2xl p-4 mt-1 space-y-3" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)' }}>
-                {stats.gamesPlayed === 0 ? (
-                  <p className="text-center text-xs py-2" style={{ color: 'var(--text-subtle)' }}>No games played yet this session.</p>
-                ) : (
-                  <>
-                    {/* Summary row */}
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      {[
-                        { label: 'Games', value: stats.gamesPlayed },
-                        { label: 'Wins', value: stats.wins },
-                        { label: 'Win Rate', value: getWinRate() },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card)' }}>
-                          <div className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>{value}</div>
-                          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      {[
-                        { label: 'Avg Territory', value: getAvgTerritory() },
-                        { label: 'Best Territory', value: `${stats.bestTerritory}%` },
-                        { label: 'Best Streak', value: `${stats.bestStreak} 🔥` },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="rounded-xl py-2" style={{ background: 'var(--bg-card)' }}>
-                          <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{value}</div>
-                          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Current streak */}
-                    {stats.currentStreak > 0 && (
-                      <div className="text-center text-sm font-bold" style={{ color: 'var(--warning)' }}>
-                        🔥 {stats.currentStreak} game win streak!
-                      </div>
-                    )}
-
-                    {/* Last 5 games */}
-                    {stats.history.length > 0 && (
-                      <div>
-                        <p className="text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Last {Math.min(stats.history.length, 5)} Games</p>
-                        <div className="flex gap-1.5 flex-wrap">
-                          {stats.history.slice(0, 5).map((g, i) => (
-                            <div
-                              key={i}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold"
-                              style={
-                                g.outcome === 'win'
-                                  ? { backgroundColor: 'color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
-                                  : g.outcome === 'draw'
-                                  ? { backgroundColor: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
-                                  : { backgroundColor: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)' }
-                              }
-                              title={`${g.gridSize}×${g.gridSize} · ${g.players}P`}
-                            >
-                              {g.outcome === 'win' ? 'W' : g.outcome === 'draw' ? 'D' : 'L'} {g.territoryPct}%
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Reset */}
-                    <button
-                      onClick={() => { resetStats(); setStats(getStats()); }}
-                      className="w-full text-xs transition-all py-1"
-                      style={{ color: 'var(--text-subtle)' }}
-                    >
-                      Reset stats
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
 
       </div>
 
