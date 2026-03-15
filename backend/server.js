@@ -40,6 +40,10 @@ const log = {
     error: (...args) => currentLevel <= 3 && console.error('[ERROR]', new Date().toISOString(), ...args)
 };
 
+function isLocalProxyAddress(ip = '') {
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
 // Middleware
 app.set('trust proxy', 1);
 app.use(helmet({
@@ -54,16 +58,8 @@ app.use((req, res, next) => {
     next();
 });
 // ── CORS allowlist (#285) ────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim()).filter(Boolean)
-    : [
-        'https://gridlock.pro',
-        'https://www.gridlock.pro',
-        'https://beta.gridlock.pro',
-        'http://localhost:5173',    // Vite dev
-        'http://localhost:4173',    // Vite preview
-        'http://localhost:4175',    // E2E local test
-    ];
+const { getAllowedOrigins } = require('./config/corsOrigins');
+const ALLOWED_ORIGINS = getAllowedOrigins();
 
 app.use(cors({
     origin: function(origin, callback) {
@@ -72,7 +68,9 @@ app.use(cors({
         if (ALLOWED_ORIGINS.includes(origin)) {
             return callback(null, true);
         }
-        callback(new Error('Not allowed by CORS'));
+        const err = new Error('Not allowed by CORS');
+        err.status = 403;
+        callback(err);
     }
 }));
 app.use(express.json());
@@ -110,8 +108,9 @@ app.locals.io = io;
 io.use((socket, next) => {
     if (process.env.NODE_ENV === 'test') return next();
 
-    const ip = socket.handshake.headers['x-real-ip'] ||
-               socket.handshake.address;
+    const socketIp = socket.handshake.address || '';
+    const forwardedIp = socket.handshake.headers['x-real-ip'];
+    const ip = isLocalProxyAddress(socketIp) && forwardedIp ? forwardedIp : socketIp;
 
     if (getSocketCountForIP(ip) >= MAX_SOCKETS_PER_IP) {
         return next(new Error('Too many connections from this IP'));
@@ -126,6 +125,7 @@ io.use((socket, next) => {
 
     next();
 });
+
 
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
@@ -186,22 +186,43 @@ app.use('/health', healthcheckRoutes);
 
 // Lightweight health check endpoint (for load balancers / uptime monitors)
 app.get('/health', healthLimiter, async (req, res) => {
-    const mem = process.memoryUsage();
-    res.json({
-        status: 'ok',
-        activeGames: await gameStore.gameCount(),
-        pendingRematches: await rematchStore.storeCount(),
-        pendingDisconnectTimers: localTimers.size,
-        connectedSockets: io.engine?.clientsCount || 0,
-        redisAdapter: redisEnabled,
-        memoryUsage: {
-            rss: Math.round((mem.rss / 1024 / 1024) * 10) / 10,
-            heapUsed: Math.round((mem.heapUsed / 1024 / 1024) * 10) / 10,
-            heapTotal: Math.round((mem.heapTotal / 1024 / 1024) * 10) / 10,
-        },
-        uptime: Math.round(process.uptime()),
-        timestamp: new Date().toISOString(),
-    });
+    try {
+        const activeGames = await gameStore.gameCount();
+        const pendingRematches = await rematchStore.storeCount();
+        const mem = process.memoryUsage();
+        res.json({
+            status: 'ok',
+            activeGames,
+            pendingRematches,
+            pendingDisconnectTimers: localTimers.size,
+            connectedSockets: io.engine?.clientsCount || 0,
+            redisAdapter: redisEnabled,
+            memoryUsage: {
+                rss: +(mem.rss / 1024 / 1024).toFixed(1),
+                heapUsed: +(mem.heapUsed / 1024 / 1024).toFixed(1),
+                heapTotal: +(mem.heapTotal / 1024 / 1024).toFixed(1),
+            },
+            uptime: Math.round(process.uptime()),
+            timestamp: new Date().toISOString(),
+        });
+    } catch (err) {
+        // Service is up but a backing store is unreachable — return degraded status
+        // Still 200 so load balancers don't pull the instance, but status indicates the problem
+        log.error('Health check degraded:', { error: err.message });
+        const mem = process.memoryUsage();
+        res.json({
+            status: 'degraded',
+            error: 'Backing service unreachable',
+            connectedSockets: io.engine?.clientsCount || 0,
+            memoryUsage: {
+                rss: +(mem.rss / 1024 / 1024).toFixed(1),
+                heapUsed: +(mem.heapUsed / 1024 / 1024).toFixed(1),
+                heapTotal: +(mem.heapTotal / 1024 / 1024).toFixed(1),
+            },
+            uptime: Math.round(process.uptime()),
+            timestamp: new Date().toISOString(),
+        });
+    }
 });
 
 // ── Cached game count for Prometheus scrapes (avoids DB query on every /metrics hit) ──
@@ -231,6 +252,26 @@ app.get('/metrics', healthLimiter, async (req, res) => {
 
 // Sentry error handler — must be after all routes, before any other error middleware
 app.use(sentry.errorHandler());
+
+// Generic error handler — catch-all for unhandled errors (CORS rejections, etc.)
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, _next) => {
+    if (res.headersSent) {
+        return;
+    }
+
+    const status = err.status || 500;
+    // Only mask 500s in production — client errors (4xx) should always show their real message
+    const message = (status >= 500 && process.env.NODE_ENV === 'production')
+        ? 'Internal server error'
+        : err.message;
+
+    if (status >= 500) {
+        log.error('Unhandled error:', { error: err.message, stack: err.stack, path: req.path });
+    }
+
+    res.status(status).json({ error: message });
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;

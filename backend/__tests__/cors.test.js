@@ -2,17 +2,9 @@
  * Tests for CORS origin callback logic.
  * We test the callback function in isolation by extracting the same logic.
  */
+const { DEFAULT_ORIGINS, getAllowedOrigins } = require('../config/corsOrigins');
 
 describe('CORS origin callback', () => {
-    const DEFAULT_ORIGINS = [
-        'https://gridlock.pro',
-        'https://www.gridlock.pro',
-        'https://beta.gridlock.pro',
-        'http://localhost:5173',
-        'http://localhost:4173',
-        'http://localhost:4175',
-    ];
-
     // Mirror the CORS callback logic from server.js
     function corsCheck(origin, allowedOrigins = DEFAULT_ORIGINS) {
         if (!origin) return { allowed: true };
@@ -59,36 +51,50 @@ describe('CORS origin callback', () => {
     });
 
     describe('CORS_ORIGIN env var parsing', () => {
-        function parseOrigins(envValue) {
-            return envValue
-                ? envValue.split(',').map(o => o.trim()).filter(Boolean)
-                : DEFAULT_ORIGINS;
-        }
-
         test('parses comma-separated origins', () => {
-            const result = parseOrigins('https://a.com, https://b.com');
+            const original = process.env.CORS_ORIGIN;
+            process.env.CORS_ORIGIN = 'https://a.com, https://b.com';
+            const result = getAllowedOrigins();
             expect(result).toEqual(['https://a.com', 'https://b.com']);
+            if (original === undefined) delete process.env.CORS_ORIGIN;
+            else process.env.CORS_ORIGIN = original;
         });
 
         test('empty string env var falls back to defaults', () => {
-            const result = parseOrigins('');
+            const original = process.env.CORS_ORIGIN;
+            process.env.CORS_ORIGIN = '';
+            const result = getAllowedOrigins();
             expect(result).toEqual(DEFAULT_ORIGINS);
+            if (original === undefined) delete process.env.CORS_ORIGIN;
+            else process.env.CORS_ORIGIN = original;
         });
 
         test('filters out empty strings from trailing comma', () => {
-            const result = parseOrigins('https://a.com,,https://b.com,');
+            const original = process.env.CORS_ORIGIN;
+            process.env.CORS_ORIGIN = 'https://a.com,,https://b.com,';
+            const result = getAllowedOrigins();
             expect(result).toEqual(['https://a.com', 'https://b.com']);
+            if (original === undefined) delete process.env.CORS_ORIGIN;
+            else process.env.CORS_ORIGIN = original;
         });
 
         test('handles whitespace-only entries', () => {
-            const result = parseOrigins('https://a.com, , https://b.com');
+            const original = process.env.CORS_ORIGIN;
+            process.env.CORS_ORIGIN = 'https://a.com, , https://b.com';
+            const result = getAllowedOrigins();
             expect(result).toEqual(['https://a.com', 'https://b.com']);
+            if (original === undefined) delete process.env.CORS_ORIGIN;
+            else process.env.CORS_ORIGIN = original;
         });
 
         test('custom origins work with corsCheck', () => {
-            const customOrigins = parseOrigins('https://custom.dev,https://test.dev');
+            const original = process.env.CORS_ORIGIN;
+            process.env.CORS_ORIGIN = 'https://custom.dev,https://test.dev';
+            const customOrigins = getAllowedOrigins();
             expect(corsCheck('https://custom.dev', customOrigins).allowed).toBe(true);
             expect(corsCheck('https://gridlock.pro', customOrigins).allowed).toBe(false);
+            if (original === undefined) delete process.env.CORS_ORIGIN;
+            else process.env.CORS_ORIGIN = original;
         });
     });
 });

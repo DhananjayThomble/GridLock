@@ -1,6 +1,7 @@
 name: Deploy Frontend to GitHub Pages
 
 on:
+  # Manual dispatch only — production deploys require DJ approval via #prod-deploys
   workflow_dispatch:
 
 permissions:

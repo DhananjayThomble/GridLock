@@ -59,17 +59,19 @@ describe('isInternalRequest', () => {
         expect(isInternalRequest(mockReq({ ip: '203.0.113.50' }))).toBe(false);
     });
 
-    // ── X-Real-IP header takes precedence ───────────────────────────────────
-    test('X-Real-IP is used over socket.remoteAddress', () => {
-        // External socket IP but internal X-Real-IP → internal
+    // ── X-Real-IP header trust chain ──────────────────────────────────────
+    test('X-Real-IP is IGNORED when socket is external (anti-spoof)', () => {
+        // External socket IP with spoofed X-Real-IP → NOT internal
+        // Security: can't spoof internal by setting X-Real-IP header from the internet
         const req = mockReq({
             ip: '8.8.8.8',
             headers: { 'x-real-ip': '127.0.0.1' },
         });
-        expect(isInternalRequest(req)).toBe(true);
+        expect(isInternalRequest(req)).toBe(false);
     });
 
-    test('X-Real-IP external overrides internal socket IP', () => {
+    test('X-Real-IP external overrides internal socket IP (Nginx proxy)', () => {
+        // Socket from localhost (Nginx), but real client is external → external
         const req = mockReq({
             ip: '127.0.0.1',
             headers: { 'x-real-ip': '8.8.8.8' },
