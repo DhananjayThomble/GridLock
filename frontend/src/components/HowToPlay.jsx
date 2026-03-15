@@ -1,7 +1,7 @@
 // src/components/HowToPlay.jsx
 // SEO-rich "How to Play" page — targets 'how to play dots and boxes' queries
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './HowToPlay.css';
 
@@ -23,25 +23,44 @@ const Card = ({ emoji, title, desc }) => (
   </div>
 );
 
-const HowToPlay = () => (
+const HowToPlay = () => {
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title = 'How to Play Dots and Boxes Online — Rules, Strategy & Tips | GridLock';
+
+    const metaDesc = document.querySelector('meta[name="description"]');
+    const prevDesc = metaDesc?.getAttribute('content');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Learn how to play Dots and Boxes online. Master the rules, strategy tips, double-cross technique, and game modes. Play free multiplayer Dots & Boxes on GridLock.');
+    }
+
+    return () => {
+      document.title = prevTitle;
+      if (metaDesc && prevDesc) metaDesc.setAttribute('content', prevDesc);
+    };
+  }, []);
+
+  return (
   <div className="htp-container">
     {/* Hero */}
     <header className="htp-hero">
       <h1 className="htp-hero-title">
-        How to Play <span className="htp-brand">GridLock</span>
+        How to Play Dots and Boxes Online — <span className="htp-brand">GridLock</span>
       </h1>
       <p className="htp-hero-subtitle">
         The classic Dots &amp; Boxes game — reimagined for online multiplayer.
-        Learn the rules, master the strategy, and challenge players worldwide.
+        Learn the rules, master the strategy, and play Dots and Boxes against
+        players worldwide.
       </p>
     </header>
 
     {/* Basic Rules */}
-    <Section emoji="📏" title="Basic Rules">
-      <ol className="htp-rules-list">
+    <Section emoji="📏" title="Basic Rules of Dots and Boxes">
+      <ol className="htp-rules-list" role="list">
         <li>
           <strong>Draw a line.</strong> Players take turns drawing a single line
-          between two adjacent dots on the grid.
+          between two adjacent dots on the grid. In dots and boxes online, each
+          move is synced in real-time.
         </li>
         <li>
           <strong>Claim boxes.</strong> Complete the fourth side of a square to
@@ -64,7 +83,7 @@ const HowToPlay = () => (
         <Card
           emoji="🌐"
           title="Online Multiplayer"
-          desc="Play with 2–4 players in real-time via WebSocket. Create a room or join one instantly."
+          desc="Play Dots and Boxes multiplayer with 2–4 players in real-time via WebSocket. Create a room or join one instantly."
         />
         <Card
           emoji="🤖"
@@ -95,7 +114,7 @@ const HowToPlay = () => (
     </Section>
 
     {/* Strategy Tips */}
-    <Section emoji="🧠" title="Strategy Tips">
+    <Section emoji="🧠" title="Dots and Boxes Strategy Tips">
       <div className="htp-tips">
         <div className="htp-tip">
           <span className="htp-tip-number">1</span>
@@ -141,13 +160,13 @@ const HowToPlay = () => (
     </Section>
 
     {/* Grid Sizes */}
-    <Section emoji="📐" title="Grid Sizes">
+    <Section emoji="📐" title="Dots and Boxes Grid Sizes">
       <div className="htp-grid-sizes">
         {[
-          { size: '3×3', label: 'Quick', desc: '9 boxes — fast games, great for learning', boxes: 9 },
-          { size: '4×4', label: 'Standard', desc: '16 boxes — the balanced classic', boxes: 16 },
-          { size: '5×5', label: 'Pro', desc: '25 boxes — deeper strategy, longer games', boxes: 25 },
-          { size: '6×6', label: 'Epic', desc: '36 boxes — the ultimate test of skill', boxes: 36 },
+          { size: '3×3', label: 'Quick', desc: '9 boxes — fast games, great for learning dots and boxes' },
+          { size: '4×4', label: 'Standard', desc: '16 boxes — the balanced classic' },
+          { size: '5×5', label: 'Pro', desc: '25 boxes — deeper strategy, longer games' },
+          { size: '6×6', label: 'Epic', desc: '36 boxes — the ultimate test of skill' },
         ].map(({ size, label, desc }) => (
           <div key={size} className="htp-grid-size-item">
             <span className="htp-grid-size-label">{size}</span>
@@ -173,15 +192,16 @@ const HowToPlay = () => (
 
     {/* CTA */}
     <section className="htp-cta">
-      <h2 className="htp-cta-title">Ready to Play?</h2>
+      <h2 className="htp-cta-title">Ready to Play Dots and Boxes?</h2>
       <p className="htp-cta-desc">
-        Jump into a game and put your strategy to the test.
+        Jump into a game and put your dots and boxes strategy to the test.
       </p>
       <Link to="/" className="htp-cta-button">
         Start a Game Now 🎯
       </Link>
     </section>
   </div>
-);
+  );
+};
 
 export default HowToPlay;

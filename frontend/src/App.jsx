@@ -43,6 +43,9 @@ const AppLayout = () => {
           <NavLink to="/history" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             History
           </NavLink>
+          <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            How to Play
+          </NavLink>
         </nav>
       )}
 
