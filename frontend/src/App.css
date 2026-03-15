@@ -19,6 +19,10 @@
   background-image: var(--gradient-brand);
 }
 
+.gradient-title {
+  background-image: var(--gradient-brand);
+}
+
 .app-nav {
   position: fixed;
   top: 0;

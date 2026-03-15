@@ -532,8 +532,7 @@ const Lobby = () => {
         {/* ── Title ── */}
         <div className="text-center mb-6">
           <h1
-            className="text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent leading-tight"
-            style={{ backgroundImage: 'var(--gradient-brand)' }}
+            className="gradient-title text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent leading-tight"
           >
             GridLock
           </h1>

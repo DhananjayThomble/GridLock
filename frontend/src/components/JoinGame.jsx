@@ -103,8 +103,7 @@ const JoinGame = () => {
         {/* Title */}
         <div className="text-center mb-6">
           <h1
-            className="text-4xl font-extrabold bg-clip-text text-transparent"
-            style={{ backgroundImage: 'var(--gradient-brand)' }}
+            className="gradient-title text-4xl font-extrabold bg-clip-text text-transparent"
           >
             GridLock
           </h1>
