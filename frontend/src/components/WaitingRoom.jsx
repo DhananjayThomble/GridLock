@@ -35,6 +35,7 @@ const WaitingRoom = () => {
 
   // Prevent double-navigate
   const navigatedRef = useRef(false);
+  const startTimeoutRef = useRef(null);
 
   const shareUrl = `https://gridlock.pro/join/${gameId}`;
 
@@ -57,19 +58,32 @@ const WaitingRoom = () => {
     const onPlayerJoined = (data) => {
       if (data.gameId !== gameId) return;
       setFilled(data.filled || 0);
+      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
+      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
       socket.emit('lobby_state', { gameId });
     };
 
-    const onPlayerDisconnected = () => {
+    const onPlayerDisconnected = (data) => {
+      if (data?.gameId && data.gameId !== gameId) return;
+      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
+      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
       socket.emit('lobby_state', { gameId });
     };
 
-    const onPlayerReconnected = () => {
+    const onPlayerReconnected = (data) => {
+      if (data?.gameId && data.gameId !== gameId) return;
+      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
+      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
       socket.emit('lobby_state', { gameId });
     };
 
     const onGameStarted = (data) => {
+      if (data.gameId !== gameId) return;
       if (navigatedRef.current) return;
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current);
+        startTimeoutRef.current = null;
+      }
       navigatedRef.current = true;
       navigate('/game', {
         state: {
@@ -87,7 +101,17 @@ const WaitingRoom = () => {
 
     const onAllPlayersJoined = (data) => {
       if (data.gameId !== gameId) return;
+      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
+      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
       socket.emit('lobby_state', { gameId });
+    };
+
+    const onError = () => {
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current);
+        startTimeoutRef.current = null;
+      }
+      setStarting(false);
     };
 
     socket.on('lobby_state', onLobbyState);
@@ -96,6 +120,7 @@ const WaitingRoom = () => {
     socket.on('player_reconnected', onPlayerReconnected);
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
+    socket.on('error', onError);
 
     return () => {
       socket.off('lobby_state', onLobbyState);
@@ -104,6 +129,11 @@ const WaitingRoom = () => {
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
+      socket.off('error', onError);
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current);
+        startTimeoutRef.current = null;
+      }
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
       if (!navigatedRef.current) {
@@ -182,6 +212,11 @@ const WaitingRoom = () => {
 
   const handleStartGame = useCallback(() => {
     setStarting(true);
+    if (startTimeoutRef.current) clearTimeout(startTimeoutRef.current);
+    startTimeoutRef.current = setTimeout(() => {
+      startTimeoutRef.current = null;
+      setStarting(false);
+    }, 8000);
     socket.emit('start_game_early', {
       gameId, sessionToken, cpuDifficulty,
     });
@@ -203,7 +238,10 @@ const WaitingRoom = () => {
 
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1
+            className="text-4xl font-extrabold bg-clip-text text-transparent"
+            style={{ backgroundImage: 'var(--gradient-brand)' }}
+          >
             GridLock
           </h1>
           <p className="text-xs mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>

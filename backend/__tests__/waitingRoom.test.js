@@ -127,6 +127,22 @@ describe('replace_with_cpu', () => {
     await s._handlers['replace_with_cpu']({ gameId: 'REPL03', sessionToken: 'a'.repeat(48), slot: 'player2', difficulty: 'medium' });
     expect(s._emitted.find(e => e.event === 'error')?.data).toBe('This slot is already a CPU player');
   });
+
+  test('rejects invalid slot for a 2-player game', async () => {
+    const s = reg(mockSocket('h1', ['REPL04']));
+    await makeGame('REPL04', { host: { sid: 'h1', name: 'Host', tok: 'a'.repeat(48) }, playerCount: 2 });
+    await s._handlers['replace_with_cpu']({ gameId: 'REPL04', sessionToken: 'a'.repeat(48), slot: 'player3', difficulty: 'medium' });
+    expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Invalid slot for this game');
+    const g = await gameStore.getGame('REPL04');
+    expect(g.players.player3).toBeUndefined();
+  });
+
+  test('rejects cross-socket token replay for host-only replace_with_cpu', async () => {
+    const s = reg(mockSocket('attacker', ['REPL05']));
+    await makeGame('REPL05', { host: { sid: 'host-socket', name: 'Host', tok: 'a'.repeat(48) }, playerCount: 3 });
+    await s._handlers['replace_with_cpu']({ gameId: 'REPL05', sessionToken: 'a'.repeat(48), slot: 'player2', difficulty: 'easy' });
+    expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Only the game host can replace slots');
+  });
 });
 
 describe('start_game_early', () => {
@@ -157,5 +173,24 @@ describe('start_game_early', () => {
     await makeGame('STRT03', { host: { sid: 'h1', name: 'Solo', tok: 'a'.repeat(48) }, playerCount: 3 });
     await s._handlers['start_game_early']({ gameId: 'STRT03', sessionToken: 'a'.repeat(48), cpuDifficulty: 'medium' });
     expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Need at least 2 players to start the game');
+  });
+
+  test('rejects cross-socket token replay for host-only start_game_early', async () => {
+    const s = reg(mockSocket('attacker', ['STRT04']));
+    await makeGame('STRT04', { host: { sid: 'host-socket', name: 'Host', tok: 'a'.repeat(48) }, p2: { sid: 'p2', name: 'Joiner', tok: 'b'.repeat(48) }, playerCount: 3 });
+    await s._handlers['start_game_early']({ gameId: 'STRT04', sessionToken: 'a'.repeat(48), cpuDifficulty: 'medium' });
+    expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Only the game host can start the game');
+  });
+
+  test('rejects start_game_early when game already in progress', async () => {
+    const s = reg(mockSocket('h1', ['STRT05']));
+    const g = await makeGame('STRT05', {
+      host: { sid: 'h1', name: 'Host', tok: 'a'.repeat(48) },
+      p2: { sid: 'p2', name: 'Joiner', tok: 'b'.repeat(48) },
+      playerCount: 2,
+    });
+    await gameStore.setGame('STRT05', g);
+    await s._handlers['start_game_early']({ gameId: 'STRT05', sessionToken: 'a'.repeat(48), cpuDifficulty: 'medium' });
+    expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Game already in progress');
   });
 });

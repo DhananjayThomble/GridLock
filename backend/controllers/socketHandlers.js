@@ -1779,8 +1779,14 @@ function attachSocketHandlers(io, log) {
                 if (!game) { socket.emit('error', 'Game not found'); return; }
 
                 const host = game.players.player1;
-                if (!host || host.token !== sessionToken) {
+                if (!host || host.id !== socket.id || host.token !== sessionToken) {
                     socket.emit('error', 'Only the game host can replace slots');
+                    return;
+                }
+
+                const slotNumber = parseInt(slot.replace('player', ''), 10);
+                if (slotNumber > game.playerCount) {
+                    socket.emit('error', 'Invalid slot for this game');
                     return;
                 }
 
@@ -1795,7 +1801,7 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
-                const slotIndex = parseInt(slot.replace('player', ''), 10) - 1;
+                const slotIndex = slotNumber - 1;
                 game.players[slot] = {
                     id: `cpu-${cleanGameId}-${slotIndex}`,
                     username: CPU_NAMES[slotIndex] || `Bot-${slotIndex + 1}`,
@@ -1854,8 +1860,12 @@ function attachSocketHandlers(io, log) {
                 if (!game) { socket.emit('error', 'Game not found'); return; }
 
                 const host = game.players.player1;
-                if (!host || host.token !== sessionToken) {
+                if (!host || host.id !== socket.id || host.token !== sessionToken) {
                     socket.emit('error', 'Only the game host can start the game');
+                    return;
+                }
+                if (gameStatusFromPlayers(game) !== 'waiting') {
+                    socket.emit('error', 'Game already in progress');
                     return;
                 }
 

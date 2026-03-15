@@ -7,8 +7,16 @@
  * remain functional with their text/border colors intact.
  */
 
+:root {
+  --gradient-brand: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
+}
+
 #root {
   padding: 0;
+}
+
+.brand-gradient-text {
+  background-image: var(--gradient-brand);
 }
 
 .app-nav {

@@ -68,7 +68,14 @@ fi
 # Beta frontend env vars (exported so npm run build picks them up)
 export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-phc_yXSobqyjQdjoiE4EZevmn8QmVKelgyjkGTsjDDNGFE9}"
 export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-https://analytics.gridlock.pro}"
-export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-https://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3}"
+if [ -f "$BETA_REPO/frontend/.env.production" ]; then
+  # Source repo-managed frontend defaults when the deploy environment does not provide overrides.
+  set -a
+  # shellcheck disable=SC1091
+  . "$BETA_REPO/frontend/.env.production"
+  set +a
+fi
+export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}"
 export VITE_BASE_PATH=/
 export VITE_SOCKET_URL=https://beta-api.gridlock.pro
 export VITE_API_BASE_URL=https://beta-api.gridlock.pro
