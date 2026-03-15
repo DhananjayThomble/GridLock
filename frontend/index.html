@@ -5,13 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="GridLock is a real-time multiplayer Dots &amp; Boxes game where strategy and speed decide every match." />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="keywords" content="dots and boxes, dots and boxes online, multiplayer board game, free online game, strategy game, gridlock game, play dots and boxes, browser game, no download" />
     <meta name="theme-color" content="#0F172A" />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
 
     <meta property="og:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." />
     <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="GridLock" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="GridLock – Multiplayer Dots &amp; Boxes game board" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." />
@@ -46,6 +52,35 @@
         var nextUrl = redirectedPath ? basePath + redirectedPath : currentUrl.pathname;
         window.history.replaceState(null, '', nextUrl);
       })();
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "GridLock",
+      "description": "GridLock is a real-time multiplayer Dots & Boxes game with tournaments, spectator mode, CPU opponents, and game replay.",
+      "url": "%VITE_SITE_URL%",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Dhananjay Thomble"
+      },
+      "genre": ["Strategy", "Board Game", "Multiplayer", "Puzzle"],
+      "gamePlatform": "Web Browser",
+      "numberOfPlayers": {
+        "@type": "QuantitativeValue",
+        "minValue": 2,
+        "maxValue": 4
+      },
+      "playMode": ["MultiPlayer", "SinglePlayer"],
+      "screenshot": "%VITE_SITE_URL%/og-image.png"
+    }
     </script>
   </head>
   <body>

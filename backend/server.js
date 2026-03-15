@@ -72,8 +72,8 @@ app.use(cors({
     }
 }));
 app.use(express.json());
+app.use(metricsMiddleware); // Prometheus HTTP request tracking (before rate limiter so 429s are counted)
 app.use(httpLimiter); // Global HTTP rate limiting
-app.use(metricsMiddleware); // Prometheus HTTP request tracking
 
 // Database Connection
 // In production, MONGO_URI must be explicitly set via PM2 ecosystem config
@@ -209,7 +209,7 @@ setInterval(async () => {
     } catch (err) {
         log.error('Failed to refresh cached game count:', err.message);
     }
-}, 15_000); // Refresh every 15 seconds
+}, 15_000).unref(); // Refresh every 15 seconds; .unref() allows graceful shutdown
 // Initialize on startup
 gameStore.gameCount().then(c => { cachedGameCount = c; }).catch(() => {});
 

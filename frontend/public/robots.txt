@@ -1,5 +1,7 @@
-# Keep the production domain and sitemap URL in sync if deployment targets ever change.
+# Production-only — Vite does not process public/ files
 User-agent: *
 Allow: /
+Disallow: /game
+Disallow: /join/
 
 Sitemap: https://gridlock.pro/sitemap.xml

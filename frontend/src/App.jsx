@@ -18,6 +18,7 @@ import JoinGame from './components/JoinGame';
 import ReplayPage from './components/ReplayPage';
 import GameHistory from './components/GameHistory';
 import DailyChallenge from './components/DailyChallenge';
+import HowToPlay from './components/HowToPlay';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import PageSeo from './components/PageSeo';
@@ -49,6 +50,9 @@ const AppLayout = () => {
           </NavLink>
           <NavLink to="/history" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             History
+          </NavLink>
+          <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+            How to Play
           </NavLink>
         </nav>
       )}
@@ -178,6 +182,14 @@ const AppLayout = () => {
                     description: 'Watch a completed GridLock match replay and study every move.',
                   },
                 )}
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/how-to-play"
+            element={(
+              <ErrorBoundary>
+                <HowToPlay />
               </ErrorBoundary>
             )}
           />
