@@ -50,9 +50,18 @@ fi
 cd "$BETA_REPO/frontend"
 npm ci --no-optional
 
-# Validate vite is available before attempting build
+# Validate vite + native rollup binary are available.
+# git reset --hard can corrupt node_modules (missing native binaries like @rollup/rollup-linux-x64-gnu).
+# If npm ci didn't restore them, nuke and reinstall from scratch.
+if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ] || ! node -e "require('@rollup/rollup-linux-x64-gnu')" 2>/dev/null; then
+  echo "⚠️  Native deps missing after npm ci — doing clean reinstall..."
+  rm -rf node_modules package-lock.json
+  npm install
+fi
+
+# Final validation
 if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
-  echo "❌ vite binary not found after npm ci — frontend deps likely failed"
+  echo "❌ vite binary not found after reinstall — frontend deps broken"
   exit 1
 fi
 
