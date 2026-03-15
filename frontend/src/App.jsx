@@ -18,6 +18,7 @@ import JoinGame from './components/JoinGame';
 import ReplayPage from './components/ReplayPage';
 import GameHistory from './components/GameHistory';
 import DailyChallenge from './components/DailyChallenge';
+import HowToPlay from './components/HowToPlay';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import './App.css';
@@ -116,6 +117,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <ReplayPage />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/how-to-play"
+            element={(
+              <ErrorBoundary>
+                <HowToPlay />
               </ErrorBoundary>
             )}
           />
