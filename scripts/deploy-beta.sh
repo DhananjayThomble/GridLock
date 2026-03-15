@@ -6,14 +6,17 @@ trap 'echo "❌ Deploy failed at line $LINENO (exit $?)"' ERR
 
 LOCKFILE="/tmp/beta-deploy.lock"
 
-# ── Concurrency Lock ────────────────────────────────────────────
-# Prevent concurrent deploys (e.g. rapid webhook fires).
-# flock -n = non-blocking: if another deploy holds the lock, exit immediately.
-exec 200>"$LOCKFILE"
-if ! flock -n 200; then
+acquire_lock() {
+  # Prevent concurrent deploys (e.g. rapid webhook fires).
+  # flock -n = non-blocking: if another deploy holds the lock, exit immediately.
+  exec 200>"$LOCKFILE"
+  if ! flock -n 200; then
     echo "[$(date -u)] ⚠️  Another beta deploy is already running — skipping."
     exit 0
-fi
+  fi
+}
+
+acquire_lock
 
 BETA_REPO="/home/ubuntu/projects/GridLock-beta"
 BETA_WEB="/var/www/gridlock-beta"
