@@ -1,0 +1,5 @@
+# Keep the production domain and sitemap URL in sync if deployment targets ever change.
+User-agent: *
+Allow: /
+
+Sitemap: https://gridlock.pro/sitemap.xml
