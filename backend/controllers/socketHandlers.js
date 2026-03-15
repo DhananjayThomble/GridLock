@@ -1784,8 +1784,13 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
-                const slotNumber = parseInt(slot.replace('player', ''), 10);
-                if (slotNumber > game.playerCount) {
+                // Strict slot format: player2, player3, or player4 only (player1 is always host)
+                if (!/^player[2-4]$/.test(slot)) {
+                    socket.emit('error', 'Invalid slot for this game');
+                    return;
+                }
+                const slotNumber = Number(slot.charAt(6));
+                if (!Number.isInteger(slotNumber) || slotNumber < 2 || slotNumber > game.playerCount) {
                     socket.emit('error', 'Invalid slot for this game');
                     return;
                 }
