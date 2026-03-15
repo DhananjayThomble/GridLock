@@ -45,7 +45,7 @@ const AppLayout = () => {
             History
           </NavLink>
           <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
-            How to Play
+            Rules
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} aria-label="Settings">
             ⚙️

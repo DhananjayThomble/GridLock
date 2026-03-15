@@ -18,23 +18,32 @@
   right: 0;
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1rem;
+  gap: 0.25rem;
+  padding: 0.6rem 0.5rem;
   background: var(--nav-bg);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 40;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.app-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .app-nav-link {
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.4rem 1.2rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 999px;
   transition: color 0.2s, background 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
