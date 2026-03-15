@@ -22,6 +22,7 @@ import HowToPlay from './components/HowToPlay';
 import Settings from './components/Settings';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
+import BottomNav from './components/BottomNav';
 import './App.css';
 
 // Support /beta sub-path deployment via Vite's BASE_URL
@@ -29,7 +30,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/');
 
   return (
     <>
@@ -148,6 +149,8 @@ const AppLayout = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+
+      {!hideNav && <BottomNav />}
     </>
   );
 };

@@ -14,7 +14,7 @@ const TOGGLE_OPTIONS = [
 const Toggle = ({ checked, onChange, label, disabled = false }) => (
   <button
     onClick={() => { if (disabled) return; onChange(); }}
-    className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
+    className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer min-h-[44px] min-w-[44px]"
     style={{ backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)' }}
     role="switch"
     aria-checked={checked}

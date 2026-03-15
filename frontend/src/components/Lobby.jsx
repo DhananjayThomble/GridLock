@@ -517,7 +517,7 @@ const Lobby = () => {
         )}
 
         {/* ── Title ── */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
             GridLock
           </h1>
@@ -615,7 +615,7 @@ const Lobby = () => {
           </div>
 
           {/* ── Create Game (hero — always visible) ── */}
-          <div className="p-5 space-y-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div className="p-4 space-y-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* Players */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Number of Players</label>

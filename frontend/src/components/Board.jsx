@@ -98,7 +98,10 @@ const Board = () => {
     sessionToken: initialSessionToken,
     joinMode: initialJoinMode,
     tournamentId,
+    cpuDifficulty: initialCpuDifficulty,
   } = location.state || {};
+
+  const cpuDifficulty = initialCpuDifficulty || null;
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
   const [role, setRole] = useState(initialRole || (initialJoinMode === 'spectator' ? 'spectator' : initialRole));
@@ -1071,9 +1074,9 @@ const Board = () => {
       <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
 
         {/* ── Header: Room code + You are + Status ── */}
-        <div className="w-full max-w-2xl mb-2 sm:mb-3">
+        <div className="w-full max-w-2xl mb-1 sm:mb-3">
           {/* Room code badge — always visible, copyable */}
-          <div className="flex items-center justify-center gap-2 mb-1">
+          <div className="flex items-center justify-center gap-2 mb-0.5">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
             <button
               onClick={handleCopyId}
@@ -1099,9 +1102,17 @@ const Board = () => {
           </div>
 
           {/* You are */}
-          <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs text-center mb-0.5" style={{ color: 'var(--text-muted)' }}>
             You are <span className="font-bold" style={{ color: isSpectator ? 'var(--accent)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
             {gameState?.hasCPU && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>vs CPU</span>}
+            {gameState?.hasCPU && cpuDifficulty && (
+              <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-semibold" style={{
+                backgroundColor: cpuDifficulty === 'easy' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : cpuDifficulty === 'hard' ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 'color-mix(in srgb, var(--warning) 15%, transparent)',
+                color: cpuDifficulty === 'easy' ? 'var(--success)' : cpuDifficulty === 'hard' ? 'var(--danger)' : 'var(--warning)',
+              }}>
+                {cpuDifficulty === 'easy' ? '\u{1F7E2} Easy' : cpuDifficulty === 'hard' ? '\u{1F534} Hard' : '\u{1F7E1} Medium'}
+              </span>
+            )}
             {tournamentId && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>🏆 Tournament Match</span>}
           </p>
 
@@ -1219,7 +1230,7 @@ const Board = () => {
         <ChatOverlay socket={socket} gameId={gameId} />
 
         {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
-        <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
+        <div className="game-toolbar mt-2 flex items-center justify-between w-full max-w-xs gap-3">
           {/* Mute button — moved OUT of board */}
           <button
             onClick={() => { initAudio(); handleToggleMute(); }}

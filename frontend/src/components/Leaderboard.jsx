@@ -15,7 +15,20 @@ const formatDate = (value) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  if (diffMs < 0) return 'just now';
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
 };
 
 const parseApiResponse = async (res) => {
@@ -299,7 +312,7 @@ const Leaderboard = () => {
                           <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>W/L/D</th>
                           <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>Win Rate</th>
                           <th className="px-3 py-3 text-xs uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>ELO</th>
-                          <th className="px-3 py-3 text-xs uppercase tracking-wider leaderboard-last-played" style={{ color: 'var(--label-color)' }}>Last Played</th>
+                          <th className="px-3 py-3 text-xs uppercase tracking-wider hidden sm:table-cell" style={{ color: 'var(--label-color)' }}>Last Played</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -315,7 +328,7 @@ const Leaderboard = () => {
                             <td className="px-3 py-3">{entry.wins}/{entry.losses}/{entry.draws}</td>
                             <td className="px-3 py-3">{entry.winRate}%</td>
                             <td className="px-3 py-3">{entry.elo}</td>
-                            <td className="px-3 py-3 leaderboard-last-played">{formatDate(entry.lastPlayedAt)}</td>
+                            <td className="px-3 py-3 hidden sm:table-cell">{formatDate(entry.lastPlayedAt)}</td>
                           </tr>
                         ))}
                       </tbody>

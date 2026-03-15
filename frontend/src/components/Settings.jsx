@@ -213,8 +213,13 @@ const Settings = () => {
                   )}
 
                   <button
-                    onClick={() => { resetStats(); setStats(getStats()); }}
-                    className="w-full text-xs transition-all py-1"
+                    onClick={() => {
+                      if (window.confirm('Reset all your stats? This cannot be undone.')) {
+                        resetStats();
+                        setStats(getStats());
+                      }
+                    }}
+                    className="w-full text-xs transition-all py-1 min-h-[44px]"
                     style={{ color: 'var(--text-subtle)' }}
                   >
                     Reset stats
