@@ -1,0 +1,7 @@
+# Production-only — Vite does not process public/ files
+User-agent: *
+Allow: /
+Disallow: /game
+Disallow: /join/
+
+Sitemap: https://gridlock.pro/sitemap.xml
