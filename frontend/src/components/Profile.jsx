@@ -27,7 +27,8 @@ const formatDuration = (seconds) => {
 const formatTimeAgo = (value) => {
   if (!value) return '';
   const diff = Date.now() - new Date(value).getTime();
-  const mins = Math.floor(diff / 60000);
+  // Future dates (clock skew) gracefully fall through to "just now"
+  const mins = Math.floor(Math.max(0, diff) / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);

@@ -17,7 +17,7 @@ const formatDate = (value) => {
   if (Number.isNaN(date.getTime())) return '—';
   const now = Date.now();
   const diffMs = now - date.getTime();
-  if (diffMs < 0) return 'just now';
+  if (diffMs < 0) return 'just now'; // future dates from clock skew — intentional
   const seconds = Math.floor(diffMs / 1000);
   if (seconds < 60) return 'just now';
   const minutes = Math.floor(seconds / 60);

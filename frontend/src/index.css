@@ -474,13 +474,6 @@ a {
   }
 }
 
-/* Hide "Last Played" column on mobile */
-@media (max-width: 767px) {
-  .leaderboard-last-played {
-    display: none;
-  }
-}
-
 /* ── Lobby "Playing as" ellipsis ───────────────────────────────────────────── */
 .lobby-playing-as {
   max-width: 100%;

@@ -100,18 +100,21 @@ const Settings = () => {
                   : 'Set a username in the lobby first'}
               </p>
             </div>
-            <button
-              onClick={handlePushToggle}
-              disabled={!localStorage.getItem('gridlock_username')}
-              className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
-              aria-label="Toggle push notifications"
-            >
-              <div
-                className={`w-4 h-4 rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                style={{ backgroundColor: 'var(--text-primary)' }}
-              />
-            </button>
+            {/* Invisible 44px touch target wraps the small visual toggle pill */}
+            <div className="min-h-[44px] min-w-[44px] flex items-center justify-center">
+              <button
+                onClick={handlePushToggle}
+                disabled={!localStorage.getItem('gridlock_username')}
+                className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
+                aria-label="Toggle push notifications"
+              >
+                <div
+                  className={`w-4 h-4 rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                  style={{ backgroundColor: 'var(--text-primary)' }}
+                />
+              </button>
+            </div>
           </div>
         </div>
 

@@ -12,24 +12,27 @@ const TOGGLE_OPTIONS = [
 ];
 
 const Toggle = ({ checked, onChange, label, disabled = false }) => (
-  <button
-    onClick={() => { if (disabled) return; onChange(); }}
-    className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer min-h-[44px] min-w-[44px]"
-    style={{ backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)' }}
-    role="switch"
-    aria-checked={checked}
-    aria-disabled={disabled}
-    aria-label={label}
-    tabIndex={disabled ? -1 : 0}
-    data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
-  >
-    <div
-      className={`w-4 h-4 rounded-full shadow transition-transform ${
-        checked ? 'translate-x-5' : 'translate-x-0'
-      }`}
-      style={{ backgroundColor: 'var(--text-primary)' }}
-    />
-  </button>
+  /* Invisible 44px touch target wraps the small visual toggle pill */
+  <div className="min-h-[44px] min-w-[44px] flex items-center justify-center">
+    <button
+      onClick={() => { if (disabled) return; onChange(); }}
+      className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
+      style={{ backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)' }}
+      role="switch"
+      aria-checked={checked}
+      aria-disabled={disabled}
+      aria-label={label}
+      tabIndex={disabled ? -1 : 0}
+      data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
+    >
+      <div
+        className={`w-4 h-4 rounded-full shadow transition-transform ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+        style={{ backgroundColor: 'var(--text-primary)' }}
+      />
+    </button>
+  </div>
 );
 
 const SoundSettings = () => {

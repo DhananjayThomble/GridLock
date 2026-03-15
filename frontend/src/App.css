@@ -20,8 +20,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.6rem 1rem;
-  background-color: var(--bg-primary);
-  background: var(--nav-bg);
+  background: var(--nav-bg); /* background shorthand suffices; background-color removed */
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -76,7 +75,7 @@
 .app-content-with-nav {
   /* Must exceed .app-nav computed height (~48px) to prevent content overlap */
   padding-top: 3.75rem;
-  /* Extra bottom padding to clear bottom nav bar */
+  /* Extra bottom padding to clear bottom nav bar on mobile */
   padding-bottom: 5rem;
 }
 
@@ -85,5 +84,12 @@
     /* Extra bottom padding on small mobile viewports to clear safe areas and
        prevent nav/content overlap with lobby option buttons (#212) */
     padding-bottom: 6rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .app-content-with-nav {
+    /* Bottom nav hidden on sm+ — reduce wasted padding */
+    padding-bottom: 1rem;
   }
 }
