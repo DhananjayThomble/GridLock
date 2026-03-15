@@ -168,12 +168,12 @@ const Board = () => {
 
   // ── Room not found timeout ────────────────────────────────────────────────────
   useEffect(() => {
-    if (gameState) return; // already have data, no timeout needed
+    if (gameState || roomNotFound) return; // already have data or already marked not found
     const timer = setTimeout(() => {
       setRoomNotFound(true);
     }, 8000);
     return () => clearTimeout(timer);
-  }, [gameState]);
+  }, [gameState, roomNotFound]);
 
   // ── Turn change detection → haptic + visual + audio ───────────────────────────
   useEffect(() => {

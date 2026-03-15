@@ -49,11 +49,10 @@ if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
   exit 1
 fi
 
-export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-phc_jGCmhd3YjQJRRu8jroVldTdenQRa5Nla12hBvOpwQhX}"
-export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-https://analytics.gridlock.pro}"
-export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-http://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3}"
-
 VITE_BASE_PATH=/ \
+VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-}" \
+VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-}" \
+VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}" \
 VITE_SOCKET_URL=https://beta-api.gridlock.pro \
 VITE_API_BASE_URL=https://beta-api.gridlock.pro \
 VITE_SITE_URL=https://beta.gridlock.pro \
