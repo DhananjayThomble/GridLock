@@ -2,6 +2,7 @@
 # Auto-deploy develop branch to beta-api.gridlock.pro
 # Called by GitHub webhook on develop push
 set -euo pipefail
+trap 'echo "❌ Deploy failed at line $LINENO (exit $?)"' ERR
 
 LOCKFILE="/tmp/beta-deploy.lock"
 
@@ -16,6 +17,12 @@ fi
 
 BETA_REPO="/home/ubuntu/projects/GridLock-beta"
 BETA_WEB="/var/www/gridlock-beta"
+
+# Merge stderr into stdout so Node.js execFile captures everything
+exec 2>&1
+
+# Disable husky hooks in non-TTY environments (PM2/execFile)
+export HUSKY=0
 
 echo "[$(date -u)] Beta deploy starting..."
 
@@ -41,7 +48,7 @@ fi
 
 # ── Frontend ──
 cd "$BETA_REPO/frontend"
-npm ci
+npm ci --no-optional
 
 # Validate vite is available before attempting build
 if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
