@@ -207,6 +207,7 @@ app.get('/health', healthLimiter, async (req, res) => {
     } catch (err) {
         // Service is up but a backing store is unreachable — return degraded status
         // Still 200 so load balancers don't pull the instance, but status indicates the problem
+        log.error('Health check degraded:', { error: err.message });
         const mem = process.memoryUsage();
         res.json({
             status: 'degraded',
@@ -259,11 +260,12 @@ app.use((err, req, res, _next) => {
     }
 
     const status = err.status || 500;
-    const message = process.env.NODE_ENV === 'production'
+    // Only mask 500s in production — client errors (4xx) should always show their real message
+    const message = (status >= 500 && process.env.NODE_ENV === 'production')
         ? 'Internal server error'
         : err.message;
 
-    if (status === 500) {
+    if (status >= 500) {
         log.error('Unhandled error:', { error: err.message, stack: err.stack, path: req.path });
     }
 
