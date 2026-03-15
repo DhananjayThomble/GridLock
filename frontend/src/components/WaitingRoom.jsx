@@ -36,6 +36,7 @@ const WaitingRoom = () => {
   // Prevent double-navigate
   const navigatedRef = useRef(false);
   const startTimeoutRef = useRef(null);
+  const startErrorHandlerRef = useRef(null);
 
   const shareUrl = `https://gridlock.pro/join/${gameId}`;
 
@@ -84,6 +85,10 @@ const WaitingRoom = () => {
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
       }
+      if (startErrorHandlerRef.current) {
+        socket.off('error', startErrorHandlerRef.current);
+        startErrorHandlerRef.current = null;
+      }
       navigatedRef.current = true;
       navigate('/game', {
         state: {
@@ -106,21 +111,12 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
-    const onError = () => {
-      if (startTimeoutRef.current) {
-        clearTimeout(startTimeoutRef.current);
-        startTimeoutRef.current = null;
-      }
-      setStarting(false);
-    };
-
     socket.on('lobby_state', onLobbyState);
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected', onPlayerReconnected);
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
-    socket.on('error', onError);
 
     return () => {
       socket.off('lobby_state', onLobbyState);
@@ -129,10 +125,13 @@ const WaitingRoom = () => {
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
-      socket.off('error', onError);
       if (startTimeoutRef.current) {
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
+      }
+      if (startErrorHandlerRef.current) {
+        socket.off('error', startErrorHandlerRef.current);
+        startErrorHandlerRef.current = null;
       }
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
@@ -211,21 +210,40 @@ const WaitingRoom = () => {
   }, [gameId, sessionToken, cpuDifficulty]);
 
   const handleStartGame = useCallback(() => {
-    setStarting(true);
-    if (startTimeoutRef.current) clearTimeout(startTimeoutRef.current);
-    startTimeoutRef.current = setTimeout(() => {
-      startTimeoutRef.current = null;
-      setStarting(false);
-    }, 8000);
-    socket.emit('start_game_early', {
-      gameId, sessionToken, cpuDifficulty,
-    }, (response) => {
-      if (response?.ok !== false) return;
+    const clearStartPending = () => {
       if (startTimeoutRef.current) {
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
       }
+      if (startErrorHandlerRef.current) {
+        socket.off('error', startErrorHandlerRef.current);
+        startErrorHandlerRef.current = null;
+      }
+    };
+
+    setStarting(true);
+    clearStartPending();
+    const onStartError = () => {
+      clearStartPending();
       setStarting(false);
+    };
+    startErrorHandlerRef.current = onStartError;
+    socket.on('error', onStartError);
+
+    startTimeoutRef.current = setTimeout(() => {
+      clearStartPending();
+      setStarting(false);
+    }, 10000);
+
+    socket.emit('start_game_early', {
+      gameId, sessionToken, cpuDifficulty,
+    }, (response) => {
+      if (response?.ok === false) {
+        clearStartPending();
+        setStarting(false);
+      } else if (response?.ok === true) {
+        clearStartPending();
+      }
     });
   }, [gameId, sessionToken, cpuDifficulty]);
 
