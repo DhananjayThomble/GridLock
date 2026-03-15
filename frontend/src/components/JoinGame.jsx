@@ -26,17 +26,38 @@ const JoinGame = () => {
     const onGameStarted = (data) => {
       setJoining(false);
       localStorage.setItem('gridlock_username', username.trim());
-      navigate('/game', {
-        state: {
-          username: username.trim(),
-          gameId: data.gameId,
-          role: data.playerId,
-          avatar: selectedAvatar,
-          playerCount: data.playerCount,
-          gridSize: data.gridSize,
-          sessionToken: data.sessionToken,
-        },
-      });
+
+      // Check if game is full — if not, go to waiting room
+      const playerList = data.players || {};
+      const totalSlots = data.playerCount || 2;
+      const filledSlots = Object.values(playerList).filter(Boolean).length;
+
+      if (filledSlots < totalSlots) {
+        navigate(`/waiting/${data.gameId || gameId.toUpperCase()}`, {
+          state: {
+            username: username.trim(),
+            gameId: data.gameId || gameId.toUpperCase(),
+            role: data.playerId,
+            avatar: selectedAvatar,
+            playerCount: data.playerCount,
+            gridSize: data.gridSize,
+            sessionToken: data.sessionToken,
+            isHost: false,
+          },
+        });
+      } else {
+        navigate('/game', {
+          state: {
+            username: username.trim(),
+            gameId: data.gameId,
+            role: data.playerId,
+            avatar: selectedAvatar,
+            playerCount: data.playerCount,
+            gridSize: data.gridSize,
+            sessionToken: data.sessionToken,
+          },
+        });
+      }
     };
 
     const onError = (msg) => {
