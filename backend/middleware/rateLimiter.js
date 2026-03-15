@@ -241,13 +241,32 @@ if (_purgeInterval) _purgeInterval.unref();
  * Limits the number of concurrent socket connections from a single IP.
  */
 const MAX_SOCKETS_PER_IP = 50;
+
+/**
+ * Upper bound on tracked IPs to prevent OOM from IP-space exhaustion.
+ * When exceeded, new IPs are rejected (fail-closed) until existing IPs disconnect.
+ * Consistent with the IPRateLimiter OOM guard pattern (MAX_IP_TRACKER_SIZE).
+ */
+const MAX_TRACKED_IPS = 10_000;
+
 const socketConnectionTracker = new Map(); // Map<ip, Set<socketId>>
 
+/**
+ * Track a new socket connection for an IP.
+ * @param {string} ip
+ * @param {string} socketId
+ * @returns {boolean} true if tracked, false if rejected (OOM guard — too many distinct IPs)
+ */
 function trackSocketConnection(ip, socketId) {
     if (!socketConnectionTracker.has(ip)) {
+        // OOM guard: reject new IPs when at capacity
+        if (socketConnectionTracker.size >= MAX_TRACKED_IPS) {
+            return false;
+        }
         socketConnectionTracker.set(ip, new Set());
     }
     socketConnectionTracker.get(ip).add(socketId);
+    return true;
 }
 
 function untrackSocketConnection(ip, socketId) {
@@ -273,6 +292,7 @@ module.exports = {
     checkRateLimit,
     MAX_IP_TRACKER_SIZE,
     MAX_SOCKETS_PER_IP,
+    MAX_TRACKED_IPS,
     trackSocketConnection,
     untrackSocketConnection,
     getSocketCountForIP,

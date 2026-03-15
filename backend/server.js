@@ -16,6 +16,7 @@ const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics')
 
 const socketHandlers = require('./controllers/socketHandlers');
 const { httpLimiter, healthLimiter, getSocketCountForIP, trackSocketConnection, untrackSocketConnection, MAX_SOCKETS_PER_IP } = require('./middleware/rateLimiter');
+const { isInternalRequest } = require('./middleware/internalAccess');
 const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
@@ -54,7 +55,7 @@ app.use((req, res, next) => {
 });
 // ── CORS allowlist (#285) ────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim()).filter(Boolean)
     : [
         'https://gridlock.pro',
         'https://www.gridlock.pro',
@@ -91,6 +92,10 @@ mongoose.connect(MONGO_URI)
 .catch(err => log.error('MongoDB connection error:', err));
 
 // Socket.io Setup
+// Express CORS uses a callback to allow null/undefined origins (server-to-server
+// requests, curl, mobile apps send no Origin header). Socket.IO uses the array
+// directly because WebSocket upgrades always originate from a browser page — there
+// is no server-to-server scenario that needs a null origin exception.
 const io = new Server(server, {
     cors: {
         origin: ALLOWED_ORIGINS,
@@ -209,22 +214,7 @@ setInterval(async () => {
 // Initialize on startup
 gameStore.gameCount().then(c => { cachedGameCount = c; }).catch(() => {});
 
-// ── Internal IP check for /metrics (#284) ────────────────────────────────────
-function isInternalRequest(req) {
-    const ip = req.ip || req.socket?.remoteAddress || '';
-    // Trust X-Real-IP from Nginx (which sets it from $remote_addr)
-    const realIp = req.headers['x-real-ip'] || ip;
-    const internalPatterns = [
-        /^127\./,
-        /^10\./,
-        /^172\.(1[6-9]|2\d|3[01])\./,
-        /^192\.168\./,
-        /^::1$/,
-        /^::ffff:127\./,
-        /^localhost$/,
-    ];
-    return internalPatterns.some(p => p.test(realIp));
-}
+// ── Internal IP check for /metrics (#284) — uses shared utility ──────────────
 
 // Prometheus metrics endpoint (prom-client format with default + custom metrics)
 app.get('/metrics', healthLimiter, async (req, res) => {
