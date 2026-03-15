@@ -366,7 +366,7 @@ const Board = () => {
       const message = typeof msg === 'string' ? msg : JSON.stringify(msg);
       setError(message);
       // If error indicates room not found, show permanent error on loading screen
-      if (/room|not found|invalid|does not exist/i.test(message)) {
+      if (/game not found|room not found|does not exist/i.test(message)) {
         setRoomNotFound(true);
       } else {
         setTimeout(() => setError(null), 3000);
