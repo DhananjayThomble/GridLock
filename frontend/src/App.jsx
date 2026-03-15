@@ -20,6 +20,7 @@ import GameHistory from './components/GameHistory';
 import DailyChallenge from './components/DailyChallenge';
 import HowToPlay from './components/HowToPlay';
 import Settings from './components/Settings';
+import WaitingRoom from './components/WaitingRoom';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import './App.css';
@@ -29,7 +30,7 @@ const basePath = import.meta.env.BASE_URL || '/';
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   return (
     <>
@@ -108,6 +109,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <JoinGame />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/waiting/:gameId"
+            element={(
+              <ErrorBoundary>
+                <WaitingRoom />
               </ErrorBoundary>
             )}
           />

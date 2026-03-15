@@ -101,6 +101,24 @@ const schemas = {
         gameId: gameIdField,
         content: Joi.string().trim().min(1).max(50).required(),
     }),
+
+    // Waiting room events
+    lobby_state: Joi.object({
+        gameId: gameIdField,
+    }),
+
+    replace_with_cpu: Joi.object({
+        gameId: gameIdField,
+        sessionToken: Joi.string().trim().hex().length(48).required(),
+        slot: Joi.string().pattern(/^player[1-4]$/).required(),
+        difficulty: Joi.string().valid('easy', 'medium', 'hard').optional().default('medium'),
+    }),
+
+    start_game_early: Joi.object({
+        gameId: gameIdField,
+        sessionToken: Joi.string().trim().hex().length(48).required(),
+        cpuDifficulty: Joi.string().valid('easy', 'medium', 'hard').optional().default('medium'),
+    }),
 };
 
 /**

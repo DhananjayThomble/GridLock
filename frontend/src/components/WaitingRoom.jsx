@@ -1,0 +1,433 @@
+// src/components/WaitingRoom.jsx
+// Real-time waiting room — shows player slots, share link, admin controls
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import socket from '../socket';
+
+const DIFFICULTY_OPTIONS = [
+  { value: 'easy', label: 'Easy', icon: '😊' },
+  { value: 'medium', label: 'Medium', icon: '🧐' },
+  { value: 'hard', label: 'Hard', icon: '🧠' },
+];
+
+const WaitingRoom = () => {
+  const { gameId: paramGameId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = location.state || {};
+
+  const gameId = (state.gameId || paramGameId || '').toUpperCase();
+  const username = state.username || '';
+  const sessionToken = state.sessionToken || '';
+  const isHost = state.isHost || false;
+  const gridSize = state.gridSize || 3;
+  const playerCount = state.playerCount || 2;
+  const avatar = state.avatar || '👦';
+
+  const [slots, setSlots] = useState([]);
+  const [filled, setFilled] = useState(0);
+  const [cpuDifficulty, setCpuDifficulty] = useState(state.cpuDifficulty || 'medium');
+  const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [disconnectTimers, setDisconnectTimers] = useState({});
+
+  // Prevent double-navigate
+  const navigatedRef = useRef(false);
+
+  const shareUrl = `https://gridlock.pro/join/${gameId}`;
+
+  // Request lobby state on mount
+  useEffect(() => {
+    if (!gameId) { navigate('/', { replace: true }); return; }
+    if (!socket.connected) socket.connect();
+    socket.emit('lobby_state', { gameId });
+  }, [gameId, navigate]);
+
+  // Socket event listeners
+  useEffect(() => {
+    const onLobbyState = (data) => {
+      if (data.gameId !== gameId) return;
+      setSlots(data.slots || []);
+      setFilled(data.filled || 0);
+      if (data.cpuDifficulty) setCpuDifficulty(data.cpuDifficulty);
+    };
+
+    const onPlayerJoined = (data) => {
+      if (data.gameId !== gameId) return;
+      setFilled(data.filled || 0);
+      socket.emit('lobby_state', { gameId });
+    };
+
+    const onPlayerDisconnected = () => {
+      socket.emit('lobby_state', { gameId });
+    };
+
+    const onPlayerReconnected = () => {
+      socket.emit('lobby_state', { gameId });
+    };
+
+    const onGameStarted = (data) => {
+      if (navigatedRef.current) return;
+      navigatedRef.current = true;
+      navigate('/game', {
+        state: {
+          username,
+          gameId: data.gameId || gameId,
+          role: data.playerId || 'player1',
+          avatar,
+          playerCount: data.playerCount || playerCount,
+          gridSize: data.gridSize || gridSize,
+          sessionToken: data.sessionToken || sessionToken,
+          cpuDifficulty: data.cpuDifficulty || cpuDifficulty,
+        },
+      });
+    };
+
+    const onAllPlayersJoined = (data) => {
+      if (data.gameId !== gameId) return;
+      socket.emit('lobby_state', { gameId });
+    };
+
+    socket.on('lobby_state', onLobbyState);
+    socket.on('player_joined', onPlayerJoined);
+    socket.on('player_disconnected', onPlayerDisconnected);
+    socket.on('player_reconnected', onPlayerReconnected);
+    socket.on('game_started', onGameStarted);
+    socket.on('all_players_joined', onAllPlayersJoined);
+
+    return () => {
+      socket.off('lobby_state', onLobbyState);
+      socket.off('player_joined', onPlayerJoined);
+      socket.off('player_disconnected', onPlayerDisconnected);
+      socket.off('player_reconnected', onPlayerReconnected);
+      socket.off('game_started', onGameStarted);
+      socket.off('all_players_joined', onAllPlayersJoined);
+    };
+  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
+
+  // Disconnect countdown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDisconnectTimers((prev) => {
+        const next = {};
+        let changed = false;
+        slots.forEach((s) => {
+          if (s.username && !s.connected && s.disconnectedAt) {
+            const elapsed = (Date.now() - new Date(s.disconnectedAt).getTime()) / 1000;
+            const remaining = Math.max(0, 30 - Math.floor(elapsed));
+            next[s.slot] = remaining;
+            if (prev[s.slot] !== remaining) changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [slots]);
+
+  const handleCopyCode = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(gameId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = gameId;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [gameId]);
+
+  const handleShare = useCallback(async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my GridLock game!',
+          text: `Join my GridLock game! Code: ${gameId}`,
+          url: shareUrl,
+        });
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      } catch { /* cancelled */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShared(true);
+        setTimeout(() => setShared(false), 2000);
+      } catch { /* ignore */ }
+    }
+  }, [gameId, shareUrl]);
+
+  const handleReplaceWithCPU = useCallback((slot) => {
+    socket.emit('replace_with_cpu', {
+      gameId, sessionToken, slot,
+      difficulty: cpuDifficulty,
+    });
+  }, [gameId, sessionToken, cpuDifficulty]);
+
+  const handleStartGame = useCallback(() => {
+    setStarting(true);
+    socket.emit('start_game_early', {
+      gameId, sessionToken, cpuDifficulty,
+    });
+  }, [gameId, sessionToken, cpuDifficulty]);
+
+  const handleLeave = useCallback(() => {
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  const canStart = isHost && filled >= 2;
+  const allFilled = filled === playerCount;
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center p-4 safe-bottom"
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
+    >
+      <div className="w-full max-w-md">
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            GridLock
+          </h1>
+          <p className="text-xs mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>
+            Waiting Room
+          </p>
+        </div>
+
+        {/* Card */}
+        <div
+          className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
+          style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
+        >
+
+          {/* Game Code */}
+          <div className="p-5 text-center" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>
+              Room Code
+            </span>
+            <div
+              className="mt-2 font-mono text-4xl font-extrabold tracking-[0.3em] select-all"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {gameId}
+            </div>
+            <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+              {gridSize}×{gridSize} · {playerCount} Players
+            </div>
+          </div>
+
+          {/* Share / Copy Buttons */}
+          <div className="p-4 flex gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={handleShare}
+              className="flex-1 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+              style={{
+                background: shared ? 'var(--success)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))',
+                color: 'var(--text-on-accent)',
+              }}
+            >
+              {shared ? '✅ Shared!' : '📤 Share Invite Link'}
+            </button>
+            <button
+              onClick={handleCopyCode}
+              className="py-3 px-4 rounded-xl font-bold text-sm transition-all active:scale-95"
+              style={{
+                background: copied ? 'var(--success)' : 'var(--bg-card)',
+                border: '1px solid var(--border-color-strong)',
+                color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
+              }}
+            >
+              {copied ? '✅' : '📋'}
+            </button>
+          </div>
+
+          {/* Player Slots */}
+          <div className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>
+              Players ({filled}/{playerCount})
+            </span>
+
+            {slots.map((slot) => (
+              <div
+                key={slot.slot}
+                className="flex items-center gap-3 p-3 rounded-xl transition-all"
+                style={{
+                  background: slot.username
+                    ? (slot.connected !== false || slot.isCPU
+                      ? 'color-mix(in srgb, var(--success) 10%, transparent)'
+                      : 'color-mix(in srgb, var(--danger) 10%, transparent)')
+                    : 'var(--bg-card)',
+                  border: `1px solid ${slot.username
+                    ? (slot.connected !== false || slot.isCPU
+                      ? 'color-mix(in srgb, var(--success) 25%, transparent)'
+                      : 'color-mix(in srgb, var(--danger) 25%, transparent)')
+                    : 'var(--border-color)'}`,
+                }}
+              >
+                {/* Avatar */}
+                <span className="text-2xl w-9 text-center flex-shrink-0">
+                  {slot.username
+                    ? (slot.isCPU ? '🤖' : (slot.avatar || '👤'))
+                    : '👤'}
+                </span>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="text-sm font-semibold truncate"
+                      style={{ color: slot.username ? 'var(--text-primary)' : 'var(--text-muted)' }}
+                    >
+                      {slot.username
+                        ? (slot.isCPU
+                          ? `${slot.username} (${cpuDifficulty ? cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1) : 'Medium'})`
+                          : (slot.username === username ? `${slot.username} (you)` : slot.username))
+                        : 'Waiting for player...'}
+                    </span>
+                  </div>
+                  {slot.isHost && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Host</span>
+                  )}
+                  {slot.username && !slot.isCPU && !slot.connected && disconnectTimers[slot.slot] !== undefined && (
+                    <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>
+                      Disconnected · {disconnectTimers[slot.slot]}s
+                    </span>
+                  )}
+                </div>
+
+                {/* Status + Actions */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {slot.username ? (
+                    slot.connected !== false || slot.isCPU ? (
+                      <span className="text-sm">✅</span>
+                    ) : (
+                      <span className="text-sm">❌</span>
+                    )
+                  ) : (
+                    <span className="text-sm animate-pulse">⏳</span>
+                  )}
+
+                  {isHost && !slot.isCPU && (!slot.username || (!slot.connected && slot.username !== username)) && slot.slot !== 'player1' && (
+                    <button
+                      onClick={() => handleReplaceWithCPU(slot.slot)}
+                      className="text-[10px] font-bold px-2 py-1 rounded-lg transition-all active:scale-95"
+                      style={{
+                        background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
+                        color: 'var(--warning)',
+                      }}
+                      title="Replace with CPU"
+                    >
+                      🤖 CPU
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Placeholder slots before lobby_state arrives */}
+            {slots.length === 0 && Array.from({ length: playerCount }, (_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 p-3 rounded-xl"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
+              >
+                <span className="text-2xl w-9 text-center flex-shrink-0">
+                  {i === 0 ? (avatar || '👦') : '👤'}
+                </span>
+                <div className="flex-1">
+                  <span className="text-sm font-semibold" style={{ color: i === 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {i === 0 ? `${username} (you)` : 'Waiting for player...'}
+                  </span>
+                  {i === 0 && (
+                    <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Host</span>
+                  )}
+                </div>
+                <span className="text-sm">{i === 0 ? '✅' : '⏳'}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Admin Controls */}
+          {isHost && (
+            <div className="p-4 space-y-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>
+                  CPU Difficulty
+                </span>
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {DIFFICULTY_OPTIONS.map(({ value, label, icon }) => (
+                    <button
+                      key={value}
+                      onClick={() => setCpuDifficulty(value)}
+                      className="py-2 rounded-xl text-center text-xs font-bold transition-all active:scale-95"
+                      style={cpuDifficulty === value
+                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)' }
+                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                    >
+                      {icon} {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleStartGame}
+                disabled={!canStart || starting}
+                className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+                style={{
+                  background: canStart && !starting
+                    ? 'linear-gradient(135deg, var(--success), var(--accent))'
+                    : 'var(--bg-surface)',
+                  color: canStart && !starting ? 'var(--text-on-accent)' : 'var(--text-muted)',
+                }}
+              >
+                {starting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span
+                      className="w-4 h-4 border-2 rounded-full animate-spin"
+                      style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }}
+                    />
+                    Starting...
+                  </span>
+                ) : allFilled ? (
+                  '🚀 Start Game'
+                ) : canStart ? (
+                  '🚀 Start Game (fill empty with CPU)'
+                ) : (
+                  '🚀 Waiting for players...'
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Leave */}
+          <div className="p-4 text-center">
+            <button
+              onClick={handleLeave}
+              className="text-xs transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              ← Leave Waiting Room
+            </button>
+          </div>
+
+        </div>
+
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>
+          Share the code or link with friends to start playing!
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default WaitingRoom;
