@@ -26,8 +26,11 @@ if (process.env.SENTRY_DSN) {
     sendDefaultPii: false,
   });
   initialized = true;
+  // Intentional console.log: Sentry must initialize before the app logger (which Sentry patches),
+  // so the structured logger is not available here.
   console.log('[Sentry] Initialized (env:', process.env.NODE_ENV || 'development', ')');
 } else {
+  // See note above — console.log is intentional at this init stage.
   console.log('[Sentry] SENTRY_DSN not set — error tracking disabled');
 }
 
