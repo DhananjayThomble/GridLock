@@ -19,6 +19,7 @@ import ReplayPage from './components/ReplayPage';
 import GameHistory from './components/GameHistory';
 import DailyChallenge from './components/DailyChallenge';
 import HowToPlay from './components/HowToPlay';
+import Settings from './components/Settings';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import './App.css';
@@ -45,6 +46,9 @@ const AppLayout = () => {
           </NavLink>
           <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             How to Play
+          </NavLink>
+          <NavLink to="/settings" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} aria-label="Settings">
+            ⚙️
           </NavLink>
         </nav>
       )}
@@ -128,6 +132,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <HowToPlay />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/settings"
+            element={(
+              <ErrorBoundary>
+                <Settings />
               </ErrorBoundary>
             )}
           />
