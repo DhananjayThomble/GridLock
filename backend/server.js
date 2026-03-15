@@ -205,16 +205,17 @@ app.get('/health', healthLimiter, async (req, res) => {
             timestamp: new Date().toISOString(),
         });
     } catch (err) {
-        // Service is up but database is unreachable — return degraded status
+        // Service is up but a backing store is unreachable — return degraded status
         // Still 200 so load balancers don't pull the instance, but status indicates the problem
+        const mem = process.memoryUsage();
         res.json({
             status: 'degraded',
-            error: 'Database unreachable',
+            error: 'Backing service unreachable',
             connectedSockets: io.engine?.clientsCount || 0,
             memoryUsage: {
-                rss: +(process.memoryUsage().rss / 1024 / 1024).toFixed(1),
-                heapUsed: +(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1),
-                heapTotal: +(process.memoryUsage().heapTotal / 1024 / 1024).toFixed(1),
+                rss: +(mem.rss / 1024 / 1024).toFixed(1),
+                heapUsed: +(mem.heapUsed / 1024 / 1024).toFixed(1),
+                heapTotal: +(mem.heapTotal / 1024 / 1024).toFixed(1),
             },
             uptime: Math.round(process.uptime()),
             timestamp: new Date().toISOString(),
@@ -251,7 +252,12 @@ app.get('/metrics', healthLimiter, async (req, res) => {
 app.use(sentry.errorHandler());
 
 // Generic error handler — catch-all for unhandled errors (CORS rejections, etc.)
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {
+    if (res.headersSent) {
+        return;
+    }
+
     const status = err.status || 500;
     const message = process.env.NODE_ENV === 'production'
         ? 'Internal server error'
