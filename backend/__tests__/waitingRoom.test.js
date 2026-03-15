@@ -143,6 +143,13 @@ describe('replace_with_cpu', () => {
     await s._handlers['replace_with_cpu']({ gameId: 'REPL05', sessionToken: 'a'.repeat(48), slot: 'player2', difficulty: 'easy' });
     expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Only the game host can replace slots');
   });
+
+  test('rejects replacing host slot (player1)', async () => {
+    const s = reg(mockSocket('h1', ['REPL06']));
+    await makeGame('REPL06', { host: { sid: 'h1', name: 'Host', tok: 'a'.repeat(48) }, playerCount: 3 });
+    await s._handlers['replace_with_cpu']({ gameId: 'REPL06', sessionToken: 'a'.repeat(48), slot: 'player1', difficulty: 'easy' });
+    expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Invalid slot for this game');
+  });
 });
 
 describe('start_game_early', () => {

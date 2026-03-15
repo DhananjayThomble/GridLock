@@ -205,6 +205,11 @@ function countFilledPlayers(game) {
     return Object.keys(game.players).filter((pid) => !!game.players[pid]).length;
 }
 
+function isHostSocketAuthorized(game, socketId, sessionToken) {
+    const host = game.players.player1;
+    return !!host && host.token === sessionToken && host.id === socketId;
+}
+
 function isSpectatorJoinRequest(joinMode) {
     return typeof joinMode === 'string' && joinMode.toLowerCase() === 'spectator';
 }
@@ -1778,8 +1783,7 @@ function attachSocketHandlers(io, log) {
                 const game = await gameStore.getGame(cleanGameId);
                 if (!game) { socket.emit('error', 'Game not found'); return; }
 
-                const host = game.players.player1;
-                if (!host || host.id !== socket.id || host.token !== sessionToken) {
+                if (!isHostSocketAuthorized(game, socket.id, sessionToken)) {
                     socket.emit('error', 'Only the game host can replace slots');
                     return;
                 }
@@ -1868,8 +1872,7 @@ function attachSocketHandlers(io, log) {
                 const game = await gameStore.getGame(cleanGameId);
                 if (!game) { replyError('Game not found'); return; }
 
-                const host = game.players.player1;
-                if (!host || host.id !== socket.id || host.token !== sessionToken) {
+                if (!isHostSocketAuthorized(game, socket.id, sessionToken)) {
                     replyError('Only the game host can start the game');
                     return;
                 }
