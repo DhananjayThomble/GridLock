@@ -7,7 +7,7 @@ import App from './App.jsx'
 
 // ── Sentry error tracking (optional — requires VITE_SENTRY_DSN) ──────────────
 Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN || '',
+  dsn: import.meta.env.VITE_SENTRY_DSN || undefined,
   environment: import.meta.env.MODE,
   enabled: !!import.meta.env.VITE_SENTRY_DSN,
   tracesSampleRate: 0.1,

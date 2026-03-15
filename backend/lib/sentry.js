@@ -10,6 +10,8 @@
  *   app.use(sentry.errorHandler());  // after all routes
  */
 const Sentry = require('@sentry/node');
+// Intentional: version from package.json is used for Sentry release tracking.
+// This allows correlating errors with specific deployed versions in the Sentry dashboard.
 const { version } = require('../package.json');
 
 let initialized = false;
@@ -39,7 +41,11 @@ process.on('uncaughtException', (err) => {
   console.error('[UncaughtException]', err);
   if (initialized) {
     Sentry.captureException(err);
-    // Flush events before crashing
+    // Intentional: process.exit(1) is called here instead of deferring to gracefulShutdown
+    // because sentry.js is loaded before server.js, so the graceful shutdown handler
+    // (which depends on server/io/redis/mongo instances) is not available at this point.
+    // After an uncaught exception, the process state is unreliable — the safest action
+    // is to flush Sentry events and exit immediately. PM2/systemd will restart the process.
     Sentry.close(2000).finally(() => process.exit(1));
   }
 });

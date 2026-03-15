@@ -4,6 +4,12 @@ set -euo pipefail
 ###############################################################################
 # deploy-frontend.sh — Build frontend and deploy to EC2 Nginx (/var/www/gridlock)
 #
+# Prerequisites:
+#   - The deploy user must have passwordless sudo configured for:
+#     chown, rsync, rm (used during deploy to /var/www/gridlock).
+#     Example sudoers entry:
+#       deploy ALL=(ALL) NOPASSWD: /usr/bin/chown, /usr/bin/rsync, /bin/rm
+#
 # Usage:
 #   ./scripts/deploy-frontend.sh [--dry-run]
 #
