@@ -5,6 +5,7 @@ import {
   NavLink,
   Route,
   Routes,
+  Navigate,
   useLocation,
 } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -118,6 +119,8 @@ const AppLayout = () => {
               </ErrorBoundary>
             )}
           />
+          <Route path="/replays" element={<Navigate to="/history" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </>

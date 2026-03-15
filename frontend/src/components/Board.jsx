@@ -121,6 +121,7 @@ const Board = () => {
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
   const [rematchFailed, setRematchFailed] = useState(null); // null or reason string
   const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
+  const [roomNotFound, setRoomNotFound] = useState(false);
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
@@ -164,6 +165,15 @@ const Board = () => {
   useEffect(() => {
     roleRef.current = role;
   }, [role]);
+
+  // ── Room not found timeout ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (gameState) return; // already have data, no timeout needed
+    const timer = setTimeout(() => {
+      setRoomNotFound(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [gameState]);
 
   // ── Turn change detection → haptic + visual + audio ───────────────────────────
   useEffect(() => {
@@ -353,8 +363,14 @@ const Board = () => {
     };
 
     const onError = (msg) => {
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
-      setTimeout(() => setError(null), 3000);
+      const message = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      setError(message);
+      // If error indicates room not found, show permanent error on loading screen
+      if (/room|not found|invalid|does not exist/i.test(message)) {
+        setRoomNotFound(true);
+      } else {
+        setTimeout(() => setError(null), 3000);
+      }
     };
 
     const onRematchCount = (data) => {
@@ -977,14 +993,45 @@ const Board = () => {
   if (!gameState) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="text-5xl mb-4 animate-pulse">🎮</div>
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Waiting for game data…</h2>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Game ID: <span className="font-mono font-bold">{gameId}</span></p>
-        <div className="mt-4 flex gap-1 justify-center">
-          {[0,1,2].map(i => (
-            <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent)', animationDelay: `${i*0.15}s` }} />
-          ))}
-        </div>
+        {roomNotFound ? (
+          <>
+            <div className="text-5xl mb-4">❌</div>
+            <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Room not found
+            </h2>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              {error || 'Check the room code and try again.'}
+            </p>
+            <p className="text-xs mb-6" style={{ color: 'var(--text-secondary)' }}>
+              Game ID: <span className="font-mono font-bold">{gameId}</span>
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-2 rounded-lg font-semibold transition-colors"
+              style={{ backgroundColor: 'var(--accent)', color: 'var(--bg-primary)' }}
+            >
+              ← Back to Lobby
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="text-5xl mb-4 animate-pulse">🎮</div>
+            <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Waiting for game data…</h2>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Game ID: <span className="font-mono font-bold">{gameId}</span></p>
+            <div className="mt-4 flex gap-1 justify-center">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--accent)', animationDelay: `${i*0.15}s` }} />
+              ))}
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="mt-6 px-4 py-2 text-sm rounded-lg transition-colors"
+              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            >
+              ← Back to Lobby
+            </button>
+          </>
+        )}
       </div>
     );
   }
