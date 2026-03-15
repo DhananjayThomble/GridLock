@@ -9,7 +9,7 @@ import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-
+import RankBadge from './RankBadge';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -528,6 +528,7 @@ const Lobby = () => {
             </div>
           </div>
         )}
+
 
         {/* ── Title ── */}
         <div className="text-center mb-6">

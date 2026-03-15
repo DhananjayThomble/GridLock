@@ -1,6 +1,7 @@
 name: Deploy Backend to EC2
 
 on:
+  # Manual dispatch only — production deploys require DJ approval via #prod-deploys
   workflow_dispatch:
 
 concurrency:

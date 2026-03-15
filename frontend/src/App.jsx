@@ -23,10 +23,18 @@ import Settings from './components/Settings';
 import WaitingRoom from './components/WaitingRoom';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
+import PageSeo from './components/PageSeo';
 import './App.css';
 
 // Support /beta sub-path deployment via Vite's BASE_URL
 const basePath = import.meta.env.BASE_URL || '/';
+
+const withPageSeo = (element, seo) => (
+  <>
+    <PageSeo {...seo} />
+    {element}
+  </>
+);
 
 const AppLayout = () => {
   const location = useLocation();
@@ -61,7 +69,13 @@ const AppLayout = () => {
             path="/"
             element={(
               <ErrorBoundary>
-                <Lobby />
+                {withPageSeo(
+                  <Lobby />,
+                  {
+                    title: 'Dots & Boxes Multiplayer',
+                    description: 'Play GridLock, a real-time multiplayer Dots & Boxes game built for competitive online matches.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -69,7 +83,13 @@ const AppLayout = () => {
             path="/game"
             element={(
               <ErrorBoundary>
-                <Board />
+                {withPageSeo(
+                  <Board />,
+                  {
+                    title: 'Live Match',
+                    description: 'Play a live GridLock match with real-time multiplayer Dots & Boxes gameplay.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -77,7 +97,13 @@ const AppLayout = () => {
             path="/leaderboard"
             element={(
               <ErrorBoundary>
-                <Leaderboard />
+                {withPageSeo(
+                  <Leaderboard />,
+                  {
+                    title: 'Leaderboard',
+                    description: 'See the top GridLock players and track the latest multiplayer Dots & Boxes rankings.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -85,7 +111,13 @@ const AppLayout = () => {
             path="/history"
             element={(
               <ErrorBoundary>
-                <GameHistory />
+                {withPageSeo(
+                  <GameHistory />,
+                  {
+                    title: 'Match History',
+                    description: 'Review recent GridLock matches, outcomes, and performance history.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -93,7 +125,13 @@ const AppLayout = () => {
             path="/daily"
             element={(
               <ErrorBoundary>
-                <DailyChallenge />
+                {withPageSeo(
+                  <DailyChallenge />,
+                  {
+                    title: 'Daily Challenge',
+                    description: 'Take on today’s GridLock daily challenge and compare your score on the leaderboard.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -101,7 +139,13 @@ const AppLayout = () => {
             path="/tournament"
             element={(
               <ErrorBoundary>
-                <TournamentLobby />
+                {withPageSeo(
+                  <TournamentLobby />,
+                  {
+                    title: 'Tournament',
+                    description: 'Enter the GridLock tournament lobby for competitive multiplayer brackets.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -109,7 +153,13 @@ const AppLayout = () => {
             path="/join/:gameId"
             element={(
               <ErrorBoundary>
-                <JoinGame />
+                {withPageSeo(
+                  <JoinGame />,
+                  {
+                    title: 'Join Game',
+                    description: 'Join a shared GridLock match and jump straight into a multiplayer game.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -125,7 +175,13 @@ const AppLayout = () => {
             path="/profile/:username"
             element={(
               <ErrorBoundary>
-                <Profile />
+                {withPageSeo(
+                  <Profile />,
+                  {
+                    title: 'Player Profile',
+                    description: 'View GridLock player stats, rank, and recent performance.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -133,7 +189,13 @@ const AppLayout = () => {
             path="/replay/:gameId"
             element={(
               <ErrorBoundary>
-                <ReplayPage />
+                {withPageSeo(
+                  <ReplayPage />,
+                  {
+                    title: 'Match Replay',
+                    description: 'Watch a completed GridLock match replay and study every move.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />

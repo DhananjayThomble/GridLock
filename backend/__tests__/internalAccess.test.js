@@ -68,14 +68,29 @@ describe('isInternalRequest', () => {
         });
     });
 
-    describe('X-Real-IP header takes precedence', () => {
-        test('uses X-Real-IP over socket IP', () => {
-            // Socket says public, but X-Real-IP says internal → internal
-            expect(isInternalRequest(fakeReq('8.8.8.8', { 'x-real-ip': '127.0.0.1' }))).toBe(true);
+    describe('X-Real-IP header — trust chain', () => {
+        test('trusts X-Real-IP when socket is internal (Nginx proxy)', () => {
+            // Socket from localhost (Nginx), X-Real-IP says internal → internal
+            expect(isInternalRequest(fakeReq('127.0.0.1', { 'x-real-ip': '10.0.0.5' }))).toBe(true);
         });
 
-        test('public X-Real-IP overrides internal socket IP', () => {
+        test('rejects external X-Real-IP even when socket is internal', () => {
+            // Socket from localhost (Nginx), but real client is external → external
             expect(isInternalRequest(fakeReq('127.0.0.1', { 'x-real-ip': '8.8.8.8' }))).toBe(false);
+        });
+
+        test('IGNORES X-Real-IP when socket is external (anti-spoof)', () => {
+            // Direct connection from public IP with spoofed X-Real-IP → external
+            // This is the key security fix: can't spoof internal by setting header
+            expect(isInternalRequest(fakeReq('8.8.8.8', { 'x-real-ip': '127.0.0.1' }))).toBe(false);
+        });
+
+        test('external socket without X-Real-IP is external', () => {
+            expect(isInternalRequest(fakeReq('8.8.8.8'))).toBe(false);
+        });
+
+        test('internal socket without X-Real-IP is internal', () => {
+            expect(isInternalRequest(fakeReq('127.0.0.1'))).toBe(true);
         });
     });
 });
