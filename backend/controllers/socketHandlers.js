@@ -949,6 +949,42 @@ async function createRankedGame(io, log, playerA, playerB) {
     });
 }
 
+async function startWaitingRoomGame(io, log, gameId, game) {
+    await gameStore.setGame(gameId, game);
+    await persistGame(game, 'playing');
+
+    for (let i = 1; i <= game.playerCount; i++) {
+        const playerId = `player${i}`;
+        const player = game.players[playerId];
+        if (player && !player.isCPU) {
+            const playerSocket = io.sockets.sockets.get(player.id);
+            if (playerSocket) {
+                playerSocket.emit('game_started', {
+                    gameId,
+                    playerId,
+                    sessionToken: player.token,
+                    gridSize: game.gridSize,
+                    playerCount: game.playerCount,
+                    players: getPlayersList(game),
+                    gameState: buildGameStateWithPlayers(game),
+                    cpuDifficulty: game.cpuDifficulty,
+                });
+            }
+        }
+    }
+
+    io.to(gameId).emit('all_players_joined', {
+        gameId,
+        lobbyState: buildLobbyStatePayload(gameId, game),
+    });
+
+    const firstPlayer = game.players[game.gameState.currentPlayer];
+    if (firstPlayer && firstPlayer.isCPU) {
+        const delay = CPU_DELAYS[game.cpuDifficulty] || 1200;
+        scheduleCPUMove(io, log, gameId, delay);
+    }
+}
+
 /**
  * Handle ranked game disconnect: apply auto-loss + cooldown to the disconnecting player.
  * Uses zero-sum ELO: both players exchange the same amount.
@@ -1867,9 +1903,13 @@ function attachSocketHandlers(io, log) {
                 game.cpuDifficulty = difficulty;
 
                 const filled = countFilledPlayers(game);
-                await gameStore.setGame(cleanGameId, game);
-                await persistGame(game, filled === game.playerCount ? 'playing' : 'waiting');
-                io.to(cleanGameId).emit('lobby_state', buildLobbyStatePayload(cleanGameId, game));
+                if (filled === game.playerCount) {
+                    await startWaitingRoomGame(io, log, cleanGameId, game);
+                } else {
+                    await gameStore.setGame(cleanGameId, game);
+                    await persistGame(game, 'waiting');
+                    io.to(cleanGameId).emit('lobby_state', buildLobbyStatePayload(cleanGameId, game));
+                }
 
                 log.info('Slot replaced with CPU', { gameId: cleanGameId, slot, difficulty });
             } catch (error) {
@@ -1945,39 +1985,7 @@ function attachSocketHandlers(io, log) {
                 }
                 freshGame.cpuDifficulty = cleanDifficulty;
 
-                await gameStore.setGame(cleanGameId, freshGame);
-                await persistGame(freshGame, 'playing');
-
-                // Fix #1: Emit game_started per-player with correct playerId/sessionToken
-                for (let i = 1; i <= freshGame.playerCount; i++) {
-                    const pid = `player${i}`;
-                    const player = freshGame.players[pid];
-                    if (player && !player.isCPU) {
-                        const playerSocket = io.sockets.sockets.get(player.id);
-                        if (playerSocket) {
-                            playerSocket.emit('game_started', {
-                                gameId: cleanGameId,
-                                playerId: pid,
-                                sessionToken: player.token,
-                                gridSize: freshGame.gridSize,
-                                playerCount: freshGame.playerCount,
-                                players: getPlayersList(freshGame),
-                                gameState: buildGameStateWithPlayers(freshGame),
-                                cpuDifficulty: cleanDifficulty,
-                            });
-                        }
-                    }
-                }
-                io.to(cleanGameId).emit('all_players_joined', {
-                    gameId: cleanGameId,
-                    lobbyState: buildLobbyStatePayload(cleanGameId, freshGame),
-                });
-
-                const firstPlayer = freshGame.players[freshGame.gameState.currentPlayer];
-                if (firstPlayer && firstPlayer.isCPU) {
-                    const delay = CPU_DELAYS[cleanDifficulty] || 1200;
-                    scheduleCPUMove(io, log, cleanGameId, delay);
-                }
+                await startWaitingRoomGame(io, log, cleanGameId, freshGame);
 
                 if (callback) callback({ ok: true });
                 log.info('Game started early by host', { gameId: cleanGameId, filledBefore, total: freshGame.playerCount });

@@ -208,6 +208,55 @@ describe('replace_with_cpu', () => {
     await s._handlers['replace_with_cpu']({ gameId: 'REPL06', sessionToken: 'a'.repeat(48), slot: 'player1', difficulty: 'easy' });
     expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Invalid slot for this game');
   });
+
+  test('auto-starts when CPU replacement fills the last slot', async () => {
+    const hs = reg(mockSocket('h1', ['REPL07']));
+    const p2s = mockSocket('p2', ['REPL07']); sockets.set('p2', p2s);
+    await makeGame('REPL07', {
+      host: { sid: 'h1', name: 'Host', tok: 'a'.repeat(48) },
+      p2: { sid: 'p2', name: 'Joiner', tok: 'b'.repeat(48) },
+      playerCount: 3,
+    });
+
+    await hs._handlers['replace_with_cpu']({
+      gameId: 'REPL07',
+      sessionToken: 'a'.repeat(48),
+      slot: 'player3',
+      difficulty: 'medium',
+    });
+
+    expect(hs._emitted.find(e => e.event === 'game_started')?.data).toMatchObject({
+      gameId: 'REPL07',
+      playerId: 'player1',
+      sessionToken: 'a'.repeat(48),
+      cpuDifficulty: 'medium',
+    });
+    expect(p2s._emitted.find(e => e.event === 'game_started')?.data).toMatchObject({
+      gameId: 'REPL07',
+      playerId: 'player2',
+      sessionToken: 'b'.repeat(48),
+      cpuDifficulty: 'medium',
+    });
+
+    const joinedEvent = roomEmits.find(e => e.event === 'all_players_joined');
+    expect(joinedEvent).toBeTruthy();
+    expect(joinedEvent.data).toMatchObject({
+      gameId: 'REPL07',
+      lobbyState: {
+        gameId: 'REPL07',
+        playerCount: 3,
+        cpuDifficulty: 'medium',
+        filled: 3,
+      },
+    });
+    expect(roomEmits.find(e => e.event === 'lobby_state')).toBeFalsy();
+
+    const g = await gameStore.getGame('REPL07');
+    expect(g.players.player3).toMatchObject({
+      isCPU: true,
+      username: 'Bot-Gamma',
+    });
+  });
 });
 
 describe('start_game_early', () => {
