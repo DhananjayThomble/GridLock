@@ -96,4 +96,8 @@ describe('isInternalRequest', () => {
         const req = mockReq({ remoteAddress: '10.0.0.5' });
         expect(isInternalRequest(req)).toBe(true);
     });
+
+    test('localhost string is internal', () => {
+        expect(isInternalRequest(mockReq({ ip: 'localhost' }))).toBe(true);
+    });
 });
