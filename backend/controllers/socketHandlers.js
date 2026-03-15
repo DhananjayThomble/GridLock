@@ -14,9 +14,12 @@ const { sendPushToUser, isUserOnlineInGame } = require('../services/pushService'
 const matchmaking = require('../services/matchmaking');
 const { generateBoardFromSeed, getTodayDateStr, getDayNumber } = require('../utils/dailyHelpers');
 
-// Prometheus metrics — safe to require (no-op if module not installed)
+// Prometheus metrics — safe to require (logs error if module not installed)
 let promMetrics;
-try { promMetrics = require('../lib/metrics').metrics; } catch (_) { promMetrics = null; }
+try { promMetrics = require('../lib/metrics').metrics; } catch (err) {
+  console.warn('[metrics] Failed to load metrics module:', err.message);
+  promMetrics = null;
+}
 const DailyResult = require('../models/DailyResult');
 const DailyChallenge = require('../models/DailyChallenge');
 const { QUEUE_TIMEOUT_MS } = require('../services/matchmaking');

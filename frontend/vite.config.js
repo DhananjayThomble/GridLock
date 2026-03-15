@@ -8,8 +8,17 @@ const plugins = [react()];
 // https://vite.dev/config/
 export default defineConfig(async () => {
   if (process.env.CF_PAGES) {
-    const { cloudflare } = await import("@cloudflare/vite-plugin");
-    plugins.push(cloudflare());
+    try {
+      const { cloudflare } = await import("@cloudflare/vite-plugin");
+      plugins.push(cloudflare());
+    } catch (err) {
+      console.error(
+        '⚠️  CF_PAGES is set but @cloudflare/vite-plugin failed to load.\n' +
+        '   Install it with: npm install -D @cloudflare/vite-plugin\n' +
+        '   Error:', err.message
+      );
+      process.exit(1);
+    }
   }
 
   return {

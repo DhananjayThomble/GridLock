@@ -157,10 +157,22 @@ app.get('/health', healthLimiter, async (req, res) => {
     });
 });
 
+// ── Cached game count for Prometheus scrapes (avoids DB query on every /metrics hit) ──
+let cachedGameCount = 0;
+setInterval(async () => {
+    try {
+        cachedGameCount = await gameStore.gameCount();
+    } catch (err) {
+        log.error('Failed to refresh cached game count:', err.message);
+    }
+}, 15_000); // Refresh every 15 seconds
+// Initialize on startup
+gameStore.gameCount().then(c => { cachedGameCount = c; }).catch(() => {});
+
 // Prometheus metrics endpoint (prom-client format with default + custom metrics)
 app.get('/metrics', healthLimiter, async (req, res) => {
-    // Update point-in-time gauges before scrape
-    metrics.activeGames.set(await gameStore.gameCount());
+    // Update point-in-time gauges before scrape (uses cached game count)
+    metrics.activeGames.set(cachedGameCount);
     metrics.connectedSockets.set(io.engine?.clientsCount || 0);
     return metricsEndpoint(req, res);
 });
@@ -188,11 +200,22 @@ async function gracefulShutdown(signal) {
     }, SHUTDOWN_TIMEOUT_MS);
     forceExit.unref(); // Don't keep event loop alive just for this timer
 
-    // Stop accepting new connections
-    server.close(() => log.info('HTTP server closed'));
+    // Stop accepting new connections (wrapped in Promises with timeout)
+    const closeWithTimeout = (label, closeFn, timeoutMs = 5000) =>
+      new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          log.warn(`${label} close timed out after ${timeoutMs}ms`);
+          resolve();
+        }, timeoutMs);
+        closeFn(() => {
+          clearTimeout(timer);
+          log.info(`${label} closed`);
+          resolve();
+        });
+      });
 
-    // Close Socket.IO
-    io.close(() => log.info('Socket.IO server closed'));
+    await closeWithTimeout('HTTP server', (cb) => server.close(cb));
+    await closeWithTimeout('Socket.IO server', (cb) => io.close(cb));
 
     // Close Redis adapter clients (if connected)
     try {

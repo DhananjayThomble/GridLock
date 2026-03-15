@@ -73,11 +73,29 @@ function metricsMiddleware(req, res, next) {
 
 /**
  * Normalize paths to prevent label explosion (e.g. /api/games/abc123 → /api/games/:id).
+ * Strips query strings, replaces all ID-like segments (UUIDs, hex, numbers) regardless
+ * of position, and buckets unrecognized paths as /other to prevent cardinality explosion.
  */
+const KNOWN_PATH_PREFIXES = ['/api/', '/health', '/metrics', '/socket.io'];
+
 function normalizePath(p) {
-  return p
-    .replace(/\/[a-f0-9]{6,}$/i, '/:id')   // hex game IDs
-    .replace(/\/\d+$/,           '/:id');    // numeric IDs
+  // Strip query strings before normalization
+  const path = p.split('?')[0];
+
+  const normalized = path
+    // Replace UUID-like segments (8-4-4-4-12 hex)
+    .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:id')
+    // Replace hex segments (6+ chars) at any position
+    .replace(/\/[a-f0-9]{6,}/gi, '/:id')
+    // Replace pure numeric segments at any position
+    .replace(/\/\d+/g, '/:id');
+
+  // Catch-all: bucket unrecognized paths to prevent unique label leaks
+  if (!KNOWN_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix)) && normalized !== '/') {
+    return '/other';
+  }
+
+  return normalized;
 }
 
 // ── Metrics endpoint handler ────────────────────────────────────────────────

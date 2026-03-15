@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import Bracket from './Bracket';
-import { posthog } from '../lib/posthog';
+import { capture } from '../lib/posthog';
 
 const TournamentLobby = () => {
   const location = useLocation();
@@ -41,7 +41,7 @@ const TournamentLobby = () => {
     const onTournamentGameAssigned = ({ tournamentId: tid, gameId, playerId, sessionToken, gridSize: assignedGridSize, playerCount: assignedPlayerCount }) => {
       if (navigatedRef.current) return;
       navigatedRef.current = true;
-      posthog.capture('tournament_joined', { tournamentId: tid || tournamentId });
+      capture('tournament_joined', { tournamentId: tid || tournamentId });
       navigate('/game', {
         state: {
           username,
