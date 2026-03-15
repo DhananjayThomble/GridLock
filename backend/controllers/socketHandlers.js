@@ -1845,34 +1845,38 @@ function attachSocketHandlers(io, log) {
         });
 
         // ── start_game_early — host force-starts, filling empty slots with CPU
-        socket.on('start_game_early', async (rawPayload) => {
+        socket.on('start_game_early', async (rawPayload, callback) => {
             try {
                 if (rateLimited('start_game_early')) return;
                 const validated = validate('start_game_early', rawPayload);
                 if (!validated) return;
                 const { gameId, sessionToken, cpuDifficulty } = validated;
+                const replyError = (message) => {
+                    socket.emit('error', message);
+                    if (callback) callback({ ok: false, error: message });
+                };
 
                 const gidResult = sanitizeGameId(gameId);
-                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                if (!gidResult.valid) { replyError(gidResult.error); return; }
                 const cleanGameId = gidResult.value;
 
                 const game = await gameStore.getGame(cleanGameId);
-                if (!game) { socket.emit('error', 'Game not found'); return; }
+                if (!game) { replyError('Game not found'); return; }
 
                 const host = game.players.player1;
                 if (!host || host.id !== socket.id || host.token !== sessionToken) {
-                    socket.emit('error', 'Only the game host can start the game');
+                    replyError('Only the game host can start the game');
                     return;
                 }
                 if (gameStatusFromPlayers(game) !== 'waiting') {
-                    socket.emit('error', 'Game already in progress');
+                    replyError('Game already in progress');
                     return;
                 }
 
                 const filledBefore = countFilledPlayers(game);
                 // Fix #4: Require at least 2 players to start early
                 if (filledBefore < 2) {
-                    socket.emit('error', 'Need at least 2 players to start the game');
+                    replyError('Need at least 2 players to start the game');
                     return;
                 }
 
@@ -1889,7 +1893,7 @@ function attachSocketHandlers(io, log) {
                 }
 
                 const freshGame = await gameStore.getGame(cleanGameId);
-                if (!freshGame) { socket.emit('error', 'Game not found'); return; }
+                if (!freshGame) { replyError('Game not found'); return; }
 
                 for (const pid of slotsToFill) {
                     if (freshGame.players[pid] && !freshGame.players[pid].isCPU && freshGame.players[pid].username) {
@@ -1939,10 +1943,12 @@ function attachSocketHandlers(io, log) {
                     scheduleCPUMove(io, log, cleanGameId, delay);
                 }
 
+                if (callback) callback({ ok: true });
                 log.info('Game started early by host', { gameId: cleanGameId, filledBefore, total: freshGame.playerCount });
             } catch (error) {
                 log.error('Error starting game early', { error: error.message });
                 socket.emit('error', 'Failed to start game');
+                if (callback) callback({ ok: false, error: 'Failed to start game' });
             }
         });
 

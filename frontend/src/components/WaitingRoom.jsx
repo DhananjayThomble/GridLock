@@ -219,6 +219,13 @@ const WaitingRoom = () => {
     }, 8000);
     socket.emit('start_game_early', {
       gameId, sessionToken, cpuDifficulty,
+    }, (response) => {
+      if (response?.ok !== false) return;
+      if (startTimeoutRef.current) {
+        clearTimeout(startTimeoutRef.current);
+        startTimeoutRef.current = null;
+      }
+      setStarting(false);
     });
   }, [gameId, sessionToken, cpuDifficulty]);
 
