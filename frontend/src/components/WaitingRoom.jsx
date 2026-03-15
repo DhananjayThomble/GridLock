@@ -104,10 +104,17 @@ const WaitingRoom = () => {
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
+
+      // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
+      if (!navigatedRef.current) {
+        socket.emit('leave_waiting_room', { gameId });
+      }
     };
   }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
 
   // Disconnect countdown timers
+  // Fix #10: Uses client clock vs server disconnectedAt — countdown may drift
+  // if client clock is skewed. Server enforces the actual timeout independently.
   useEffect(() => {
     const interval = setInterval(() => {
       setDisconnectTimers((prev) => {
@@ -133,6 +140,8 @@ const WaitingRoom = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
+      // Fix #9: document.execCommand('copy') is deprecated but kept as fallback
+      // for older browsers without navigator.clipboard API support.
       const ta = document.createElement('textarea');
       ta.value = gameId;
       document.body.appendChild(ta);
@@ -234,7 +243,7 @@ const WaitingRoom = () => {
                 color: 'var(--text-on-accent)',
               }}
             >
-              {shared ? '✅ Shared!' : '📤 Share Invite Link'}
+              {shared ? '✅ Shared!' : (<><span className="hidden sm:inline">📤 Share Invite Link</span><span className="sm:hidden">📤 Share</span></>)}
             </button>
             <button
               onClick={handleCopyCode}
@@ -356,10 +365,19 @@ const WaitingRoom = () => {
             ))}
           </div>
 
+          {/* Fix #7: Non-host context message */}
+          {!isHost && (
+            <p className="text-center text-sm py-3 px-4" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+              ⏳ Waiting for the host to start the game...
+            </p>
+          )}
+
           {/* Admin Controls */}
           {isHost && (
             <div className="p-4 space-y-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
               <div>
+                {/* Fix #11: CPU difficulty is local state — not synced to other players
+                    until a CPU is added or game starts. Only host controls difficulty. */}
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>
                   CPU Difficulty
                 </span>
