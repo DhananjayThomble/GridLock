@@ -48,7 +48,7 @@ fi
 
 # ── Frontend ──
 cd "$BETA_REPO/frontend"
-npm ci --no-optional
+npm ci
 
 # Validate vite is available before attempting build
 if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
