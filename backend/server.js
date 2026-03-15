@@ -40,6 +40,10 @@ const log = {
     error: (...args) => currentLevel <= 3 && console.error('[ERROR]', new Date().toISOString(), ...args)
 };
 
+function isLocalProxyAddress(ip = '') {
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
 // Middleware
 app.set('trust proxy', 1);
 app.use(helmet({
@@ -102,8 +106,9 @@ app.locals.io = io;
 io.use((socket, next) => {
     if (process.env.NODE_ENV === 'test') return next();
 
-    const ip = socket.handshake.headers['x-real-ip'] ||
-               socket.handshake.address;
+    const socketIp = socket.handshake.address || '';
+    const forwardedIp = socket.handshake.headers['x-real-ip'];
+    const ip = isLocalProxyAddress(socketIp) && forwardedIp ? forwardedIp : socketIp;
 
     if (getSocketCountForIP(ip) >= MAX_SOCKETS_PER_IP) {
         return next(new Error('Too many connections from this IP'));
