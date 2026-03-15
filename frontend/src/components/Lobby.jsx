@@ -13,6 +13,7 @@ import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
 import RankBadge from './RankBadge';
+import HeroBanner from './HeroBanner';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -115,6 +116,7 @@ const Lobby = () => {
   const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null); // eslint-disable-line no-unused-vars
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
   const navigate = useNavigate();
+  const usernameInputRef = useRef(null);
 
   // Ref to track which action is in progress — used by onError to route errors (#211)
   const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
@@ -514,6 +516,9 @@ const Lobby = () => {
     >
       <div className="w-full max-w-lg md:max-w-[720px] lg:max-w-[960px]">
 
+        {/* ── Hero Banner (first-time visitors) ── */}
+        <HeroBanner onPlayNow={() => usernameInputRef.current?.focus()} />
+
         {/* ── Title ── */}
         <div className="text-center mb-6">
           <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
@@ -532,6 +537,7 @@ const Lobby = () => {
           <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
             <input
+              ref={usernameInputRef}
               type="text"
               value={username}
               onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
