@@ -36,9 +36,7 @@ const WaitingRoom = () => {
   // Prevent double-navigate
   const navigatedRef = useRef(false);
   const startTimeoutRef = useRef(null);
-  const startErrorHandlerRef = useRef(null);
   const cpuDifficultyRef = useRef(cpuDifficulty);
-  cpuDifficultyRef.current = cpuDifficulty;
 
   const shareUrl = `https://gridlock.pro/join/${gameId}`;
 
@@ -48,6 +46,10 @@ const WaitingRoom = () => {
     if (!socket.connected) socket.connect();
     socket.emit('lobby_state', { gameId });
   }, [gameId, navigate]);
+
+  useEffect(() => {
+    cpuDifficultyRef.current = cpuDifficulty;
+  }, [cpuDifficulty]);
 
   // Socket event listeners
   useEffect(() => {
@@ -84,10 +86,6 @@ const WaitingRoom = () => {
       if (startTimeoutRef.current) {
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
-      }
-      if (startErrorHandlerRef.current) {
-        socket.off('error', startErrorHandlerRef.current);
-        startErrorHandlerRef.current = null;
       }
       navigatedRef.current = true;
       navigate('/game', {
@@ -126,10 +124,6 @@ const WaitingRoom = () => {
       if (startTimeoutRef.current) {
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
-      }
-      if (startErrorHandlerRef.current) {
-        socket.off('error', startErrorHandlerRef.current);
-        startErrorHandlerRef.current = null;
       }
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
@@ -213,20 +207,10 @@ const WaitingRoom = () => {
         clearTimeout(startTimeoutRef.current);
         startTimeoutRef.current = null;
       }
-      if (startErrorHandlerRef.current) {
-        socket.off('error', startErrorHandlerRef.current);
-        startErrorHandlerRef.current = null;
-      }
     };
 
     setStarting(true);
     clearStartPending();
-    const onStartError = () => {
-      clearStartPending();
-      setStarting(false);
-    };
-    startErrorHandlerRef.current = onStartError;
-    socket.on('error', onStartError);
 
     startTimeoutRef.current = setTimeout(() => {
       clearStartPending();
