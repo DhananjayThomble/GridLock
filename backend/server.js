@@ -117,7 +117,9 @@ io.use((socket, next) => {
         return next(new Error('Too many connections from this IP'));
     }
 
-    trackSocketConnection(ip, socket.id);
+    if (!trackSocketConnection(ip, socket.id)) {
+        return next(new Error('Too many connections'));
+    }
     socket.on('disconnect', () => {
         untrackSocketConnection(ip, socket.id);
     });
