@@ -82,6 +82,15 @@ afterEach(async () => {
 
 function reg(s) { sockets.set(s.id, s); connHandler(s); return s; }
 
+function expectLobbyStatePayload(payload, expected) {
+  expect(payload).toMatchObject({
+    gameId: expected.gameId,
+    playerCount: expected.playerCount,
+    filled: expected.filled,
+  });
+  expect(payload.slots).toEqual(expect.arrayContaining(expected.slots));
+}
+
 describe('lobby_state', () => {
   test('returns correct slots', async () => {
     const s = reg(mockSocket('h1', ['LOBY01']));
@@ -123,7 +132,39 @@ describe('replace_with_cpu', () => {
     await s._handlers['replace_with_cpu']({ gameId: 'REPL01', sessionToken: 'a'.repeat(48), slot: 'player2', difficulty: 'hard' });
     const d = roomEmits.find(e => e.event === 'lobby_state');
     expect(d).toBeTruthy();
-    expect(d.data.slots.find(s => s.slot === 'player2').isCPU).toBe(true);
+    expect(d.data).toMatchObject({
+      gameId: 'REPL01',
+      playerCount: 3,
+      cpuDifficulty: 'hard',
+      filled: 2,
+    });
+    expect(d.data.slots).toHaveLength(3);
+    expect(d.data.slots[0]).toMatchObject({
+      slot: 'player1',
+      username: 'Host',
+      isHost: true,
+      isCPU: false,
+      connected: true,
+      disconnectedAt: null,
+    });
+    expect(d.data.slots[1]).toMatchObject({
+      slot: 'player2',
+      username: 'Bot-Beta',
+      avatar: '🧠',
+      isCPU: true,
+      isHost: false,
+      connected: true,
+      disconnectedAt: null,
+    });
+    expect(d.data.slots[2]).toMatchObject({
+      slot: 'player3',
+      username: null,
+      avatar: null,
+      isCPU: false,
+      isHost: false,
+      connected: false,
+      disconnectedAt: null,
+    });
   });
 
   test('non-host rejected', async () => {
@@ -181,6 +222,45 @@ describe('start_game_early', () => {
     const pd = p2s._emitted.find(e => e.event === 'game_started');
     expect(pd?.data.playerId).toBe('player2');
     expect(pd?.data.sessionToken).toBe('b'.repeat(48));
+    const lobbyEvent = roomEmits.find(e => e.event === 'all_players_joined');
+    expect(lobbyEvent).toBeTruthy();
+    expect(lobbyEvent.data).toMatchObject({
+      gameId: 'STRT01',
+      lobbyState: {
+        gameId: 'STRT01',
+        playerCount: 3,
+        cpuDifficulty: 'easy',
+        filled: 3,
+      },
+    });
+    expect(lobbyEvent.data.lobbyState.slots).toHaveLength(3);
+    expect(lobbyEvent.data.lobbyState.slots).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        slot: 'player1',
+        username: 'H',
+        isHost: true,
+        isCPU: false,
+        connected: true,
+        disconnectedAt: null,
+      }),
+      expect.objectContaining({
+        slot: 'player2',
+        username: 'J',
+        isHost: false,
+        isCPU: false,
+        connected: true,
+        disconnectedAt: null,
+      }),
+      expect.objectContaining({
+        slot: 'player3',
+        username: 'Bot-Gamma',
+        avatar: '🎯',
+        isHost: false,
+        isCPU: true,
+        connected: true,
+        disconnectedAt: null,
+      }),
+    ]));
     const g = await gameStore.getGame('STRT01');
     expect(g.players.player3?.isCPU).toBe(true);
   });
@@ -219,5 +299,142 @@ describe('start_game_early', () => {
     await s._handlers['start_game_early']({ gameId: 'STRT05', sessionToken: 'a'.repeat(48), cpuDifficulty: 'medium' }, cb);
     expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Game already in progress');
     expect(cb).toHaveBeenCalledWith({ ok: false, error: 'Game already in progress' });
+  });
+});
+
+describe('lobbyState event payloads', () => {
+  test('includes lobbyState on player_joined', async () => {
+    const host = reg(mockSocket('host', ['JOIN01']));
+    const joiner = reg(mockSocket('joiner'));
+    await makeGame('JOIN01', {
+      host: { sid: 'host', name: 'Host', tok: 'a'.repeat(48) },
+      playerCount: 3,
+    });
+
+    await joiner._handlers.join_game({
+      gameId: 'JOIN01',
+      username: 'Joiner',
+      avatar: '👧',
+    });
+
+    const joinedEvent = roomEmits.find(e => e.event === 'player_joined');
+    expect(joinedEvent).toBeTruthy();
+    expectLobbyStatePayload(joinedEvent.data.lobbyState, {
+      gameId: 'JOIN01',
+      playerCount: 3,
+      filled: 2,
+      slots: [
+        expect.objectContaining({
+          slot: 'player1',
+          username: 'Host',
+          isHost: true,
+          connected: true,
+        }),
+        expect.objectContaining({
+          slot: 'player2',
+          username: 'Joiner',
+          avatar: '👧',
+          isHost: false,
+          connected: true,
+        }),
+        expect.objectContaining({
+          slot: 'player3',
+          username: null,
+          connected: false,
+        }),
+      ],
+    });
+    expect(host.rooms.has('JOIN01')).toBe(true);
+  });
+
+  test('includes lobbyState on player_disconnected', async () => {
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockReturnValue(123);
+    const host = reg(mockSocket('h1', ['DISC01']));
+    const player2 = reg(mockSocket('p2', ['DISC01']));
+    await makeGame('DISC01', {
+      host: { sid: 'h1', name: 'Host', tok: 'a'.repeat(48) },
+      p2: { sid: 'p2', name: 'Joiner', tok: 'b'.repeat(48) },
+      playerCount: 3,
+    });
+    player2.data.gameId = 'DISC01';
+    player2.data.playerId = 'player2';
+    player2.data.username = 'Joiner';
+
+    await player2._handlers.disconnect();
+    setTimeoutSpy.mockRestore();
+
+    const disconnectedEvent = roomEmits.find(e => e.event === 'player_disconnected');
+    expect(disconnectedEvent).toBeTruthy();
+    expectLobbyStatePayload(disconnectedEvent.data.lobbyState, {
+      gameId: 'DISC01',
+      playerCount: 3,
+      filled: 2,
+      slots: [
+        expect.objectContaining({
+          slot: 'player1',
+          username: 'Host',
+          connected: true,
+        }),
+        expect.objectContaining({
+          slot: 'player2',
+          username: 'Joiner',
+          connected: false,
+        }),
+        expect.objectContaining({
+          slot: 'player3',
+          username: null,
+          connected: false,
+        }),
+      ],
+    });
+    expect(disconnectedEvent.data.lobbyState.slots.find(s => s.slot === 'player2').disconnectedAt).toBeTruthy();
+    expect(host.rooms.has('DISC01')).toBe(true);
+  });
+
+  test('includes lobbyState on player_reconnected', async () => {
+    const host = reg(mockSocket('host', ['RECON01']));
+    const original = reg(mockSocket('old-p2', ['RECON01']));
+    await makeGame('RECON01', {
+      host: { sid: 'host', name: 'Host', tok: 'a'.repeat(48) },
+      p2: { sid: 'old-p2', name: 'Joiner', tok: 'b'.repeat(48), disc: new Date().toISOString() },
+      playerCount: 3,
+    });
+
+    const reconnecting = reg(mockSocket('new-p2'));
+    await reconnecting._handlers.join_game({
+      gameId: 'RECON01',
+      username: 'Joiner',
+      avatar: '😎',
+      sessionToken: 'b'.repeat(48),
+    });
+
+    const reconnectedEvent = reconnecting.to.mock.results[0].value.emit.mock.calls.find(([event]) => event === 'player_reconnected');
+    expect(reconnectedEvent).toBeTruthy();
+    expect(reconnectedEvent[1].lobbyState).toBeTruthy();
+    expectLobbyStatePayload(reconnectedEvent[1].lobbyState, {
+      gameId: 'RECON01',
+      playerCount: 3,
+      filled: 2,
+      slots: [
+        expect.objectContaining({
+          slot: 'player1',
+          username: 'Host',
+          connected: true,
+        }),
+        expect.objectContaining({
+          slot: 'player2',
+          username: 'Joiner',
+          avatar: '😎',
+          connected: true,
+          disconnectedAt: null,
+        }),
+        expect.objectContaining({
+          slot: 'player3',
+          username: null,
+          connected: false,
+        }),
+      ],
+    });
+    expect(host.rooms.has('RECON01')).toBe(true);
   });
 });

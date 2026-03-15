@@ -217,6 +217,8 @@ const WaitingRoom = () => {
       setStarting(false);
     }, 10000);
 
+    // Scope start failures to the start_game_early ack so unrelated socket
+    // errors elsewhere in the app cannot clear the pending start state.
     socket.emit('start_game_early', {
       gameId, sessionToken, cpuDifficulty,
     }, (response) => {
