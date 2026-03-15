@@ -6,16 +6,6 @@ const {
     MAX_TRACKED_IPS,
 } = require('../middleware/rateLimiter');
 
-// We need direct access to the tracker Map for cleanup between tests.
-// The module doesn't export it, so we'll work through the public API.
-
-function cleanupIP(ip, count) {
-    // Remove all sockets for an IP via the public API
-    for (let i = 0; i < count; i++) {
-        untrackSocketConnection(ip, `cleanup-${ip}-${i}`);
-    }
-}
-
 describe('Socket Connection Tracker', () => {
     afterEach(() => {
         // Clean up any tracked IPs from tests by untracking known sockets
