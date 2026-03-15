@@ -10,7 +10,7 @@ import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
 import RankBadge from './RankBadge';
-import HeroBanner from './HeroBanner';
+
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -109,7 +109,6 @@ const Lobby = () => {
   const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null); // eslint-disable-line no-unused-vars
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
   const [avatarExpanded, setAvatarExpanded] = useState(false);
-  const [showMoreModes, setShowMoreModes] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => localStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
   const navigate = useNavigate();
   const usernameInputRef = useRef(null);
@@ -494,18 +493,22 @@ const Lobby = () => {
 
         {/* ── New to GridLock? Banner ── */}
         {!howToPlayDismissed && (
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Link to="/how-to-play" style={{ textDecoration: 'none', flex: 1 }}>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>New to GridLock?</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '8px' }}>Learn the rules in 2 minutes →</span>
+          <div
+            className="rounded-xl p-3 px-4 mb-4"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+          >
+            <div className="flex justify-between items-center">
+              <Link to="/how-to-play" className="no-underline flex-1">
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>New to GridLock?</span>
+                <span className="text-[13px] ml-2" style={{ color: 'var(--text-secondary)' }}>Learn the rules in 2 minutes →</span>
               </Link>
               <button
                 onClick={() => {
                   localStorage.setItem('gridlock_how_to_play_dismissed', 'true');
                   setHowToPlayDismissed(true);
                 }}
-                style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', fontSize: '16px' }}
+                className="bg-transparent border-none cursor-pointer p-1 px-2 text-base"
+                style={{ color: 'var(--text-muted)' }}
                 aria-label="Dismiss"
               >
                 ✕
@@ -513,9 +516,6 @@ const Lobby = () => {
             </div>
           </div>
         )}
-
-        {/* ── Hero Banner (first-time visitors) ── */}
-        <HeroBanner onPlayNow={() => usernameInputRef.current?.focus()} />
 
         {/* ── Title ── */}
         <div className="text-center mb-6">
@@ -539,7 +539,7 @@ const Lobby = () => {
               type="text"
               value={username}
               onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
               placeholder="Enter your name…"
               minLength={2}
               maxLength={16}
@@ -762,45 +762,32 @@ const Lobby = () => {
             </button>
           </div>
 
-          {/* ── More Game Modes (collapsible) ── */}
-          <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          {/* ── Daily Challenge & Ranked (always visible) ── */}
+          <div className="px-5 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
-              onClick={() => setShowMoreModes(!showMoreModes)}
-              className="w-full flex items-center justify-center gap-2 text-xs font-semibold py-1 transition-all"
-              style={{ color: 'var(--text-secondary)' }}
+              onClick={() => navigate('/daily')}
+              disabled={creating || !username.trim()}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
+              style={{
+                background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
+                color: 'var(--warning)',
+              }}
             >
-              <span>More Game Modes</span>
-              <span style={{ color: 'var(--text-muted)' }}>{showMoreModes ? '▲' : '▼'}</span>
+              🎯 Daily Challenge
             </button>
-
-            {showMoreModes && (
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => navigate('/daily')}
-                  disabled={creating || !username.trim()}
-                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
-                  style={{
-                    background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
-                    color: 'var(--warning)',
-                  }}
-                >
-                  🎯 Daily Challenge
-                </button>
-                <button
-                  onClick={handleRankedPlay}
-                  disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
-                  style={{
-                    background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
-                    border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 40%, transparent)'}`,
-                    color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
-                  }}
-                >
-                  {rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked'}
-                </button>
-              </div>
-            )}
+            <button
+              onClick={handleRankedPlay}
+              disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
+              style={{
+                background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
+                border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 40%, transparent)'}`,
+                color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
+              }}
+            >
+              {rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked'}
+            </button>
           </div>
 
           {/* ── Join / Tournament tabs ── */}

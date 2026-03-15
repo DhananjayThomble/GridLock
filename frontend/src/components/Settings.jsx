@@ -52,7 +52,7 @@ const Settings = () => {
   return (
     <div
       className="min-h-screen p-3 pt-6 sm:p-4 sm:pt-8"
-      style={{ background: 'var(--bg-primary)' }}
+      style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-lg mx-auto space-y-4">
 
@@ -94,11 +94,16 @@ const Settings = () => {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>🔔 Push Notifications</span>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Get notified when it's your turn</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {localStorage.getItem('gridlock_username')
+                  ? 'Get notified when it\'s your turn'
+                  : 'Set a username in the lobby first'}
+              </p>
             </div>
             <button
               onClick={handlePushToggle}
-              className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
+              disabled={!localStorage.getItem('gridlock_username')}
+              className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
               aria-label="Toggle push notifications"
             >
