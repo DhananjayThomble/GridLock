@@ -49,33 +49,31 @@ const WaitingRoom = () => {
 
   // Socket event listeners
   useEffect(() => {
+    const applyLobbyState = (lobbyState) => {
+      if (!lobbyState?.gameId || lobbyState.gameId !== gameId) return false;
+      setSlots(lobbyState.slots || []);
+      setFilled(lobbyState.filled || 0);
+      if (lobbyState.cpuDifficulty) setCpuDifficulty(lobbyState.cpuDifficulty);
+      return true;
+    };
+
     const onLobbyState = (data) => {
-      if (data.gameId !== gameId) return;
-      setSlots(data.slots || []);
-      setFilled(data.filled || 0);
-      if (data.cpuDifficulty) setCpuDifficulty(data.cpuDifficulty);
+      applyLobbyState(data);
     };
 
     const onPlayerJoined = (data) => {
-      if (data.gameId !== gameId) return;
-      setFilled(data.filled || 0);
-      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
-      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
-      socket.emit('lobby_state', { gameId });
+      if (data?.gameId !== gameId) return;
+      applyLobbyState(data.lobbyState);
     };
 
     const onPlayerDisconnected = (data) => {
       if (data?.gameId && data.gameId !== gameId) return;
-      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
-      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
-      socket.emit('lobby_state', { gameId });
+      applyLobbyState(data?.lobbyState);
     };
 
     const onPlayerReconnected = (data) => {
       if (data?.gameId && data.gameId !== gameId) return;
-      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
-      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
-      socket.emit('lobby_state', { gameId });
+      applyLobbyState(data?.lobbyState);
     };
 
     const onGameStarted = (data) => {
@@ -105,10 +103,8 @@ const WaitingRoom = () => {
     };
 
     const onAllPlayersJoined = (data) => {
-      if (data.gameId !== gameId) return;
-      // TODO(PR-319): This emits lobby_state from every waiting client and scales as N+1 reads.
-      // Keep the behavior for now; refactor to server-push authoritative lobby updates instead.
-      socket.emit('lobby_state', { gameId });
+      if (data?.gameId !== gameId) return;
+      applyLobbyState(data?.lobbyState);
     };
 
     socket.on('lobby_state', onLobbyState);

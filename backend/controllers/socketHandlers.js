@@ -205,6 +205,47 @@ function countFilledPlayers(game) {
     return Object.keys(game.players).filter((pid) => !!game.players[pid]).length;
 }
 
+function buildLobbySlots(game) {
+    const slots = [];
+    for (let i = 1; i <= game.playerCount; i++) {
+        const playerId = `player${i}`;
+        const player = game.players[playerId];
+        if (player) {
+            slots.push({
+                slot: playerId,
+                username: player.username,
+                avatar: player.avatar,
+                isCPU: !!player.isCPU,
+                isHost: playerId === 'player1',
+                connected: !player.disconnectedAt,
+                disconnectedAt: player.disconnectedAt || null,
+            });
+        } else {
+            slots.push({
+                slot: playerId,
+                username: null,
+                avatar: null,
+                isCPU: false,
+                isHost: false,
+                connected: false,
+                disconnectedAt: null,
+            });
+        }
+    }
+    return slots;
+}
+
+function buildLobbyStatePayload(gameId, game) {
+    return {
+        gameId,
+        gridSize: game.gridSize,
+        playerCount: game.playerCount,
+        cpuDifficulty: game.cpuDifficulty || null,
+        slots: buildLobbySlots(game),
+        filled: countFilledPlayers(game),
+    };
+}
+
 function isHostSocketAuthorized(game, socketId, sessionToken) {
     const host = game.players.player1;
     return !!host && host.token === sessionToken && host.id === socketId;
@@ -898,7 +939,7 @@ async function createRankedGame(io, log, playerA, playerB) {
         }
     }
 
-    io.to(gameId).emit('all_players_joined', { gameId });
+    io.to(gameId).emit('all_players_joined', { gameId, lobbyState: buildLobbyStatePayload(gameId, game) });
 
     log.info('Ranked match created', {
         gameId,
@@ -1516,7 +1557,7 @@ function attachSocketHandlers(io, log) {
                 });
 
                 if (isFull) {
-                    io.to(gameId).emit('all_players_joined', { gameId });
+                    io.to(gameId).emit('all_players_joined', { gameId, lobbyState: buildLobbyStatePayload(gameId, game) });
                     // If first turn belongs to a CPU, trigger it
                     const firstPlayer = game.players[game.gameState.currentPlayer];
                     if (firstPlayer && firstPlayer.isCPU) {
@@ -1630,7 +1671,12 @@ function attachSocketHandlers(io, log) {
                             players: getPlayersList(game),
                             gameState: buildGameStateWithPlayers(game),
                         });
-                        socket.to(cleanGameId).emit('player_reconnected', { playerId, username: cleanUsername });
+                        socket.to(cleanGameId).emit('player_reconnected', {
+                            gameId: cleanGameId,
+                            playerId,
+                            username: cleanUsername,
+                            lobbyState: buildLobbyStatePayload(cleanGameId, game),
+                        });
                         return;
                     }
                 }
@@ -1676,6 +1722,7 @@ function attachSocketHandlers(io, log) {
                     gameId: cleanGameId, slot: assignedSlot,
                     username: cleanUsername, avatar: cleanAvatar,
                     filled, playerCount: game.playerCount,
+                    lobbyState: buildLobbyStatePayload(cleanGameId, game),
                 });
 
                 socket.emit('game_started', {
@@ -1705,7 +1752,10 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (filled === game.playerCount) {
-                    io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                    io.to(cleanGameId).emit('all_players_joined', {
+                        gameId: cleanGameId,
+                        lobbyState: buildLobbyStatePayload(cleanGameId, game),
+                    });
                 }
             } catch (error) {
                 log.error('Error joining game', { error: error.message, stack: error.stack });
@@ -1735,33 +1785,7 @@ function attachSocketHandlers(io, log) {
                 const game = await gameStore.getGame(cleanGameId);
                 if (!game) { socket.emit('error', 'Game not found'); return; }
 
-                const slots = [];
-                for (let i = 1; i <= game.playerCount; i++) {
-                    const playerId = `player${i}`;
-                    const player = game.players[playerId];
-                    if (player) {
-                        slots.push({
-                            slot: playerId,
-                            username: player.username,
-                            avatar: player.avatar,
-                            isCPU: !!player.isCPU,
-                            isHost: playerId === 'player1',
-                            connected: !player.disconnectedAt,
-                            disconnectedAt: player.disconnectedAt || null,
-                        });
-                    } else {
-                        slots.push({
-                            slot: playerId, username: null, avatar: null,
-                            isCPU: false, isHost: false, connected: false, disconnectedAt: null,
-                        });
-                    }
-                }
-
-                socket.emit('lobby_state', {
-                    gameId: cleanGameId, gridSize: game.gridSize,
-                    playerCount: game.playerCount, cpuDifficulty: game.cpuDifficulty || null,
-                    slots, filled: countFilledPlayers(game),
-                });
+                socket.emit('lobby_state', buildLobbyStatePayload(cleanGameId, game));
             } catch (error) {
                 log.error('Error fetching lobby state', { error: error.message });
                 socket.emit('error', 'Failed to fetch lobby state');
@@ -1825,26 +1849,7 @@ function attachSocketHandlers(io, log) {
                 const filled = countFilledPlayers(game);
                 await gameStore.setGame(cleanGameId, game);
                 await persistGame(game, filled === game.playerCount ? 'playing' : 'waiting');
-
-                const lobbySlots = [];
-                for (let i = 1; i <= game.playerCount; i++) {
-                    const pid = `player${i}`;
-                    const p = game.players[pid];
-                    lobbySlots.push(p ? {
-                        slot: pid, username: p.username, avatar: p.avatar,
-                        isCPU: !!p.isCPU, isHost: pid === 'player1',
-                        connected: !p.disconnectedAt, disconnectedAt: p.disconnectedAt || null,
-                    } : {
-                        slot: pid, username: null, avatar: null,
-                        isCPU: false, isHost: false, connected: false, disconnectedAt: null,
-                    });
-                }
-
-                io.to(cleanGameId).emit('lobby_state', {
-                    gameId: cleanGameId, gridSize: game.gridSize,
-                    playerCount: game.playerCount, cpuDifficulty: game.cpuDifficulty,
-                    slots: lobbySlots, filled,
-                });
+                io.to(cleanGameId).emit('lobby_state', buildLobbyStatePayload(cleanGameId, game));
 
                 log.info('Slot replaced with CPU', { gameId: cleanGameId, slot, difficulty });
             } catch (error) {
@@ -1943,7 +1948,10 @@ function attachSocketHandlers(io, log) {
                         }
                     }
                 }
-                io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                io.to(cleanGameId).emit('all_players_joined', {
+                    gameId: cleanGameId,
+                    lobbyState: buildLobbyStatePayload(cleanGameId, freshGame),
+                });
 
                 const firstPlayer = freshGame.players[freshGame.gameState.currentPlayer];
                 if (firstPlayer && firstPlayer.isCPU) {
@@ -2399,7 +2407,7 @@ function attachSocketHandlers(io, log) {
                     }
 
                     if (players.length === game.playerCount) {
-                        io.to(gameId).emit('all_players_joined', { gameId });
+                        io.to(gameId).emit('all_players_joined', { gameId, lobbyState: buildLobbyStatePayload(gameId, game) });
                     }
 
                     // Push notification: "Your Quick Play match is ready!" for backgrounded players
@@ -2523,7 +2531,10 @@ function attachSocketHandlers(io, log) {
                                 cpuDifficulty: cpuGame.cpuDifficulty,
                             });
 
-                            io.to(cpuGameId).emit('all_players_joined', { gameId: cpuGameId });
+                            io.to(cpuGameId).emit('all_players_joined', {
+                                gameId: cpuGameId,
+                                lobbyState: buildLobbyStatePayload(cpuGameId, cpuGame),
+                            });
 
                             // If first turn belongs to CPU, trigger it
                             const firstCpuPlayer = cpuGame.players[cpuGame.gameState.currentPlayer];
@@ -2813,9 +2824,11 @@ function attachSocketHandlers(io, log) {
                 player.disconnectedAt = new Date();
 
                 io.to(gameId).emit('player_disconnected', {
+                    gameId,
                     playerId,
                     username: player.username,
                     reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
+                    lobbyState: buildLobbyStatePayload(gameId, game),
                 });
 
                 // If game already finished, handle rematch vote auto-decline then persist
