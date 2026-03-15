@@ -19,6 +19,7 @@
     <meta property="og:site_name" content="GridLock" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="GridLock – Multiplayer Dots &amp; Boxes game board" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="GridLock – Dots &amp; Boxes Multiplayer" />
@@ -61,7 +62,7 @@
       "@type": "WebApplication",
       "name": "GridLock",
       "description": "GridLock is a real-time multiplayer Dots & Boxes game with tournaments, spectator mode, CPU opponents, and game replay.",
-      "url": "https://gridlock.pro",
+      "url": "%VITE_SITE_URL%",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Web Browser",
       "offers": {
@@ -75,9 +76,13 @@
       },
       "genre": ["Strategy", "Board Game", "Multiplayer", "Puzzle"],
       "gamePlatform": "Web Browser",
-      "numberOfPlayers": "2-4",
+      "numberOfPlayers": {
+        "@type": "QuantitativeValue",
+        "minValue": 2,
+        "maxValue": 4
+      },
       "playMode": ["MultiPlayer", "SinglePlayer"],
-      "screenshot": "https://gridlock.pro/og-image.png"
+      "screenshot": "%VITE_SITE_URL%/og-image.png"
     }
     </script>
   </head>
