@@ -15,7 +15,8 @@ require('dotenv').config();
 const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics');
 
 const socketHandlers = require('./controllers/socketHandlers');
-const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
+const { httpLimiter, healthLimiter, getSocketCountForIP, trackSocketConnection, untrackSocketConnection, MAX_SOCKETS_PER_IP } = require('./middleware/rateLimiter');
+const { isInternalRequest } = require('./middleware/internalAccess');
 const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
@@ -52,7 +53,28 @@ app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     next();
 });
-app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*" }));
+// ── CORS allowlist (#285) ────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim()).filter(Boolean)
+    : [
+        'https://gridlock.pro',
+        'https://www.gridlock.pro',
+        'https://beta.gridlock.pro',
+        'http://localhost:5173',    // Vite dev
+        'http://localhost:4173',    // Vite preview
+        'http://localhost:4175',    // E2E local test
+    ];
+
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (server-to-server, curl, mobile apps)
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    }
+}));
 app.use(express.json());
 app.use(httpLimiter); // Global HTTP rate limiting
 app.use(metricsMiddleware); // Prometheus HTTP request tracking
@@ -70,15 +92,40 @@ mongoose.connect(MONGO_URI)
 .catch(err => log.error('MongoDB connection error:', err));
 
 // Socket.io Setup
+// Express CORS uses a callback to allow null/undefined origins (server-to-server
+// requests, curl, mobile apps send no Origin header). Socket.IO uses the array
+// directly because WebSocket upgrades always originate from a browser page — there
+// is no server-to-server scenario that needs a null origin exception.
 const io = new Server(server, {
     cors: {
-        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
+        origin: ALLOWED_ORIGINS,
         methods: ["GET", "POST"],
     },
 });
 
 // Expose io to Express routes (used by push subscribe for socket verification)
 app.locals.io = io;
+
+// ── Per-IP WebSocket connection limiter (#286) ───────────────────────────────
+io.use((socket, next) => {
+    if (process.env.NODE_ENV === 'test') return next();
+
+    const ip = socket.handshake.headers['x-real-ip'] ||
+               socket.handshake.address;
+
+    if (getSocketCountForIP(ip) >= MAX_SOCKETS_PER_IP) {
+        return next(new Error('Too many connections from this IP'));
+    }
+
+    if (!trackSocketConnection(ip, socket.id)) {
+        return next(new Error('Too many connections'));
+    }
+    socket.on('disconnect', () => {
+        untrackSocketConnection(ip, socket.id);
+    });
+
+    next();
+});
 
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
@@ -169,8 +216,13 @@ setInterval(async () => {
 // Initialize on startup
 gameStore.gameCount().then(c => { cachedGameCount = c; }).catch(() => {});
 
+// ── Internal IP check for /metrics (#284) — uses shared utility ──────────────
+
 // Prometheus metrics endpoint (prom-client format with default + custom metrics)
 app.get('/metrics', healthLimiter, async (req, res) => {
+    if (!isInternalRequest(req)) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
     // Update point-in-time gauges before scrape (uses cached game count)
     metrics.activeGames.set(cachedGameCount);
     metrics.connectedSockets.set(io.engine?.clientsCount || 0);
