@@ -54,7 +54,8 @@ const HeroBanner = ({ onPlayNow }) => {
     });
   }, []);
 
-  const handleTransitionEnd = useCallback(() => {
+  const handleTransitionEnd = useCallback((e) => {
+    if (e.target !== e.currentTarget || e.propertyName !== 'max-height') return;
     if (collapsing) {
       persistDismissal();
       setDismissed(true);
@@ -65,9 +66,10 @@ const HeroBanner = ({ onPlayNow }) => {
   if (dismissed) return null;
 
   return (
-    <div
+    <section
+      aria-label="Welcome"
       ref={contentRef}
-      className="overflow-hidden transition-all duration-500 ease-in-out"
+      className="overflow-hidden"
       style={{
         maxHeight: contentHeight,
         opacity: collapsing ? 0 : 1,
@@ -111,13 +113,13 @@ const HeroBanner = ({ onPlayNow }) => {
             <h2
               className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight"
             >
-              GridLock
+              Multiplayer Dots &amp; Boxes
             </h2>
             <p
               className="text-sm sm:text-base font-semibold mt-1 tracking-wide"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Multiplayer Dots &amp; Boxes
+              Welcome to GridLock
             </p>
           </div>
 
@@ -177,7 +179,7 @@ const HeroBanner = ({ onPlayNow }) => {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
