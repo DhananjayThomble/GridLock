@@ -1792,6 +1792,26 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── leave_waiting_room — stop receiving waiting-room broadcasts ──────
+        socket.on('leave_waiting_room', async (rawPayload) => {
+            try {
+                if (rateLimited('leave_waiting_room')) return;
+                const validated = validate('leave_waiting_room', rawPayload);
+                if (!validated) return;
+                const { gameId } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                socket.leave(cleanGameId);
+                log.info('Socket left waiting room', { socketId: socket.id, gameId: cleanGameId });
+            } catch (error) {
+                log.error('Error leaving waiting room', { error: error.message });
+                socket.emit('error', 'Failed to leave waiting room');
+            }
+        });
+
         // ── replace_with_cpu — host replaces an empty/disconnected slot with CPU
         socket.on('replace_with_cpu', async (rawPayload) => {
             try {

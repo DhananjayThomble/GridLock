@@ -41,6 +41,7 @@ function mockSocket(id, rooms = []) {
     handshake: { address: '127.0.0.1', headers: {} },
     emit: jest.fn((e, d) => emitted.push({ event: e, data: d })),
     join: jest.fn((r) => s.rooms.add(r)),
+    leave: jest.fn((r) => s.rooms.delete(r)),
     to: jest.fn(() => ({ emit: jest.fn() })),
     on: jest.fn((e, h) => { handlers[e] = h; }),
     _emitted: emitted, _handlers: handlers,
@@ -99,6 +100,19 @@ describe('lobby_state', () => {
     await makeGame('LOBY02', { host: { sid: 'other', name: 'Bob' } });
     await s._handlers['lobby_state']({ gameId: 'LOBY02' });
     expect(s._emitted.find(e => e.event === 'error')?.data).toBe('Not in this game');
+  });
+});
+
+describe('leave_waiting_room', () => {
+  test('removes socket from the waiting room', async () => {
+    const s = reg(mockSocket('h1', ['LEAV01']));
+    expect(s.rooms.has('LEAV01')).toBe(true);
+
+    await s._handlers['leave_waiting_room']({ gameId: 'LEAV01' });
+
+    expect(s.leave).toHaveBeenCalledWith('LEAV01');
+    expect(s.rooms.has('LEAV01')).toBe(false);
+    expect(s._emitted.find(e => e.event === 'error')).toBeFalsy();
   });
 });
 

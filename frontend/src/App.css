@@ -8,7 +8,12 @@
  */
 
 :root {
-  --gradient-brand: linear-gradient(to right, #60a5fa, #c084fc, #f472b6);
+  --gradient-brand: linear-gradient(
+    to right,
+    var(--accent),
+    var(--player4-color),
+    var(--danger)
+  );
 }
 
 #root {

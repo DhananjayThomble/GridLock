@@ -37,6 +37,16 @@ git reset --hard origin/develop
 # ── Backend ──
 cd "$BETA_REPO/backend"
 npm ci --omit=dev
+if [ -n "${BETA_SENTRY_DSN:-}" ]; then
+  export BETA_SENTRY_DSN
+else
+  unset BETA_SENTRY_DSN || true
+fi
+if [ -n "${BETA_POSTHOG_KEY:-}" ]; then
+  export BETA_POSTHOG_KEY
+else
+  unset BETA_POSTHOG_KEY || true
+fi
 MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
   pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
   MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
