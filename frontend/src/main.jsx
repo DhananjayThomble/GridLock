@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
+import { HelmetProvider } from 'react-helmet-async'
 import { initPostHog } from './lib/posthog'
 import './index.css'
 import App from './App.jsx'
@@ -20,9 +21,11 @@ initPostHog();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Sentry.ErrorBoundary fallback={<p>An error occurred.</p>}>
-      <App />
-    </Sentry.ErrorBoundary>
+    <HelmetProvider>
+      <Sentry.ErrorBoundary fallback={<p>An error occurred.</p>}>
+        <App />
+      </Sentry.ErrorBoundary>
+    </HelmetProvider>
   </StrictMode>,
 )
 

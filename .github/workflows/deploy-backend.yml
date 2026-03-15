@@ -1,12 +1,7 @@
 name: Deploy Backend to EC2
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend.yml'
+  # Manual dispatch only — production deploys require DJ approval via #prod-deploys
   workflow_dispatch:
 
 concurrency:

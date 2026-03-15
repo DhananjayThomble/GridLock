@@ -15,7 +15,8 @@ require('dotenv').config();
 const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics');
 
 const socketHandlers = require('./controllers/socketHandlers');
-const { httpLimiter, healthLimiter } = require('./middleware/rateLimiter');
+const { httpLimiter, healthLimiter, getSocketCountForIP, trackSocketConnection, untrackSocketConnection, MAX_SOCKETS_PER_IP } = require('./middleware/rateLimiter');
+const { isInternalRequest } = require('./middleware/internalAccess');
 const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
 const pushRoutes = require('./routes/push');
@@ -39,6 +40,10 @@ const log = {
     error: (...args) => currentLevel <= 3 && console.error('[ERROR]', new Date().toISOString(), ...args)
 };
 
+function isLocalProxyAddress(ip = '') {
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
 // Middleware
 app.set('trust proxy', 1);
 app.use(helmet({
@@ -52,10 +57,23 @@ app.use((req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     next();
 });
-app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*" }));
+// ── CORS allowlist (#285) ────────────────────────────────────────────────────
+const { getAllowedOrigins } = require('./config/corsOrigins');
+const ALLOWED_ORIGINS = getAllowedOrigins();
+
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (server-to-server, curl, mobile apps)
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    }
+}));
 app.use(express.json());
+app.use(metricsMiddleware); // Prometheus HTTP request tracking (before rate limiter so 429s are counted)
 app.use(httpLimiter); // Global HTTP rate limiting
-app.use(metricsMiddleware); // Prometheus HTTP request tracking
 
 // Database Connection
 // In production, MONGO_URI must be explicitly set via PM2 ecosystem config
@@ -70,15 +88,41 @@ mongoose.connect(MONGO_URI)
 .catch(err => log.error('MongoDB connection error:', err));
 
 // Socket.io Setup
+// Express CORS uses a callback to allow null/undefined origins (server-to-server
+// requests, curl, mobile apps send no Origin header). Socket.IO uses the array
+// directly because WebSocket upgrades always originate from a browser page — there
+// is no server-to-server scenario that needs a null origin exception.
 const io = new Server(server, {
     cors: {
-        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : "*",
+        origin: ALLOWED_ORIGINS,
         methods: ["GET", "POST"],
     },
 });
 
 // Expose io to Express routes (used by push subscribe for socket verification)
 app.locals.io = io;
+
+// ── Per-IP WebSocket connection limiter (#286) ───────────────────────────────
+io.use((socket, next) => {
+    if (process.env.NODE_ENV === 'test') return next();
+
+    const socketIp = socket.handshake.address || '';
+    const forwardedIp = socket.handshake.headers['x-real-ip'];
+    const ip = isLocalProxyAddress(socketIp) && forwardedIp ? forwardedIp : socketIp;
+
+    if (getSocketCountForIP(ip) >= MAX_SOCKETS_PER_IP) {
+        return next(new Error('Too many connections from this IP'));
+    }
+
+    if (!trackSocketConnection(ip, socket.id)) {
+        return next(new Error('Too many connections'));
+    }
+    socket.on('disconnect', () => {
+        untrackSocketConnection(ip, socket.id);
+    });
+
+    next();
+});
 
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
@@ -165,12 +209,17 @@ setInterval(async () => {
     } catch (err) {
         log.error('Failed to refresh cached game count:', err.message);
     }
-}, 15_000); // Refresh every 15 seconds
+}, 15_000).unref(); // Refresh every 15 seconds; .unref() allows graceful shutdown
 // Initialize on startup
 gameStore.gameCount().then(c => { cachedGameCount = c; }).catch(() => {});
 
+// ── Internal IP check for /metrics (#284) — uses shared utility ──────────────
+
 // Prometheus metrics endpoint (prom-client format with default + custom metrics)
 app.get('/metrics', healthLimiter, async (req, res) => {
+    if (!isInternalRequest(req)) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
     // Update point-in-time gauges before scrape (uses cached game count)
     metrics.activeGames.set(cachedGameCount);
     metrics.connectedSockets.set(io.engine?.clientsCount || 0);

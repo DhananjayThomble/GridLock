@@ -1,0 +1,313 @@
+/* HowToPlay.css — themed with CSS custom properties from App.css */
+
+.htp-container {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  color: var(--text-primary);
+}
+
+/* ── Hero ─────────────────────────────────────────────── */
+
+.htp-hero {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.htp-hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.htp-brand {
+  color: var(--accent);
+}
+
+.htp-hero-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+/* ── Sections ─────────────────────────────────────────── */
+
+.htp-section {
+  margin-bottom: 2.5rem;
+}
+
+.htp-section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.htp-emoji {
+  font-size: 1.3rem;
+}
+
+/* ── Rules (ordered list) ─────────────────────────────── */
+
+.htp-rules-list {
+  list-style: none;
+  counter-reset: rules;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.htp-rules-list li {
+  counter-increment: rules;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.htp-rules-list li strong {
+  color: var(--text-primary);
+}
+
+.htp-rules-list li::before {
+  content: counter(rules);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* ── Card grid (game modes) ───────────────────────────── */
+
+.htp-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.htp-card {
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.htp-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color-strong);
+}
+
+.htp-card-emoji {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.htp-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.htp-card-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Strategy tips ────────────────────────────────────── */
+
+.htp-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.htp-tip {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+.htp-tip h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.htp-tip p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.htp-tip-number {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+/* ── Grid sizes ───────────────────────────────────────── */
+
+.htp-grid-sizes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.htp-grid-size-item {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.htp-grid-size-label {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.htp-grid-size-item strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.htp-grid-size-item p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ── Features list ────────────────────────────────────── */
+
+.htp-features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.htp-features-list li {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  transition: background 0.15s;
+}
+
+.htp-features-list li:hover {
+  background: var(--bg-card);
+}
+
+.htp-features-list li strong {
+  color: var(--text-primary);
+}
+
+/* ── CTA ──────────────────────────────────────────────── */
+
+.htp-cta {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border-radius: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  margin-top: 1rem;
+}
+
+.htp-cta-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+}
+
+.htp-cta-desc {
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem;
+}
+
+.htp-cta-button {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.htp-cta-button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.htp-cta-button:active {
+  transform: translateY(0);
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+
+@media (min-width: 768px) {
+  .htp-container {
+    padding: 3rem 2rem 5rem;
+  }
+  .htp-hero-title {
+    font-size: 2.5rem;
+  }
+  .htp-section-title {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .htp-card-grid {
+    grid-template-columns: 1fr;
+  }
+  .htp-grid-sizes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

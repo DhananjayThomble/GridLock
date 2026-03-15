@@ -1,12 +1,7 @@
 name: Deploy Frontend to GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-pages.yml'
+  # Manual dispatch only — production deploys require DJ approval via #prod-deploys
   workflow_dispatch:
 
 permissions:
