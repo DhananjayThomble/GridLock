@@ -15,17 +15,6 @@ if ! flock -n 200; then
     exit 0
 fi
 
-LOCKFILE="/tmp/beta-deploy.lock"
-
-# ── Concurrency Lock ────────────────────────────────────────────
-# Prevent concurrent deploys (e.g. rapid webhook fires).
-# flock -n = non-blocking: if another deploy holds the lock, exit immediately.
-exec 200>"$LOCKFILE"
-if ! flock -n 200; then
-    echo "[$(date -u)] ⚠️  Another beta deploy is already running — skipping."
-    exit 0
-fi
-
 BETA_REPO="/home/ubuntu/projects/GridLock-beta"
 BETA_WEB="/var/www/gridlock-beta"
 
