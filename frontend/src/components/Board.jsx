@@ -221,6 +221,20 @@ const Board = () => {
       setGameState(gs);
       prevScoresRef.current = gs?.scores || null;
 
+      // Reset game-over / rematch states so a same-route rematch navigation
+      // doesn't leave stale winner overlay or "Starting rematch…" stuck.
+      setShowWinner(false);
+      setWinnerData(null);
+      setRematchRequested(false);
+      setRematchFailed(null);
+      setRematchCount({ count: 0, total: 0 });
+      confettiFiredRef.current = false;
+      gameStarted.current = false;
+      gameStartTimeRef.current = null;
+      prevLineCountRef.current = 0;
+      setMoveCount({});
+      setGameDuration(null);
+
       // If server assigned us a playerId (happens when joining via invite code), update role
       if (data.playerId) {
         setRole(data.playerId);
