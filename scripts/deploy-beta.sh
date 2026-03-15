@@ -69,9 +69,17 @@ if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
 fi
 
 # Beta frontend env vars (exported so npm run build picks them up)
-export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-}"
+if [ -n "${VITE_POSTHOG_KEY:-}" ]; then
+  export VITE_POSTHOG_KEY
+else
+  unset VITE_POSTHOG_KEY || true
+fi
 export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-}"
-export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-}"
+if [ -n "${VITE_SENTRY_DSN:-}" ]; then
+  export VITE_SENTRY_DSN
+else
+  unset VITE_SENTRY_DSN || true
+fi
 export VITE_BASE_PATH=/
 export VITE_SOCKET_URL=https://beta-api.gridlock.pro
 export VITE_API_BASE_URL=https://beta-api.gridlock.pro
