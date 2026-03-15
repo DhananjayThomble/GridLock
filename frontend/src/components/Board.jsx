@@ -19,7 +19,7 @@ import ChatOverlay from './chat/ChatOverlay';
 import { RATE_LIMIT_MS } from './chat/chatConstants';
 
 import { countLines } from '../utils/postGameUtils';
-import { posthog } from '../lib/posthog';
+import { capture } from '../lib/posthog';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -241,7 +241,7 @@ const Board = () => {
       if (!gameStarted.current) {
         gameStarted.current = true;
         sounds.gameStart();
-        posthog.capture('game_started', { gridSize, playerCount, gameMode: tournamentId ? 'tournament' : 'casual' });
+        capture('game_started', { gridSize, playerCount, gameMode: tournamentId ? 'tournament' : 'casual' });
       }
     };
 
@@ -296,7 +296,7 @@ const Board = () => {
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
 
           // Analytics: game completed
-          posthog.capture('game_completed', {
+          capture('game_completed', {
             gridSize: gridSize || 3,
             playerCount: gs.playerCount || 2,
             duration: gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null,
@@ -407,7 +407,7 @@ const Board = () => {
       socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
       lastJoinKeyRef.current = joinKey;
       if (joinMode === 'spectator') {
-        posthog.capture('spectator_joined', { gameId });
+        capture('spectator_joined', { gameId });
       }
     }
 
@@ -543,7 +543,7 @@ const Board = () => {
       setRematchRequested(true);
       setRematchFailed(null);
       socket.emit('request_rematch', { gameId, sessionToken });
-      posthog.capture('rematch_accepted');
+      capture('rematch_accepted');
     }
   };
 
