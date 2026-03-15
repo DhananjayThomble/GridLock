@@ -54,16 +54,8 @@ app.use((req, res, next) => {
     next();
 });
 // ── CORS allowlist (#285) ────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(",").map(o => o.trim()).filter(Boolean)
-    : [
-        'https://gridlock.pro',
-        'https://www.gridlock.pro',
-        'https://beta.gridlock.pro',
-        'http://localhost:5173',    // Vite dev
-        'http://localhost:4173',    // Vite preview
-        'http://localhost:4175',    // E2E local test
-    ];
+const { getAllowedOrigins } = require('./config/corsOrigins');
+const ALLOWED_ORIGINS = getAllowedOrigins();
 
 app.use(cors({
     origin: function(origin, callback) {
