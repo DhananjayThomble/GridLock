@@ -1590,6 +1590,8 @@ function attachSocketHandlers(io, log) {
                     const playerId = `player${i}`;
                     const player = game.players[playerId];
                     if (player && player.username === cleanUsername) {
+                        // Fix #13: Token comparison uses === (not timing-safe). Acceptable
+                        // for socket session tokens — not passwords, server-side only.
                         if (!sessionToken || sessionToken !== player.token) {
                             log.warn('Rejected reconnect due to invalid token', { gameId: cleanGameId, playerId, username: cleanUsername });
                             socket.emit('error', 'Invalid session token for this username');
@@ -1663,6 +1665,14 @@ function attachSocketHandlers(io, log) {
                 await persistGame(game, status);
 
                 const gameStateWithPlayers = buildGameStateWithPlayers(game);
+
+                // Fix #5: Emit player_joined BEFORE game_started so waiting room updates first
+                io.to(cleanGameId).emit('player_joined', {
+                    gameId: cleanGameId, slot: assignedSlot,
+                    username: cleanUsername, avatar: cleanAvatar,
+                    filled, playerCount: game.playerCount,
+                });
+
                 socket.emit('game_started', {
                     gameId: cleanGameId, playerId: assignedSlot, sessionToken: newSessionToken,
                     gridSize: game.gridSize, playerCount: game.playerCount,
@@ -1672,13 +1682,6 @@ function attachSocketHandlers(io, log) {
                     gameId: cleanGameId,
                     gridSize: game.gridSize, playerCount: game.playerCount,
                     players: getPlayersList(game), gameState: gameStateWithPlayers,
-                });
-
-                // Emit player_joined for waiting room real-time updates
-                io.to(cleanGameId).emit('player_joined', {
-                    gameId: cleanGameId, slot: assignedSlot,
-                    username: cleanUsername, avatar: cleanAvatar,
-                    filled, playerCount: game.playerCount,
                 });
 
                 // Push notification to game creator that a player joined (fire-and-forget)
@@ -1717,6 +1720,12 @@ function attachSocketHandlers(io, log) {
                 const gidResult = sanitizeGameId(gameId);
                 if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
                 const cleanGameId = gidResult.value;
+
+                // Fix #3: Only allow players who have joined the game room
+                if (!socket.rooms.has(cleanGameId)) {
+                    socket.emit('error', 'Not in this game');
+                    return;
+                }
 
                 const game = await gameStore.getGame(cleanGameId);
                 if (!game) { socket.emit('error', 'Game not found'); return; }
@@ -1776,6 +1785,11 @@ function attachSocketHandlers(io, log) {
                 }
 
                 const existing = game.players[slot];
+                // Fix #8: Reject if slot is already a CPU player
+                if (existing?.isCPU) {
+                    socket.emit('error', 'This slot is already a CPU player');
+                    return;
+                }
                 if (existing && !existing.disconnectedAt) {
                     socket.emit('error', 'Cannot replace a connected player');
                     return;
@@ -1846,49 +1860,76 @@ function attachSocketHandlers(io, log) {
                 }
 
                 const filledBefore = countFilledPlayers(game);
-                if (filledBefore < 1) {
-                    socket.emit('error', 'Cannot start game with no players');
+                // Fix #4: Require at least 2 players to start early
+                if (filledBefore < 2) {
+                    socket.emit('error', 'Need at least 2 players to start the game');
                     return;
                 }
 
                 const validDifficulties = ['easy', 'medium', 'hard'];
                 const cleanDifficulty = validDifficulties.includes(cpuDifficulty) ? cpuDifficulty : 'medium';
+
+                // Fix #2: Identify empty slots, then re-read to prevent race with concurrent joins
+                const slotsToFill = [];
                 for (let i = 1; i <= game.playerCount; i++) {
                     const pid = `player${i}`;
                     if (!game.players[pid]) {
-                        const cpuIdx = i - 1;
-                        game.players[pid] = {
-                            id: `cpu-${cleanGameId}-${cpuIdx}`,
-                            username: CPU_NAMES[cpuIdx] || `Bot-${cpuIdx + 1}`,
-                            avatar: CPU_AVATARS[cpuIdx] || '🤖',
-                            color: PLAYER_COLORS[pid],
-                            token: `cpu-token-${cleanGameId}-${cpuIdx}`,
-                            disconnectedAt: null,
-                            isCPU: true,
-                        };
+                        slotsToFill.push(pid);
                     }
                 }
-                game.cpuDifficulty = cleanDifficulty;
 
-                await gameStore.setGame(cleanGameId, game);
-                await persistGame(game, 'playing');
+                const freshGame = await gameStore.getGame(cleanGameId);
+                if (!freshGame) { socket.emit('error', 'Game not found'); return; }
 
-                const gameStateWithPlayers = buildGameStateWithPlayers(game);
+                for (const pid of slotsToFill) {
+                    if (freshGame.players[pid] && !freshGame.players[pid].isCPU && freshGame.players[pid].username) {
+                        continue;
+                    }
+                    const cpuIdx = parseInt(pid.replace('player', ''), 10) - 1;
+                    freshGame.players[pid] = {
+                        id: `cpu-${cleanGameId}-${cpuIdx}`,
+                        username: CPU_NAMES[cpuIdx] || `Bot-${cpuIdx + 1}`,
+                        avatar: CPU_AVATARS[cpuIdx] || '🤖',
+                        color: PLAYER_COLORS[pid],
+                        token: `cpu-token-${cleanGameId}-${cpuIdx}`,
+                        disconnectedAt: null,
+                        isCPU: true,
+                    };
+                }
+                freshGame.cpuDifficulty = cleanDifficulty;
 
-                io.to(cleanGameId).emit('game_started', {
-                    gameId: cleanGameId, gridSize: game.gridSize,
-                    playerCount: game.playerCount, players: getPlayersList(game),
-                    gameState: gameStateWithPlayers, cpuDifficulty: cleanDifficulty,
-                });
+                await gameStore.setGame(cleanGameId, freshGame);
+                await persistGame(freshGame, 'playing');
+
+                // Fix #1: Emit game_started per-player with correct playerId/sessionToken
+                for (let i = 1; i <= freshGame.playerCount; i++) {
+                    const pid = `player${i}`;
+                    const player = freshGame.players[pid];
+                    if (player && !player.isCPU) {
+                        const playerSocket = io.sockets.sockets.get(player.id);
+                        if (playerSocket) {
+                            playerSocket.emit('game_started', {
+                                gameId: cleanGameId,
+                                playerId: pid,
+                                sessionToken: player.token,
+                                gridSize: freshGame.gridSize,
+                                playerCount: freshGame.playerCount,
+                                players: getPlayersList(freshGame),
+                                gameState: buildGameStateWithPlayers(freshGame),
+                                cpuDifficulty: cleanDifficulty,
+                            });
+                        }
+                    }
+                }
                 io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
 
-                const firstPlayer = game.players[game.gameState.currentPlayer];
+                const firstPlayer = freshGame.players[freshGame.gameState.currentPlayer];
                 if (firstPlayer && firstPlayer.isCPU) {
                     const delay = CPU_DELAYS[cleanDifficulty] || 1200;
                     scheduleCPUMove(io, log, cleanGameId, delay);
                 }
 
-                log.info('Game started early by host', { gameId: cleanGameId, filledBefore, total: game.playerCount });
+                log.info('Game started early by host', { gameId: cleanGameId, filledBefore, total: freshGame.playerCount });
             } catch (error) {
                 log.error('Error starting game early', { error: error.message });
                 socket.emit('error', 'Failed to start game');
