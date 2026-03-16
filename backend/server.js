@@ -128,7 +128,6 @@ io.use((socket, next) => {
     next();
 });
 
-
 // Optional horizontal scaling via Redis adapter
 let redisEnabled = false;
 let redisPubClient = null;
