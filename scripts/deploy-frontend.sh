@@ -42,6 +42,17 @@ export VITE_SOCKET_URL="${VITE_SOCKET_URL:-https://api.gridlock.pro}"
 export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.gridlock.pro}"
 export VITE_SITE_URL="${VITE_SITE_URL:-https://gridlock.pro}"
 export VITE_BASE_PATH="/"
+if [ -n "${VITE_POSTHOG_KEY:-}" ]; then
+  export VITE_POSTHOG_KEY
+else
+  unset VITE_POSTHOG_KEY || true
+fi
+export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-}"
+if [ -n "${VITE_SENTRY_DSN:-}" ]; then
+  export VITE_SENTRY_DSN
+else
+  unset VITE_SENTRY_DSN || true
+fi
 
 log "Build env: VITE_API_BASE_URL=$VITE_API_BASE_URL"
 log "Build env: VITE_SOCKET_URL=$VITE_SOCKET_URL"
