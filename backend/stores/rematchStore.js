@@ -65,13 +65,13 @@ async function storeCount() {
     try {
         const redis = await getRedisClient();
         if (redis) {
-            let cursor = 0;
+            let cursor = '0';
             let total = 0;
             do {
-                const result = await redis.scan(cursor, { MATCH: `${REMATCH_KEY_PREFIX}*`, COUNT: 100 });
+                const result = await redis.scan(String(cursor), { MATCH: `${REMATCH_KEY_PREFIX}*`, COUNT: 100 });
                 cursor = result.cursor;
                 total += result.keys.length;
-            } while (cursor !== 0);
+            } while (cursor !== '0');
             return total;
         }
     } catch (error) {
