@@ -44,6 +44,9 @@ jobs:
           # Same backend URL as VITE_SOCKET_URL (both point to https://api.gridlock.pro)
           VITE_API_BASE_URL: ${{ secrets.VITE_SOCKET_URL }}
           VITE_SITE_URL: https://gridlock.pro
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
 
       - name: Assemble Pages artifact
         run: |

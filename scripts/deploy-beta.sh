@@ -2,20 +2,30 @@
 # Auto-deploy develop branch to beta-api.gridlock.pro
 # Called by GitHub webhook on develop push
 set -euo pipefail
+trap 'echo "❌ Deploy failed at line $LINENO (exit $?)"' ERR
 
 LOCKFILE="/tmp/beta-deploy.lock"
 
-# ── Concurrency Lock ────────────────────────────────────────────
-# Prevent concurrent deploys (e.g. rapid webhook fires).
-# flock -n = non-blocking: if another deploy holds the lock, exit immediately.
-exec 200>"$LOCKFILE"
-if ! flock -n 200; then
+acquire_lock() {
+  # Prevent concurrent deploys (e.g. rapid webhook fires).
+  # flock -n = non-blocking: if another deploy holds the lock, exit immediately.
+  exec 200>"$LOCKFILE"
+  if ! flock -n 200; then
     echo "[$(date -u)] ⚠️  Another beta deploy is already running — skipping."
     exit 0
-fi
+  fi
+}
+
+acquire_lock
 
 BETA_REPO="/home/ubuntu/projects/GridLock-beta"
 BETA_WEB="/var/www/gridlock-beta"
+
+# Merge stderr into stdout so Node.js execFile captures everything
+exec 2>&1
+
+# Disable husky hooks in non-TTY environments (PM2/execFile)
+export HUSKY=0
 
 echo "[$(date -u)] Beta deploy starting..."
 
@@ -27,6 +37,16 @@ git reset --hard origin/develop
 # ── Backend ──
 cd "$BETA_REPO/backend"
 npm ci --omit=dev
+if [ -n "${BETA_SENTRY_DSN:-}" ]; then
+  export BETA_SENTRY_DSN
+else
+  unset BETA_SENTRY_DSN || true
+fi
+if [ -n "${BETA_POSTHOG_KEY:-}" ]; then
+  export BETA_POSTHOG_KEY
+else
+  unset BETA_POSTHOG_KEY || true
+fi
 MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
   pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
   MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
@@ -41,18 +61,35 @@ fi
 
 # ── Frontend ──
 cd "$BETA_REPO/frontend"
-npm ci
+npm ci --no-optional
 
-# Validate vite is available before attempting build
+# Validate vite + native rollup binary are available.
+# git reset --hard can corrupt node_modules (missing native binaries like @rollup/rollup-linux-x64-gnu).
+# If npm ci didn't restore them, nuke and reinstall from scratch.
+if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ] || ! node -e "require('@rollup/rollup-linux-x64-gnu')" 2>/dev/null; then
+  echo "⚠️  Native deps missing after npm ci — doing clean reinstall..."
+  rm -rf node_modules package-lock.json
+  npm install
+fi
+
+# Final validation
 if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
-  echo "❌ vite binary not found after npm ci — frontend deps likely failed"
+  echo "❌ vite binary not found after reinstall — frontend deps broken"
   exit 1
 fi
 
 # Beta frontend env vars (exported so npm run build picks them up)
-export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-phc_jGCmhd3YjQJRRu8jroVldTdenQRa5Nla12hBvOpwQhX}"
-export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-https://analytics.gridlock.pro}"
-export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-https://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3}"
+if [ -n "${VITE_POSTHOG_KEY:-}" ]; then
+  export VITE_POSTHOG_KEY
+else
+  unset VITE_POSTHOG_KEY || true
+fi
+export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-}"
+if [ -n "${VITE_SENTRY_DSN:-}" ]; then
+  export VITE_SENTRY_DSN
+else
+  unset VITE_SENTRY_DSN || true
+fi
 export VITE_BASE_PATH=/
 export VITE_SOCKET_URL=https://beta-api.gridlock.pro
 export VITE_API_BASE_URL=https://beta-api.gridlock.pro

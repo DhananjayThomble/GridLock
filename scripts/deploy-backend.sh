@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "❌ Deploy failed at line $LINENO (exit $?)"' ERR
 
 # Deploy backend to production
 # Usage: ./scripts/deploy-backend.sh [--rollback] [--dry-run]
@@ -146,6 +147,8 @@ do_rollback_internal() {
 # ── Rollback (user-invoked, acquires lock) ───────────────────────
 do_rollback() {
     acquire_lock
+    exec 2>&1
+    export HUSKY=0
     do_rollback_internal
     release_lock
 }
@@ -180,6 +183,13 @@ do_dry_run() {
 do_deploy() {
     acquire_lock
     rotate_log
+
+    # Merge stderr into stdout so Node.js execFile captures everything
+    exec 2>&1
+
+    # Disable husky hooks in non-TTY environments
+    export HUSKY=0
+
     log "🚀 Starting backend deployment..."
 
     cd "$PROD_DIR"

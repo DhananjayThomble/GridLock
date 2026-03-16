@@ -19,6 +19,8 @@ import ReplayPage from './components/ReplayPage';
 import GameHistory from './components/GameHistory';
 import DailyChallenge from './components/DailyChallenge';
 import HowToPlay from './components/HowToPlay';
+import Settings from './components/Settings';
+import WaitingRoom from './components/WaitingRoom';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import PageSeo from './components/PageSeo';
@@ -36,7 +38,7 @@ const withPageSeo = (element, seo) => (
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   return (
     <>
@@ -46,13 +48,17 @@ const AppLayout = () => {
             Lobby
           </NavLink>
           <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
-            Leaderboard
+            <span className="nav-label-full">Leaderboard</span>
+            <span className="nav-label-short">Board</span>
           </NavLink>
           <NavLink to="/history" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             History
           </NavLink>
           <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
-            How to Play
+            Rules
+          </NavLink>
+          <NavLink to="/settings" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} aria-label="Settings">
+            ⚙️
           </NavLink>
         </nav>
       )}
@@ -158,6 +164,14 @@ const AppLayout = () => {
             )}
           />
           <Route
+            path="/waiting/:gameId"
+            element={(
+              <ErrorBoundary>
+                <WaitingRoom />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
             path="/profile/:username"
             element={(
               <ErrorBoundary>
@@ -190,6 +204,14 @@ const AppLayout = () => {
             element={(
               <ErrorBoundary>
                 <HowToPlay />
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/settings"
+            element={(
+              <ErrorBoundary>
+                <Settings />
               </ErrorBoundary>
             )}
           />

@@ -5,6 +5,8 @@
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
   color: var(--text-primary);
+  background: linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to));
+  min-height: 100vh;
 }
 
 /* ── Hero ─────────────────────────────────────────────── */
