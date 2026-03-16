@@ -1,5 +1,5 @@
 // src/components/SoundSettings.jsx
-// Expandable sound & haptic settings panel for the lobby
+// Sound & haptic settings — inline toggle with expandable details
 
 import React, { useState, useCallback } from 'react';
 import { getSoundSettings, saveSoundSettings } from '../utils/sounds';
@@ -13,9 +13,15 @@ const TOGGLE_OPTIONS = [
 
 const Toggle = ({ checked, onChange, label, disabled = false }) => (
   <button
-    onClick={() => { if (disabled) return; onChange(); }}
-    className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer"
-    style={{ backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)' }}
+    onClick={() => { if (!disabled) onChange(); }}
+    className="relative rounded-full transition-colors flex items-center cursor-pointer shrink-0"
+    style={{
+      width: '44px',
+      height: '26px',
+      backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)',
+      opacity: disabled ? 0.4 : 1,
+      pointerEvents: disabled ? 'none' : 'auto',
+    }}
     role="switch"
     aria-checked={checked}
     aria-disabled={disabled}
@@ -24,16 +30,19 @@ const Toggle = ({ checked, onChange, label, disabled = false }) => (
     data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <div
-      className={`w-4 h-4 rounded-full shadow transition-transform ${
-        checked ? 'translate-x-5' : 'translate-x-0'
-      }`}
-      style={{ backgroundColor: 'var(--text-primary)' }}
+      className="rounded-full shadow transition-transform"
+      style={{
+        width: '20px',
+        height: '20px',
+        backgroundColor: 'var(--text-primary)',
+        transform: checked ? 'translateX(21px)' : 'translateX(3px)',
+      }}
     />
   </button>
 );
 
 const SoundSettings = () => {
-  const [open, setOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [settings, setSettings] = useState(() => getSoundSettings());
 
   const update = useCallback((key, value) => {
@@ -44,53 +53,49 @@ const SoundSettings = () => {
     });
   }, []);
 
+  const isMuted = settings.masterMute;
+
   return (
-    <div className="mt-3">
-      {/* Trigger */}
+    <div>
+      {/* Master toggle — always visible */}
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {isMuted ? '🔇 Muted' : '🔊 Sounds On'}
+          </span>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {isMuted ? 'All sounds are off' : 'Game sounds & haptics enabled'}
+          </p>
+        </div>
+        <Toggle
+          checked={!isMuted}
+          onChange={() => update('masterMute', !isMuted)}
+          label="Master Sound"
+        />
+      </div>
+
+      {/* Expand details */}
       <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full py-2 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+        onClick={() => setShowDetails((o) => !o)}
+        className="w-full mt-3 py-1.5 text-xs font-medium transition-all flex items-center justify-center gap-1"
         style={{ color: 'var(--text-muted)' }}
         data-testid="sound-settings-trigger"
       >
-        <span>⚙️ Sound &amp; Haptic</span>
-        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{open ? '▲' : '▼'}</span>
+        <span>{showDetails ? 'Hide details' : 'Customize sounds'}</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{showDetails ? '▲' : '▼'}</span>
       </button>
 
-      {open && (
-        <div
-          className="backdrop-blur-md rounded-2xl p-4 mt-1 space-y-3"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
-          data-testid="sound-settings-panel"
-        >
-          {/* Master Mute */}
-          <div
-            className="flex items-center justify-between py-2 px-3 rounded-xl"
-            style={{ background: settings.masterMute ? 'rgba(239,68,68,0.15)' : 'var(--bg-card-hover)' }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{settings.masterMute ? '🔇' : '🔊'}</span>
-              <div>
-                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Master Mute</div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Override all sounds</div>
-              </div>
-            </div>
-            <Toggle
-              checked={!settings.masterMute}
-              onChange={() => update('masterMute', !settings.masterMute)}
-              label="Master Mute"
-            />
-          </div>
-
+      {showDetails && (
+        <div className="mt-2 space-y-2">
           {/* Individual toggles */}
           <div
-            className="space-y-1 rounded-xl overflow-hidden"
-            style={{ opacity: settings.masterMute ? 0.4 : 1, pointerEvents: settings.masterMute ? 'none' : 'auto' }}
+            className="rounded-xl overflow-hidden"
+            style={{ opacity: isMuted ? 0.4 : 1, pointerEvents: isMuted ? 'none' : 'auto' }}
           >
             {TOGGLE_OPTIONS.map(({ key, label, icon, desc }) => (
               <div
                 key={key}
-                className="flex items-center justify-between py-2 px-3"
+                className="flex items-center justify-between py-2.5 px-3"
                 style={{ borderBottom: '1px solid var(--border-color)' }}
               >
                 <div className="flex items-center gap-2">
@@ -104,7 +109,7 @@ const SoundSettings = () => {
                   checked={settings[key]}
                   onChange={() => update(key, !settings[key])}
                   label={label}
-                  disabled={settings.masterMute}
+                  disabled={isMuted}
                 />
               </div>
             ))}
@@ -112,11 +117,11 @@ const SoundSettings = () => {
 
           {/* Volume slider */}
           <div
-            className="py-2 px-3 rounded-xl"
+            className="py-2.5 px-3 rounded-xl"
             style={{
               background: 'var(--bg-card-hover)',
-              opacity: settings.masterMute ? 0.4 : 1,
-              pointerEvents: settings.masterMute ? 'none' : 'auto',
+              opacity: isMuted ? 0.4 : 1,
+              pointerEvents: isMuted ? 'none' : 'auto',
             }}
           >
             <div className="flex items-center justify-between mb-1.5">
