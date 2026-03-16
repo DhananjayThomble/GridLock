@@ -213,7 +213,7 @@ const Settings = () => {
                   )}
 
                   <button
-                    onClick={() => { resetStats(); setStats(getStats()); }}
+                    onClick={() => { if (window.confirm('Reset all session stats? This cannot be undone.')) { resetStats(); setStats(getStats()); } }}
                     className="w-full text-xs transition-all py-1"
                     style={{ color: 'var(--text-subtle)' }}
                   >

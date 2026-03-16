@@ -458,6 +458,11 @@ a {
   overflow-x: auto;
   position: relative;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.leaderboard-scroll-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
 /* Right-edge fade to hint at scrollable content on mobile */
