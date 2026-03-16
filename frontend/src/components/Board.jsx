@@ -98,6 +98,7 @@ const Board = () => {
     sessionToken: initialSessionToken,
     joinMode: initialJoinMode,
     tournamentId,
+    cpuDifficulty,
   } = location.state || {};
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
@@ -1116,6 +1117,11 @@ const Board = () => {
           <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
             You are <span className="font-bold" style={{ color: isSpectator ? 'var(--accent)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
             {gameState?.hasCPU && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>vs CPU</span>}
+            {gameState?.hasCPU && cpuDifficulty && (
+              <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 15%, transparent)`, color: 'var(--accent)' }}>
+                {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}
+              </span>
+            )}
             {tournamentId && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>🏆 Tournament Match</span>}
           </p>
 

@@ -103,7 +103,7 @@
 }
 
 .app-content-with-nav {
-  /* Must exceed .app-nav computed height (~3.1rem) to prevent content overlap */
+  /* Must exceed .app-nav computed height to prevent content overlap (#260) */
   padding-top: 3.75rem;
   /* Prevent bottom content from being clipped on small mobile screens (#212) */
   padding-bottom: 1rem;
@@ -111,11 +111,12 @@
 
 @media (max-width: 640px) {
   .app-content-with-nav {
+    /* Nav is shorter on mobile (smaller font/padding) but add safety margin (#260) */
+    padding-top: 3.25rem;
     /* Clear bottom nav bar (#261) */
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
-
 @media (max-width: 430px) {
   .app-content-with-nav {
     /* Extra bottom padding on small mobile viewports to clear safe areas and
