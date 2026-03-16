@@ -6,17 +6,14 @@ trap 'echo "❌ Deploy failed at line $LINENO (exit $?)"' ERR
 
 LOCKFILE="/tmp/beta-deploy.lock"
 
-acquire_lock() {
-  # Prevent concurrent deploys (e.g. rapid webhook fires).
-  # flock -n = non-blocking: if another deploy holds the lock, exit immediately.
-  exec 200>"$LOCKFILE"
-  if ! flock -n 200; then
+# ── Concurrency Lock ────────────────────────────────────────────
+# Prevent concurrent deploys (e.g. rapid webhook fires).
+# flock -n = non-blocking: if another deploy holds the lock, exit immediately.
+exec 200>"$LOCKFILE"
+if ! flock -n 200; then
     echo "[$(date -u)] ⚠️  Another beta deploy is already running — skipping."
     exit 0
-  fi
-}
-
-acquire_lock
+fi
 
 BETA_REPO="/home/ubuntu/projects/GridLock-beta"
 BETA_WEB="/var/www/gridlock-beta"
@@ -37,16 +34,6 @@ git reset --hard origin/develop
 # ── Backend ──
 cd "$BETA_REPO/backend"
 npm ci --omit=dev
-if [ -n "${BETA_SENTRY_DSN:-}" ]; then
-  export BETA_SENTRY_DSN
-else
-  unset BETA_SENTRY_DSN || true
-fi
-if [ -n "${BETA_POSTHOG_KEY:-}" ]; then
-  export BETA_POSTHOG_KEY
-else
-  unset BETA_POSTHOG_KEY || true
-fi
 MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
   pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
   MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
@@ -79,17 +66,9 @@ if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
 fi
 
 # Beta frontend env vars (exported so npm run build picks them up)
-if [ -n "${VITE_POSTHOG_KEY:-}" ]; then
-  export VITE_POSTHOG_KEY
-else
-  unset VITE_POSTHOG_KEY || true
-fi
-export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-}"
-if [ -n "${VITE_SENTRY_DSN:-}" ]; then
-  export VITE_SENTRY_DSN
-else
-  unset VITE_SENTRY_DSN || true
-fi
+export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-phc_yXSobqyjQdjoiE4EZevmn8QmVKelgyjkGTsjDDNGFE9}"
+export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-https://analytics.gridlock.pro}"
+export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-https://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3}"
 export VITE_BASE_PATH=/
 export VITE_SOCKET_URL=https://beta-api.gridlock.pro
 export VITE_API_BASE_URL=https://beta-api.gridlock.pro

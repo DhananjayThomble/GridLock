@@ -23,6 +23,7 @@ import Settings from './components/Settings';
 import WaitingRoom from './components/WaitingRoom';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
+import BottomNav from './components/BottomNav';
 import PageSeo from './components/PageSeo';
 import './App.css';
 
@@ -38,30 +39,32 @@ const withPageSeo = (element, seo) => (
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/profile/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   return (
     <>
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
-          <NavLink to="/" end className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+          <NavLink to="/" end className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
             Lobby
           </NavLink>
-          <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+          <NavLink to="/leaderboard" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
             <span className="nav-label-full">Leaderboard</span>
             <span className="nav-label-short">Board</span>
           </NavLink>
-          <NavLink to="/history" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+          <NavLink to="/history" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
             History
           </NavLink>
           <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             Rules
           </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} aria-label="Settings">
+          <NavLink to="/settings" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`} aria-label="Settings">
             ⚙️
           </NavLink>
         </nav>
       )}
+
+      {!hideNav && <BottomNav />}
 
       <div className={hideNav ? '' : 'app-content-with-nav'}>
         <Routes>

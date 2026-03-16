@@ -47,8 +47,10 @@ function useGridSizes(gridSize) {
       // More aggressive on mobile to let the board fill available space
       // But keep some breathing room so it doesn't feel crammed
       const reservedH = w < 640 ? 180 : w < 768 ? 220 : 260;
-      // Horizontal padding: minimal on mobile (board goes nearly edge-to-edge)
-      const reservedW = w < 640 ? 4 : w < 768 ? 48 : 64;
+      // Horizontal padding: accounts for page padding (px-2 = 16px),
+      // board container padding (16px), border (2px), plus breathing room.
+      // Old value (4px mobile) caused grid overflow on narrow viewports.
+      const reservedW = w < 640 ? 40 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -98,6 +100,7 @@ const Board = () => {
     sessionToken: initialSessionToken,
     joinMode: initialJoinMode,
     tournamentId,
+    cpuDifficulty,
   } = location.state || {};
 
   // role can be 'player_joining' until server assigns a slot; use state so it updates
@@ -1116,6 +1119,11 @@ const Board = () => {
           <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
             You are <span className="font-bold" style={{ color: isSpectator ? 'var(--accent)' : myPlayerColor }}>{username}</span>{isSpectator ? ' (spectator)' : ''}
             {gameState?.hasCPU && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>vs CPU</span>}
+            {gameState?.hasCPU && cpuDifficulty && (
+              <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--accent) 15%, transparent)`, color: 'var(--accent)' }}>
+                {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}
+              </span>
+            )}
             {tournamentId && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 15%, transparent)`, color: 'var(--warning)' }}>🏆 Tournament Match</span>}
           </p>
 
@@ -1178,6 +1186,8 @@ const Board = () => {
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
             padding: '8px',
+            maxWidth: 'calc(100vw - 16px)',
+            overflow: 'hidden',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
             // 'manipulation' enables native pinch-to-zoom + pan but disables

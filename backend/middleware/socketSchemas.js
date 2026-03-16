@@ -107,10 +107,6 @@ const schemas = {
         gameId: gameIdField,
     }),
 
-    leave_waiting_room: Joi.object({
-        gameId: gameIdField,
-    }),
-
     replace_with_cpu: Joi.object({
         gameId: gameIdField,
         sessionToken: Joi.string().trim().hex().length(48).required(),

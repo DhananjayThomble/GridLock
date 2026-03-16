@@ -2,6 +2,27 @@
 // Rate limiting for both HTTP and Socket.IO events
 
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
+
+// ─── IP Normalization (#302) ─────────────────────────────────────────────────
+
+/**
+ * Normalize IPv4-mapped IPv6 addresses to their IPv4 equivalents.
+ * e.g. "::ffff:192.168.1.1" → "192.168.1.1"
+ *
+ * This prevents bypass of per-IP rate limits where the same client
+ * appears as two different IPs depending on the network stack.
+ * Used by our custom socket limiters (IPRateLimiter, connection tracker)
+ * which don't go through express-rate-limit's built-in normalization.
+ *
+ * @param {string} ip
+ * @returns {string}
+ */
+function normalizeIp(ip) {
+    if (!ip) return '';
+    if (ip.startsWith('::ffff:')) return ip.slice(7);
+    return ip;
+}
 
 // ─── HTTP Rate Limiter ────────────────────────────────────────────────────────
 
@@ -14,6 +35,11 @@ const httpLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
+    // Normalize IPv4-mapped IPv6 + group IPv6 /56 subnets (#302)
+    keyGenerator: (req) => {
+        const ip = req.ip || req.connection?.remoteAddress || '';
+        return ipKeyGenerator(normalizeIp(ip));
+    },
 });
 
 /**
@@ -24,6 +50,11 @@ const healthLimiter = rateLimit({
     max: 30,
     standardHeaders: true,
     legacyHeaders: false,
+    // Normalize IPv4-mapped IPv6 + group IPv6 /56 subnets (#302)
+    keyGenerator: (req) => {
+        const ip = req.ip || req.connection?.remoteAddress || '';
+        return ipKeyGenerator(normalizeIp(ip));
+    },
 });
 
 // ─── Shared rate-check logic ─────────────────────────────────────────────────
@@ -270,6 +301,7 @@ function trackSocketConnection(ip, socketId) {
 }
 
 function untrackSocketConnection(ip, socketId) {
+    ip = normalizeIp(ip); // Normalize IPv4-mapped IPv6 (#302)
     if (socketConnectionTracker.has(ip)) {
         socketConnectionTracker.get(ip).delete(socketId);
         if (socketConnectionTracker.get(ip).size === 0) {
@@ -279,6 +311,7 @@ function untrackSocketConnection(ip, socketId) {
 }
 
 function getSocketCountForIP(ip) {
+    ip = normalizeIp(ip); // Normalize IPv4-mapped IPv6 (#302)
     return socketConnectionTracker.has(ip) ? socketConnectionTracker.get(ip).size : 0;
 }
 
@@ -287,6 +320,7 @@ module.exports = {
     healthLimiter,
     socketLimiter,
     ipLimiter,
+    normalizeIp,
     SocketRateLimiter,
     IPRateLimiter,
     checkRateLimit,

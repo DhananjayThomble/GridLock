@@ -35,8 +35,6 @@ const WaitingRoom = () => {
 
   // Prevent double-navigate
   const navigatedRef = useRef(false);
-  const startTimeoutRef = useRef(null);
-  const cpuDifficultyRef = useRef(cpuDifficulty);
 
   const shareUrl = `https://gridlock.pro/join/${gameId}`;
 
@@ -47,46 +45,31 @@ const WaitingRoom = () => {
     socket.emit('lobby_state', { gameId });
   }, [gameId, navigate]);
 
-  useEffect(() => {
-    cpuDifficultyRef.current = cpuDifficulty;
-  }, [cpuDifficulty]);
-
   // Socket event listeners
   useEffect(() => {
-    const applyLobbyState = (lobbyState) => {
-      if (!lobbyState?.gameId || lobbyState.gameId !== gameId) return false;
-      setSlots(lobbyState.slots || []);
-      setFilled(lobbyState.filled || 0);
-      if (lobbyState.cpuDifficulty) setCpuDifficulty(lobbyState.cpuDifficulty);
-      return true;
-    };
-
     const onLobbyState = (data) => {
-      applyLobbyState(data);
+      if (data.gameId !== gameId) return;
+      setSlots(data.slots || []);
+      setFilled(data.filled || 0);
+      if (data.cpuDifficulty) setCpuDifficulty(data.cpuDifficulty);
     };
 
     const onPlayerJoined = (data) => {
-      if (data?.gameId !== gameId) return;
-      applyLobbyState(data.lobbyState);
+      if (data.gameId !== gameId) return;
+      setFilled(data.filled || 0);
+      socket.emit('lobby_state', { gameId });
     };
 
-    const onPlayerDisconnected = (data) => {
-      if (data?.gameId && data.gameId !== gameId) return;
-      applyLobbyState(data?.lobbyState);
+    const onPlayerDisconnected = () => {
+      socket.emit('lobby_state', { gameId });
     };
 
-    const onPlayerReconnected = (data) => {
-      if (data?.gameId && data.gameId !== gameId) return;
-      applyLobbyState(data?.lobbyState);
+    const onPlayerReconnected = () => {
+      socket.emit('lobby_state', { gameId });
     };
 
     const onGameStarted = (data) => {
-      if (!data?.gameId || data.gameId !== gameId) return;
       if (navigatedRef.current) return;
-      if (startTimeoutRef.current) {
-        clearTimeout(startTimeoutRef.current);
-        startTimeoutRef.current = null;
-      }
       navigatedRef.current = true;
       navigate('/game', {
         state: {
@@ -97,14 +80,14 @@ const WaitingRoom = () => {
           playerCount: data.playerCount || playerCount,
           gridSize: data.gridSize || gridSize,
           sessionToken: data.sessionToken || sessionToken,
-          cpuDifficulty: data.cpuDifficulty || cpuDifficultyRef.current,
+          cpuDifficulty: data.cpuDifficulty || cpuDifficulty,
         },
       });
     };
 
     const onAllPlayersJoined = (data) => {
-      if (data?.gameId !== gameId) return;
-      applyLobbyState(data?.lobbyState);
+      if (data.gameId !== gameId) return;
+      socket.emit('lobby_state', { gameId });
     };
 
     socket.on('lobby_state', onLobbyState);
@@ -121,17 +104,13 @@ const WaitingRoom = () => {
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
-      if (startTimeoutRef.current) {
-        clearTimeout(startTimeoutRef.current);
-        startTimeoutRef.current = null;
-      }
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
       if (!navigatedRef.current) {
         socket.emit('leave_waiting_room', { gameId });
       }
     };
-  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken]);
+  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
 
   // Disconnect countdown timers
   // Fix #10: Uses client clock vs server disconnectedAt — countdown may drift
@@ -202,32 +181,9 @@ const WaitingRoom = () => {
   }, [gameId, sessionToken, cpuDifficulty]);
 
   const handleStartGame = useCallback(() => {
-    const clearStartPending = () => {
-      if (startTimeoutRef.current) {
-        clearTimeout(startTimeoutRef.current);
-        startTimeoutRef.current = null;
-      }
-    };
-
     setStarting(true);
-    clearStartPending();
-
-    startTimeoutRef.current = setTimeout(() => {
-      clearStartPending();
-      setStarting(false);
-    }, 10000);
-
-    // Scope start failures to the start_game_early ack so unrelated socket
-    // errors elsewhere in the app cannot clear the pending start state.
     socket.emit('start_game_early', {
       gameId, sessionToken, cpuDifficulty,
-    }, (response) => {
-      if (response?.ok === false) {
-        clearStartPending();
-        setStarting(false);
-      } else if (response?.ok === true) {
-        clearStartPending();
-      }
     });
   }, [gameId, sessionToken, cpuDifficulty]);
 
@@ -247,9 +203,7 @@ const WaitingRoom = () => {
 
         {/* Header */}
         <div className="text-center mb-6">
-          <h1
-            className="gradient-title text-4xl font-extrabold bg-clip-text text-transparent"
-          >
+          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             GridLock
           </h1>
           <p className="text-xs mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>
