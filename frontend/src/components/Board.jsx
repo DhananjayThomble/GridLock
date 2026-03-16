@@ -47,8 +47,10 @@ function useGridSizes(gridSize) {
       // More aggressive on mobile to let the board fill available space
       // But keep some breathing room so it doesn't feel crammed
       const reservedH = w < 640 ? 180 : w < 768 ? 220 : 260;
-      // Horizontal padding: minimal on mobile (board goes nearly edge-to-edge)
-      const reservedW = w < 640 ? 4 : w < 768 ? 48 : 64;
+      // Horizontal padding: accounts for page padding (px-2 = 16px),
+      // board container padding (16px), border (2px), plus breathing room.
+      // Old value (4px mobile) caused grid overflow on narrow viewports.
+      const reservedW = w < 640 ? 40 : w < 768 ? 48 : 64;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -1184,6 +1186,8 @@ const Board = () => {
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
             padding: '8px',
+            maxWidth: 'calc(100vw - 16px)',
+            overflow: 'hidden',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
             // 'manipulation' enables native pinch-to-zoom + pan but disables
