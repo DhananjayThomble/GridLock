@@ -655,22 +655,7 @@ button:active:not(:disabled) {
    Mobile UX Batch 2 — #265, #266, #267
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── #265: Reduce board vertical whitespace on mobile ──────────────────────── */
-@media (max-width: 640px) {
-  .game-content {
-    padding-top: 72px; /* tighter than 88px default — board fills more screen */
-  }
-
-  /* Reduce header spacing above board */
-  .game-content .w-full.max-w-2xl {
-    margin-bottom: 0.25rem !important;
-  }
-
-  /* Reduce toolbar margin below board */
-  .game-toolbar {
-    margin-top: 0.5rem !important;
-  }
-}
+/* ── #265: Removed — board spacing overrides broke grid layout (P0 regression) */
 
 /* ── #266: Compact lobby layout on mobile ──────────────────────────────────── */
 @media (max-width: 640px) {
@@ -714,9 +699,10 @@ button:active:not(:disabled) {
 
 /* ── #267: Touch targets ≥ 44px on mobile ──────────────────────────────────── */
 @media (max-width: 640px) {
-  /* All buttons and interactive elements: minimum 44px tap target */
+  /* All buttons and interactive elements: minimum 44px tap target.
+     Exclude board line elements — they manage their own sizing via useGridSizes. */
   button,
-  [role="button"],
+  [role="button"]:not(.board-container [role="button"]),
   a.app-nav-link,
   a.bottom-nav-link,
   .lobby-option-card,
