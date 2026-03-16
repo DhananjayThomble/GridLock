@@ -14,13 +14,15 @@ const TOGGLE_OPTIONS = [
 const Toggle = ({ checked, onChange, label, disabled = false }) => (
   <button
     onClick={() => { if (!disabled) onChange(); }}
-    className="relative rounded-full transition-colors flex items-center cursor-pointer shrink-0"
+    className="relative flex items-center cursor-pointer shrink-0"
     style={{
-      width: '44px',
-      height: '26px',
-      backgroundColor: checked ? 'var(--accent)' : 'var(--bg-card-hover)',
+      width: '51px',
+      height: '31px',
+      borderRadius: '999px',
+      backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
       opacity: disabled ? 0.4 : 1,
       pointerEvents: disabled ? 'none' : 'auto',
+      transition: 'background-color 200ms ease',
     }}
     role="switch"
     aria-checked={checked}
@@ -30,12 +32,14 @@ const Toggle = ({ checked, onChange, label, disabled = false }) => (
     data-testid={`toggle-${label.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <div
-      className="rounded-full shadow transition-transform"
       style={{
-        width: '20px',
-        height: '20px',
-        backgroundColor: 'var(--text-primary)',
-        transform: checked ? 'translateX(21px)' : 'translateX(3px)',
+        width: '27px',
+        height: '27px',
+        borderRadius: '50%',
+        backgroundColor: '#fff',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+        transform: checked ? 'translateX(22px)' : 'translateX(2px)',
+        transition: 'transform 200ms ease',
       }}
     />
   </button>

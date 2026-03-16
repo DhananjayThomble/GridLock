@@ -99,13 +99,26 @@ const Settings = () => {
             <button
               onClick={handlePushToggle}
               disabled={!localStorage.getItem('gridlock_username')}
-              className="relative w-10 h-5 rounded-full transition-colors flex items-center px-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}
+              className="relative flex items-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              style={{
+                width: '51px',
+                height: '31px',
+                borderRadius: '999px',
+                backgroundColor: pushEnabled ? 'var(--warning)' : 'var(--text-muted)',
+                transition: 'background-color 200ms ease',
+              }}
               aria-label="Toggle push notifications"
             >
               <div
-                className={`w-4 h-4 rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                style={{ backgroundColor: 'var(--text-primary)' }}
+                style={{
+                  width: '27px',
+                  height: '27px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  transform: pushEnabled ? 'translateX(22px)' : 'translateX(2px)',
+                  transition: 'transform 200ms ease',
+                }}
               />
             </button>
           </div>
