@@ -3,7 +3,7 @@ const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
 const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
-const { socketLimiter, ipLimiter } = require('../middleware/rateLimiter');
+const { socketLimiter, ipLimiter, normalizeIp } = require('../middleware/rateLimiter');
 const { validatePayload } = require('../middleware/socketSchemas');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
@@ -1148,9 +1148,11 @@ function attachSocketHandlers(io, log) {
         // and only then fall back to XFF for the real client IP.
         const rawAddr = socket.conn?.remoteAddress || socket.handshake?.address || 'unknown';
         const trustedProxies = process.env.TRUSTED_PROXY_IPS ? process.env.TRUSTED_PROXY_IPS.split(',').map(s => s.trim()).filter(Boolean) : [];
-        const socketIP = (trustedProxies.length > 0 && trustedProxies.includes(rawAddr))
-            ? (socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || rawAddr)
-            : rawAddr;
+        const socketIP = normalizeIp(
+            (trustedProxies.length > 0 && trustedProxies.includes(rawAddr))
+                ? (socket.handshake?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || rawAddr)
+                : rawAddr
+        );
 
         const rateLimited = (eventName) => {
             if (!socketLimiter.allow(socket.id, eventName)) {

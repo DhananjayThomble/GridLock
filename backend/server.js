@@ -15,7 +15,7 @@ require('dotenv').config();
 const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics');
 
 const socketHandlers = require('./controllers/socketHandlers');
-const { httpLimiter, healthLimiter, getSocketCountForIP, trackSocketConnection, untrackSocketConnection, MAX_SOCKETS_PER_IP } = require('./middleware/rateLimiter');
+const { httpLimiter, healthLimiter, normalizeIp, getSocketCountForIP, trackSocketConnection, untrackSocketConnection, MAX_SOCKETS_PER_IP } = require('./middleware/rateLimiter');
 const { isInternalRequest } = require('./middleware/internalAccess');
 const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
@@ -110,7 +110,9 @@ io.use((socket, next) => {
 
     const socketIp = socket.handshake.address || '';
     const forwardedIp = socket.handshake.headers['x-real-ip'];
-    const ip = isLocalProxyAddress(socketIp) && forwardedIp ? forwardedIp : socketIp;
+    const rawIp = isLocalProxyAddress(socketIp) && forwardedIp ? forwardedIp : socketIp;
+    // Normalize IPv4-mapped IPv6 addresses (#302)
+    const ip = normalizeIp(rawIp);
 
     if (getSocketCountForIP(ip) >= MAX_SOCKETS_PER_IP) {
         return next(new Error('Too many connections from this IP'));
