@@ -71,10 +71,7 @@ const Settings = () => {
           className="rounded-2xl p-4"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
         >
-          <span className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--label-color)' }}>Appearance</span>
-          <div className="flex items-center justify-center">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
         </div>
 
         {/* Sound & Haptic */}
@@ -82,7 +79,6 @@ const Settings = () => {
           className="rounded-2xl p-4"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
         >
-          <span className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--label-color)' }}>Sound & Haptics</span>
           <SoundSettings />
         </div>
 
