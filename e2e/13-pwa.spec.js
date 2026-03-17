@@ -43,10 +43,11 @@ test.describe('PWA Support', () => {
   });
 
   test('install button appears when beforeinstallprompt fires', async ({ page }) => {
-    await goToLobby(page);
+    // Install App was moved to Settings page in the redesign
+    await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
 
-    // Initially no install button
-    await expect(page.locator('button:has-text("📲 Install App")')).toHaveCount(0);
+    // Initially no install section (no beforeinstallprompt yet)
+    await expect(page.locator('text=Install App')).toHaveCount(0);
 
     // Simulate beforeinstallprompt
     await page.evaluate(() => {
@@ -57,15 +58,13 @@ test.describe('PWA Support', () => {
       window.dispatchEvent(event);
     });
 
-    // Install button should now be visible
-    await expect(page.locator('button:has-text("📲 Install App")')).toBeVisible({ timeout: 3000 });
+    // Install App row should now be visible in Settings
+    await expect(page.locator('text=Install App')).toBeVisible({ timeout: 3000 });
   });
 
   test('install button hidden in standalone mode', async ({ browser }) => {
     // Launch with display-mode: standalone emulated via CDP
-    const context = await browser.newContext({
-      // Simulate standalone by injecting matchMedia override
-    });
+    const context = await browser.newContext();
     const page = await context.newPage();
 
     // Override matchMedia before navigation
@@ -79,9 +78,9 @@ test.describe('PWA Support', () => {
       };
     });
 
-    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
 
-    // Fire beforeinstallprompt — button should NOT appear because standalone
+    // Fire beforeinstallprompt — Install App should NOT appear because standalone
     await page.evaluate(() => {
       const event = new Event('beforeinstallprompt');
       event.preventDefault = () => {};
@@ -92,7 +91,7 @@ test.describe('PWA Support', () => {
 
     // Wait a tick and verify no install button
     await page.waitForTimeout(500);
-    await expect(page.locator('button:has-text("📲 Install App")')).toHaveCount(0);
+    await expect(page.locator('text=Install App')).toHaveCount(0);
 
     await context.close();
   });

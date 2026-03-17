@@ -1,7 +1,7 @@
 // e2e/03-game-mechanics.spec.js — Score bar, session stats, sound UI, rematch UI
 
 const { test, expect } = require('@playwright/test');
-const { goToLobby, createGame, joinGame, waitForGameStart, makeMove, getTurnState } = require('./helpers');
+const { goToLobby, createGame, joinGame, waitForGameStart, makeMove, getTurnState, BASE_URL } = require('./helpers');
 
 test.describe('Game UI & Mechanics', () => {
 
@@ -49,9 +49,9 @@ test.describe('Game UI & Mechanics', () => {
     await ctx2.close();
   });
 
-  test('session stats button exists in lobby', async ({ page }) => {
-    await goToLobby(page);
-    await expect(page.locator('button:has-text("Stats")')).toBeVisible();
+  test('session stats button exists in settings', async ({ page }) => {
+    await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
+    await expect(page.locator('text=Your Stats')).toBeVisible();
   });
 
   test('winner modal shows Rematch and Leave Game after game ends', async ({ browser }) => {
