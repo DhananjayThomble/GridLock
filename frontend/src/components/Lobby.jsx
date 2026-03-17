@@ -518,7 +518,7 @@ const Lobby = () => {
                   localStorage.setItem('gridlock_how_to_play_dismissed', 'true');
                   setHowToPlayDismissed(true);
                 }}
-                className="bg-transparent border-none cursor-pointer p-1 px-2 text-base"
+                className="bg-transparent border-none cursor-pointer p-2 px-3 text-base min-w-[44px] min-h-[44px] flex items-center justify-center"
                 style={{ color: 'var(--text-muted)' }}
                 aria-label="Dismiss"
               >
@@ -575,6 +575,7 @@ const Lobby = () => {
                   <span
                     className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] leading-none"
                     style={{ background: 'color-mix(in srgb, var(--bg-secondary) 85%, transparent)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                    aria-hidden="true"
                   >
                     ✎
                   </span>
@@ -632,12 +633,15 @@ const Lobby = () => {
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
-                    <div className="grid grid-cols-8 gap-1.5">
+                    <div className="grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="Pick avatar">
                       {AVATARS.map((av) => (
                         <button
                           key={av}
                           onClick={() => setSelectedAvatar(av)}
-                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
+                          role="radio"
+                          aria-checked={selectedAvatar === av}
+                          aria-label={`Avatar ${av}`}
+                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 lobby-avatar-btn ${
                             selectedAvatar === av
                               ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
                               : ''
@@ -717,12 +721,15 @@ const Lobby = () => {
                 ) : (
                   <>
                     <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
-                    <div className="grid grid-cols-8 gap-1.5">
+                    <div className="grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="Pick avatar">
                       {AVATARS.map((av) => (
                         <button
                           key={av}
                           onClick={() => { setSelectedAvatar(av); setProfileExpanded(false); }}
-                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
+                          role="radio"
+                          aria-checked={selectedAvatar === av}
+                          aria-label={`Avatar ${av}`}
+                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 lobby-avatar-btn ${
                             selectedAvatar === av
                               ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
                               : ''
@@ -755,7 +762,7 @@ const Lobby = () => {
                 <span className="sm:hidden">Players</span>
               </label>
               {/* Mobile: horizontal pill row */}
-              <div className="flex gap-1.5 sm:hidden">
+              <div className="flex gap-1.5 sm:hidden" role="radiogroup" aria-label="Number of players">
                 {PLAYER_COUNT_OPTIONS.map(({ value }) => (
                   <button
                     key={value}
@@ -764,6 +771,8 @@ const Lobby = () => {
                       const maxCpu = Math.max(1, value - 1);
                       if (cpuCount > maxCpu) setCpuCount(maxCpu);
                     }}
+                    role="radio"
+                    aria-checked={playerCount === value}
                     className="flex-1 py-1.5 rounded-xl text-center transition-all active:scale-95 text-xs font-bold"
                     style={playerCount === value
                       ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent)' }
@@ -803,11 +812,13 @@ const Lobby = () => {
                 <span className="sm:hidden">Grid</span>
               </label>
               {/* Mobile: horizontal pill row */}
-              <div className="flex gap-1.5 sm:hidden">
+              <div className="flex gap-1.5 sm:hidden" role="radiogroup" aria-label="Grid size">
                 {GRID_OPTIONS.map(({ value, label }) => (
                   <button
                     key={value}
                     onClick={() => setGridSize(value)}
+                    role="radio"
+                    aria-checked={gridSize === value}
                     className="flex-1 py-1.5 rounded-xl text-center transition-all active:scale-95 text-xs font-bold"
                     style={gridSize === value
                       ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 2px 8px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
@@ -947,7 +958,7 @@ const Lobby = () => {
             <button
               onClick={() => navigate('/daily')}
               disabled={creating || !username.trim()}
-              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
+              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
               style={{
                 background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
@@ -959,7 +970,7 @@ const Lobby = () => {
             <button
               onClick={handleRankedPlay}
               disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
+              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
               style={{
                 background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 12%, transparent)',
                 border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 30%, transparent)'}`,
@@ -970,7 +981,8 @@ const Lobby = () => {
             </button>
             <button
               onClick={() => setTab(tab === 'join' ? '' : 'join')}
-              className="flex-1 min-w-[60px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              aria-pressed={tab === 'join'}
+              className="flex-1 min-w-[60px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
               style={{
                 background: tab === 'join' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'var(--bg-card)',
                 border: `1px solid ${tab === 'join' ? 'color-mix(in srgb, var(--success) 40%, transparent)' : 'var(--border-color-strong)'}`,
@@ -981,7 +993,8 @@ const Lobby = () => {
             </button>
             <button
               onClick={() => setTab(tab === 'tournament' ? '' : 'tournament')}
-              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              aria-pressed={tab === 'tournament'}
+              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
               style={{
                 background: tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-card)',
                 border: `1px solid ${tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 40%, transparent)' : 'var(--border-color-strong)'}`,

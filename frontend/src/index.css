@@ -821,3 +821,11 @@ button:active:not(:disabled) {
   -webkit-background-clip: text;
   background-clip: text;
 }
+
+/* ── Mobile avatar grid: fit 8 cols without overflow ─────────────────────── */
+@media (max-width: 640px) {
+  .lobby-avatar-btn {
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+}
