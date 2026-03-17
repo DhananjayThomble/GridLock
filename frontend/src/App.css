@@ -112,7 +112,7 @@
 @media (max-width: 640px) {
   .app-content-with-nav {
     /* Nav is shorter on mobile (smaller font/padding) but add safety margin (#260) */
-    padding-top: 3.25rem;
+    padding-top: 2.75rem;
     /* Clear bottom nav bar (#261) */
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
