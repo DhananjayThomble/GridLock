@@ -22,7 +22,7 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
       width: '44px',
       height: '24px',
       borderRadius: '12px',
-      backgroundColor: checked ? 'var(--accent)' : 'var(--text-subtle)',
+      backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
       position: 'relative',
