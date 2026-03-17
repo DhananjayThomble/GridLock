@@ -289,7 +289,29 @@ const Leaderboard = () => {
                   ))}
                 </section>
 
-                <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
+                {/* Mobile card layout (#344) */}
+                <section className="leaderboard-mobile-cards">
+                  {tableRows.map((entry) => (
+                    <div key={entry.username} className="leaderboard-mobile-card">
+                      <span className="leaderboard-mobile-card-rank">#{entry.rank}</span>
+                      <div className="leaderboard-mobile-card-info">
+                        <div className="leaderboard-mobile-card-name">
+                          {entry.avatar && <span aria-hidden="true">{entry.avatar} </span>}
+                          <Link to={`/profile/${encodeURIComponent(entry.username)}`}>{entry.username}</Link>
+                        </div>
+                        <div className="leaderboard-mobile-card-stats">
+                          <span>{entry.wins}W / {entry.losses}L / {entry.draws}D</span>
+                          <span>·</span>
+                          <span>{entry.winRate}% WR</span>
+                        </div>
+                      </div>
+                      <span className="leaderboard-mobile-card-elo">{entry.elo}</span>
+                    </div>
+                  ))}
+                </section>
+
+                {/* Desktop table */}
+                <section className="leaderboard-desktop-table overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
                   <div className="leaderboard-scroll-wrapper">
                     <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
                       <thead style={{ background: 'var(--bg-card-hover)' }}>
@@ -370,7 +392,30 @@ const Leaderboard = () => {
                   ))}
                 </section>
 
-                <section className="overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
+                {/* Mobile card layout (#344) */}
+                <section className="leaderboard-mobile-cards">
+                  {rankedRows.map((entry) => (
+                    <div key={entry.username} className="leaderboard-mobile-card">
+                      <span className="leaderboard-mobile-card-rank">#{entry.rank}</span>
+                      <div className="leaderboard-mobile-card-info">
+                        <div className="leaderboard-mobile-card-name">
+                          <Link to={`/profile/${encodeURIComponent(entry.username)}`}>{entry.username}</Link>
+                        </div>
+                        <div className="leaderboard-mobile-card-stats">
+                          <RankBadge tier={entry.tier} tierIcon={entry.tierIcon} size="sm" />
+                          <span>{entry.wins}W / {entry.losses}L</span>
+                          <span>·</span>
+                          <span>{entry.winRate}% WR</span>
+                          {entry.isInPlacement && <span style={{ color: 'var(--accent)' }}>· Placing</span>}
+                        </div>
+                      </div>
+                      <span className="leaderboard-mobile-card-elo">{entry.elo}</span>
+                    </div>
+                  ))}
+                </section>
+
+                {/* Desktop table */}
+                <section className="leaderboard-desktop-table overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
                   <div className="leaderboard-scroll-wrapper">
                     <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
                       <thead style={{ background: 'var(--bg-card-hover)' }}>

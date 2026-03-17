@@ -7,6 +7,7 @@ import { NavLink } from 'react-router-dom';
 const tabs = [
   { to: '/',            label: 'Lobby',       icon: '🏠', end: true },
   { to: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
+  { to: '/how-to-play', label: 'Rules',       icon: '📖' },
   { to: '/history',     label: 'History',     icon: '📜' },
   { to: '/settings',    label: 'Settings',    icon: '⚙️' },
 ];
