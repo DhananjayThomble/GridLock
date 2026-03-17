@@ -530,7 +530,7 @@ const Lobby = () => {
 
 
         {/* ── Title ── */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-3 sm:mb-6">
           <h1
             className="gradient-title text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent leading-tight"
           >
