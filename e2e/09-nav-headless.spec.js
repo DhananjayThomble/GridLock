@@ -27,8 +27,10 @@ test.describe('Nav pill renders in headless chromium', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(BASE_URL, { waitUntil: 'networkidle' });
 
-    await expect(page.locator('nav.app-nav')).toBeVisible();
-    await expect(page.getByRole('link', { name: /^Lobby$/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /^Leaderboard$/ })).toBeVisible();
+    // On mobile (≤640px), top nav hides Lobby/Leaderboard links via .top-nav-hide-mobile
+    // Bottom nav provides navigation instead
+    await expect(page.locator('nav.bottom-nav')).toBeVisible();
+    await expect(page.locator('nav.bottom-nav').getByText('Lobby')).toBeVisible();
+    await expect(page.locator('nav.bottom-nav').getByText('Leaderboard')).toBeVisible();
   });
 });
