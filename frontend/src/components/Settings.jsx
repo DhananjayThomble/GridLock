@@ -22,9 +22,6 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
       width: '44px',
       height: '24px',
       borderRadius: '12px',
-      // Intentional: --text-muted gives the unchecked toggle a visible solid gray
-      // background instead of the near-invisible --text-subtle (15% opacity).
-      // Both are CSS custom properties, so they adapt to light/dark themes.
       backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
