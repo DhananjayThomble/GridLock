@@ -15,8 +15,8 @@ const ENV_CONFIGS = {
   },
   beta: {
     baseURL:   'https://beta.gridlock.pro',
-    apiURL:    'https://beta.gridlock.pro',
-    socketURL: 'https://beta.gridlock.pro',
+    apiURL:    'https://beta-api.gridlock.pro',
+    socketURL: 'https://beta-api.gridlock.pro',
   },
   prod: {
     baseURL:   'https://gridlock.pro',

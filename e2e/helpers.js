@@ -43,9 +43,11 @@ async function createGame(page, { username = 'Alice', playerCount = 2, gridSize 
   await page.click(`button:has-text("${playerCount} Players")`);
   await page.click(`button:has-text("${gridSize}")`);
   await page.click('button:has-text("🚀 Create Game")');
-  await page.waitForURL(/\/game/, { timeout: 15_000 });
 
-  // Wait for room code
+  // New flow: CPU games go directly to /game, human games go to /waiting/:gameId first
+  await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
+
+  // Wait for room code (visible on both /game and /waiting pages)
   await page.waitForFunction(
     () => /ROOM|room code/i.test(document.body.innerText),
     { timeout: 15_000 }
