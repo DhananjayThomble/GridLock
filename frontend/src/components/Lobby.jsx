@@ -748,10 +748,33 @@ const Lobby = () => {
 
           {/* ── Create Game (hero — always visible) ── */}
           <div className="p-4 sm:p-5 space-y-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            {/* Players */}
+            {/* Players — compact pill row on mobile, card grid on desktop */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Number of Players</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 sm:mb-2" style={{ color: 'var(--label-color)' }}>
+                <span className="hidden sm:inline">Number of Players</span>
+                <span className="sm:hidden">Players</span>
+              </label>
+              {/* Mobile: horizontal pill row */}
+              <div className="flex gap-1.5 sm:hidden">
+                {PLAYER_COUNT_OPTIONS.map(({ value }) => (
+                  <button
+                    key={value}
+                    onClick={() => {
+                      setPlayerCount(value);
+                      const maxCpu = Math.max(1, value - 1);
+                      if (cpuCount > maxCpu) setCpuCount(maxCpu);
+                    }}
+                    className="flex-1 py-1.5 rounded-xl text-center transition-all active:scale-95 text-xs font-bold"
+                    style={playerCount === value
+                      ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  >
+                    {value}P
+                  </button>
+                ))}
+              </div>
+              {/* Desktop: full card grid */}
+              <div className="hidden sm:grid grid-cols-3 gap-2">
                 {PLAYER_COUNT_OPTIONS.map(({ value, label, icon, desc }) => (
                   <button
                     key={value}
@@ -773,10 +796,29 @@ const Lobby = () => {
               </div>
             </div>
 
-            {/* Grid size */}
+            {/* Grid size — compact pills on mobile, card grid on desktop */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Grid Size</label>
-              <div className="grid grid-cols-4 gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 sm:mb-2" style={{ color: 'var(--label-color)' }}>
+                <span className="hidden sm:inline">Grid Size</span>
+                <span className="sm:hidden">Grid</span>
+              </label>
+              {/* Mobile: horizontal pill row */}
+              <div className="flex gap-1.5 sm:hidden">
+                {GRID_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setGridSize(value)}
+                    className="flex-1 py-1.5 rounded-xl text-center transition-all active:scale-95 text-xs font-bold"
+                    style={gridSize === value
+                      ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 2px 8px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
+                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* Desktop: full card grid */}
+              <div className="hidden sm:grid grid-cols-4 gap-2">
                 {GRID_OPTIONS.map(({ value, label, desc }) => (
                   <button
                     key={value}
@@ -793,18 +835,27 @@ const Lobby = () => {
               </div>
             </div>
 
-            {/* CPU Toggle */}
+            {/* CPU Toggle — compact on mobile */}
             <div>
               <button
                 onClick={() => setCpuEnabled(!cpuEnabled)}
-                className="w-full py-2.5 px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
+                className="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
                 style={cpuEnabled
                   ? { background: 'color-mix(in srgb, var(--warning) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }
                   : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
               >
                 <span className="flex items-center gap-2">
-                  <span className="text-lg">🤖</span>
-                  <span className="text-sm font-semibold">Play vs CPU</span>
+                  <span className="text-base sm:text-lg">🤖</span>
+                  <span className="text-xs sm:text-sm font-semibold">
+                    {cpuEnabled ? (
+                      <>
+                        <span className="sm:hidden">CPU · {cpuCount} × {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}</span>
+                        <span className="hidden sm:inline">Play vs CPU</span>
+                      </>
+                    ) : (
+                      'Play vs CPU'
+                    )}
+                  </span>
                 </span>
                 <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
                   <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
@@ -891,8 +942,58 @@ const Lobby = () => {
             </button>
           </div>
 
-          {/* ── Daily Challenge & Ranked (always visible) ── */}
-          <div className="px-4 sm:px-5 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          {/* ── Secondary actions — compact chip row on mobile ── */}
+          <div className="px-3 py-2 flex flex-wrap gap-1.5 sm:hidden" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => navigate('/daily')}
+              disabled={creating || !username.trim()}
+              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
+              style={{
+                background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
+                color: 'var(--warning)',
+              }}
+            >
+              🎯 Daily
+            </button>
+            <button
+              onClick={handleRankedPlay}
+              disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
+              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
+              style={{
+                background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 12%, transparent)',
+                border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 30%, transparent)'}`,
+                color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
+              }}
+            >
+              {rankedPlaying ? '⏳…' : '⚔️ Ranked'}
+            </button>
+            <button
+              onClick={() => setTab(tab === 'join' ? '' : 'join')}
+              className="flex-1 min-w-[60px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              style={{
+                background: tab === 'join' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'var(--bg-card)',
+                border: `1px solid ${tab === 'join' ? 'color-mix(in srgb, var(--success) 40%, transparent)' : 'var(--border-color-strong)'}`,
+                color: tab === 'join' ? 'var(--success)' : 'var(--text-secondary)',
+              }}
+            >
+              🔗 Join
+            </button>
+            <button
+              onClick={() => setTab(tab === 'tournament' ? '' : 'tournament')}
+              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              style={{
+                background: tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-card)',
+                border: `1px solid ${tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 40%, transparent)' : 'var(--border-color-strong)'}`,
+                color: tab === 'tournament' ? 'var(--warning)' : 'var(--text-secondary)',
+              }}
+            >
+              🏆 Tourney
+            </button>
+          </div>
+
+          {/* Desktop: full-size Daily + Ranked row */}
+          <div className="hidden sm:flex px-5 py-3 gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
               onClick={() => navigate('/daily')}
               disabled={creating || !username.trim()}
@@ -919,8 +1020,8 @@ const Lobby = () => {
             </button>
           </div>
 
-          {/* ── Join / Tournament tabs ── */}
-          <div className="flex" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          {/* Desktop: Join / Tournament tabs */}
+          <div className="hidden sm:flex" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {[
               { key: 'join',   label: '🔗 Join Game' },
               { key: 'tournament', label: '🏆 Tournament' },
