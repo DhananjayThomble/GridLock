@@ -729,7 +729,7 @@ const Lobby = () => {
                           role="radio"
                           aria-checked={selectedAvatar === av}
                           aria-label={`Avatar ${av}`}
-                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
+                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 lobby-avatar-btn ${
                             selectedAvatar === av
                               ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
                               : ''
@@ -958,7 +958,7 @@ const Lobby = () => {
             <button
               onClick={() => navigate('/daily')}
               disabled={creating || !username.trim()}
-              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
+              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
               style={{
                 background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
@@ -970,7 +970,7 @@ const Lobby = () => {
             <button
               onClick={handleRankedPlay}
               disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
+              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
               style={{
                 background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 12%, transparent)',
                 border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 30%, transparent)'}`,
@@ -982,7 +982,7 @@ const Lobby = () => {
             <button
               onClick={() => setTab(tab === 'join' ? '' : 'join')}
               aria-pressed={tab === 'join'}
-              className="flex-1 min-w-[60px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              className="flex-1 min-w-[60px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
               style={{
                 background: tab === 'join' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'var(--bg-card)',
                 border: `1px solid ${tab === 'join' ? 'color-mix(in srgb, var(--success) 40%, transparent)' : 'var(--border-color-strong)'}`,
@@ -994,7 +994,7 @@ const Lobby = () => {
             <button
               onClick={() => setTab(tab === 'tournament' ? '' : 'tournament')}
               aria-pressed={tab === 'tournament'}
-              className="flex-1 min-w-[70px] py-2 rounded-lg font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
+              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
               style={{
                 background: tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-card)',
                 border: `1px solid ${tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 40%, transparent)' : 'var(--border-color-strong)'}`,
