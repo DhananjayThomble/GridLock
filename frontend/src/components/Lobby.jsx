@@ -106,7 +106,7 @@ const Lobby = () => {
   const [rankedQueueSize, setRankedQueueSize] = useState(1);
   const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null); // eslint-disable-line no-unused-vars
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
-  const [avatarExpanded, setAvatarExpanded] = useState(false);
+  const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => localStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
   const navigate = useNavigate();
   const usernameInputRef = useRef(null);
@@ -529,8 +529,8 @@ const Lobby = () => {
         )}
 
 
-        {/* ── Title ── */}
-        <div className="text-center mb-3 sm:mb-6">
+        {/* ── Title (desktop only — mobile gets compact bar inside card) ── */}
+        <div className="text-center mb-3 sm:mb-6 hidden sm:block">
           <h1
             className="gradient-title text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent leading-tight"
           >
@@ -544,93 +544,214 @@ const Lobby = () => {
           className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
         >
+          {/* ── Compact branding bar (mobile only) ── */}
+          <div
+            className="sm:hidden flex items-center gap-1.5 px-4 py-2.5"
+            style={{ borderBottom: '1px solid var(--border-color)' }}
+          >
+            <span className="text-base">🔲</span>
+            <span
+              className="gradient-title font-bold text-xl bg-clip-text text-transparent leading-none"
+            >
+              GridLock
+            </span>
+          </div>
 
-          {/* ── Username + Avatar (collapsed by default) ── */}
-          <div className="p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
-            <input
-              ref={usernameInputRef}
-              type="text"
-              value={username}
-              onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
-              onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
-              placeholder="Enter your name…"
-              minLength={2}
-              maxLength={16}
-              pattern="[a-zA-Z0-9_\-]+"
-              autoComplete="nickname"
-              autoCorrect="off"
-              autoCapitalize="words"
-              spellCheck={false}
-              inputMode="text"
-              enterKeyHint="done"
-              className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
-              style={{
-                background: 'var(--input-bg)',
-                border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
-                color: 'var(--text-primary)',
-              }}
-            />
-            <div className="flex justify-between mt-1">
-              {usernameError ? (
-                <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
-              ) : <span />}
-              <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                {username.length}/16
-              </p>
-            </div>
-
-            {/* Avatar — collapsed: show selected + Change button */}
-            <div className="mt-3">
-              {!avatarExpanded ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{selectedAvatar}</span>
-                  <button
-                    onClick={() => setAvatarExpanded(true)}
-                    className="text-xs font-semibold px-3 py-1 rounded-lg transition-all active:scale-95"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+          {/* ── Username + Avatar (unified profile card) ── */}
+          <div className="p-4 sm:p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            {/* ── Mobile: tappable profile row ── */}
+            <div className="sm:hidden">
+              {/* Collapsed profile row */}
+              <button
+                onClick={() => setProfileExpanded(!profileExpanded)}
+                className="w-full flex items-center gap-3 py-1 bg-transparent border-none cursor-pointer text-left"
+                aria-expanded={profileExpanded}
+                aria-label="Edit profile"
+              >
+                {/* Avatar with edit badge */}
+                <span className="relative inline-flex flex-shrink-0">
+                  <span className="text-3xl">{selectedAvatar}</span>
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] leading-none"
+                    style={{ background: 'color-mix(in srgb, var(--bg-secondary) 85%, transparent)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                   >
-                    Change
-                  </button>
-                  {username && (
-                    <span className="text-xs lobby-playing-as" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                      Playing as <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
-                  <div className="grid grid-cols-8 gap-1.5">
-                    {AVATARS.map((av) => (
-                      <button
-                        key={av}
-                        onClick={() => { setSelectedAvatar(av); setAvatarExpanded(false); }}
-                        className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
-                          selectedAvatar === av
-                            ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
-                            : ''
-                        }`}
-                        style={selectedAvatar === av
-                          ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
-                          : { background: 'var(--bg-card-hover)' }}
-                      >
-                        {av}
-                      </button>
-                    ))}
+                    ✎
+                  </span>
+                </span>
+                {/* Username */}
+                <span className="flex-1 min-w-0">
+                  <span className="text-base font-semibold truncate block" style={{ color: username.trim() ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {username.trim() || 'Enter name…'}
+                  </span>
+                </span>
+                {/* Chevron */}
+                <span
+                  className="text-sm transition-transform duration-200 flex-shrink-0"
+                  style={{ color: 'var(--text-muted)', transform: profileExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                >
+                  ▾
+                </span>
+              </button>
+
+              {/* Expanded: name input + avatar grid */}
+              <div
+                className="overflow-hidden transition-all duration-200 ease-in-out"
+                style={{ maxHeight: profileExpanded ? '400px' : '0', opacity: profileExpanded ? 1 : 0 }}
+              >
+                <div className="pt-3 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
+                    <input
+                      ref={usernameInputRef}
+                      type="text"
+                      value={username}
+                      onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
+                      placeholder="Enter your name…"
+                      minLength={2}
+                      maxLength={16}
+                      pattern="[a-zA-Z0-9_\-]+"
+                      autoComplete="nickname"
+                      autoCorrect="off"
+                      autoCapitalize="words"
+                      spellCheck={false}
+                      inputMode="text"
+                      enterKeyHint="done"
+                      className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+                      style={{
+                        background: 'var(--input-bg)',
+                        border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                    <div className="flex justify-between mt-1">
+                      {usernameError ? (
+                        <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
+                      ) : <span />}
+                      <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                        {username.length}/16
+                      </p>
+                    </div>
                   </div>
-                  {username && (
-                    <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
-                      Playing as {selectedAvatar} <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
+                    <div className="grid grid-cols-8 gap-1.5">
+                      {AVATARS.map((av) => (
+                        <button
+                          key={av}
+                          onClick={() => setSelectedAvatar(av)}
+                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[40px] min-h-[40px] ${
+                            selectedAvatar === av
+                              ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
+                              : ''
+                          }`}
+                          style={selectedAvatar === av
+                            ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
+                            : { background: 'var(--bg-card-hover)' }}
+                        >
+                          {av}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {username.trim() && (
+                    <p className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Playing as {selectedAvatar} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{username.trim()}</span>
                     </p>
                   )}
-                </>
-              )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Desktop: full form (unchanged) ── */}
+            <div className="hidden sm:block">
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
+              <input
+                ref={usernameInputRef}
+                type="text"
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
+                placeholder="Enter your name…"
+                minLength={2}
+                maxLength={16}
+                pattern="[a-zA-Z0-9_\-]+"
+                autoComplete="nickname"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                inputMode="text"
+                enterKeyHint="done"
+                className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+                style={{
+                  background: 'var(--input-bg)',
+                  border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              <div className="flex justify-between mt-1">
+                {usernameError ? (
+                  <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
+                ) : <span />}
+                <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                  {username.length}/16
+                </p>
+              </div>
+
+              {/* Avatar — desktop: collapsed/expanded */}
+              <div className="mt-3">
+                {!profileExpanded ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{selectedAvatar}</span>
+                    <button
+                      onClick={() => setProfileExpanded(true)}
+                      className="text-xs font-semibold px-3 py-1 rounded-lg transition-all active:scale-95"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                    >
+                      Change
+                    </button>
+                    {username && (
+                      <span className="text-xs lobby-playing-as" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                        Playing as <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
+                    <div className="grid grid-cols-8 gap-1.5">
+                      {AVATARS.map((av) => (
+                        <button
+                          key={av}
+                          onClick={() => { setSelectedAvatar(av); setProfileExpanded(false); }}
+                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
+                            selectedAvatar === av
+                              ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
+                              : ''
+                          }`}
+                          style={selectedAvatar === av
+                            ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
+                            : { background: 'var(--bg-card-hover)' }}
+                        >
+                          {av}
+                        </button>
+                      ))}
+                    </div>
+                    {username && (
+                      <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
+                        Playing as {selectedAvatar} <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {/* ── Create Game (hero — always visible) ── */}
-          <div className="p-5 space-y-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div className="p-4 sm:p-5 space-y-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* Players */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Number of Players</label>
@@ -758,18 +879,16 @@ const Lobby = () => {
               )}
             </button>
 
-            {/* Quick Play — secondary action below Create */}
+            {/* Quick Play — secondary outline action below Create */}
             <button
               onClick={handleQuickPlay}
               disabled={quickPlaying || creating || !username.trim()}
               aria-label="Quick Play — instant match with random opponents"
               className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
               style={{
-                background: (quickPlaying || creating)
-                  ? 'var(--bg-surface)'
-                  : 'var(--bg-card)',
-                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--text-primary)',
-                border: '1px solid var(--border-color-strong)',
+                background: 'transparent',
+                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--accent)',
+                border: `1px solid ${(quickPlaying || creating) ? 'var(--border-color-strong)' : 'var(--accent)'}`,
               }}
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
@@ -777,7 +896,7 @@ const Lobby = () => {
           </div>
 
           {/* ── Daily Challenge & Ranked (always visible) ── */}
-          <div className="px-5 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div className="px-4 sm:px-5 py-3 flex gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
               onClick={() => navigate('/daily')}
               disabled={creating || !username.trim()}
@@ -829,7 +948,7 @@ const Lobby = () => {
 
           {/* ── Join Tab ── */}
           {tab === 'join' && (
-            <div className="p-5 space-y-4">
+            <div className="p-4 sm:p-5 space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Game ID</label>
                 <input
@@ -900,7 +1019,7 @@ const Lobby = () => {
 
           {/* ── Tournament Tab ── */}
           {tab === 'tournament' && (
-            <div className="p-5 space-y-4">
+            <div className="p-4 sm:p-5 space-y-4">
               {/* Create Tournament Section */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Tournament Size</label>
