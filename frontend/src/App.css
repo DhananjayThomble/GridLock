@@ -114,14 +114,14 @@
     /* Nav is shorter on mobile (smaller font/padding) but add safety margin (#260) */
     padding-top: 2.75rem;
     /* Clear bottom nav bar (#261) */
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (max-width: 430px) {
   .app-content-with-nav {
     /* Extra bottom padding on small mobile viewports to clear safe areas and
        prevent nav/content overlap with lobby option buttons (#212) */
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -196,6 +196,6 @@
 
   /* Lobby bottom padding to clear bottom nav */
   .lobby-container {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
   }
 }

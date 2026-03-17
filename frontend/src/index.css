@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Gradient Title ────────────────────────────────────────────────────────── */
+.gradient-title {
+  background-image: linear-gradient(135deg, var(--accent), var(--player4-color));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
