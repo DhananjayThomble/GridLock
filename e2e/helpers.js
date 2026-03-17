@@ -47,7 +47,16 @@ async function createGame(page, { username = 'Alice', playerCount = 2, gridSize 
   // New flow: CPU games go directly to /game, human games go to /waiting/:gameId first
   await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
 
-  // Wait for room code (visible on both /game and /waiting pages)
+  // Extract room code based on which page we landed on
+  const currentUrl = page.url();
+  if (currentUrl.includes('/waiting/')) {
+    // Waiting room: extract game ID from URL (more reliable than text with letter-spacing)
+    const urlMatch = currentUrl.match(/\/waiting\/([A-Z0-9]+)/i);
+    if (!urlMatch) throw new Error(`Could not extract game ID from waiting URL: ${currentUrl}`);
+    return urlMatch[1].toUpperCase().trim();
+  }
+
+  // Game page: extract room code from page text
   await page.waitForFunction(
     () => /ROOM|room code/i.test(document.body.innerText),
     { timeout: 15_000 }
