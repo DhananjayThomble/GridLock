@@ -550,11 +550,11 @@ const Lobby = () => {
             style={{ borderBottom: '1px solid var(--border-color)' }}
           >
             <span className="text-base">🔲</span>
-            <span
-              className="gradient-title font-bold text-xl bg-clip-text text-transparent leading-none"
+            <h1
+              className="gradient-title font-bold text-xl bg-clip-text text-transparent leading-none m-0"
             >
               GridLock
-            </span>
+            </h1>
           </div>
 
           {/* ── Username + Avatar (unified profile card) ── */}
@@ -566,13 +566,14 @@ const Lobby = () => {
                 onClick={() => setProfileExpanded(!profileExpanded)}
                 className="w-full flex items-center gap-3 py-1 bg-transparent border-none cursor-pointer text-left"
                 aria-expanded={profileExpanded}
+                aria-controls="mobile-profile-panel"
                 aria-label="Edit profile"
               >
                 {/* Avatar with edit badge */}
                 <span className="relative inline-flex flex-shrink-0">
                   <span className="text-3xl">{selectedAvatar}</span>
                   <span
-                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] leading-none"
+                    className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] leading-none"
                     style={{ background: 'color-mix(in srgb, var(--bg-secondary) 85%, transparent)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                   >
                     ✎
@@ -595,8 +596,9 @@ const Lobby = () => {
 
               {/* Expanded: name input + avatar grid */}
               <div
+                id="mobile-profile-panel"
                 className="overflow-hidden transition-all duration-200 ease-in-out"
-                style={{ maxHeight: profileExpanded ? '400px' : '0', opacity: profileExpanded ? 1 : 0 }}
+                style={{ maxHeight: profileExpanded ? '500px' : '0px', opacity: profileExpanded ? 1 : 0 }}
               >
                 <div className="pt-3 space-y-3">
                   <div>
@@ -641,7 +643,7 @@ const Lobby = () => {
                         <button
                           key={av}
                           onClick={() => setSelectedAvatar(av)}
-                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[40px] min-h-[40px] ${
+                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 min-w-[44px] min-h-[44px] ${
                             selectedAvatar === av
                               ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
                               : ''
