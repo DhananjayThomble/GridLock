@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Body background matches theme to prevent white flash/gap ────────────── */
+body {
+  background-color: var(--bg-primary);
+}
+
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
