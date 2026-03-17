@@ -497,7 +497,7 @@ const Lobby = () => {
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="min-h-screen flex items-start justify-center p-3 pt-2 pb-16 sm:p-4 sm:pt-8 sm:pb-4 sm:items-center safe-bottom lobby-container"
+      className="min-h-screen flex items-start justify-center p-2 pt-1 sm:p-4 sm:pt-8 sm:items-center safe-bottom lobby-container"
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-lg md:max-w-[720px] lg:max-w-[960px]">
@@ -1131,7 +1131,7 @@ const Lobby = () => {
           )}
         </div>
 
-        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
+        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
 
         {/* ── Recent Opponents ── */}
         <RecentOpponents
