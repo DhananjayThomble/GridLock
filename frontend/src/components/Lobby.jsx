@@ -9,7 +9,6 @@ import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-import RankBadge from './RankBadge';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -532,7 +531,9 @@ const Lobby = () => {
 
         {/* ── Title ── */}
         <div className="text-center mb-6">
-          <h1 className="text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight">
+          <h1
+            className="gradient-title text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent leading-tight"
+          >
             GridLock
           </h1>
           <p className="text-sm mt-1 tracking-widest uppercase" style={{ color: 'var(--label-color)' }}>Multiplayer · 2–4 Players</p>
