@@ -16,7 +16,7 @@ if [ "$TARGET" = "prod" ]; then
   log "🚀 Deploying to production..."
   bash "$REPO_DIR/scripts/deploy-backend.sh"
   bash "$REPO_DIR/scripts/deploy-frontend.sh"
-  bash "$REPO_DIR/scripts/smoke-test.sh" https://api.gridlock.pro || true
+  bash "$REPO_DIR/scripts/smoke-test.sh" https://api.gridlock.pro
 elif [ "$TARGET" = "beta" ]; then
   log "🧪 Deploying to beta..."
   bash "$REPO_DIR/scripts/deploy-beta.sh"
