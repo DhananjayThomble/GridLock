@@ -701,8 +701,8 @@ button:active:not(:disabled) {
 @media (max-width: 640px) {
   /* All buttons and interactive elements: minimum 44px tap target.
      Exclude board line elements — they manage their own sizing via useGridSizes. */
-  button,
-  [role="button"]:not(.board-container [role="button"]),
+  button:not(.settings-toggle),
+  [role="button"]:not(.board-container [role="button"]):not(.settings-toggle),
   a.app-nav-link,
   a.bottom-nav-link,
   .lobby-option-card,

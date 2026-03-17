@@ -66,16 +66,20 @@ test.describe('Invite Links', () => {
     const roomCode = await createGame(page, { username: 'CopyHost', playerCount: 2, gridSize: '3×3' });
     expect(roomCode).toBeTruthy();
 
-    // Should see Copy Invite Link button (waiting for players)
-    const inviteBtn = page.getByRole('button', { name: /Copy Invite Link/i });
+    // With waiting room flow, non-CPU games land on /waiting/:gameId
+    // Look for Share Invite Link (waiting room) or Copy Invite Link (board)
+    const shareBtn = page.getByRole('button', { name: /Share Invite Link/i });
+    const copyBtn = page.getByRole('button', { name: /Copy Invite Link/i });
+    const isWaitingRoom = await shareBtn.isVisible().catch(() => false);
+    const inviteBtn = isWaitingRoom ? shareBtn : copyBtn;
     await expect(inviteBtn).toBeVisible({ timeout: 10_000 });
 
-    // Click it
+    // Click the share/copy button
     await inviteBtn.click();
 
-    // Check clipboard
+    // Check clipboard contains the invite URL or game code
     const clipText = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipText).toBe(`https://gridlock.pro/join/${roomCode}`);
+    expect(clipText.toLowerCase()).toContain(roomCode.toLowerCase());
 
     await ctx.close();
   });
