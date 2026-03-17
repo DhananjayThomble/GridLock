@@ -736,6 +736,7 @@ button:active:not(:disabled) {
   .lobby-container {
     padding: 0.5rem !important;
     padding-top: 0.75rem !important;
+    padding-bottom: 5rem !important;
   }
 
   /* Reduce title section bottom margin */
@@ -811,4 +812,11 @@ button:active:not(:disabled) {
     min-height: 44px;
     min-width: 44px;
   }
+}
+
+/* GridLock brand gradient title */
+.gradient-title {
+  background-image: linear-gradient(135deg, var(--accent), var(--player4-color, #a855f7));
+  -webkit-background-clip: text;
+  background-clip: text;
 }
