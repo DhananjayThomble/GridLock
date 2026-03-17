@@ -38,13 +38,11 @@ test.describe('Lobby', () => {
 
   test('rejects Create Game without a username', async ({ page }) => {
     await goToLobby(page);
-    // Don't fill username
-    await page.click('button:has-text("🚀 Create Game")');
-    // Should stay on lobby (no navigation to /game)
-    await page.waitForTimeout(1000);
-    // In CI: URL is http://localhost:4173/; locally: http://localhost/beta
-    // Either way, we must NOT have navigated to /game
-    expect(page.url()).not.toMatch(/\/game/);
+    // Don't fill username — Create Game button should be disabled
+    const createBtn = page.locator('button:has-text("🚀 Create Game")');
+    await expect(createBtn).toBeDisabled();
+    // Verify we stay on lobby
+    expect(page.url()).not.toMatch(/\/(game|waiting)/);
   });
 
   test('shows avatar picker', async ({ page }) => {

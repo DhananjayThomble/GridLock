@@ -32,6 +32,9 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // React Compiler is not in use — this rule produces false positives on
+      // manual useMemo/useCallback patterns without the compiler transform.
+      'react-hooks/preserve-manual-memoization': 'off',
     },
   },
 ])

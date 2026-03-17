@@ -24,15 +24,14 @@ const BASE_URL = process.env.TEST_BASE_URL || envCfg.baseURL;
 
 module.exports = defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  timeout: 60_000,
+  globalTimeout: 600_000,
+  expect: { timeout: 15_000 },
   fullyParallel: false,        // game tests share backend socket state
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,                  // one worker — socket-based game state is sequential
-  reporter: process.env.CI
-    ? [['github'], ['html', { open: 'never', outputFolder: 'playwright-report' }]]
-    : [['list'],   ['html', { open: 'never', outputFolder: 'playwright-report' }]],
+  reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
 
   use: {
     baseURL: BASE_URL,

@@ -18,6 +18,8 @@ let mongoServer;
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
   await mongoose.connect(mongoServer.getUri());
+  // Ensure unique indexes are built before tests run (prevents flaky duplicate-key tests)
+  await mongoose.connection.syncIndexes();
 });
 
 afterAll(async () => {
