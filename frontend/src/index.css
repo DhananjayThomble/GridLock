@@ -493,6 +493,79 @@ a {
   }
 }
 
+/* ── Leaderboard mobile card layout (#344) ─────────────────────────────────── */
+
+.leaderboard-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .leaderboard-mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .leaderboard-desktop-table {
+    display: none;
+  }
+
+  .leaderboard-mobile-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-color);
+  }
+
+  .leaderboard-mobile-card-rank {
+    font-size: 0.85rem;
+    font-weight: 700;
+    min-width: 2.25rem;
+    text-align: center;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .leaderboard-mobile-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .leaderboard-mobile-card-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .leaderboard-mobile-card-name a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .leaderboard-mobile-card-stats {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+    flex-wrap: wrap;
+  }
+
+  .leaderboard-mobile-card-elo {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 2.5rem;
+  }
+}
+
 /* ── Lobby "Playing as" ellipsis ───────────────────────────────────────────── */
 .lobby-playing-as {
   max-width: 100%;

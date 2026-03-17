@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
+const GameHistory = require('../models/GameHistory');
 const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter, ipLimiter, normalizeIp } = require('../middleware/rateLimiter');
@@ -522,6 +523,63 @@ async function updateLeaderboard(game, winner, log) {
     }
 }
 
+/**
+ * Record a GameHistory entry for each player when a game ends.
+ * Runs fire-and-forget (errors are logged but don't affect game flow).
+ *
+ * @param {object} game   - The game object with players, gameState, createdAt, gridSize
+ * @param {string} winner - The winning playerId ('player1', 'player2', etc.) or 'draw'
+ * @param {object} log    - Logger instance
+ */
+async function recordGameHistory(game, winner, log) {
+    try {
+        const playerEntries = [];
+        for (let i = 1; i <= game.playerCount; i++) {
+            const pid = `player${i}`;
+            const player = game.players[pid];
+            if (player && player.username && !player.isCPU) {
+                playerEntries.push({ pid, username: player.username });
+            }
+        }
+
+        if (playerEntries.length === 0) return;
+
+        const scores = game.gameState?.scores || {};
+        const gameDuration = game.createdAt ? Math.round((Date.now() - game.createdAt) / 1000) : null;
+        const now = new Date();
+
+        const docs = playerEntries.map(({ pid, username }) => {
+            const isWinner = pid === winner;
+            const isDraw = winner === 'draw';
+            const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
+            const opponents = playerEntries
+                .filter((p) => p.username !== username)
+                .map((p) => p.username);
+            const playerScore = Number.isFinite(scores[pid]) ? scores[pid] : 0;
+            const opponentScoreSum = playerEntries
+                .filter((p) => p.pid !== pid)
+                .reduce((sum, p) => sum + (Number.isFinite(scores[p.pid]) ? scores[p.pid] : 0), 0);
+
+            return {
+                gameId: game.id,
+                username,
+                opponents,
+                playerCount: game.playerCount,
+                gridSize: game.gridSize,
+                result,
+                scores: { player: playerScore, opponent: opponentScoreSum },
+                duration: gameDuration,
+                playedAt: now,
+            };
+        });
+
+        await GameHistory.insertMany(docs, { ordered: false });
+        log.info('GameHistory recorded', { gameId: game.id, players: playerEntries.map((p) => p.username) });
+    } catch (err) {
+        log.error('Failed to record GameHistory', { gameId: game.id, error: err.message });
+    }
+}
+
 async function loadGameFromDB(cleanGameId, log) {
     const doc = await Game.findOne({ gameId: cleanGameId, status: { $in: ['waiting', 'playing'] } }).lean();
     if (!doc) return null;
@@ -734,6 +792,7 @@ function scheduleCPUMove(io, log, gameId, delay) {
                     if (game.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - game.createdAt) / 1000);
                 }
                 updateLeaderboard(game, newState.winner, log);
+                recordGameHistory(game, newState.winner, log);
                 // Issue #2: auto-submit daily challenge result server-side
                 submitDailyChallengeResult(game, log).catch(err =>
                     log.error('Daily result auto-submit failed (CPU path)', { gameId, error: err.message })
@@ -2005,6 +2064,7 @@ function attachSocketHandlers(io, log) {
                     }
                     // Fire-and-forget leaderboard update
                     updateLeaderboard(game, newState.winner, log);
+                    recordGameHistory(game, newState.winner, log);
                     // Issue #2: auto-submit daily challenge result server-side
                     submitDailyChallengeResult(game, log).catch(err =>
                         log.error('Daily result auto-submit failed', { gameId: cleanGameId, error: err.message })
@@ -2874,6 +2934,7 @@ function attachSocketHandlers(io, log) {
                         }
                         // Fire-and-forget leaderboard update for forfeit
                         updateLeaderboard(currentGame, winner, log);
+                        recordGameHistory(currentGame, winner, log);
                         await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
 
                         // Ranked anti-smurf: if this was a ranked game, auto-loss + cooldown

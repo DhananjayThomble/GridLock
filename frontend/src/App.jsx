@@ -55,7 +55,7 @@ const AppLayout = () => {
           <NavLink to="/history" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
             History
           </NavLink>
-          <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
+          <NavLink to="/how-to-play" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
             Rules
           </NavLink>
           <NavLink to="/settings" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`} aria-label="Settings">
