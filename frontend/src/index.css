@@ -735,8 +735,8 @@ button:active:not(:disabled) {
   /* Reduce lobby outer padding */
   .lobby-container {
     padding: 0.5rem !important;
-    padding-top: 0.75rem !important;
-    padding-bottom: 5rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 4rem !important;
   }
 
   /* Reduce title section bottom margin */
