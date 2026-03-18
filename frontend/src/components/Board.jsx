@@ -129,6 +129,9 @@ const Board = () => {
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
 
+  // ── Leave game confirmation modal (#365) ──────────────────────────────────────
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
   // ── Quick chat state (#216) ───────────────────────────────────────────────────
   const [chatOpen, setChatOpen] = useState(false);
   const [chatCooldown, setChatCooldown] = useState(false);
@@ -422,6 +425,10 @@ const Board = () => {
       setError(`${data.username || 'A player'} forfeited due to disconnect.`);
     };
 
+    const onPlayerLeft = (data) => {
+      setError(`${data.username || 'A player'} left the game.`);
+    };
+
     socket.on('game_started',       onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',        onGameUpdate);
@@ -432,6 +439,7 @@ const Board = () => {
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
+    socket.on('player_left',         onPlayerLeft);
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -465,6 +473,7 @@ const Board = () => {
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
+      socket.off('player_left',         onPlayerLeft);
       socket.io.off('reconnect',        onReconnect);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
@@ -582,7 +591,21 @@ const Board = () => {
 
   const handleLeaveGame = () => {
     initAudio();
-    navigate('/');  // router basename handles /beta prefix automatically
+    // During active game, show confirmation modal. After game over or as spectator, leave directly.
+    if (gameState && !gameState.gameOver && !isSpectator) {
+      setShowLeaveConfirm(true);
+    } else {
+      doLeaveGame();
+    }
+  };
+
+  const doLeaveGame = () => {
+    setShowLeaveConfirm(false);
+    // Emit leave_game so the server knows we're leaving voluntarily (#365)
+    if (gameId) {
+      socket.emit('leave_game', { gameId });
+    }
+    navigate('/');
   };
 
   // ── Quick chat handler (#216) ───────────────────────────────────────────────
@@ -1061,6 +1084,40 @@ const Board = () => {
     <div className="game-layout flex flex-col items-center" style={{ minHeight: '100dvh', backgroundColor: 'var(--bg-primary)' }}>
       {renderWinnerModal()}
 
+      {/* ── Leave Confirmation Modal (#365) ─────────────────────────────────── */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center"
+            style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+          >
+            <div className="text-5xl mb-3">🚪</div>
+            <h2 className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Leave Game?
+            </h2>
+            <p className="mb-5" style={{ color: 'var(--text-secondary)' }}>
+              Are you sure you want to leave? You'll forfeit this game.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', minHeight: '44px' }}
+              >
+                Stay
+              </button>
+              <button
+                onClick={doLeaveGame}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', minHeight: '44px' }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Live ScoreBar (fixed top) ── */}
       {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
         const count = gameState.playerCount || 2;
@@ -1258,7 +1315,7 @@ const Board = () => {
 
           {/* Leave button */}
           <button
-            onClick={() => navigate('/')}
+            onClick={handleLeaveGame}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
             style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
           >

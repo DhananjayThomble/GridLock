@@ -56,6 +56,10 @@ const schemas = {
         sessionToken: sessionTokenField,
     }),
 
+    leave_game: Joi.object({
+        gameId: gameIdField,
+    }),
+
     queue_join: Joi.object({
         username: usernameField,
         avatar: avatarField,

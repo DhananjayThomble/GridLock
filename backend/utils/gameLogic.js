@@ -128,6 +128,28 @@ const getNextPlayer = (currentPlayer, players) => {
 };
 
 /**
+ * Get next ACTIVE player in turn order, skipping disconnected players.
+ * Falls back to getNextPlayer if no activePlayers filter is provided.
+ * @param {string} currentPlayer - Current player ID
+ * @param {Array} players - Array of ALL player IDs (turn order)
+ * @param {Set|Array} [activePlayers] - Player IDs that are still connected/active
+ * @returns {string|null} Next active player ID, or null if no active players remain
+ */
+const getNextActivePlayer = (currentPlayer, players, activePlayers) => {
+    if (!activePlayers) return getNextPlayer(currentPlayer, players);
+    const activeSet = activePlayers instanceof Set ? activePlayers : new Set(activePlayers);
+    if (activeSet.size === 0) return null;
+
+    const currentIndex = players.indexOf(currentPlayer);
+    // Walk through all players starting from the next one; return the first active
+    for (let offset = 1; offset <= players.length; offset++) {
+        const idx = (currentIndex + offset) % players.length;
+        if (activeSet.has(players[idx])) return players[idx];
+    }
+    return null; // no active player found (shouldn't happen if activeSet > 0)
+};
+
+/**
  * Calculate game winner
  * @param {Object} scores - Player scores
  * @param {number} rows - Grid rows
@@ -236,6 +258,7 @@ module.exports = {
     calculateNewState, 
     initializeGameState,
     getNextPlayer,
+    getNextActivePlayer,
     calculateWinner,
     pickForfeitWinner
 };
