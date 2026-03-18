@@ -226,6 +226,10 @@ function buildGameStateWithPlayers(game) {
             state[`${playerId}Name`] = player.username;
             state[`${playerId}Avatar`] = player.avatar;
             state[`${playerId}Color`] = player.color;
+            if (player.disconnectedAt) {
+                state[`${playerId}Disconnected`] = true;
+                if (player.voluntaryLeave) state[`${playerId}Left`] = true;
+            }
             if (player.isCPU) {
                 state[`${playerId}IsCPU`] = true;
                 hasCPU = true;
@@ -2891,12 +2895,9 @@ function attachSocketHandlers(io, log) {
                 player.disconnectedAt = new Date();
                 player.voluntaryLeave = true;
 
-                // Notify others — no reconnect window for voluntary leave
-                io.to(cleanGameId).emit('player_disconnected', {
-                    playerId,
-                    username: player.username,
-                    reconnectWindowMs: 0,
-                });
+                // Notify others — voluntary leave, no reconnect window
+                // Don't emit player_disconnected for voluntary leaves — that event
+                // is for involuntary network drops. Only emit player_left.
                 io.to(cleanGameId).emit('player_left', {
                     playerId,
                     username: player.username,

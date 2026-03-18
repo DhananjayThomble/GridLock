@@ -423,10 +423,12 @@ const Board = () => {
 
     const onPlayerForfeited = (data) => {
       setError(`${data.username || 'A player'} forfeited due to disconnect.`);
+      setTimeout(() => setError(null), 6000);
     };
 
     const onPlayerLeft = (data) => {
       setError(`${data.username || 'A player'} left the game.`);
+      setTimeout(() => setError(null), 6000);
     };
 
     socket.on('game_started',       onGameStarted);
@@ -1086,13 +1088,32 @@ const Board = () => {
 
       {/* ── Leave Confirmation Modal (#365) ─────────────────────────────────── */}
       {showLeaveConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-modal-title"
+          onClick={() => setShowLeaveConfirm(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setShowLeaveConfirm(false); return; }
+            // Focus trap: cycle between the two buttons
+            if (e.key === 'Tab') {
+              const focusable = e.currentTarget.querySelectorAll('button');
+              if (focusable.length < 2) return;
+              const first = focusable[0];
+              const last = focusable[focusable.length - 1];
+              if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+              else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+          }}
+        >
           <div
             className="rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center"
             style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-5xl mb-3">🚪</div>
-            <h2 className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>
+            <div className="text-5xl mb-3" aria-hidden="true">🚪</div>
+            <h2 id="leave-modal-title" className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>
               Leave Game?
             </h2>
             <p className="mb-5" style={{ color: 'var(--text-secondary)' }}>
@@ -1100,6 +1121,7 @@ const Board = () => {
             </p>
             <div className="flex gap-3 justify-center">
               <button
+                autoFocus
                 onClick={() => setShowLeaveConfirm(false)}
                 className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', minHeight: '44px' }}
@@ -1129,6 +1151,8 @@ const Board = () => {
             username: gameState[`${pid}Name`] || cfg.label,
             avatar: gameState[`${pid}Avatar`] || cfg.label,
             color: getCSSVar(cfg.colorVar),
+            disconnected: !!gameState[`${pid}Disconnected`],
+            left: !!gameState[`${pid}Left`],
           };
         });
         return (
