@@ -36,6 +36,7 @@ const activeDailyGames = new Map();
 // Players get 30s to reconnect before forfeiting; keeps games moving.
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
+const CLEANUP_DELAY_MS = 60_000; // 1 minute delay before removing finished game from store
 
 // Node-local timer handles only - state visibility is handled via disconnectStore (Redis)
 const localTimers = new Map(); // key: `${gameId}:${playerId}` -> { timer, socketId }
@@ -735,6 +736,33 @@ async function handleTournamentGameCompletion(io, log, gameId, game, winnerPlaye
 }
 
 /**
+ * Skip disconnected players' turns after a move (#365).
+ * If the current-turn player is disconnected, advance to the next active player.
+ * Shared helper to avoid duplicating this logic in make_move and CPU move paths.
+ *
+ * @param {object} game   - The game object with players and gameState
+ * @param {object} log    - Logger instance (unused currently, reserved for debug)
+ */
+function advanceTurnIfNeeded(game) {
+    if (game.gameState.winner) return;
+
+    const activePlayers = [];
+    for (let i = 1; i <= game.playerCount; i++) {
+        const pid = `player${i}`;
+        const p = game.players[pid];
+        if (p && !p.disconnectedAt) activePlayers.push(pid);
+    }
+    if (activePlayers.length === 0) return;
+
+    const currentTurn = game.gameState.currentPlayer;
+    const currentTurnPlayer = game.players[currentTurn];
+    if (currentTurnPlayer && currentTurnPlayer.disconnectedAt) {
+        const nextActive = getNextActivePlayer(currentTurn, game.gameState.players, activePlayers);
+        if (nextActive) game.gameState.currentPlayer = nextActive;
+    }
+}
+
+/**
  * Schedule a CPU move if the current player is a CPU.
  * Checks game state, computes move, applies it via calculateNewState,
  * persists, broadcasts, and recurses if the CPU still has the turn.
@@ -771,22 +799,7 @@ function scheduleCPUMove(io, log, gameId, delay) {
             }
 
             // Skip disconnected players' turns (#365)
-            if (!newState.winner) {
-                const activeCPUPlayers = [];
-                for (let i = 1; i <= game.playerCount; i++) {
-                    const pid = `player${i}`;
-                    const p = game.players[pid];
-                    if (p && !p.disconnectedAt) activeCPUPlayers.push(pid);
-                }
-                if (activeCPUPlayers.length > 0) {
-                    const ct = game.gameState.currentPlayer;
-                    const ctp = game.players[ct];
-                    if (ctp && ctp.disconnectedAt) {
-                        const na = getNextActivePlayer(ct, game.gameState.players, activeCPUPlayers);
-                        if (na) game.gameState.currentPlayer = na;
-                    }
-                }
-            }
+            advanceTurnIfNeeded(game);
 
             // Record CPU move in history for replay
             if (!game.moveHistory) game.moveHistory = [];
@@ -829,7 +842,7 @@ function scheduleCPUMove(io, log, gameId, delay) {
                     await gameStore.deleteGame(gameId);
                     await rematchStore.clearVotes(gameId);
                     await markGameFinished(gameId, 'normal');
-                }, 60_000);
+                }, CLEANUP_DELAY_MS);
             } else {
                 // Check if next player is also CPU
                 const nextPlayerId = newState.currentPlayer;
@@ -2058,26 +2071,8 @@ function attachSocketHandlers(io, log) {
                     game.gameState.moveCount = prevMoveCount + 1;
                 }
 
-                // Skip disconnected players' turns (#365): if the next player is disconnected,
-                // advance to the next active player
-                if (!newState.winner) {
-                    const activePlayers = [];
-                    for (let i = 1; i <= game.playerCount; i++) {
-                        const pid = `player${i}`;
-                        const p = game.players[pid];
-                        if (p && !p.disconnectedAt) activePlayers.push(pid);
-                    }
-                    if (activePlayers.length > 0) {
-                        const currentTurn = game.gameState.currentPlayer;
-                        const currentTurnPlayer = game.players[currentTurn];
-                        if (currentTurnPlayer && currentTurnPlayer.disconnectedAt) {
-                            const nextActive = getNextActivePlayer(currentTurn, game.gameState.players, activePlayers);
-                            if (nextActive) {
-                                game.gameState.currentPlayer = nextActive;
-                            }
-                        }
-                    }
-                }
+                // Skip disconnected players' turns (#365)
+                advanceTurnIfNeeded(game);
 
                 // Record move in history for replay
                 if (!game.moveHistory) game.moveHistory = [];
@@ -2129,7 +2124,7 @@ function attachSocketHandlers(io, log) {
                         await rematchStore.clearVotes(cleanGameId);
                         await markGameFinished(cleanGameId, 'normal');
                         log.info('Game cleaned up', { gameId: cleanGameId });
-                    }, 60_000);
+                    }, CLEANUP_DELAY_MS);
                 } else {
                     // Check if next turn belongs to a CPU player
                     const nextPlayerId = newState.currentPlayer;
@@ -2890,10 +2885,22 @@ function attachSocketHandlers(io, log) {
                 if (!player) return;
 
                 log.info('Player voluntarily left game', { gameId: cleanGameId, playerId, username: player.username });
+                // Note: No dedicated Prometheus counter for voluntary leaves.
+                // gamesCompletedTotal is incremented when the leave causes game-over (below).
+                // Add a gridlock_voluntary_leaves_total counter here if per-leave tracking is needed.
 
                 // Mark as permanently disconnected
                 player.disconnectedAt = new Date();
                 player.voluntaryLeave = true;
+                player.id = null; // Prevent disconnect handler from finding this player
+
+                // Cancel any existing disconnect timer for this player
+                const timerKey = `${cleanGameId}:${playerId}`;
+                if (localTimers.has(timerKey)) {
+                    clearTimeout(localTimers.get(timerKey).timer);
+                    localTimers.delete(timerKey);
+                }
+                await disconnectStore.clearDisconnect(cleanGameId, playerId);
 
                 // Notify others — voluntary leave, no reconnect window
                 // Don't emit player_disconnected for voluntary leaves — that event
@@ -2972,7 +2979,7 @@ function attachSocketHandlers(io, log) {
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
-                    }, 60_000);
+                    }, CLEANUP_DELAY_MS);
                 } else if (remaining.length === 0) {
                     // No players left — clean up
                     game.gameState.winner = 'draw';
@@ -3031,6 +3038,9 @@ function attachSocketHandlers(io, log) {
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
                 if (!player) return;
+
+                // Guard: skip if already processed (e.g., voluntary leave triggered first)
+                if (player.disconnectedAt) return;
 
                 player.disconnectedAt = new Date();
 
@@ -3184,7 +3194,7 @@ function attachSocketHandlers(io, log) {
                             setTimeout(async () => {
                                 await gameStore.deleteGame(gameId);
                                 await rematchStore.clearVotes(gameId);
-                            }, 60_000);
+                            }, CLEANUP_DELAY_MS);
                         }
                     } catch (err) {
                         log.error('Disconnect timeout handler failed', { gameId, playerId, error: err.message });

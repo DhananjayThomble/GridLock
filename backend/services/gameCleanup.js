@@ -1,5 +1,13 @@
 // services/gameCleanup.js
 // Periodic garbage collection for zombie games (#365 Bug #14)
+//
+// Multi-node safety: This GC is designed to be idempotent — running on multiple
+// server nodes simultaneously is safe. Redis `DEL` and local Map `delete` are
+// both idempotent operations, so concurrent sweeps won't cause data corruption.
+//
+// At scale (10+ nodes), consider using a Redis-based distributed lock (e.g.,
+// Redlock) to avoid redundant work and reduce Redis chatter. Current
+// implementation is acceptable for single-node and small-cluster deployments.
 
 const ABANDONED_GAME_TTL_MS = 5 * 60 * 1000;    // 5 minutes - fully abandoned games
 const WAITING_GAME_TTL_MS  = 30 * 60 * 1000;    // 30 minutes - idle waiting games
@@ -29,7 +37,9 @@ function isFullyAbandoned(game) {
         }
     }
 
-    // Also treat games with zero players as abandoned
+    // Defensive guard: handle games where all player slots are null (empty).
+    // The loop above would leave allDisconnected=true but oldestDisconnect=null,
+    // so we need this check to provide a valid fallback timestamp.
     const hasAnyPlayer = Object.keys(game.players || {}).some(
         k => k.startsWith('player') && game.players[k]
     );

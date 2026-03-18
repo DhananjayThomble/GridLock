@@ -141,6 +141,11 @@ const getNextActivePlayer = (currentPlayer, players, activePlayers) => {
     if (activeSet.size === 0) return null;
 
     const currentIndex = players.indexOf(currentPlayer);
+    // Guard: if currentPlayer not found in players list, fallback to first active
+    if (currentIndex === -1) {
+        const activeArr = activePlayers instanceof Set ? [...activePlayers] : activePlayers;
+        return activeArr[0] || null;
+    }
     // Walk through all players starting from the next one; return the first active
     for (let offset = 1; offset <= players.length; offset++) {
         const idx = (currentIndex + offset) % players.length;
