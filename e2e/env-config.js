@@ -10,8 +10,8 @@
 const ENV_CONFIGS = {
   local: {
     baseURL:   process.env.CI ? 'http://localhost:4173' : 'http://localhost/beta',
-    apiURL:    process.env.CI ? 'http://127.0.0.1:5000' : 'http://127.0.0.1:5105',
-    socketURL: process.env.CI ? 'http://127.0.0.1:5000' : 'http://127.0.0.1:5105',
+    apiURL:    'http://127.0.0.1:5105',
+    socketURL: 'http://127.0.0.1:5105',
   },
   beta: {
     baseURL:   'https://beta.gridlock.pro',
