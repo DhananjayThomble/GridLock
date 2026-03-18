@@ -18,10 +18,13 @@ test.describe('Tournament', () => {
   test('shows tournament size and grid size options', async ({ page }) => {
     await goToLobby(page);
     await page.click('button:has-text("🏆 Tournament")');
-    await expect(page.locator('button:has-text("4 Players")')).toBeVisible();
-    await expect(page.locator('button:has-text("8 Players")')).toBeVisible();
-    await expect(page.locator('button:has-text("3×3")')).toBeVisible();
-    await expect(page.locator('button:has-text("4×4")')).toBeVisible();
+    // Use more specific selectors — "4 Players" appears in both the create section (Party mode)
+    // and tournament section (Quick bracket). Match by description text to disambiguate.
+    await expect(page.locator('button:has-text("Quick bracket")')).toBeVisible();
+    await expect(page.locator('button:has-text("Full bracket")')).toBeVisible();
+    // Grid size buttons exist in both create and tournament sections; verify at least one is visible
+    await expect(page.locator('button:has-text("3×3")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("4×4")').first()).toBeVisible();
   });
 
   test('shows join tournament input', async ({ page }) => {
@@ -57,11 +60,11 @@ test.describe('Tournament', () => {
   test('rejects tournament creation without username', async ({ page }) => {
     await goToLobby(page);
     await page.click('button:has-text("🏆 Tournament")');
-    // Don't fill username
-    page.on('dialog', dialog => dialog.accept());
-    await page.click('button:has-text("🏆 Create Tournament")');
+    // Don't fill username — the Create Tournament button should be disabled
+    const createBtn = page.locator('button:has-text("🏆 Create Tournament")');
+    await expect(createBtn).toBeVisible();
+    await expect(createBtn).toBeDisabled();
     // Should stay on lobby
-    await page.waitForTimeout(1000);
     expect(page.url()).not.toMatch(/\/tournament/);
   });
 

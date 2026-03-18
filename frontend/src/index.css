@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Body background matches theme to prevent white flash/gap ────────────── */
+body {
+  background-color: var(--bg-primary);
+}
+
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
@@ -493,6 +498,79 @@ a {
   }
 }
 
+/* ── Leaderboard mobile card layout (#344) ─────────────────────────────────── */
+
+.leaderboard-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .leaderboard-mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .leaderboard-desktop-table {
+    display: none;
+  }
+
+  .leaderboard-mobile-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-color);
+  }
+
+  .leaderboard-mobile-card-rank {
+    font-size: 0.85rem;
+    font-weight: 700;
+    min-width: 2.25rem;
+    text-align: center;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .leaderboard-mobile-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .leaderboard-mobile-card-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .leaderboard-mobile-card-name a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .leaderboard-mobile-card-stats {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+    flex-wrap: wrap;
+  }
+
+  .leaderboard-mobile-card-elo {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 2.5rem;
+  }
+}
+
 /* ── Lobby "Playing as" ellipsis ───────────────────────────────────────────── */
 .lobby-playing-as {
   max-width: 100%;
@@ -661,8 +739,10 @@ button:active:not(:disabled) {
 @media (max-width: 640px) {
   /* Reduce lobby outer padding */
   .lobby-container {
-    padding: 0.5rem !important;
-    padding-top: 0.75rem !important;
+    padding: 0.375rem !important;
+    padding-top: 0.125rem !important;
+    padding-bottom: 3.5rem !important;
+    min-height: auto !important;
   }
 
   /* Reduce title section bottom margin */
@@ -737,5 +817,20 @@ button:active:not(:disabled) {
   .chat-emoji-btn {
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* GridLock brand gradient title */
+.gradient-title {
+  background-image: linear-gradient(135deg, var(--accent), var(--player4-color, #a855f7));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* ── Mobile avatar grid: fit 8 cols without overflow ─────────────────────── */
+@media (max-width: 640px) {
+  .lobby-avatar-btn {
+    min-width: 0 !important;
+    min-height: 0 !important;
   }
 }
