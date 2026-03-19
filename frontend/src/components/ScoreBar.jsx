@@ -17,12 +17,6 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
   // On mobile with 3-4 players, split into two rows of 2
   const splitIntoRows = players.length > 2;
 
-  // Truncate long usernames gracefully
-  const truncateName = (name, maxLen = 12) => {
-    if (!name) return '';
-    return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
-  };
-
   return (
     <div
       className="fixed top-0 left-0 right-0 z-40 backdrop-blur-sm shadow-lg score-bar"
@@ -59,7 +53,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                           aria-hidden="true"
                         />
                         <span
-                          className={`font-bold truncate score-bar-player-name ${isDeparted ? 'line-through' : ''} ${players.length >= 4 ? 'text-[11px]' : 'text-xs'}`}
+                          className={`font-bold truncate score-bar-player-name ${isDeparted ? 'line-through' : ''} text-xs`}
                           style={{ color: isCurrent && !isDeparted ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                           title={player.username}
                         >
@@ -131,7 +125,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                       style={{ color: isCurrent && !isDeparted ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                       title={player.username}
                     >
-                      {truncateName(player.username, 14)}
+                      {player.username}
                     </span>
                     {isDeparted && (
                       <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-secondary)', fontSize: '0.6rem' }}>(left)</span>

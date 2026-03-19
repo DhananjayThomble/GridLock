@@ -37,10 +37,12 @@ const activeDailyGames = new Map();
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 const CLEANUP_DELAY_MS = 60_000; // 1 minute delay before removing finished game from store
+const HOST_START_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000; // AFK host auto-start
 
 // Node-local timer handles only - state visibility is handled via disconnectStore (Redis)
 const localTimers = new Map(); // key: `${gameId}:${playerId}` -> { timer, socketId }
 const rematchTimers = new Map(); // key: gameId -> timeout handle
+const hostStartTimers = new Map(); // key: gameId -> timeout handle (AFK host auto-start)
 
 const PLAYER_COLORS = {
     player1: '#3B82F6',
@@ -1802,8 +1804,27 @@ function attachSocketHandlers(io, log) {
                         // Has CPUs — auto-start (existing behavior)
                         io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
                     } else {
-                        // All human players — let host click Start
-                        io.to(cleanGameId).emit('room_full', { gameId: cleanGameId });
+                        // All human players — let host click Start (with AFK timeout)
+                        const deadline = Date.now() + HOST_START_TIMEOUT_MS;
+                        io.to(cleanGameId).emit('room_full', { gameId: cleanGameId, autoStartAt: deadline });
+
+                        // AFK host auto-start timer
+                        if (hostStartTimers.has(cleanGameId)) clearTimeout(hostStartTimers.get(cleanGameId));
+                        hostStartTimers.set(cleanGameId, setTimeout(async () => {
+                            hostStartTimers.delete(cleanGameId);
+                            try {
+                                const g = await gameStore.getGame(cleanGameId);
+                                if (!g || g.gameState?.winner) return;
+                                // Only auto-start if room is still full and game hasn't started
+                                const f = countFilledPlayers(g);
+                                if (f < g.playerCount) return;
+                                await persistGame(g, 'playing');
+                                io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                                log.info('Game auto-started (AFK host timeout)', { gameId: cleanGameId });
+                            } catch (err) {
+                                log.error('AFK host auto-start failed', { gameId: cleanGameId, error: err.message });
+                            }
+                        }, HOST_START_TIMEOUT_MS));
                     }
                 }
             } catch (error) {
@@ -2067,6 +2088,12 @@ function attachSocketHandlers(io, log) {
                 if (filled < game.playerCount) {
                     socket.emit('error', 'Room is not full yet');
                     return;
+                }
+
+                // Clear AFK host timer — host clicked Start
+                if (hostStartTimers.has(cleanGameId)) {
+                    clearTimeout(hostStartTimers.get(cleanGameId));
+                    hostStartTimers.delete(cleanGameId);
                 }
 
                 await persistGame(game, 'playing');
@@ -3088,6 +3115,35 @@ function attachSocketHandlers(io, log) {
 
                 // Guard: skip if already processed (e.g., voluntary leave triggered first)
                 if (player.disconnectedAt) return;
+
+                // BLOCKER #2: Host disconnect while room is full but game not started
+                // If host (player1) disconnects and we have an active host-start timer,
+                // the room is full with humans waiting — auto-start the game immediately.
+                if (playerId === 'player1' && hostStartTimers.has(gameId)) {
+                    clearTimeout(hostStartTimers.get(gameId));
+                    hostStartTimers.delete(gameId);
+
+                    player.disconnectedAt = new Date();
+                    io.to(gameId).emit('player_disconnected', {
+                        playerId,
+                        username: player.username,
+                        reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
+                    });
+
+                    // Auto-start — the room is full, just begin the game
+                    await persistGame(game, 'playing');
+                    io.to(gameId).emit('all_players_joined', { gameId });
+                    log.info('Game auto-started (host disconnected in room_full)', { gameId });
+
+                    // Set up normal disconnect/reconnect timer for the host
+                    await disconnectStore.setDisconnect(gameId, playerId, socket.id, DISCONNECT_TIMEOUT_MS);
+                    await gameStore.setGame(gameId, game);
+
+                    const timerKey = `${gameId}:${playerId}`;
+                    if (localTimers.has(timerKey)) clearTimeout(localTimers.get(timerKey).timer);
+                    // Normal forfeit timer will handle host not reconnecting
+                    return;
+                }
 
                 player.disconnectedAt = new Date();
 

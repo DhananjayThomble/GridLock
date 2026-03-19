@@ -32,6 +32,8 @@ const WaitingRoom = () => {
   const [shared, setShared] = useState(false);
   const [starting, setStarting] = useState(false);
   const [roomFull, setRoomFull] = useState(false);
+  const [autoStartAt, setAutoStartAt] = useState(null);
+  const [autoStartCountdown, setAutoStartCountdown] = useState(null);
   const [disconnectTimers, setDisconnectTimers] = useState({});
 
   // Prevent double-navigate
@@ -94,6 +96,7 @@ const WaitingRoom = () => {
     const onRoomFull = (data) => {
       if (data.gameId !== gameId) return;
       setRoomFull(true);
+      if (data.autoStartAt) setAutoStartAt(data.autoStartAt);
       socket.emit('lobby_state', { gameId });
     };
 
@@ -142,6 +145,16 @@ const WaitingRoom = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, [slots]);
+
+  // Auto-start countdown tick
+  useEffect(() => {
+    if (!autoStartAt) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((autoStartAt - Date.now()) / 1000));
+      setAutoStartCountdown(remaining);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [autoStartAt]);
 
   const handleCopyCode = useCallback(async () => {
     try {
@@ -381,7 +394,11 @@ const WaitingRoom = () => {
           {/* Fix #7: Non-host context message */}
           {!isHost && (
             <p className="text-center text-sm py-3 px-4" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-              ⏳ Waiting for the host to start the game...
+              {autoStartCountdown != null && autoStartCountdown > 0
+                ? `⏳ Auto-starting in ${autoStartCountdown}s...`
+                : autoStartCountdown === 0
+                  ? '🚀 Starting now...'
+                  : '⏳ Waiting for the host to start the game...'}
             </p>
           )}
 
