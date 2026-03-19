@@ -17,15 +17,6 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
   // On mobile with 3-4 players, split into two rows of 2
   const splitIntoRows = players.length > 2;
 
-  // Truncate long usernames gracefully
-  const truncateName = (name, maxLen = 12) => {
-    if (!name) return '';
-    return name.length > maxLen ? name.slice(0, maxLen) + '…' : name;
-  };
-
-  // CSS clamp() + truncate handles responsive width; use generous JS limit as safety net
-  const multiPlayerMaxLen = 20;
-
   return (
     <div
       className="fixed top-0 left-0 right-0 z-40 backdrop-blur-sm shadow-lg score-bar"
@@ -39,14 +30,18 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
               const score = scores?.[player.id] || 0;
               const percentage = totalTiles > 0 ? Math.min((score / totalTiles) * 100, 100) : 0;
               const isCurrent = currentPlayer === player.id;
+              const isDeparted = player.disconnected || player.left;
 
               return (
                 <div
                   key={player.id}
                   className={`flex items-center gap-1.5 transition-all duration-200 ${
-                    isCurrent ? 'scale-[1.02] score-bar-active-player' : ''
+                    isCurrent && !isDeparted ? 'scale-[1.02] score-bar-active-player' : ''
                   }`}
-                  style={isCurrent ? { '--active-player-color': player.color } : undefined}
+                  style={{
+                    ...(isCurrent && !isDeparted ? { '--active-player-color': player.color } : undefined),
+                    ...(isDeparted ? { opacity: 0.45 } : undefined),
+                  }}
                 >
                   <span className="text-base leading-none flex-shrink-0">{player.avatar}</span>
                   <div className="flex-1 min-w-0">
@@ -58,12 +53,15 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                           aria-hidden="true"
                         />
                         <span
-                          className="font-bold truncate score-bar-player-name"
-                          style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                          className={`font-bold truncate score-bar-player-name ${isDeparted ? 'line-through' : ''} text-xs`}
+                          style={{ color: isCurrent && !isDeparted ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                           title={player.username}
                         >
-                          {truncateName(player.username, multiPlayerMaxLen)}
+                          {player.username}
                         </span>
+                        {isDeparted && (
+                          <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>(left)</span>
+                        )}
                       </span>
                       <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
                         {percentage.toFixed(0)}%
@@ -97,14 +95,18 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
               const score = scores?.[player.id] || 0;
               const percentage = totalTiles > 0 ? Math.min((score / totalTiles) * 100, 100) : 0;
               const isCurrent = currentPlayer === player.id;
+              const isDeparted = player.disconnected || player.left;
 
               return (
                 <div
                   key={player.id}
                   className={`flex items-center gap-2 transition-all duration-200 ${
-                    isCurrent ? 'scale-[1.02] score-bar-active-player' : ''
+                    isCurrent && !isDeparted ? 'scale-[1.02] score-bar-active-player' : ''
                   }`}
-                  style={isCurrent ? { '--active-player-color': player.color } : undefined}
+                  style={{
+                    ...(isCurrent && !isDeparted ? { '--active-player-color': player.color } : undefined),
+                    ...(isDeparted ? { opacity: 0.45 } : undefined),
+                  }}
                 >
                   {/* Avatar */}
                   <div className="flex-shrink-0">
@@ -119,12 +121,15 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                       aria-hidden="true"
                     />
                     <span
-                      className="text-xs font-bold truncate block"
-                      style={{ color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                      className={`text-xs font-bold truncate block ${isDeparted ? 'line-through' : ''}`}
+                      style={{ color: isCurrent && !isDeparted ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                       title={player.username}
                     >
-                      {truncateName(player.username, 14)}
+                      {player.username}
                     </span>
+                    {isDeparted && (
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-secondary)', fontSize: '0.6rem' }}>(left)</span>
+                    )}
                   </div>
 
                   {/* Progress bar container */}

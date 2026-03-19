@@ -24,7 +24,7 @@ const SPEEDS = [
     { label: '4x', ms: 125 },
 ];
 
-// ─── Responsive sizing hook (same as Board.jsx) ──────────────────────────────
+// ─── Responsive sizing hook (same logic as Board.jsx) ────────────────────────
 function useGridSizes(gridSize) {
     const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48 });
 
@@ -32,18 +32,35 @@ function useGridSizes(gridSize) {
         function calculate() {
             const w = window.innerWidth;
             const h = window.innerHeight;
-            const reservedH = w < 640 ? 280 : w < 768 ? 300 : 320;
-            const reservedW = w < 640 ? 32 : w < 768 ? 48 : 64;
+            // Replay page has more controls (scrubber, etc.) so keep slightly smaller reserves
+            // to let the board fill available space
+            const reservedH = w < 640 ? 240 : w < 768 ? 260 : 280;
+            const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
             const availW = w - reservedW;
             const availH = h - reservedH;
             const cells = gridSize || 3;
-            const units = cells * 2 + 1;
-            const fromW = Math.floor(availW / units);
-            const fromH = Math.floor(availH / units);
-            let box = Math.min(fromW, fromH);
-            const maxBox = w < 640 ? 90 : w < 1024 ? 96 : 100;
-            box = Math.max(24, Math.min(box, maxBox));
-            const dot = Math.max(6, Math.round(box * 0.18));
+
+            // Dot size is proportional to box: dot ≈ max(minDot, box * dotRatio)
+            // Grid = box * ((cells+1)*dotRatio + cells)
+            const minDot = w < 640 ? 8 : 6;
+            const dotRatio = 0.18;
+
+            const effectiveUnits = (cells + 1) * dotRatio + cells;
+            const fromW = availW / effectiveUnits;
+            const fromH = availH / effectiveUnits;
+            let box = Math.floor(Math.min(fromW, fromH));
+            // Generous cap — let the board fill available space
+            box = Math.max(24, Math.min(box, 180));
+            let dot = Math.max(minDot, Math.round(box * dotRatio));
+
+            // Second pass: if dot minimum kicked in, recalculate box to fit
+            if (dot > box * dotRatio) {
+                const maxBoxFromW = Math.floor((availW - (cells + 1) * dot) / cells);
+                const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
+                box = Math.min(box, maxBoxFromW, maxBoxFromH);
+                box = Math.max(24, box);
+            }
+
             setSizes({ dot, line: box, box });
         }
         calculate();

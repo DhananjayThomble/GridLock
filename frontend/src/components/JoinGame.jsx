@@ -1,7 +1,7 @@
 // src/components/JoinGame.jsx
 // Zero-friction invite link join page — /join/:gameId
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { initAudio } from '../utils/sounds';
@@ -15,11 +15,31 @@ const JoinGame = () => {
   const [selectedAvatar, setSelectedAvatar] = useState('👦');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
+  const [permanentError, setPermanentError] = useState(false);
+  const [retryCountdown, setRetryCountdown] = useState(null);
+  const handleJoinRef = useRef(null);
 
   // Redirect to lobby if no gameId
   useEffect(() => {
     if (!gameId) navigate('/', { replace: true });
   }, [gameId, navigate]);
+
+  // Auto-retry countdown for transient errors (e.g., "Game is full")
+  useEffect(() => {
+    if (retryCountdown === null || retryCountdown <= 0) return;
+    const timer = setTimeout(() => {
+      setRetryCountdown((prev) => {
+        if (prev <= 1) {
+          setError('');
+          // Fix #6: Actually re-attempt join when countdown hits 0
+          setTimeout(() => handleJoinRef.current(), 0);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [retryCountdown]);
 
   // Listen for socket events
   useEffect(() => {
@@ -62,7 +82,18 @@ const JoinGame = () => {
 
     const onError = (msg) => {
       setJoining(false);
-      setError(typeof msg === 'string' ? msg : 'Something went wrong');
+      const message = typeof msg === 'string' ? msg : 'Something went wrong';
+      setError(message);
+      // Only truly permanent: game not found or already started (can't change)
+      // "Game is full" is transient — someone may leave
+      const trulyPermanentErrors = ['Game not found', 'Game has already started', 'Game is no longer available'];
+      if (trulyPermanentErrors.some(pe => message.includes(pe))) {
+        setPermanentError(true);
+      } else if (message.includes('Game is full')) {
+        // Transient: auto-retry after 5 seconds
+        setPermanentError(false);
+        setRetryCountdown(5);
+      }
     };
 
     socket.on('game_started', onGameStarted);
@@ -90,6 +121,11 @@ const JoinGame = () => {
       ...(existingToken ? { sessionToken: existingToken } : {}),
     });
   };
+
+  // Keep ref in sync for auto-retry
+  useEffect(() => {
+    handleJoinRef.current = handleJoin;
+  });
 
   if (!gameId) return null;
 
@@ -126,6 +162,7 @@ const JoinGame = () => {
             </div>
 
             {/* Username */}
+            {!permanentError && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
               <input
@@ -145,8 +182,10 @@ const JoinGame = () => {
                 style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
               />
             </div>
+            )}
 
             {/* Avatar picker */}
+            {!permanentError && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
               <div className="grid grid-cols-8 gap-1.5">
@@ -168,27 +207,57 @@ const JoinGame = () => {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Error */}
             {error && (
               <div className="rounded-xl px-4 py-2.5 text-sm text-center" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
                 {error}
-                <button
-                  onClick={() => navigate('/')}
-                  className="block mx-auto mt-2 text-xs underline"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Go to Lobby
-                </button>
+                {retryCountdown > 0 && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Retrying in {retryCountdown}s...
+                  </p>
+                )}
+                {permanentError && (
+                  <div className="flex gap-2 mt-2 justify-center">
+                    <button
+                      onClick={() => { setError(''); setPermanentError(false); }}
+                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color-strong)' }}
+                    >
+                      🔄 Try Again
+                    </button>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
+                    >
+                      🏠 Find Another Game
+                    </button>
+                  </div>
+                )}
+                {!permanentError && !retryCountdown && (
+                  <button
+                    onClick={() => navigate('/')}
+                    className="block mx-auto mt-2 text-xs underline"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    Go to Lobby
+                  </button>
+                )}
               </div>
             )}
 
             {/* Join button */}
+            {!permanentError && (
             <button
               onClick={handleJoin}
-              disabled={joining}
-              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
+              disabled={joining || retryCountdown > 0}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: (joining || retryCountdown > 0) ? 'var(--bg-surface)' : 'var(--success)',
+                ...((joining || retryCountdown > 0) && { color: 'var(--text-muted)' }),
+              }}
             >
               {joining ? (
                 <span className="flex items-center justify-center gap-2">
@@ -199,8 +268,10 @@ const JoinGame = () => {
                 '🎮 Join Game'
               )}
             </button>
+            )}
 
             {/* Lobby link */}
+            {!permanentError && (
             <p className="text-center">
               <button
                 onClick={() => navigate('/')}
@@ -210,6 +281,7 @@ const JoinGame = () => {
                 or go to Lobby →
               </button>
             </p>
+            )}
           </div>
         </div>
       </div>

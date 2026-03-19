@@ -160,6 +160,10 @@ setupRedisAdapter();
 // Attach socket handlers
 const { gameStore, rematchStore, disconnectStore, localTimers } = socketHandlers(io, log);
 
+// Start periodic game cleanup / GC (#365 Bug #14)
+const { startGameCleanup } = require('./services/gameCleanup');
+startGameCleanup(gameStore, log);
+
 // Leaderboard API routes
 app.use('/api/leaderboard', leaderboardRoutes);
 

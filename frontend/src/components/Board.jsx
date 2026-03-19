@@ -35,6 +35,9 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 // getCSSVar kept as thin wrapper for inline usage — actual caching happens in the hook
 
 // ─── Responsive sizing hook ───────────────────────────────────────────────────
+// Uses window dimensions directly to avoid chicken-and-egg timing issues with
+// container refs (the ref's layout depends on the grid, which depends on the
+// ref measurement — causing the board to render tiny on first mount).
 function useGridSizes(gridSize) {
   const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
 
@@ -42,40 +45,50 @@ function useGridSizes(gridSize) {
     function calculate() {
       const w = window.innerWidth;
       const h = window.innerHeight;
+      const cells = gridSize || 3;
 
-      // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
-      // More aggressive on mobile to let the board fill available space
-      // But keep some breathing room so it doesn't feel crammed
-      const reservedH = w < 640 ? 180 : w < 768 ? 220 : 260;
-      // Horizontal padding: accounts for page padding (px-2 = 16px),
-      // board container padding (16px), border (2px), plus breathing room.
-      // Old value (4px mobile) caused grid overflow on narrow viewports.
-      const reservedW = w < 640 ? 40 : w < 768 ? 48 : 64;
+      // Horizontal: full width minus small padding (8px each side on mobile)
+      const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
+      // Vertical: ScoreBar(~80px) + header info(~100px) + toolbar(~60px) + breathing room
+      const reservedH = w < 640 ? 260 : w < 768 ? 280 : 300;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
-      const cells = gridSize || 3;
 
-      // Total grid units: (cells+1) dots + cells lines/boxes per axis
-      const units = cells * 2 + 1;
-
-      const fromW = Math.floor(availW / units);
-      const fromH = Math.floor(availH / units);
-      let box = Math.min(fromW, fromH);
-
-      // Minimum 24px so it's tappable; cap per breakpoint to prevent oversized cells
-      const maxBox = w < 640 ? 100 : w < 1024 ? 110 : 120;
-      box = Math.max(24, Math.min(box, maxBox));
-
-      // Dot size: minimum 10px on mobile for better tap targets (was 6)
+      // Dot size is proportional to box: dot ≈ max(minDot, box * 0.22)
+      // Grid width = (cells+1) * dot + cells * box
+      // With dot = dotRatio * box: grid = box * ((cells+1)*dotRatio + cells)
+      // So: box = avail / ((cells+1)*dotRatio + cells)
       const minDot = w < 640 ? 10 : 8;
-      const dot = Math.max(minDot, Math.round(box * 0.22));
+      const dotRatio = 0.22;
+
+      // First pass: estimate box assuming dot = dotRatio * box
+      const effectiveUnits = (cells + 1) * dotRatio + cells;
+      const fromW = availW / effectiveUnits;
+      const fromH = availH / effectiveUnits;
+      let box = Math.floor(Math.min(fromW, fromH));
+
+      // Cap: min 24px, max 180px
+      box = Math.max(24, Math.min(box, 180));
+
+      // Compute actual dot size (may be larger than dotRatio*box due to minimum)
+      let dot = Math.max(minDot, Math.round(box * dotRatio));
+
+      // Second pass: if dot minimum kicked in, recalculate box to fit
+      // Grid width = (cells+1)*dot + cells*box ≤ availW
+      if (dot > box * dotRatio) {
+        const maxBoxFromW = Math.floor((availW - (cells + 1) * dot) / cells);
+        const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
+        box = Math.min(box, maxBoxFromW, maxBoxFromH);
+        box = Math.max(24, box); // maintain minimum
+      }
 
       // Line thickness: proportional to box size, minimum 8px
       const lineThickness = Math.max(8, Math.round(box * 0.12));
 
       setSizes({ dot, line: box, box, lineThickness });
     }
+
     calculate();
     window.addEventListener('resize', calculate);
     return () => window.removeEventListener('resize', calculate);
@@ -129,6 +142,9 @@ const Board = () => {
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
   const tournamentSnapshotRef = useRef(null);
 
+  // ── Leave game confirmation modal (#365) ──────────────────────────────────────
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
   // ── Quick chat state (#216) ───────────────────────────────────────────────────
   const [chatOpen, setChatOpen] = useState(false);
   const [chatCooldown, setChatCooldown] = useState(false);
@@ -154,6 +170,7 @@ const Board = () => {
   const gameStarted      = useRef(false);
   // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
+
 
   // Mute toggle handler
   const handleToggleMute = () => {
@@ -420,6 +437,12 @@ const Board = () => {
 
     const onPlayerForfeited = (data) => {
       setError(`${data.username || 'A player'} forfeited due to disconnect.`);
+      setTimeout(() => setError(null), 6000);
+    };
+
+    const onPlayerLeft = (data) => {
+      setError(`${data.username || 'A player'} left the game.`);
+      setTimeout(() => setError(null), 6000);
     };
 
     socket.on('game_started',       onGameStarted);
@@ -432,6 +455,7 @@ const Board = () => {
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
+    socket.on('player_left',         onPlayerLeft);
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -465,6 +489,7 @@ const Board = () => {
       socket.off('player_disconnected', onPlayerDisconnected);
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
+      socket.off('player_left',         onPlayerLeft);
       socket.io.off('reconnect',        onReconnect);
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
@@ -582,7 +607,21 @@ const Board = () => {
 
   const handleLeaveGame = () => {
     initAudio();
-    navigate('/');  // router basename handles /beta prefix automatically
+    // During active game, show confirmation modal. After game over or as spectator, leave directly.
+    if (gameState && !gameState.gameOver && !isSpectator) {
+      setShowLeaveConfirm(true);
+    } else {
+      doLeaveGame();
+    }
+  };
+
+  const doLeaveGame = () => {
+    setShowLeaveConfirm(false);
+    // Emit leave_game so the server knows we're leaving voluntarily (#365)
+    if (gameId) {
+      socket.emit('leave_game', { gameId });
+    }
+    navigate('/');
   };
 
   // ── Quick chat handler (#216) ───────────────────────────────────────────────
@@ -1061,6 +1100,60 @@ const Board = () => {
     <div className="game-layout flex flex-col items-center" style={{ minHeight: '100dvh', backgroundColor: 'var(--bg-primary)' }}>
       {renderWinnerModal()}
 
+      {/* ── Leave Confirmation Modal (#365) ─────────────────────────────────── */}
+      {showLeaveConfirm && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-modal-title"
+          onClick={() => setShowLeaveConfirm(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setShowLeaveConfirm(false); return; }
+            // Focus trap: cycle between the two buttons
+            if (e.key === 'Tab') {
+              const focusable = e.currentTarget.querySelectorAll('button');
+              if (focusable.length < 2) return;
+              const first = focusable[0];
+              const last = focusable[focusable.length - 1];
+              if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+              else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+          }}
+        >
+          <div
+            className="rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center"
+            style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-5xl mb-3" aria-hidden="true">🚪</div>
+            <h2 id="leave-modal-title" className="text-2xl font-extrabold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Leave Game?
+            </h2>
+            <p className="mb-5" style={{ color: 'var(--text-secondary)' }}>
+              Are you sure you want to leave? You'll forfeit this game.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                autoFocus
+                onClick={() => setShowLeaveConfirm(false)}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', minHeight: '44px' }}
+              >
+                Stay
+              </button>
+              <button
+                onClick={doLeaveGame}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', minHeight: '44px' }}
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Live ScoreBar (fixed top) ── */}
       {waitingCount === 0 && gameState && !gameState.gameOver && (() => {
         const count = gameState.playerCount || 2;
@@ -1072,6 +1165,8 @@ const Board = () => {
             username: gameState[`${pid}Name`] || cfg.label,
             avatar: gameState[`${pid}Avatar`] || cfg.label,
             color: getCSSVar(cfg.colorVar),
+            disconnected: !!gameState[`${pid}Disconnected`],
+            left: !!gameState[`${pid}Left`],
           };
         });
         return (
@@ -1185,8 +1280,6 @@ const Board = () => {
             boardPulse ? 'board-glow' : ''
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
-            padding: '8px',
-            maxWidth: 'calc(100vw - 16px)',
             overflow: 'hidden',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
@@ -1227,13 +1320,6 @@ const Board = () => {
         </div>
 
         {/* ── Quick Chat (#216) ── */}
-        {gameState && !gameState.gameOver && !isSpectator && (
-          <ChatButton
-            onClick={() => setChatOpen((prev) => !prev)}
-            disabled={chatCooldown}
-            cooldown={chatCooldown}
-          />
-        )}
         {chatOpen && (
           <ChatPanel
             onSend={handleChatSend}
@@ -1242,7 +1328,7 @@ const Board = () => {
         )}
         <ChatOverlay socket={socket} gameId={gameId} />
 
-        {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
+        {/* ── Bottom toolbar: Mute + Chat + Leave Game (on same row on mobile) ── */}
         <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
           {/* Mute button — moved OUT of board */}
           <button
@@ -1256,9 +1342,31 @@ const Board = () => {
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>{muted ? 'Unmute' : 'Mute'}</span>
           </button>
 
+          {/* Chat button — inline in toolbar (#216) */}
+          {gameState && !gameState.gameOver && !isSpectator && (
+            <button
+              onClick={() => setChatOpen((prev) => !prev)}
+              disabled={chatCooldown}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm"
+              style={{
+                backgroundColor: chatCooldown ? 'var(--bg-surface)' : chatOpen ? 'var(--accent)' : 'var(--bg-surface)',
+                color: chatOpen ? 'var(--text-on-accent)' : 'var(--text-primary)',
+                minHeight: '44px',
+                minWidth: '44px',
+                opacity: chatCooldown ? 0.6 : 1,
+                cursor: chatCooldown ? 'not-allowed' : 'pointer',
+              }}
+              aria-label={chatCooldown ? 'Chat on cooldown' : 'Quick chat'}
+              title={chatCooldown ? 'Chat on cooldown' : 'Quick chat'}
+            >
+              <span className="text-lg">💬</span>
+              <span className="text-xs hidden sm:inline" style={{ color: chatOpen ? 'var(--text-on-accent)' : 'var(--text-secondary)' }}>Chat</span>
+            </button>
+          )}
+
           {/* Leave button */}
           <button
-            onClick={() => navigate('/')}
+            onClick={handleLeaveGame}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
             style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
           >

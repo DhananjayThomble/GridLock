@@ -2,7 +2,8 @@ const crypto = require('crypto');
 const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
 const GameHistory = require('../models/GameHistory');
-const { calculateNewState, initializeGameState, pickForfeitWinner } = require('../utils/gameLogic');
+const { calculateNewState, initializeGameState, pickForfeitWinner, getNextActivePlayer } = require('../utils/gameLogic');
+
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter, ipLimiter, normalizeIp } = require('../middleware/rateLimiter');
 const { validatePayload } = require('../middleware/socketSchemas');
@@ -36,10 +37,13 @@ const activeDailyGames = new Map();
 // Players get 30s to reconnect before forfeiting; keeps games moving.
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
+const CLEANUP_DELAY_MS = 60_000; // 1 minute delay before removing finished game from store
+const HOST_START_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000; // AFK host auto-start
 
 // Node-local timer handles only - state visibility is handled via disconnectStore (Redis)
 const localTimers = new Map(); // key: `${gameId}:${playerId}` -> { timer, socketId }
 const rematchTimers = new Map(); // key: gameId -> timeout handle
+const hostStartTimers = new Map(); // key: gameId -> timeout handle (AFK host auto-start)
 
 const PLAYER_COLORS = {
     player1: '#3B82F6',
@@ -226,6 +230,10 @@ function buildGameStateWithPlayers(game) {
             state[`${playerId}Name`] = player.username;
             state[`${playerId}Avatar`] = player.avatar;
             state[`${playerId}Color`] = player.color;
+            if (player.disconnectedAt) {
+                state[`${playerId}Disconnected`] = true;
+                if (player.voluntaryLeave) state[`${playerId}Left`] = true;
+            }
             if (player.isCPU) {
                 state[`${playerId}IsCPU`] = true;
                 hasCPU = true;
@@ -731,6 +739,33 @@ async function handleTournamentGameCompletion(io, log, gameId, game, winnerPlaye
 }
 
 /**
+ * Skip disconnected players' turns after a move (#365).
+ * If the current-turn player is disconnected, advance to the next active player.
+ * Shared helper to avoid duplicating this logic in make_move and CPU move paths.
+ *
+ * @param {object} game   - The game object with players and gameState
+ * @param {object} log    - Logger instance (unused currently, reserved for debug)
+ */
+function advanceTurnIfNeeded(game) {
+    if (game.gameState.winner) return;
+
+    const activePlayers = [];
+    for (let i = 1; i <= game.playerCount; i++) {
+        const pid = `player${i}`;
+        const p = game.players[pid];
+        if (p && !p.disconnectedAt) activePlayers.push(pid);
+    }
+    if (activePlayers.length === 0) return;
+
+    const currentTurn = game.gameState.currentPlayer;
+    const currentTurnPlayer = game.players[currentTurn];
+    if (currentTurnPlayer && currentTurnPlayer.disconnectedAt) {
+        const nextActive = getNextActivePlayer(currentTurn, game.gameState.players, activePlayers);
+        if (nextActive) game.gameState.currentPlayer = nextActive;
+    }
+}
+
+/**
  * Schedule a CPU move if the current player is a CPU.
  * Checks game state, computes move, applies it via calculateNewState,
  * persists, broadcasts, and recurses if the CPU still has the turn.
@@ -765,6 +800,9 @@ function scheduleCPUMove(io, log, gameId, delay) {
             if (typeof prevMoveCount === 'number') {
                 game.gameState.moveCount = prevMoveCount + 1;
             }
+
+            // Skip disconnected players' turns (#365)
+            advanceTurnIfNeeded(game);
 
             // Record CPU move in history for replay
             if (!game.moveHistory) game.moveHistory = [];
@@ -803,11 +841,15 @@ function scheduleCPUMove(io, log, gameId, delay) {
                     clearTimeout(rematchTimers.get(gameId));
                     rematchTimers.delete(gameId);
                 }
+                if (hostStartTimers.has(gameId)) {
+                    clearTimeout(hostStartTimers.get(gameId));
+                    hostStartTimers.delete(gameId);
+                }
                 setTimeout(async () => {
                     await gameStore.deleteGame(gameId);
                     await rematchStore.clearVotes(gameId);
                     await markGameFinished(gameId, 'normal');
-                }, 60_000);
+                }, CLEANUP_DELAY_MS);
             } else {
                 // Check if next player is also CPU
                 const nextPlayerId = newState.currentPlayer;
@@ -1721,7 +1763,9 @@ function attachSocketHandlers(io, log) {
                 socket.data.isSpectator = false;
                 socket.data.username = cleanUsername;
                 const filled = countFilledPlayers(game);
-                const status = filled === game.playerCount ? 'playing' : 'waiting';
+                const cpuCount = countCPUPlayers(game);
+                // Fix #3: Full-human rooms stay 'waiting' until host-start/AFK auto-start
+                const status = (filled === game.playerCount && cpuCount > 0) ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
                 await persistGame(game, status);
 
@@ -1761,7 +1805,59 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (filled === game.playerCount) {
-                    io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                    // Check if there are any CPU players
+                    const cpuCount = countCPUPlayers(game);
+                    if (cpuCount > 0) {
+                        // Has CPUs — auto-start (existing behavior)
+                        io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                    } else {
+                        // All human players — let host click Start (with AFK timeout)
+                        const deadline = Date.now() + HOST_START_TIMEOUT_MS;
+                        io.to(cleanGameId).emit('room_full', { gameId: cleanGameId, autoStartAt: deadline });
+
+                        // AFK host auto-start timer
+                        if (hostStartTimers.has(cleanGameId)) clearTimeout(hostStartTimers.get(cleanGameId));
+                        hostStartTimers.set(cleanGameId, setTimeout(async () => {
+                            hostStartTimers.delete(cleanGameId);
+                            try {
+                                const g = await gameStore.getGame(cleanGameId);
+                                if (!g || g.gameState?.winner) return;
+                                // Fix #1: Use started flag instead of currentPlayer (which is set at init)
+                                if (g.started) return;
+                                // Only auto-start if room is still full and game hasn't started
+                                const f = countFilledPlayers(g);
+                                if (f < g.playerCount) return;
+                                g.started = true;
+                                await gameStore.setGame(cleanGameId, g);
+                                await persistGame(g, 'playing');
+                                // Fix #5: Emit game_started per-player (like start_game_early does)
+                                // so WaitingRoom clients navigate correctly
+                                const gsWithPlayers = buildGameStateWithPlayers(g);
+                                for (let i = 1; i <= g.playerCount; i++) {
+                                    const pid = `player${i}`;
+                                    const player = g.players[pid];
+                                    if (player && !player.isCPU) {
+                                        const playerSocket = io.sockets.sockets.get(player.id);
+                                        if (playerSocket) {
+                                            playerSocket.emit('game_started', {
+                                                gameId: cleanGameId,
+                                                playerId: pid,
+                                                sessionToken: player.token,
+                                                gridSize: g.gridSize,
+                                                playerCount: g.playerCount,
+                                                players: getPlayersList(g),
+                                                gameState: gsWithPlayers,
+                                            });
+                                        }
+                                    }
+                                }
+                                io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                                log.info('Game auto-started (AFK host timeout)', { gameId: cleanGameId });
+                            } catch (err) {
+                                log.error('AFK host auto-start failed', { gameId: cleanGameId, error: err.message });
+                            }
+                        }, HOST_START_TIMEOUT_MS));
+                    }
                 }
             } catch (error) {
                 log.error('Error joining game', { error: error.message, stack: error.stack });
@@ -1959,6 +2055,7 @@ function attachSocketHandlers(io, log) {
                 }
                 freshGame.cpuDifficulty = cleanDifficulty;
 
+                freshGame.started = true;
                 await gameStore.setGame(cleanGameId, freshGame);
                 await persistGame(freshGame, 'playing');
 
@@ -1993,6 +2090,79 @@ function attachSocketHandlers(io, log) {
                 log.info('Game started early by host', { gameId: cleanGameId, filledBefore, total: freshGame.playerCount });
             } catch (error) {
                 log.error('Error starting game early', { error: error.message });
+                socket.emit('error', 'Failed to start game');
+            }
+        });
+
+        // ── start_game — host starts a full room of human players ─────────────
+        socket.on('start_game', async (rawPayload) => {
+            try {
+                if (rateLimited('start_game')) return;
+                const validated = validate('start_game', rawPayload);
+                if (!validated) return;
+                const { gameId, sessionToken } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const game = await gameStore.getGame(cleanGameId);
+                if (!game) { socket.emit('error', 'Game not found'); return; }
+
+                // Only host (player1) can start
+                const host = game.players.player1;
+                if (!host || host.token !== sessionToken) {
+                    socket.emit('error', 'Only the game host can start the game');
+                    return;
+                }
+
+                // Fix #4: Use started flag instead of currentPlayer guard
+                if (game.started) return;
+
+                // Room must be full
+                const filled = countFilledPlayers(game);
+                if (filled < game.playerCount) {
+                    socket.emit('error', 'Room is not full yet');
+                    return;
+                }
+
+                // Double-click guard: if timer already cleared, game was started
+                if (!hostStartTimers.has(cleanGameId)) return;
+
+                // Clear AFK host timer — host clicked Start
+                clearTimeout(hostStartTimers.get(cleanGameId));
+                hostStartTimers.delete(cleanGameId);
+
+                game.started = true;
+                await gameStore.setGame(cleanGameId, game);
+                await persistGame(game, 'playing');
+
+                // Fix #5: Emit game_started per-player (like start_game_early does)
+                // so WaitingRoom clients navigate correctly
+                const gameStateWithPlayers = buildGameStateWithPlayers(game);
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const pid = `player${i}`;
+                    const player = game.players[pid];
+                    if (player && !player.isCPU) {
+                        const playerSocket = io.sockets.sockets.get(player.id);
+                        if (playerSocket) {
+                            playerSocket.emit('game_started', {
+                                gameId: cleanGameId,
+                                playerId: pid,
+                                sessionToken: player.token,
+                                gridSize: game.gridSize,
+                                playerCount: game.playerCount,
+                                players: getPlayersList(game),
+                                gameState: gameStateWithPlayers,
+                            });
+                        }
+                    }
+                }
+                io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+
+                log.info('Game started by host', { gameId: cleanGameId, playerCount: game.playerCount });
+            } catch (error) {
+                log.error('Error starting game', { error: error.message });
                 socket.emit('error', 'Failed to start game');
             }
         });
@@ -2035,6 +2205,9 @@ function attachSocketHandlers(io, log) {
                 if (typeof prevMoveCount === 'number') {
                     game.gameState.moveCount = prevMoveCount + 1;
                 }
+
+                // Skip disconnected players' turns (#365)
+                advanceTurnIfNeeded(game);
 
                 // Record move in history for replay
                 if (!game.moveHistory) game.moveHistory = [];
@@ -2081,12 +2254,16 @@ function attachSocketHandlers(io, log) {
                         clearTimeout(rematchTimers.get(cleanGameId));
                         rematchTimers.delete(cleanGameId);
                     }
+                    if (hostStartTimers.has(cleanGameId)) {
+                        clearTimeout(hostStartTimers.get(cleanGameId));
+                        hostStartTimers.delete(cleanGameId);
+                    }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
                         await markGameFinished(cleanGameId, 'normal');
                         log.info('Game cleaned up', { gameId: cleanGameId });
-                    }, 60_000);
+                    }, CLEANUP_DELAY_MS);
                 } else {
                     // Check if next turn belongs to a CPU player
                     const nextPlayerId = newState.currentPlayer;
@@ -2825,6 +3002,165 @@ function attachSocketHandlers(io, log) {
             }
         });
 
+        // ── leave_game — voluntary leave (no reconnect window) ────────────────
+        socket.on('leave_game', async (rawPayload) => {
+            try {
+                if (rateLimited('leave_game')) return;
+                const validated = validate('leave_game', rawPayload);
+                if (!validated) return;
+                const { gameId } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const game = await gameStore.getGame(cleanGameId);
+                if (!game) return;
+
+                const playerId = findPlayerBySocket(game, socket.id);
+                if (!playerId) return;
+
+                const player = game.players[playerId];
+                if (!player) return;
+
+                log.info('Player voluntarily left game', { gameId: cleanGameId, playerId, username: player.username });
+                // Note: No dedicated Prometheus counter for voluntary leaves.
+                // gamesCompletedTotal is incremented when the leave causes game-over (below).
+                // Add a gridlock_voluntary_leaves_total counter here if per-leave tracking is needed.
+
+                // Mark as permanently disconnected
+                player.disconnectedAt = new Date();
+                player.voluntaryLeave = true;
+                player.id = null; // Prevent disconnect handler from finding this player
+
+                // Cancel any existing disconnect timer for this player
+                const timerKey = `${cleanGameId}:${playerId}`;
+                if (localTimers.has(timerKey)) {
+                    clearTimeout(localTimers.get(timerKey).timer);
+                    localTimers.delete(timerKey);
+                }
+                await disconnectStore.clearDisconnect(cleanGameId, playerId);
+
+                // Clean up host start timer if leaving during room_full phase
+                if (hostStartTimers.has(cleanGameId)) {
+                    clearTimeout(hostStartTimers.get(cleanGameId));
+                    hostStartTimers.delete(cleanGameId);
+                }
+
+                // Notify others — voluntary leave, no reconnect window
+                // Don't emit player_disconnected for voluntary leaves — that event
+                // is for involuntary network drops. Only emit player_left.
+                io.to(cleanGameId).emit('player_left', {
+                    playerId,
+                    username: player.username,
+                    reason: 'voluntary',
+                });
+
+                // Leave socket room
+                socket.leave(cleanGameId);
+                socket.data.gameId = undefined;
+                socket.data.playerId = undefined;
+
+                // If game already finished, just persist and return
+                if (game.gameState?.winner) {
+                    await rematchStore.removeVote(cleanGameId, playerId);
+                    io.to(cleanGameId).emit('rematch_failed', {
+                        reason: `${player.username || 'A player'} left the game`,
+                    });
+                    await rematchStore.clearVotes(cleanGameId);
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
+                    await gameStore.setGame(cleanGameId, game);
+                    return;
+                }
+
+                // Count remaining active players
+                const remaining = [];
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const pid = `player${i}`;
+                    const p = game.players[pid];
+                    if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
+                }
+
+                if (remaining.length === 1) {
+                    // Only 1 player left — they win by forfeit
+                    const winner = remaining[0];
+                    game.gameState.winner = winner;
+
+                    await gameStore.setGame(cleanGameId, game);
+                    io.to(cleanGameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+                    io.to(cleanGameId).emit('player_forfeited', {
+                        playerId,
+                        username: player.username,
+                        reason: 'voluntary_leave',
+                    });
+                    io.to(cleanGameId).emit('game_over', {
+                        winner,
+                        scores: game.gameState.scores,
+                        reason: 'opponent_left',
+                    });
+
+                    if (promMetrics) {
+                        promMetrics.gamesCompletedTotal.inc();
+                        if (game.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - game.createdAt) / 1000);
+                    }
+                    updateLeaderboard(game, winner, log);
+                    recordGameHistory(game, winner, log);
+                    await handleTournamentGameCompletion(io, log, cleanGameId, game, winner);
+
+                    if (rankedGameMap.has(cleanGameId)) {
+                        handleRankedDisconnect(io, cleanGameId, playerId, game, log).catch(err =>
+                            log.error('Ranked leave handler failed', { gameId: cleanGameId, error: err.message })
+                        );
+                    }
+
+                    await persistGame(game, 'finished', { reason: 'voluntary_leave' });
+                    if (rematchTimers.has(cleanGameId)) {
+                        clearTimeout(rematchTimers.get(cleanGameId));
+                        rematchTimers.delete(cleanGameId);
+                    }
+                    setTimeout(async () => {
+                        await gameStore.deleteGame(cleanGameId);
+                        await rematchStore.clearVotes(cleanGameId);
+                    }, CLEANUP_DELAY_MS);
+                } else if (remaining.length === 0) {
+                    // No players left — clean up
+                    game.gameState.winner = 'draw';
+                    await gameStore.setGame(cleanGameId, game);
+                    await persistGame(game, 'finished', { reason: 'all_left' });
+                    setTimeout(async () => {
+                        await gameStore.deleteGame(cleanGameId);
+                        await rematchStore.clearVotes(cleanGameId);
+                    }, 10_000);
+                } else {
+                    // 2+ players remain — game continues, skip disconnected player's turns
+                    if (game.gameState.currentPlayer === playerId) {
+                        const activePlayers = remaining;
+                        const nextPlayer = getNextActivePlayer(playerId, game.gameState.players, activePlayers);
+                        if (nextPlayer) {
+                            game.gameState.currentPlayer = nextPlayer;
+                        }
+                    }
+
+                    await gameStore.setGame(cleanGameId, game);
+                    io.to(cleanGameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+
+                    // If next player is CPU, schedule their move
+                    const nextPlayerId = game.gameState.currentPlayer;
+                    const nextPlayer = game.players[nextPlayerId];
+                    if (nextPlayer && nextPlayer.isCPU) {
+                        const difficulty = game.cpuDifficulty || 'medium';
+                        const delay = CPU_DELAYS[difficulty] || 1200;
+                        scheduleCPUMove(io, log, cleanGameId, delay);
+                    }
+                }
+            } catch (error) {
+                log.error('Error processing leave_game', { socketId: socket.id, error: error.message });
+            }
+        });
+
         // ── disconnect ─────────────────────────────────────────────────────────
         socket.on('disconnect', async () => {
             log.info('Client disconnected', { socketId: socket.id });
@@ -2847,6 +3183,102 @@ function attachSocketHandlers(io, log) {
             const processPlayerDisconnect = async (gameId, game, playerId) => {
                 const player = game.players[playerId];
                 if (!player) return;
+
+                // Guard: skip if already processed (e.g., voluntary leave triggered first)
+                if (player.disconnectedAt) return;
+
+                // BLOCKER #2: Host disconnect while room is full but game not started
+                // If host (player1) disconnects and we have an active host-start timer,
+                // the room is full with humans waiting — auto-start the game immediately.
+                if (playerId === 'player1' && hostStartTimers.has(gameId)) {
+                    clearTimeout(hostStartTimers.get(gameId));
+                    hostStartTimers.delete(gameId);
+
+                    player.disconnectedAt = new Date();
+                    io.to(gameId).emit('player_disconnected', {
+                        playerId,
+                        username: player.username,
+                        reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
+                    });
+
+                    // Auto-start — the room is full, just begin the game
+                    await persistGame(game, 'playing');
+                    io.to(gameId).emit('all_players_joined', { gameId });
+                    log.info('Game auto-started (host disconnected in room_full)', { gameId });
+
+                    // Set up normal disconnect/reconnect timer for the host
+                    await disconnectStore.setDisconnect(gameId, playerId, socket.id, DISCONNECT_TIMEOUT_MS);
+                    await gameStore.setGame(gameId, game);
+
+                    const timerKey = `${gameId}:${playerId}`;
+                    if (localTimers.has(timerKey)) clearTimeout(localTimers.get(timerKey).timer);
+                    // Local forfeit timer — same as normal disconnect path
+                    const hostForfeitTimer = setTimeout(async () => {
+                        try {
+                            localTimers.delete(timerKey);
+                            const stillDisconnected = await disconnectStore.isDisconnected(gameId, playerId);
+                            if (!stillDisconnected) return;
+                            const currentGame = await gameStore.getGame(gameId);
+                            if (!currentGame) return;
+                            if (currentGame.gameState?.winner) return;
+                            const currentPlayer = currentGame.players[playerId];
+                            if (!currentPlayer || !currentPlayer.disconnectedAt) return;
+                            currentPlayer.voluntaryLeave = false;
+                            const remaining = [];
+                            for (let i = 1; i <= currentGame.playerCount; i++) {
+                                const pid = `player${i}`;
+                                const p = currentGame.players[pid];
+                                if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
+                            }
+                            io.to(gameId).emit('player_left', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
+                            if (remaining.length === 1) {
+                                const winner = remaining[0];
+                                currentGame.gameState.winner = winner;
+                                await gameStore.setGame(gameId, currentGame);
+                                io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+                                io.to(gameId).emit('player_forfeited', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
+                                io.to(gameId).emit('game_over', { winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected' });
+                                if (promMetrics) {
+                                    promMetrics.gamesCompletedTotal.inc();
+                                    if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
+                                }
+                                updateLeaderboard(currentGame, winner, log);
+                                recordGameHistory(currentGame, winner, log);
+                                await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
+                                if (rankedGameMap.has(gameId)) {
+                                    handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                                        log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+                                    );
+                                }
+                                await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
+                                setTimeout(async () => {
+                                    await gameStore.deleteGame(gameId);
+                                    await rematchStore.clearVotes(gameId);
+                                }, CLEANUP_DELAY_MS);
+                            } else if (remaining.length === 0) {
+                                currentGame.gameState.winner = 'draw';
+                                await gameStore.setGame(gameId, currentGame);
+                                await persistGame(currentGame, 'finished', { reason: 'all_disconnected' });
+                                setTimeout(async () => {
+                                    await gameStore.deleteGame(gameId);
+                                    await rematchStore.clearVotes(gameId);
+                                }, 10_000);
+                            } else {
+                                if (currentGame.gameState.currentPlayer === playerId) {
+                                    const activePlayers = remaining;
+                                    const nextPlayer = getNextActivePlayer(playerId, currentGame.gameState.players, activePlayers);
+                                    if (nextPlayer) currentGame.gameState.currentPlayer = nextPlayer;
+                                }
+                                await gameStore.setGame(gameId, currentGame);
+                                io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+                            }
+                        } catch (err) {
+                            log.error('Host forfeit timer error', { gameId, playerId, error: err.message });
+                        }
+                    }, DISCONNECT_TIMEOUT_MS);
+                    localTimers.set(timerKey, { timer: hostForfeitTimer, socketId: socket.id });
+                    return;
+                }
 
                 player.disconnectedAt = new Date();
 
@@ -2903,7 +3335,10 @@ function attachSocketHandlers(io, log) {
                         const currentPlayer = currentGame.players[playerId];
                         if (!currentPlayer || !currentPlayer.disconnectedAt) return;
 
-                        // Forfeit: pick remaining player with highest score as winner
+                        // Mark as permanently disconnected (timeout expired)
+                        currentPlayer.voluntaryLeave = false;
+
+                        // Count remaining active players
                         const remaining = [];
                         for (let i = 1; i <= currentGame.playerCount; i++) {
                             const pid = `player${i}`;
@@ -2911,50 +3346,95 @@ function attachSocketHandlers(io, log) {
                             if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
                         }
 
-                        const scores = currentGame.gameState?.scores || {};
-                        const winner = pickForfeitWinner(remaining, scores);
-                        currentGame.gameState.winner = winner;
-
-                        await gameStore.setGame(gameId, currentGame);
-                        io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
-                        io.to(gameId).emit('player_forfeited', {
+                        // Emit player_left — this player is gone permanently
+                        io.to(gameId).emit('player_left', {
                             playerId,
                             username: currentPlayer.username,
                             reason: 'disconnect_timeout',
                         });
-                        io.to(gameId).emit('game_over', {
-                            winner,
-                            scores: currentGame.gameState.scores,
-                            reason: 'opponent_disconnected',
-                        });
-                        // Prometheus: record game completion + duration (forfeit)
-                        if (promMetrics) {
-                            promMetrics.gamesCompletedTotal.inc();
-                            if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
-                        }
-                        // Fire-and-forget leaderboard update for forfeit
-                        updateLeaderboard(currentGame, winner, log);
-                        recordGameHistory(currentGame, winner, log);
-                        await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
 
-                        // Ranked anti-smurf: if this was a ranked game, auto-loss + cooldown
-                        if (rankedGameMap.has(gameId)) {
-                            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
-                                log.error('Ranked disconnect handler failed', { gameId, error: err.message })
-                            );
-                        }
 
-                        await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
+                        if (remaining.length >= 2) {
+                            // 2+ players remain — game continues, skip this player's turns
+                            io.to(gameId).emit('player_forfeited', {
+                                playerId,
+                                username: currentPlayer.username,
+                                reason: 'disconnect_timeout',
+                            });
 
-                        // Defensive cleanup: clear any lingering rematch timer
-                        if (rematchTimers.has(gameId)) {
-                            clearTimeout(rematchTimers.get(gameId));
-                            rematchTimers.delete(gameId);
+                            // Advance turn if it was the disconnected player's turn
+                            if (currentGame.gameState.currentPlayer === playerId) {
+                                const nextPlayer = getNextActivePlayer(playerId, currentGame.gameState.players, remaining);
+                                if (nextPlayer) {
+                                    currentGame.gameState.currentPlayer = nextPlayer;
+                                }
+                            }
+
+                            await gameStore.setGame(gameId, currentGame);
+                            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+
+                            // If next player is CPU, schedule their move
+                            const nextPlayerId = currentGame.gameState.currentPlayer;
+                            const nextPlayerObj = currentGame.players[nextPlayerId];
+                            if (nextPlayerObj && nextPlayerObj.isCPU) {
+                                const difficulty = currentGame.cpuDifficulty || 'medium';
+                                const delay = CPU_DELAYS[difficulty] || 1200;
+                                scheduleCPUMove(io, log, gameId, delay);
+                            }
+
+                            // Ranked disconnect penalty still applies even if game continues
+                            if (rankedGameMap.has(gameId)) {
+                                handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                                    log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+                                );
+                            }
+                        } else {
+                            // 0-1 players remain — end the game
+                            const scores = currentGame.gameState?.scores || {};
+                            const winner = pickForfeitWinner(remaining, scores);
+                            currentGame.gameState.winner = winner;
+
+                            await gameStore.setGame(gameId, currentGame);
+                            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+                            io.to(gameId).emit('player_forfeited', {
+                                playerId,
+                                username: currentPlayer.username,
+                                reason: 'disconnect_timeout',
+                            });
+                            io.to(gameId).emit('game_over', {
+                                winner,
+                                scores: currentGame.gameState.scores,
+                                reason: 'opponent_disconnected',
+                            });
+                            // Prometheus: record game completion + duration (forfeit)
+                            if (promMetrics) {
+                                promMetrics.gamesCompletedTotal.inc();
+                                if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
+                            }
+                            // Fire-and-forget leaderboard update for forfeit
+                            updateLeaderboard(currentGame, winner, log);
+                            recordGameHistory(currentGame, winner, log);
+                            await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
+
+                            // Ranked anti-smurf: if this was a ranked game, auto-loss + cooldown
+                            if (rankedGameMap.has(gameId)) {
+                                handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                                    log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+                                );
+                            }
+
+                            await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
+
+                            // Defensive cleanup: clear any lingering rematch timer
+                            if (rematchTimers.has(gameId)) {
+                                clearTimeout(rematchTimers.get(gameId));
+                                rematchTimers.delete(gameId);
+                            }
+                            setTimeout(async () => {
+                                await gameStore.deleteGame(gameId);
+                                await rematchStore.clearVotes(gameId);
+                            }, CLEANUP_DELAY_MS);
                         }
-                        setTimeout(async () => {
-                            await gameStore.deleteGame(gameId);
-                            await rematchStore.clearVotes(gameId);
-                        }, 60_000);
                     } catch (err) {
                         log.error('Disconnect timeout handler failed', { gameId, playerId, error: err.message });
                     }

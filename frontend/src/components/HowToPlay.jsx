@@ -26,12 +26,12 @@ const Card = ({ emoji, title, desc }) => (
 const HowToPlay = () => {
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = 'How to Play Dots and Boxes Online — Rules, Strategy & Tips | GridLock';
+    document.title = 'How to Play GridLock — Dots & Boxes Online | Rules, Strategy & Tips';
 
     const metaDesc = document.querySelector('meta[name="description"]');
     const prevDesc = metaDesc?.getAttribute('content');
     if (metaDesc) {
-      metaDesc.setAttribute('content', 'Learn how to play Dots and Boxes online. Master the rules, strategy tips, double-cross technique, and game modes. Play free multiplayer Dots & Boxes on GridLock.');
+      metaDesc.setAttribute('content', 'Learn how to play GridLock, the online Dots & Boxes game. Master the rules, strategy tips, double-cross technique, and game modes. Play free multiplayer dots and boxes on GridLock.');
     }
 
     return () => {
@@ -45,7 +45,7 @@ const HowToPlay = () => {
     {/* Hero */}
     <header className="htp-hero">
       <h1 className="htp-hero-title">
-        How to Play Dots and Boxes Online — <span className="htp-brand">GridLock</span>
+        How to Play <span className="htp-brand">GridLock</span> — Dots &amp; Boxes Online
       </h1>
       <p className="htp-hero-subtitle">
         The classic Dots &amp; Boxes game — reimagined for online multiplayer.
@@ -55,7 +55,7 @@ const HowToPlay = () => {
     </header>
 
     {/* Basic Rules */}
-    <Section emoji="📏" title="Basic Rules of Dots and Boxes">
+    <Section emoji="📏" title="GridLock Rules — How Dots & Boxes Works">
       <ol className="htp-rules-list" role="list">
         <li>
           <strong>Draw a line.</strong> Players take turns drawing a single line
@@ -114,7 +114,7 @@ const HowToPlay = () => {
     </Section>
 
     {/* Strategy Tips */}
-    <Section emoji="🧠" title="Dots and Boxes Strategy Tips">
+    <Section emoji="🧠" title="GridLock Strategy Tips">
       <div className="htp-tips">
         <div className="htp-tip">
           <span className="htp-tip-number">1</span>
@@ -160,7 +160,7 @@ const HowToPlay = () => {
     </Section>
 
     {/* Grid Sizes */}
-    <Section emoji="📐" title="Dots and Boxes Grid Sizes">
+    <Section emoji="📐" title="Grid Sizes">
       <div className="htp-grid-sizes">
         {[
           { size: '3×3', label: 'Quick', desc: '9 boxes — fast games, great for learning dots and boxes' },
@@ -192,9 +192,9 @@ const HowToPlay = () => {
 
     {/* CTA */}
     <section className="htp-cta">
-      <h2 className="htp-cta-title">Ready to Play Dots and Boxes?</h2>
+      <h2 className="htp-cta-title">Ready to Play GridLock?</h2>
       <p className="htp-cta-desc">
-        Jump into a game and put your dots and boxes strategy to the test.
+        Jump into a game and put your GridLock strategy to the test.
       </p>
       <Link to="/" className="htp-cta-button">
         Start a Game Now 🎯
