@@ -38,13 +38,28 @@ function useGridSizes(gridSize) {
             const availW = w - reservedW;
             const availH = h - reservedH;
             const cells = gridSize || 3;
-            const units = cells * 2 + 1;
-            const fromW = Math.floor(availW / units);
-            const fromH = Math.floor(availH / units);
-            let box = Math.min(fromW, fromH);
+
+            // Dot size is proportional to box: dot ≈ max(minDot, box * dotRatio)
+            // Grid = box * ((cells+1)*dotRatio + cells)
+            const minDot = w < 640 ? 8 : 6;
+            const dotRatio = 0.18;
+
+            const effectiveUnits = (cells + 1) * dotRatio + cells;
+            const fromW = availW / effectiveUnits;
+            const fromH = availH / effectiveUnits;
+            let box = Math.floor(Math.min(fromW, fromH));
             // Generous cap — let the board fill available space
             box = Math.max(24, Math.min(box, 180));
-            const dot = Math.max(6, Math.round(box * 0.18));
+            let dot = Math.max(minDot, Math.round(box * dotRatio));
+
+            // Second pass: if dot minimum kicked in, recalculate box to fit
+            if (dot > box * dotRatio) {
+                const maxBoxFromW = Math.floor((availW - (cells + 1) * dot) / cells);
+                const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
+                box = Math.min(box, maxBoxFromW, maxBoxFromH);
+                box = Math.max(24, box);
+            }
+
             setSizes({ dot, line: box, box });
         }
         calculate();
