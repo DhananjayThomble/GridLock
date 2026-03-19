@@ -840,6 +840,10 @@ function scheduleCPUMove(io, log, gameId, delay) {
                     clearTimeout(rematchTimers.get(gameId));
                     rematchTimers.delete(gameId);
                 }
+                if (hostStartTimers.has(gameId)) {
+                    clearTimeout(hostStartTimers.get(gameId));
+                    hostStartTimers.delete(gameId);
+                }
                 setTimeout(async () => {
                     await gameStore.deleteGame(gameId);
                     await rematchStore.clearVotes(gameId);
@@ -1815,6 +1819,8 @@ function attachSocketHandlers(io, log) {
                             try {
                                 const g = await gameStore.getGame(cleanGameId);
                                 if (!g || g.gameState?.winner) return;
+                                // Guard: game already started (race with manual start_game)
+                                if (g.gameState && g.gameState.currentPlayer) return;
                                 // Only auto-start if room is still full and game hasn't started
                                 const f = countFilledPlayers(g);
                                 if (f < g.playerCount) return;
@@ -2083,6 +2089,9 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
+                // Guard: game already started (race with AFK timer or double-click)
+                if (game.gameState && game.gameState.currentPlayer) return;
+
                 // Room must be full
                 const filled = countFilledPlayers(game);
                 if (filled < game.playerCount) {
@@ -2090,11 +2099,12 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
+                // Double-click guard: if timer already cleared, game was started
+                if (!hostStartTimers.has(cleanGameId)) return;
+
                 // Clear AFK host timer — host clicked Start
-                if (hostStartTimers.has(cleanGameId)) {
-                    clearTimeout(hostStartTimers.get(cleanGameId));
-                    hostStartTimers.delete(cleanGameId);
-                }
+                clearTimeout(hostStartTimers.get(cleanGameId));
+                hostStartTimers.delete(cleanGameId);
 
                 await persistGame(game, 'playing');
                 io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
@@ -2192,6 +2202,10 @@ function attachSocketHandlers(io, log) {
                     if (rematchTimers.has(cleanGameId)) {
                         clearTimeout(rematchTimers.get(cleanGameId));
                         rematchTimers.delete(cleanGameId);
+                    }
+                    if (hostStartTimers.has(cleanGameId)) {
+                        clearTimeout(hostStartTimers.get(cleanGameId));
+                        hostStartTimers.delete(cleanGameId);
                     }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
@@ -2976,6 +2990,12 @@ function attachSocketHandlers(io, log) {
                 }
                 await disconnectStore.clearDisconnect(cleanGameId, playerId);
 
+                // Clean up host start timer if leaving during room_full phase
+                if (hostStartTimers.has(cleanGameId)) {
+                    clearTimeout(hostStartTimers.get(cleanGameId));
+                    hostStartTimers.delete(cleanGameId);
+                }
+
                 // Notify others — voluntary leave, no reconnect window
                 // Don't emit player_disconnected for voluntary leaves — that event
                 // is for involuntary network drops. Only emit player_left.
@@ -3141,7 +3161,71 @@ function attachSocketHandlers(io, log) {
 
                     const timerKey = `${gameId}:${playerId}`;
                     if (localTimers.has(timerKey)) clearTimeout(localTimers.get(timerKey).timer);
-                    // Normal forfeit timer will handle host not reconnecting
+                    // Local forfeit timer — same as normal disconnect path
+                    const hostForfeitTimer = setTimeout(async () => {
+                        try {
+                            localTimers.delete(timerKey);
+                            const stillDisconnected = await disconnectStore.isDisconnected(gameId, playerId);
+                            if (!stillDisconnected) return;
+                            const currentGame = await gameStore.getGame(gameId);
+                            if (!currentGame) return;
+                            if (currentGame.gameState?.winner) return;
+                            const currentPlayer = currentGame.players[playerId];
+                            if (!currentPlayer || !currentPlayer.disconnectedAt) return;
+                            currentPlayer.voluntaryLeave = false;
+                            const remaining = [];
+                            for (let i = 1; i <= currentGame.playerCount; i++) {
+                                const pid = `player${i}`;
+                                const p = currentGame.players[pid];
+                                if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
+                            }
+                            io.to(gameId).emit('player_left', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
+                            if (remaining.length === 1) {
+                                const winner = remaining[0];
+                                currentGame.gameState.winner = winner;
+                                await gameStore.setGame(gameId, currentGame);
+                                io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+                                io.to(gameId).emit('player_forfeited', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
+                                io.to(gameId).emit('game_over', { winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected' });
+                                if (promMetrics) {
+                                    promMetrics.gamesCompletedTotal.inc();
+                                    if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
+                                }
+                                updateLeaderboard(currentGame, winner, log);
+                                recordGameHistory(currentGame, winner, log);
+                                await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
+                                if (rankedGameMap.has(gameId)) {
+                                    handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                                        log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+                                    );
+                                }
+                                await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
+                                setTimeout(async () => {
+                                    await gameStore.deleteGame(gameId);
+                                    await rematchStore.clearVotes(gameId);
+                                }, CLEANUP_DELAY_MS);
+                            } else if (remaining.length === 0) {
+                                currentGame.gameState.winner = 'draw';
+                                await gameStore.setGame(gameId, currentGame);
+                                await persistGame(currentGame, 'finished', { reason: 'all_disconnected' });
+                                setTimeout(async () => {
+                                    await gameStore.deleteGame(gameId);
+                                    await rematchStore.clearVotes(gameId);
+                                }, 10_000);
+                            } else {
+                                if (currentGame.gameState.currentPlayer === playerId) {
+                                    const activePlayers = remaining;
+                                    const nextPlayer = getNextActivePlayer(playerId, currentGame.gameState.players, activePlayers);
+                                    if (nextPlayer) currentGame.gameState.currentPlayer = nextPlayer;
+                                }
+                                await gameStore.setGame(gameId, currentGame);
+                                io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+                            }
+                        } catch (err) {
+                            log.error('Host forfeit timer error', { gameId, playerId, error: err.message });
+                        }
+                    }, DISCONNECT_TIMEOUT_MS);
+                    localTimers.set(timerKey, { timer: hostForfeitTimer, socketId: socket.id });
                     return;
                 }
 
