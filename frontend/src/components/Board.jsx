@@ -35,39 +35,32 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 // getCSSVar kept as thin wrapper for inline usage — actual caching happens in the hook
 
 // ─── Responsive sizing hook ───────────────────────────────────────────────────
-// Uses a container ref + ResizeObserver to measure ACTUAL available space,
-// ensuring consistent board sizing regardless of entry path (create vs rejoin).
-function useGridSizes(gridSize, containerRef) {
+// Uses window dimensions directly to avoid chicken-and-egg timing issues with
+// container refs (the ref's layout depends on the grid, which depends on the
+// ref measurement — causing the board to render tiny on first mount).
+function useGridSizes(gridSize) {
   const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
 
   useEffect(() => {
     function calculate() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
       const cells = gridSize || 3;
       const units = cells * 2 + 1; // (cells+1) dots + cells lines/boxes per axis
-      const w = window.innerWidth;
 
-      let availW, availH;
+      // Horizontal: full width minus small padding (8px each side on mobile)
+      const reservedW = w < 640 ? 16 : w < 768 ? 40 : 56;
+      // Vertical: ScoreBar(~80px) + header info(~100px) + toolbar(~60px) + breathing room
+      const reservedH = w < 640 ? 260 : w < 768 ? 280 : 300;
 
-      if (containerRef?.current) {
-        // Measure actual container dimensions — deterministic regardless of mount order
-        const rect = containerRef.current.getBoundingClientRect();
-        // Small margin: 12px per side horizontal, 8px vertical breathing room
-        availW = rect.width - 24;
-        availH = rect.height - 16;
-      } else {
-        // Fallback: window-based calculation with tight reserves
-        const reservedH = w < 640 ? 140 : w < 768 ? 180 : 220;
-        const reservedW = w < 640 ? 24 : w < 768 ? 40 : 56;
-        availW = w - reservedW;
-        availH = window.innerHeight - reservedH;
-      }
+      const availW = w - reservedW;
+      const availH = h - reservedH;
 
       const fromW = Math.floor(availW / units);
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Minimum 24px for tap targets; generous cap to prevent absurdly large cells on big screens
-      // No artificial per-breakpoint cap — let the natural space calculation fill the viewport
+      // Minimum 24px for tap targets; generous cap for large screens
       box = Math.max(24, Math.min(box, 180));
 
       // Dot size: minimum 10px on mobile for better tap targets
@@ -81,21 +74,9 @@ function useGridSizes(gridSize, containerRef) {
     }
 
     calculate();
-
-    // ResizeObserver on container for immediate recalc on layout changes
-    let ro;
-    if (containerRef?.current) {
-      ro = new ResizeObserver(calculate);
-      ro.observe(containerRef.current);
-    }
-
-    // Fallback: window resize
     window.addEventListener('resize', calculate);
-    return () => {
-      window.removeEventListener('resize', calculate);
-      if (ro) ro.disconnect();
-    };
-  }, [gridSize, containerRef]);
+    return () => window.removeEventListener('resize', calculate);
+  }, [gridSize]);
 
   return sizes;
 }
@@ -173,7 +154,7 @@ const Board = () => {
   const gameStarted      = useRef(false);
   // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
-  const boardAreaRef     = useRef(null);
+
 
   // Mute toggle handler
   const handleToggleMute = () => {
@@ -183,7 +164,7 @@ const Board = () => {
 
   const joinMode = location.state?.joinMode || (role === 'spectator' ? 'spectator' : 'player');
   const isSpectator = role === 'spectator';
-  const sizes = useGridSizes(gridSize, boardAreaRef);
+  const sizes = useGridSizes(gridSize);
 
   useEffect(() => {
     roleRef.current = role;
@@ -1277,14 +1258,12 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div ref={boardAreaRef} className="flex flex-1 items-center justify-center w-full">
+        <div className="flex flex-1 items-center justify-center w-full">
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
-            padding: '8px',
-            maxWidth: 'calc(100vw - 16px)',
             overflow: 'hidden',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
