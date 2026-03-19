@@ -48,7 +48,7 @@ function useGridSizes(gridSize) {
       const cells = gridSize || 3;
 
       // Horizontal: full width minus small padding (8px each side on mobile)
-      const reservedW = w < 640 ? 16 : w < 768 ? 40 : 56;
+      const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
       // Vertical: ScoreBar(~80px) + header info(~100px) + toolbar(~60px) + breathing room
       const reservedH = w < 640 ? 260 : w < 768 ? 280 : 300;
 
