@@ -55,7 +55,7 @@ const HowToPlay = () => {
     </header>
 
     {/* Basic Rules */}
-    <Section emoji="📏" title="Basic Rules of GridLock">
+    <Section emoji="📏" title="GridLock Rules — How Dots & Boxes Works">
       <ol className="htp-rules-list" role="list">
         <li>
           <strong>Draw a line.</strong> Players take turns drawing a single line
