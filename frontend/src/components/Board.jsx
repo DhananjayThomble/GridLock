@@ -35,39 +35,42 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 // getCSSVar kept as thin wrapper for inline usage — actual caching happens in the hook
 
 // ─── Responsive sizing hook ───────────────────────────────────────────────────
-function useGridSizes(gridSize) {
+// Uses a container ref + ResizeObserver to measure ACTUAL available space,
+// ensuring consistent board sizing regardless of entry path (create vs rejoin).
+function useGridSizes(gridSize, containerRef) {
   const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
 
   useEffect(() => {
     function calculate() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      // Reserve space for ScoreBar (~80px) + header + toolbar (~60px)
-      // More aggressive on mobile to let the board fill available space
-      // But keep some breathing room so it doesn't feel crammed
-      const reservedH = w < 640 ? 180 : w < 768 ? 220 : 260;
-      // Horizontal padding: accounts for page padding (px-2 = 16px),
-      // board container padding (16px), border (2px), plus breathing room.
-      // Old value (4px mobile) caused grid overflow on narrow viewports.
-      const reservedW = w < 640 ? 40 : w < 768 ? 48 : 64;
-
-      const availW = w - reservedW;
-      const availH = h - reservedH;
       const cells = gridSize || 3;
+      const units = cells * 2 + 1; // (cells+1) dots + cells lines/boxes per axis
+      const w = window.innerWidth;
 
-      // Total grid units: (cells+1) dots + cells lines/boxes per axis
-      const units = cells * 2 + 1;
+      let availW, availH;
+
+      if (containerRef?.current) {
+        // Measure actual container dimensions — deterministic regardless of mount order
+        const rect = containerRef.current.getBoundingClientRect();
+        // Small margin: 12px per side horizontal, 8px vertical breathing room
+        availW = rect.width - 24;
+        availH = rect.height - 16;
+      } else {
+        // Fallback: window-based calculation with tight reserves
+        const reservedH = w < 640 ? 140 : w < 768 ? 180 : 220;
+        const reservedW = w < 640 ? 24 : w < 768 ? 40 : 56;
+        availW = w - reservedW;
+        availH = window.innerHeight - reservedH;
+      }
 
       const fromW = Math.floor(availW / units);
       const fromH = Math.floor(availH / units);
       let box = Math.min(fromW, fromH);
 
-      // Minimum 24px so it's tappable; cap per breakpoint to prevent oversized cells
-      const maxBox = w < 640 ? 100 : w < 1024 ? 110 : 120;
-      box = Math.max(24, Math.min(box, maxBox));
+      // Minimum 24px for tap targets; generous cap to prevent absurdly large cells on big screens
+      // No artificial per-breakpoint cap — let the natural space calculation fill the viewport
+      box = Math.max(24, Math.min(box, 180));
 
-      // Dot size: minimum 10px on mobile for better tap targets (was 6)
+      // Dot size: minimum 10px on mobile for better tap targets
       const minDot = w < 640 ? 10 : 8;
       const dot = Math.max(minDot, Math.round(box * 0.22));
 
@@ -76,10 +79,23 @@ function useGridSizes(gridSize) {
 
       setSizes({ dot, line: box, box, lineThickness });
     }
+
     calculate();
+
+    // ResizeObserver on container for immediate recalc on layout changes
+    let ro;
+    if (containerRef?.current) {
+      ro = new ResizeObserver(calculate);
+      ro.observe(containerRef.current);
+    }
+
+    // Fallback: window resize
     window.addEventListener('resize', calculate);
-    return () => window.removeEventListener('resize', calculate);
-  }, [gridSize]);
+    return () => {
+      window.removeEventListener('resize', calculate);
+      if (ro) ro.disconnect();
+    };
+  }, [gridSize, containerRef]);
 
   return sizes;
 }
@@ -157,6 +173,7 @@ const Board = () => {
   const gameStarted      = useRef(false);
   // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
+  const boardAreaRef     = useRef(null);
 
   // Mute toggle handler
   const handleToggleMute = () => {
@@ -166,7 +183,7 @@ const Board = () => {
 
   const joinMode = location.state?.joinMode || (role === 'spectator' ? 'spectator' : 'player');
   const isSpectator = role === 'spectator';
-  const sizes = useGridSizes(gridSize);
+  const sizes = useGridSizes(gridSize, boardAreaRef);
 
   useEffect(() => {
     roleRef.current = role;
@@ -1260,7 +1277,7 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div className="flex flex-1 items-center justify-center w-full">
+        <div ref={boardAreaRef} className="flex flex-1 items-center justify-center w-full">
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -1308,13 +1325,6 @@ const Board = () => {
         </div>
 
         {/* ── Quick Chat (#216) ── */}
-        {gameState && !gameState.gameOver && !isSpectator && (
-          <ChatButton
-            onClick={() => setChatOpen((prev) => !prev)}
-            disabled={chatCooldown}
-            cooldown={chatCooldown}
-          />
-        )}
         {chatOpen && (
           <ChatPanel
             onSend={handleChatSend}
@@ -1323,7 +1333,7 @@ const Board = () => {
         )}
         <ChatOverlay socket={socket} gameId={gameId} />
 
-        {/* ── Bottom toolbar: Mute + Leave Game (on same row on mobile) ── */}
+        {/* ── Bottom toolbar: Mute + Chat + Leave Game (on same row on mobile) ── */}
         <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
           {/* Mute button — moved OUT of board */}
           <button
@@ -1336,6 +1346,28 @@ const Board = () => {
             <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>{muted ? 'Unmute' : 'Mute'}</span>
           </button>
+
+          {/* Chat button — inline in toolbar (#216) */}
+          {gameState && !gameState.gameOver && !isSpectator && (
+            <button
+              onClick={() => setChatOpen((prev) => !prev)}
+              disabled={chatCooldown}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all active:scale-90 shadow-sm"
+              style={{
+                backgroundColor: chatCooldown ? 'var(--bg-surface)' : chatOpen ? 'var(--accent)' : 'var(--bg-surface)',
+                color: chatOpen ? 'var(--text-on-accent)' : 'var(--text-primary)',
+                minHeight: '44px',
+                minWidth: '44px',
+                opacity: chatCooldown ? 0.6 : 1,
+                cursor: chatCooldown ? 'not-allowed' : 'pointer',
+              }}
+              aria-label={chatCooldown ? 'Chat on cooldown' : 'Quick chat'}
+              title={chatCooldown ? 'Chat on cooldown' : 'Quick chat'}
+            >
+              <span className="text-lg">💬</span>
+              <span className="text-xs hidden sm:inline" style={{ color: chatOpen ? 'var(--text-on-accent)' : 'var(--text-secondary)' }}>Chat</span>
+            </button>
+          )}
 
           {/* Leave button */}
           <button
