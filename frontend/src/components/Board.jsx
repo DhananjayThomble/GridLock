@@ -46,7 +46,6 @@ function useGridSizes(gridSize) {
       const w = window.innerWidth;
       const h = window.innerHeight;
       const cells = gridSize || 3;
-      const units = cells * 2 + 1; // (cells+1) dots + cells lines/boxes per axis
 
       // Horizontal: full width minus small padding (8px each side on mobile)
       const reservedW = w < 640 ? 16 : w < 768 ? 40 : 56;
@@ -56,16 +55,33 @@ function useGridSizes(gridSize) {
       const availW = w - reservedW;
       const availH = h - reservedH;
 
-      const fromW = Math.floor(availW / units);
-      const fromH = Math.floor(availH / units);
-      let box = Math.min(fromW, fromH);
+      // Dot size is proportional to box: dot ≈ max(minDot, box * 0.22)
+      // Grid width = (cells+1) * dot + cells * box
+      // With dot = dotRatio * box: grid = box * ((cells+1)*dotRatio + cells)
+      // So: box = avail / ((cells+1)*dotRatio + cells)
+      const minDot = w < 640 ? 10 : 8;
+      const dotRatio = 0.22;
 
-      // Minimum 24px for tap targets; generous cap for large screens
+      // First pass: estimate box assuming dot = dotRatio * box
+      const effectiveUnits = (cells + 1) * dotRatio + cells;
+      const fromW = availW / effectiveUnits;
+      const fromH = availH / effectiveUnits;
+      let box = Math.floor(Math.min(fromW, fromH));
+
+      // Cap: min 24px, max 180px
       box = Math.max(24, Math.min(box, 180));
 
-      // Dot size: minimum 10px on mobile for better tap targets
-      const minDot = w < 640 ? 10 : 8;
-      const dot = Math.max(minDot, Math.round(box * 0.22));
+      // Compute actual dot size (may be larger than dotRatio*box due to minimum)
+      let dot = Math.max(minDot, Math.round(box * dotRatio));
+
+      // Second pass: if dot minimum kicked in, recalculate box to fit
+      // Grid width = (cells+1)*dot + cells*box ≤ availW
+      if (dot > box * dotRatio) {
+        const maxBoxFromW = Math.floor((availW - (cells + 1) * dot) / cells);
+        const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
+        box = Math.min(box, maxBoxFromW, maxBoxFromH);
+        box = Math.max(24, box); // maintain minimum
+      }
 
       // Line thickness: proportional to box size, minimum 8px
       const lineThickness = Math.max(8, Math.round(box * 0.12));
