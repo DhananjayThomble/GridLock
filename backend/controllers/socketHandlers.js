@@ -3,6 +3,7 @@ const Game = require('../models/Game');
 const Leaderboard = require('../models/Leaderboard');
 const GameHistory = require('../models/GameHistory');
 const { calculateNewState, initializeGameState, pickForfeitWinner, getNextActivePlayer } = require('../utils/gameLogic');
+
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter, ipLimiter, normalizeIp } = require('../middleware/rateLimiter');
 const { validatePayload } = require('../middleware/socketSchemas');
@@ -3301,6 +3302,7 @@ function attachSocketHandlers(io, log) {
                             username: currentPlayer.username,
                             reason: 'disconnect_timeout',
                         });
+
 
                         if (remaining.length >= 2) {
                             // 2+ players remain — game continues, skip this player's turns
