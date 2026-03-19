@@ -34,7 +34,7 @@ function useGridSizes(gridSize) {
             const h = window.innerHeight;
             // Replay page has more controls (scrubber, etc.) so keep slightly larger reserves
             const reservedH = w < 640 ? 240 : w < 768 ? 260 : 280;
-            const reservedW = w < 640 ? 24 : w < 768 ? 40 : 56;
+            const reservedW = w < 640 ? 16 : w < 768 ? 40 : 56;
             const availW = w - reservedW;
             const availH = h - reservedH;
             const cells = gridSize || 3;
