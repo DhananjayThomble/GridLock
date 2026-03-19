@@ -31,6 +31,7 @@ const WaitingRoom = () => {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [roomFull, setRoomFull] = useState(false);
   const [disconnectTimers, setDisconnectTimers] = useState({});
 
   // Prevent double-navigate
@@ -90,12 +91,19 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
+    const onRoomFull = (data) => {
+      if (data.gameId !== gameId) return;
+      setRoomFull(true);
+      socket.emit('lobby_state', { gameId });
+    };
+
     socket.on('lobby_state', onLobbyState);
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected', onPlayerReconnected);
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
+    socket.on('room_full', onRoomFull);
 
     return () => {
       socket.off('lobby_state', onLobbyState);
@@ -104,6 +112,7 @@ const WaitingRoom = () => {
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
+      socket.off('room_full', onRoomFull);
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
       if (!navigatedRef.current) {
@@ -182,10 +191,14 @@ const WaitingRoom = () => {
 
   const handleStartGame = useCallback(() => {
     setStarting(true);
-    socket.emit('start_game_early', {
-      gameId, sessionToken, cpuDifficulty,
-    });
-  }, [gameId, sessionToken, cpuDifficulty]);
+    if (roomFull) {
+      // All slots filled with humans — use start_game
+      socket.emit('start_game', { gameId, sessionToken });
+    } else {
+      // Empty slots will be filled with CPU
+      socket.emit('start_game_early', { gameId, sessionToken, cpuDifficulty });
+    }
+  }, [gameId, sessionToken, cpuDifficulty, roomFull]);
 
   const handleLeave = useCallback(() => {
     navigate('/', { replace: true });

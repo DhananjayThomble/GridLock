@@ -1796,7 +1796,15 @@ function attachSocketHandlers(io, log) {
                 } catch (_) { /* push is best-effort */ }
 
                 if (filled === game.playerCount) {
-                    io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                    // Check if there are any CPU players
+                    const cpuCount = countCPUPlayers(game);
+                    if (cpuCount > 0) {
+                        // Has CPUs — auto-start (existing behavior)
+                        io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+                    } else {
+                        // All human players — let host click Start
+                        io.to(cleanGameId).emit('room_full', { gameId: cleanGameId });
+                    }
                 }
             } catch (error) {
                 log.error('Error joining game', { error: error.message, stack: error.stack });
@@ -2028,6 +2036,45 @@ function attachSocketHandlers(io, log) {
                 log.info('Game started early by host', { gameId: cleanGameId, filledBefore, total: freshGame.playerCount });
             } catch (error) {
                 log.error('Error starting game early', { error: error.message });
+                socket.emit('error', 'Failed to start game');
+            }
+        });
+
+        // ── start_game — host starts a full room of human players ─────────────
+        socket.on('start_game', async (rawPayload) => {
+            try {
+                if (rateLimited('start_game')) return;
+                const validated = validate('start_game', rawPayload);
+                if (!validated) return;
+                const { gameId, sessionToken } = validated;
+
+                const gidResult = sanitizeGameId(gameId);
+                if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
+                const cleanGameId = gidResult.value;
+
+                const game = await gameStore.getGame(cleanGameId);
+                if (!game) { socket.emit('error', 'Game not found'); return; }
+
+                // Only host (player1) can start
+                const host = game.players.player1;
+                if (!host || host.token !== sessionToken) {
+                    socket.emit('error', 'Only the game host can start the game');
+                    return;
+                }
+
+                // Room must be full
+                const filled = countFilledPlayers(game);
+                if (filled < game.playerCount) {
+                    socket.emit('error', 'Room is not full yet');
+                    return;
+                }
+
+                await persistGame(game, 'playing');
+                io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
+
+                log.info('Game started by host', { gameId: cleanGameId, playerCount: game.playerCount });
+            } catch (error) {
+                log.error('Error starting game', { error: error.message });
                 socket.emit('error', 'Failed to start game');
             }
         });

@@ -15,6 +15,7 @@ const JoinGame = () => {
   const [selectedAvatar, setSelectedAvatar] = useState('👦');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
+  const [permanentError, setPermanentError] = useState(false);
 
   // Redirect to lobby if no gameId
   useEffect(() => {
@@ -62,7 +63,12 @@ const JoinGame = () => {
 
     const onError = (msg) => {
       setJoining(false);
-      setError(typeof msg === 'string' ? msg : 'Something went wrong');
+      const message = typeof msg === 'string' ? msg : 'Something went wrong';
+      setError(message);
+      const permanentErrors = ['Game is full', 'Game not found', 'Game has already started', 'Game is no longer available'];
+      if (permanentErrors.some(pe => message.includes(pe))) {
+        setPermanentError(true);
+      }
     };
 
     socket.on('game_started', onGameStarted);
@@ -173,20 +179,31 @@ const JoinGame = () => {
             {error && (
               <div className="rounded-xl px-4 py-2.5 text-sm text-center" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
                 {error}
-                <button
-                  onClick={() => navigate('/')}
-                  className="block mx-auto mt-2 text-xs underline"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Go to Lobby
-                </button>
+                {permanentError && (
+                  <button
+                    onClick={() => navigate('/')}
+                    className="block mx-auto mt-2 py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                    style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
+                  >
+                    🏠 Find Another Game
+                  </button>
+                )}
+                {!permanentError && (
+                  <button
+                    onClick={() => navigate('/')}
+                    className="block mx-auto mt-2 text-xs underline"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    Go to Lobby
+                  </button>
+                )}
               </div>
             )}
 
             {/* Join button */}
             <button
               onClick={handleJoin}
-              disabled={joining}
+              disabled={joining || permanentError}
               className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60"
               style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
             >

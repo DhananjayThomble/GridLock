@@ -12,9 +12,9 @@ const {
 const { initializeGameState, calculateNewState } = require('../utils/gameLogic');
 
 describe('cpuPlayer constants', () => {
-    test('has 3 CPU names and avatars', () => {
-        expect(CPU_NAMES).toHaveLength(3);
-        expect(CPU_AVATARS).toHaveLength(3);
+    test('has at least 6 CPU names and avatars', () => {
+        expect(CPU_NAMES.length).toBeGreaterThanOrEqual(6);
+        expect(CPU_AVATARS.length).toBeGreaterThanOrEqual(6);
     });
 
     test('has delays for all difficulty levels', () => {
