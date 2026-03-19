@@ -55,6 +55,16 @@ const WaitingRoom = () => {
       setSlots(data.slots || []);
       setFilled(data.filled || 0);
       if (data.cpuDifficulty) setCpuDifficulty(data.cpuDifficulty);
+      // Fix #2: Derive roomFull from lobby_state — clear when room becomes not-full
+      const isFull = data.filled === (data.playerCount || playerCount);
+      const hasCPUs = (data.slots || []).some((s) => s.isCPU && s.username);
+      if (isFull && !hasCPUs) {
+        setRoomFull(true);
+      } else {
+        setRoomFull(false);
+        setAutoStartAt(null);
+        setAutoStartCountdown(null);
+      }
     };
 
     const onPlayerJoined = (data) => {

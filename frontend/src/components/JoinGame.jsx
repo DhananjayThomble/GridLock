@@ -1,7 +1,7 @@
 // src/components/JoinGame.jsx
 // Zero-friction invite link join page — /join/:gameId
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { initAudio } from '../utils/sounds';
@@ -17,6 +17,7 @@ const JoinGame = () => {
   const [error, setError] = useState('');
   const [permanentError, setPermanentError] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(null);
+  const handleJoinRef = useRef(null);
 
   // Redirect to lobby if no gameId
   useEffect(() => {
@@ -30,6 +31,8 @@ const JoinGame = () => {
       setRetryCountdown((prev) => {
         if (prev <= 1) {
           setError('');
+          // Fix #6: Actually re-attempt join when countdown hits 0
+          setTimeout(() => handleJoinRef.current(), 0);
           return null;
         }
         return prev - 1;
@@ -118,6 +121,11 @@ const JoinGame = () => {
       ...(existingToken ? { sessionToken: existingToken } : {}),
     });
   };
+
+  // Keep ref in sync for auto-retry
+  useEffect(() => {
+    handleJoinRef.current = handleJoin;
+  });
 
   if (!gameId) return null;
 

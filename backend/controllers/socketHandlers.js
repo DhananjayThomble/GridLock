@@ -1763,7 +1763,9 @@ function attachSocketHandlers(io, log) {
                 socket.data.isSpectator = false;
                 socket.data.username = cleanUsername;
                 const filled = countFilledPlayers(game);
-                const status = filled === game.playerCount ? 'playing' : 'waiting';
+                const cpuCount = countCPUPlayers(game);
+                // Fix #3: Full-human rooms stay 'waiting' until host-start/AFK auto-start
+                const status = (filled === game.playerCount && cpuCount > 0) ? 'playing' : 'waiting';
                 await gameStore.setGame(cleanGameId, game);
                 await persistGame(game, status);
 
@@ -1820,12 +1822,35 @@ function attachSocketHandlers(io, log) {
                             try {
                                 const g = await gameStore.getGame(cleanGameId);
                                 if (!g || g.gameState?.winner) return;
-                                // Guard: game already started (race with manual start_game)
-                                if (g.gameState && g.gameState.currentPlayer) return;
+                                // Fix #1: Use started flag instead of currentPlayer (which is set at init)
+                                if (g.started) return;
                                 // Only auto-start if room is still full and game hasn't started
                                 const f = countFilledPlayers(g);
                                 if (f < g.playerCount) return;
+                                g.started = true;
+                                await gameStore.setGame(cleanGameId, g);
                                 await persistGame(g, 'playing');
+                                // Fix #5: Emit game_started per-player (like start_game_early does)
+                                // so WaitingRoom clients navigate correctly
+                                const gsWithPlayers = buildGameStateWithPlayers(g);
+                                for (let i = 1; i <= g.playerCount; i++) {
+                                    const pid = `player${i}`;
+                                    const player = g.players[pid];
+                                    if (player && !player.isCPU) {
+                                        const playerSocket = io.sockets.sockets.get(player.id);
+                                        if (playerSocket) {
+                                            playerSocket.emit('game_started', {
+                                                gameId: cleanGameId,
+                                                playerId: pid,
+                                                sessionToken: player.token,
+                                                gridSize: g.gridSize,
+                                                playerCount: g.playerCount,
+                                                players: getPlayersList(g),
+                                                gameState: gsWithPlayers,
+                                            });
+                                        }
+                                    }
+                                }
                                 io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
                                 log.info('Game auto-started (AFK host timeout)', { gameId: cleanGameId });
                             } catch (err) {
@@ -2030,6 +2055,7 @@ function attachSocketHandlers(io, log) {
                 }
                 freshGame.cpuDifficulty = cleanDifficulty;
 
+                freshGame.started = true;
                 await gameStore.setGame(cleanGameId, freshGame);
                 await persistGame(freshGame, 'playing');
 
@@ -2090,8 +2116,8 @@ function attachSocketHandlers(io, log) {
                     return;
                 }
 
-                // Guard: game already started (race with AFK timer or double-click)
-                if (game.gameState && game.gameState.currentPlayer) return;
+                // Fix #4: Use started flag instead of currentPlayer guard
+                if (game.started) return;
 
                 // Room must be full
                 const filled = countFilledPlayers(game);
@@ -2107,7 +2133,31 @@ function attachSocketHandlers(io, log) {
                 clearTimeout(hostStartTimers.get(cleanGameId));
                 hostStartTimers.delete(cleanGameId);
 
+                game.started = true;
+                await gameStore.setGame(cleanGameId, game);
                 await persistGame(game, 'playing');
+
+                // Fix #5: Emit game_started per-player (like start_game_early does)
+                // so WaitingRoom clients navigate correctly
+                const gameStateWithPlayers = buildGameStateWithPlayers(game);
+                for (let i = 1; i <= game.playerCount; i++) {
+                    const pid = `player${i}`;
+                    const player = game.players[pid];
+                    if (player && !player.isCPU) {
+                        const playerSocket = io.sockets.sockets.get(player.id);
+                        if (playerSocket) {
+                            playerSocket.emit('game_started', {
+                                gameId: cleanGameId,
+                                playerId: pid,
+                                sessionToken: player.token,
+                                gridSize: game.gridSize,
+                                playerCount: game.playerCount,
+                                players: getPlayersList(game),
+                                gameState: gameStateWithPlayers,
+                            });
+                        }
+                    }
+                }
                 io.to(cleanGameId).emit('all_players_joined', { gameId: cleanGameId });
 
                 log.info('Game started by host', { gameId: cleanGameId, playerCount: game.playerCount });

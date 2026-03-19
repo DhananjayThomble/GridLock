@@ -2,6 +2,7 @@ const {
   calculateNewState,
   initializeGameState,
   getNextPlayer,
+  getNextActivePlayer,
   calculateWinner,
 } = require('../utils/gameLogic');
 
@@ -217,5 +218,54 @@ describe('calculateNewState', () => {
     calculateNewState(state, 2, 0, 0, 'horizontal');
 
     expect(state).toEqual(original);
+  });
+});
+
+// Fix #7: Unit tests for getNextActivePlayer
+describe('getNextActivePlayer', () => {
+  const players = ['player1', 'player2', 'player3', 'player4'];
+
+  test('normal case — returns next active player in order', () => {
+    const active = new Set(['player1', 'player2', 'player3', 'player4']);
+    expect(getNextActivePlayer('player1', players, active)).toBe('player2');
+    expect(getNextActivePlayer('player2', players, active)).toBe('player3');
+    expect(getNextActivePlayer('player4', players, active)).toBe('player1');
+  });
+
+  test('skips inactive players', () => {
+    const active = new Set(['player1', 'player3']);
+    expect(getNextActivePlayer('player1', players, active)).toBe('player3');
+    expect(getNextActivePlayer('player3', players, active)).toBe('player1');
+  });
+
+  test('currentPlayer not in players list — falls back to first active', () => {
+    const active = new Set(['player2', 'player4']);
+    expect(getNextActivePlayer('playerX', players, active)).toBe('player2');
+  });
+
+  test('empty active set — returns null', () => {
+    const active = new Set();
+    expect(getNextActivePlayer('player1', players, active)).toBeNull();
+  });
+
+  test('all players disconnected (empty active array) — returns null', () => {
+    expect(getNextActivePlayer('player1', players, [])).toBeNull();
+  });
+
+  test('only one active player — always returns that player', () => {
+    const active = new Set(['player3']);
+    expect(getNextActivePlayer('player1', players, active)).toBe('player3');
+    expect(getNextActivePlayer('player3', players, active)).toBe('player3');
+  });
+
+  test('accepts Array instead of Set for activePlayers', () => {
+    const active = ['player1', 'player4'];
+    expect(getNextActivePlayer('player1', players, active)).toBe('player4');
+    expect(getNextActivePlayer('player4', players, active)).toBe('player1');
+  });
+
+  test('falls back to getNextPlayer when activePlayers is undefined', () => {
+    expect(getNextActivePlayer('player1', players)).toBe('player2');
+    expect(getNextActivePlayer('player4', players)).toBe('player1');
   });
 });

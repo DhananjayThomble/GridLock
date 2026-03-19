@@ -32,7 +32,8 @@ function useGridSizes(gridSize) {
         function calculate() {
             const w = window.innerWidth;
             const h = window.innerHeight;
-            // Replay page has more controls (scrubber, etc.) so keep slightly larger reserves
+            // Replay page has more controls (scrubber, etc.) so keep slightly smaller reserves
+            // to let the board fill available space
             const reservedH = w < 640 ? 240 : w < 768 ? 260 : 280;
             const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
             const availW = w - reservedW;
