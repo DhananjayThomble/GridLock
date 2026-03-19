@@ -249,7 +249,7 @@ const WaitingRoom = () => {
               Room Code
             </span>
             <div
-              className="mt-2 font-mono text-4xl font-extrabold tracking-[0.3em] select-all"
+              className="mt-2 font-mono text-4xl font-extrabold tracking-[0.12em] select-all"
               style={{ color: 'var(--text-primary)' }}
             >
               {gameId}
