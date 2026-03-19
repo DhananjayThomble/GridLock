@@ -154,6 +154,7 @@ const JoinGame = () => {
             </div>
 
             {/* Username */}
+            {!permanentError && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
               <input
@@ -173,8 +174,10 @@ const JoinGame = () => {
                 style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
               />
             </div>
+            )}
 
             {/* Avatar picker */}
+            {!permanentError && (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
               <div className="grid grid-cols-8 gap-1.5">
@@ -196,6 +199,7 @@ const JoinGame = () => {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Error */}
             {error && (
@@ -237,13 +241,14 @@ const JoinGame = () => {
             )}
 
             {/* Join button */}
+            {!permanentError && (
             <button
               onClick={handleJoin}
-              disabled={joining || permanentError || retryCountdown > 0}
+              disabled={joining || retryCountdown > 0}
               className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
-                background: (joining || permanentError || retryCountdown > 0) ? 'var(--bg-surface)' : 'var(--success)',
-                ...((joining || permanentError || retryCountdown > 0) && { color: 'var(--text-muted)' }),
+                background: (joining || retryCountdown > 0) ? 'var(--bg-surface)' : 'var(--success)',
+                ...((joining || retryCountdown > 0) && { color: 'var(--text-muted)' }),
               }}
             >
               {joining ? (
@@ -255,8 +260,10 @@ const JoinGame = () => {
                 '🎮 Join Game'
               )}
             </button>
+            )}
 
             {/* Lobby link */}
+            {!permanentError && (
             <p className="text-center">
               <button
                 onClick={() => navigate('/')}
@@ -266,6 +273,7 @@ const JoinGame = () => {
                 or go to Lobby →
               </button>
             </p>
+            )}
           </div>
         </div>
       </div>

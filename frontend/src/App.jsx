@@ -75,7 +75,7 @@ const AppLayout = () => {
                 {withPageSeo(
                   <Lobby />,
                   {
-                    title: 'Dots & Boxes Multiplayer',
+                    title: 'GridLock — Dots & Boxes Multiplayer',
                     description: 'Play GridLock, a real-time multiplayer Dots & Boxes game built for competitive online matches.',
                   },
                 )}
