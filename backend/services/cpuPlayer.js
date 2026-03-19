@@ -1,8 +1,8 @@
 // backend/services/cpuPlayer.js
 // CPU/AI player move selection for Dots & Boxes
 
-const CPU_NAMES = ['Bot-Alpha', 'Bot-Beta', 'Bot-Gamma'];
-const CPU_AVATARS = ['🤖', '🧠', '🎯'];
+const CPU_NAMES = ['Bot-Alpha', 'Bot-Beta', 'Bot-Gamma', 'Bot-Delta', 'Bot-Epsilon', 'Bot-Zeta'];
+const CPU_AVATARS = ['🤖', '🧠', '🎯', '🔮', '⚡', '🎲'];
 
 const CPU_DELAYS = {
     easy: 800,

@@ -31,6 +31,9 @@ const WaitingRoom = () => {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [roomFull, setRoomFull] = useState(false);
+  const [autoStartAt, setAutoStartAt] = useState(null);
+  const [autoStartCountdown, setAutoStartCountdown] = useState(null);
   const [disconnectTimers, setDisconnectTimers] = useState({});
 
   // Prevent double-navigate
@@ -90,12 +93,20 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
+    const onRoomFull = (data) => {
+      if (data.gameId !== gameId) return;
+      setRoomFull(true);
+      if (data.autoStartAt) setAutoStartAt(data.autoStartAt);
+      socket.emit('lobby_state', { gameId });
+    };
+
     socket.on('lobby_state', onLobbyState);
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_disconnected', onPlayerDisconnected);
     socket.on('player_reconnected', onPlayerReconnected);
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
+    socket.on('room_full', onRoomFull);
 
     return () => {
       socket.off('lobby_state', onLobbyState);
@@ -104,6 +115,7 @@ const WaitingRoom = () => {
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
+      socket.off('room_full', onRoomFull);
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
       if (!navigatedRef.current) {
@@ -133,6 +145,16 @@ const WaitingRoom = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, [slots]);
+
+  // Auto-start countdown tick
+  useEffect(() => {
+    if (!autoStartAt) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((autoStartAt - Date.now()) / 1000));
+      setAutoStartCountdown(remaining);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [autoStartAt]);
 
   const handleCopyCode = useCallback(async () => {
     try {
@@ -182,10 +204,14 @@ const WaitingRoom = () => {
 
   const handleStartGame = useCallback(() => {
     setStarting(true);
-    socket.emit('start_game_early', {
-      gameId, sessionToken, cpuDifficulty,
-    });
-  }, [gameId, sessionToken, cpuDifficulty]);
+    if (roomFull) {
+      // All slots filled with humans — use start_game
+      socket.emit('start_game', { gameId, sessionToken });
+    } else {
+      // Empty slots will be filled with CPU
+      socket.emit('start_game_early', { gameId, sessionToken, cpuDifficulty });
+    }
+  }, [gameId, sessionToken, cpuDifficulty, roomFull]);
 
   const handleLeave = useCallback(() => {
     navigate('/', { replace: true });
@@ -368,7 +394,11 @@ const WaitingRoom = () => {
           {/* Fix #7: Non-host context message */}
           {!isHost && (
             <p className="text-center text-sm py-3 px-4" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-              ⏳ Waiting for the host to start the game...
+              {autoStartCountdown != null && autoStartCountdown > 0
+                ? `⏳ Auto-starting in ${autoStartCountdown}s...`
+                : autoStartCountdown === 0
+                  ? '🚀 Starting now...'
+                  : '⏳ Waiting for the host to start the game...'}
             </p>
           )}
 

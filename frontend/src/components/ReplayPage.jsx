@@ -24,7 +24,7 @@ const SPEEDS = [
     { label: '4x', ms: 125 },
 ];
 
-// ─── Responsive sizing hook (same as Board.jsx) ──────────────────────────────
+// ─── Responsive sizing hook (same logic as Board.jsx) ────────────────────────
 function useGridSizes(gridSize) {
     const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48 });
 
@@ -32,8 +32,9 @@ function useGridSizes(gridSize) {
         function calculate() {
             const w = window.innerWidth;
             const h = window.innerHeight;
-            const reservedH = w < 640 ? 280 : w < 768 ? 300 : 320;
-            const reservedW = w < 640 ? 32 : w < 768 ? 48 : 64;
+            // Replay page has more controls (scrubber, etc.) so keep slightly larger reserves
+            const reservedH = w < 640 ? 240 : w < 768 ? 260 : 280;
+            const reservedW = w < 640 ? 24 : w < 768 ? 40 : 56;
             const availW = w - reservedW;
             const availH = h - reservedH;
             const cells = gridSize || 3;
@@ -41,8 +42,8 @@ function useGridSizes(gridSize) {
             const fromW = Math.floor(availW / units);
             const fromH = Math.floor(availH / units);
             let box = Math.min(fromW, fromH);
-            const maxBox = w < 640 ? 90 : w < 1024 ? 96 : 100;
-            box = Math.max(24, Math.min(box, maxBox));
+            // Generous cap — let the board fill available space
+            box = Math.max(24, Math.min(box, 180));
             const dot = Math.max(6, Math.round(box * 0.18));
             setSizes({ dot, line: box, box });
         }

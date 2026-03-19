@@ -123,6 +123,11 @@ const schemas = {
         sessionToken: Joi.string().trim().hex().length(48).required(),
         cpuDifficulty: Joi.string().valid('easy', 'medium', 'hard').optional().default('medium'),
     }),
+
+    start_game: Joi.object({
+        gameId: gameIdField,
+        sessionToken: Joi.string().trim().hex().length(48).required(),
+    }),
 };
 
 /**
