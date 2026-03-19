@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getSoundSettings, saveSoundSettings } from '../utils/sounds';
 import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
+import { usePwaInstall } from '../hooks/usePwaInstall';
 import socket from '../socket';
 
 /* ─── Reusable Toggle Switch ─── */
@@ -288,27 +289,12 @@ const Settings = () => {
   const isDark = theme === 'dark';
 
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
-  const [installPrompt, setInstallPrompt] = useState(null);
+  const { canInstall, install: handleInstall } = usePwaInstall();
   const [showSoundDetails, setShowSoundDetails] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(getStats);
   const [soundSettings, setSoundSettings] = useState(() => getSoundSettings());
 
-  // PWA install prompt
-  React.useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    if (isStandalone) return;
-    const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
-  };
 
   const handlePushToggle = async () => {
     if (!pushEnabled) {
@@ -384,7 +370,7 @@ const Settings = () => {
         </SectionCard>
 
         {/* ─── APP ─── */}
-        {installPrompt && (
+        {canInstall && (
           <>
             <SectionHeader title="App" />
             <SectionCard>
