@@ -16,6 +16,7 @@ const JoinGame = () => {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [permanentError, setPermanentError] = useState(false);
+  const [isGameFull, setIsGameFull] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(null);
   const handleJoinRef = useRef(null);
 
@@ -46,6 +47,22 @@ const JoinGame = () => {
     const onGameStarted = (data) => {
       setJoining(false);
       localStorage.setItem('gridlock_username', username.trim());
+
+      // Check if joined as spectator (#365)
+      if (data.role === 'spectator' || data.playerId === 'spectator') {
+        navigate('/game', {
+          state: {
+            username: username.trim(),
+            gameId: data.gameId || gameId.toUpperCase(),
+            role: 'spectator',
+            avatar: selectedAvatar,
+            playerCount: data.playerCount,
+            gridSize: data.gridSize,
+            joinMode: 'spectator',
+          },
+        });
+        return;
+      }
 
       // Check if game is full — if not, go to waiting room
       const playerList = data.players || {};
@@ -89,10 +106,14 @@ const JoinGame = () => {
       const trulyPermanentErrors = ['Game not found', 'Game has already started', 'Game is no longer available'];
       if (trulyPermanentErrors.some(pe => message.includes(pe))) {
         setPermanentError(true);
+        setIsGameFull(false);
       } else if (message.includes('Game is full')) {
         // Transient: auto-retry after 5 seconds
         setPermanentError(false);
+        setIsGameFull(true);
         setRetryCountdown(5);
+      } else {
+        setIsGameFull(false);
       }
     };
 
@@ -126,6 +147,24 @@ const JoinGame = () => {
   useEffect(() => {
     handleJoinRef.current = handleJoin;
   });
+
+  // Watch Game as spectator (#365)
+  const handleWatchGame = () => {
+    const name = username.trim();
+    if (!name) return setError('Please enter a username');
+    setError('');
+    setIsGameFull(false);
+    setJoining(true);
+    initAudio();
+    localStorage.setItem('gridlock_username', name);
+    if (!socket.connected) socket.connect();
+    socket.emit('join_game', {
+      gameId: gameId.toUpperCase(),
+      username: name,
+      avatar: selectedAvatar,
+      joinMode: 'spectator',
+    });
+  };
 
   if (!gameId) return null;
 
@@ -218,6 +257,25 @@ const JoinGame = () => {
                     Retrying in {retryCountdown}s...
                   </p>
                 )}
+                {/* Watch Game button when game is full (#365) */}
+                {isGameFull && (
+                  <div className="flex gap-2 mt-2 justify-center">
+                    <button
+                      onClick={handleWatchGame}
+                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
+                    >
+                      👀 Watch Game
+                    </button>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color-strong)' }}
+                    >
+                      🏠 Find Another Game
+                    </button>
+                  </div>
+                )}
                 {permanentError && (
                   <div className="flex gap-2 mt-2 justify-center">
                     <button
@@ -236,7 +294,7 @@ const JoinGame = () => {
                     </button>
                   </div>
                 )}
-                {!permanentError && !retryCountdown && (
+                {!permanentError && !isGameFull && !retryCountdown && (
                   <button
                     onClick={() => navigate('/')}
                     className="block mx-auto mt-2 text-xs underline"

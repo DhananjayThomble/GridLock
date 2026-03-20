@@ -269,6 +269,21 @@ const Board = () => {
         }
       }
 
+      // Track active game for rejoin banner on Lobby (#365)
+      if (gameId && username && data.playerId !== 'spectator') {
+        try {
+          localStorage.setItem('gridlock_active_game', JSON.stringify({
+            gameId,
+            username,
+            avatar,
+            sessionToken: data.sessionToken || sessionToken,
+            gridSize,
+            playerCount,
+            timestamp: Date.now(),
+          }));
+        } catch { /* quota exceeded / private browsing */ }
+      }
+
       // Count how many slots are still waiting
       const count = data.playerCount || 2;
       let filled = 0;
@@ -327,6 +342,9 @@ const Board = () => {
       setWaitingCount(0);
 
       if (gs.gameOver || gs.winner) {
+        // Clear active game tracking — game is over (#365)
+        try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+
         setGameDuration(prev => prev || (gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null));
         const winner = gs.winner;
 
@@ -617,6 +635,8 @@ const Board = () => {
 
   const doLeaveGame = () => {
     setShowLeaveConfirm(false);
+    // Clear active game tracking — player voluntarily left (#365)
+    try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
     // Emit leave_game so the server knows we're leaving voluntarily (#365)
     if (gameId) {
       socket.emit('leave_game', { gameId });

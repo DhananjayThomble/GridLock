@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import RankBadge from './RankBadge';
 
-const RankedQueue = ({ elo, tier, tierIcon, queueSize, placementProgress, cooldownUntil, onCancel }) => {
+const RankedQueue = ({ elo, tier, tierIcon, queueSize, placementProgress, cooldownUntil, onCancel, profile }) => {
   const [elapsed, setElapsed] = useState(0);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
@@ -90,6 +90,29 @@ const RankedQueue = ({ elo, tier, tierIcon, queueSize, placementProgress, cooldo
             <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
               Placement: {placementProgress}
             </p>
+          </div>
+        )}
+
+        {/* Win/Loss Record (#365) */}
+        {profile && !placementProgress && (
+          <div
+            className="rounded-xl px-4 py-2 flex items-center justify-center gap-4"
+            style={{
+              background: 'color-mix(in srgb, var(--bg-secondary) 50%, transparent)',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <span className="text-xs font-bold" style={{ color: 'var(--success)' }}>
+              {profile.wins}W
+            </span>
+            <span className="text-xs font-bold" style={{ color: 'var(--danger)' }}>
+              {profile.losses}L
+            </span>
+            {(profile.draws || 0) > 0 && (
+              <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                {profile.draws}D
+              </span>
+            )}
           </div>
         )}
 
