@@ -73,7 +73,8 @@ export VITE_BASE_PATH=/
 export VITE_SOCKET_URL=https://beta-api.gridlock.pro
 export VITE_API_BASE_URL=https://beta-api.gridlock.pro
 export VITE_SITE_URL=https://beta.gridlock.pro
-npm run build --silent
+export PUPPETEER_SKIP_DOWNLOAD=true
+npm run build:seo --silent
 
 sudo rm -rf "$BETA_WEB"/*
 sudo cp -r dist/. "$BETA_WEB/"

@@ -63,8 +63,8 @@ log "Installing frontend dependencies..."
 cd "$REPO_DIR/frontend"
 npm ci --loglevel=warn
 
-log "Building frontend..."
-npm run build
+log "Building frontend (with SEO prerendering)..."
+PUPPETEER_SKIP_DOWNLOAD=true npm run build:seo
 
 if [ ! -d "$REPO_DIR/frontend/dist" ]; then
   log "❌ Build failed — frontend/dist not found"

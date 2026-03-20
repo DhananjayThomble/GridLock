@@ -206,7 +206,13 @@ const AppLayout = () => {
             path="/how-to-play"
             element={(
               <ErrorBoundary>
-                <HowToPlay />
+                {withPageSeo(
+                  <HowToPlay />,
+                  {
+                    title: 'How to Play — Rules, Strategy & Tips',
+                    description: 'Learn how to play GridLock, the online Dots & Boxes game. Master the rules, strategy tips, double-cross technique, and game modes.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
@@ -214,7 +220,13 @@ const AppLayout = () => {
             path="/settings"
             element={(
               <ErrorBoundary>
-                <Settings />
+                {withPageSeo(
+                  <Settings />,
+                  {
+                    title: 'Settings',
+                    description: 'Customize your GridLock experience — theme, sound, notifications, and display preferences.',
+                  },
+                )}
               </ErrorBoundary>
             )}
           />
