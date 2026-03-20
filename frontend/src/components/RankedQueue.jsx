@@ -93,7 +93,7 @@ const RankedQueue = ({ elo, tier, tierIcon, queueSize, placementProgress, cooldo
           </div>
         )}
 
-        {/* Win/Loss Record (#365) */}
+        {/* Win/Loss/Draw Record (#365, #374 review — always show all three) */}
         {profile && !placementProgress && (
           <div
             className="rounded-xl px-4 py-2 flex items-center justify-center gap-4"
@@ -105,14 +105,14 @@ const RankedQueue = ({ elo, tier, tierIcon, queueSize, placementProgress, cooldo
             <span className="text-xs font-bold" style={{ color: 'var(--success)' }}>
               {profile.wins}W
             </span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>·</span>
             <span className="text-xs font-bold" style={{ color: 'var(--danger)' }}>
               {profile.losses}L
             </span>
-            {(profile.draws || 0) > 0 && (
-              <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
-                {profile.draws}D
-              </span>
-            )}
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>·</span>
+            <span className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+              {profile.draws || 0}D
+            </span>
           </div>
         )}
 

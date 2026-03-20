@@ -107,6 +107,8 @@ const JoinGame = () => {
       if (trulyPermanentErrors.some(pe => message.includes(pe))) {
         setPermanentError(true);
         setIsGameFull(false);
+        // Clear active game from localStorage if game no longer exists (#374 review)
+        try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
       } else if (message.includes('Game is full')) {
         // Transient: auto-retry after 5 seconds
         setPermanentError(false);
@@ -152,6 +154,8 @@ const JoinGame = () => {
   const handleWatchGame = () => {
     const name = username.trim();
     if (!name) return setError('Please enter a username');
+    // Cancel any active retry countdown to prevent race condition (#374 review)
+    setRetryCountdown(null);
     setError('');
     setIsGameFull(false);
     setJoining(true);
@@ -262,14 +266,14 @@ const JoinGame = () => {
                   <div className="flex gap-2 mt-2 justify-center">
                     <button
                       onClick={handleWatchGame}
-                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      className="py-3 px-5 rounded-lg font-bold text-sm transition-all active:scale-95 min-h-[44px]"
                       style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
                     >
                       👀 Watch Game
                     </button>
                     <button
                       onClick={() => navigate('/')}
-                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      className="py-3 px-5 rounded-lg font-bold text-sm transition-all active:scale-95 min-h-[44px]"
                       style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color-strong)' }}
                     >
                       🏠 Find Another Game
@@ -280,14 +284,14 @@ const JoinGame = () => {
                   <div className="flex gap-2 mt-2 justify-center">
                     <button
                       onClick={() => { setError(''); setPermanentError(false); }}
-                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      className="py-3 px-5 rounded-lg font-bold text-sm transition-all active:scale-95 min-h-[44px]"
                       style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color-strong)' }}
                     >
                       🔄 Try Again
                     </button>
                     <button
                       onClick={() => navigate('/')}
-                      className="py-2 px-4 rounded-lg font-bold text-xs transition-all active:scale-95"
+                      className="py-3 px-5 rounded-lg font-bold text-sm transition-all active:scale-95 min-h-[44px]"
                       style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
                     >
                       🏠 Find Another Game

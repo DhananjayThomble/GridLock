@@ -1656,6 +1656,13 @@ function attachSocketHandlers(io, log) {
 
                 // Spectator path: join room read-only and receive live updates
                 if (isSpectatorJoinRequest(joinMode)) {
+                    // Cap spectators to prevent unbounded resource usage (#374 review)
+                    const MAX_SPECTATORS = 20;
+                    if ((game.spectatorCount || 0) >= MAX_SPECTATORS) {
+                        socket.emit('error', 'Spectator limit reached for this game');
+                        return;
+                    }
+
                     // Prevent spectator from rejoining as player mid-game
                     // (they chose spectator mode - they stay as spectator)
                     socket.join(cleanGameId);
@@ -2973,7 +2980,6 @@ function attachSocketHandlers(io, log) {
                         isPlacement: true,
                         placementProgress: `0/${PLACEMENT_GAMES_REQUIRED}`,
                         lastPlayedAt: null,
-                        isNew: true,
                     });
                 }
             } catch (error) {
