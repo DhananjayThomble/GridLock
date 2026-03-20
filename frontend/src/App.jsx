@@ -66,7 +66,7 @@ const AppLayout = () => {
 
       {!hideNav && <BottomNav />}
 
-      <div className={hideNav ? '' : 'app-content-with-nav'}>
+      <main className={hideNav ? '' : 'app-content-with-nav'}>
         <Routes>
           <Route
             path="/"
@@ -222,7 +222,7 @@ const AppLayout = () => {
           {/* Catch-all: redirect unknown routes to home instead of 404 — acceptable UX for a game app */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
+      </main>
     </>
   );
 };
