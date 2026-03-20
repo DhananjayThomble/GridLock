@@ -1656,6 +1656,13 @@ function attachSocketHandlers(io, log) {
 
                 // Spectator path: join room read-only and receive live updates
                 if (isSpectatorJoinRequest(joinMode)) {
+                    // Cap spectators to prevent unbounded resource usage (#374 review)
+                    const MAX_SPECTATORS = 20;
+                    if ((game.spectatorCount || 0) >= MAX_SPECTATORS) {
+                        socket.emit('error', 'Spectator limit reached for this game');
+                        return;
+                    }
+
                     // Prevent spectator from rejoining as player mid-game
                     // (they chose spectator mode - they stay as spectator)
                     socket.join(cleanGameId);
@@ -2931,6 +2938,54 @@ function attachSocketHandlers(io, log) {
             removeFromRankedQueue(socket.id);
             socket.data.rankedQueue = false;
             socket.emit('ranked_queue_left', {});
+        });
+
+        // ── get_ranked_profile — fetch player's ranked profile (#365) ────────
+        socket.on('get_ranked_profile', async (rawPayload) => {
+            try {
+                if (rateLimited('get_ranked_profile')) return;
+                const validated = validate('get_ranked_profile', rawPayload);
+                if (!validated) return;
+                const { username } = validated;
+
+                const uResult = sanitizeUsername(username);
+                if (!uResult.valid) { socket.emit('error', uResult.error); return; }
+                const cleanUsername = uResult.value;
+
+                const profile = await RankedProfile.findOne({ username: cleanUsername }).lean();
+                if (profile) {
+                    const tier = getTierFromElo(profile.elo);
+                    socket.emit('ranked_profile', {
+                        username: profile.username,
+                        elo: profile.elo,
+                        tier: tier.name,
+                        tierIcon: tier.icon,
+                        wins: profile.wins || 0,
+                        losses: profile.losses || 0,
+                        draws: profile.draws || 0,
+                        isPlacement: (profile.placementGames || []).length < PLACEMENT_GAMES_REQUIRED,
+                        placementProgress: `${(profile.placementGames || []).length}/${PLACEMENT_GAMES_REQUIRED}`,
+                        lastPlayedAt: profile.lastPlayedAt || null,
+                    });
+                } else {
+                    const defaultTier = getTierFromElo(1200);
+                    socket.emit('ranked_profile', {
+                        username: cleanUsername,
+                        elo: 1200,
+                        tier: defaultTier.name,
+                        tierIcon: defaultTier.icon,
+                        wins: 0,
+                        losses: 0,
+                        draws: 0,
+                        isPlacement: true,
+                        placementProgress: `0/${PLACEMENT_GAMES_REQUIRED}`,
+                        lastPlayedAt: null,
+                    });
+                }
+            } catch (error) {
+                log.error('Error fetching ranked profile', { error: error.message });
+                socket.emit('error', 'Failed to fetch ranked profile');
+            }
         });
 
         // ── game_chat (in-game quick chat & emoji reactions - #216) ────────────

@@ -111,6 +111,11 @@ const schemas = {
         gameId: gameIdField,
     }),
 
+    // Ranked profile fetch (#365)
+    get_ranked_profile: Joi.object({
+        username: usernameField,
+    }),
+
     replace_with_cpu: Joi.object({
         gameId: gameIdField,
         sessionToken: Joi.string().trim().hex().length(48).required(),

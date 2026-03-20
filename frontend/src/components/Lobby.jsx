@@ -104,10 +104,29 @@ const Lobby = () => {
   const [rankedTier, setRankedTier] = useState('Bronze');
   const [rankedTierIcon, setRankedTierIcon] = useState('🥉');
   const [rankedQueueSize, setRankedQueueSize] = useState(1);
-  const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null); // eslint-disable-line no-unused-vars
+  const [rankedPlacementProgress, setRankedPlacementProgress] = useState(null);
   const [rankedCooldownUntil, setRankedCooldownUntil] = useState(null);
+  // Ranked profile state (#365)
+  const [rankedProfile, setRankedProfile] = useState(null);
+  const [, setRankedProfileLoading] = useState(false);
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => localStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
+  // Active game banner state (#365)
+  const [activeGame, setActiveGame] = useState(() => {
+    try {
+      const raw = localStorage.getItem('gridlock_active_game');
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      // Expire after 15 minutes to reduce staleness window (#374 review)
+      if (Date.now() - data.timestamp > 15 * 60 * 1000) {
+        localStorage.removeItem('gridlock_active_game');
+        return null;
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  });
   const navigate = useNavigate();
   const usernameInputRef = useRef(null);
 
@@ -277,6 +296,31 @@ const Lobby = () => {
     };
   }, [navigate, username, selectedAvatar]);
 
+  // ── Socket: Ranked profile fetch (#365) ──────────────────────────────────
+  useEffect(() => {
+    const onRankedProfile = (data) => {
+      setRankedProfileLoading(false);
+      setRankedProfile(data);
+      // Sync ranked state with profile data
+      if (data.elo != null) setRankedElo(data.elo);
+      if (data.tier) setRankedTier(data.tier);
+      if (data.tierIcon) setRankedTierIcon(data.tierIcon);
+    };
+
+    socket.on('ranked_profile', onRankedProfile);
+    return () => {
+      socket.off('ranked_profile', onRankedProfile);
+    };
+  }, []);
+
+  // Fetch ranked profile on mount and when username changes (#374 review)
+  useEffect(() => {
+    const name = username.trim();
+    if (name && name.length >= 2 && socket.connected) {
+      socket.emit('get_ranked_profile', { username: name });
+    }
+  }, [username]);
+
   // ── Ref for unmount cleanup (captures latest quickPlaying value) ──────────
   const quickPlayingRef = useRef(quickPlaying);
   useEffect(() => { quickPlayingRef.current = quickPlaying; }, [quickPlaying]);
@@ -359,6 +403,7 @@ const Lobby = () => {
     setUsernameError('');
     if (!socket.connected) socket.connect();
     localStorage.setItem('gridlock_username', name);
+    // Use already-fetched profile data — no duplicate fetch (#374 review)
     setRankedPlaying(true);
     setRankedQueueSize(1);
     socket.emit('ranked_queue_join', { username: name, avatar: selectedAvatar, gridSize });
@@ -501,6 +546,41 @@ const Lobby = () => {
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-lg md:max-w-[720px] lg:max-w-[960px]">
+
+        {/* ── Active Game Rejoin Banner (#365) ── */}
+        {activeGame && (
+          <div
+            className="rounded-xl p-3 px-4 mb-4 flex items-center justify-between gap-3"
+            style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--success) 15%, transparent))', border: '1px solid var(--accent)' }}
+          >
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-lg flex-shrink-0">⚡</span>
+              <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                You have an unfinished game — rejoin before it expires!
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => navigate(`/join/${activeGame.gameId}`)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
+                style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
+              >
+                Rejoin Game
+              </button>
+              <button
+                onClick={() => {
+                  try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+                  setActiveGame(null);
+                }}
+                className="p-1.5 rounded-lg text-xs transition-all active:scale-95 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                style={{ color: 'var(--text-muted)', background: 'color-mix(in srgb, var(--bg-secondary) 50%, transparent)' }}
+                aria-label="Dismiss active game banner"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── New to GridLock? Banner ── */}
         {!howToPlayDismissed && (
@@ -1022,14 +1102,20 @@ const Lobby = () => {
             <button
               onClick={handleRankedPlay}
               disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex flex-col items-center justify-center gap-0.5"
               style={{
+                minHeight: '44px',
                 background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
                 border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 40%, transparent)'}`,
                 color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
               }}
             >
-              {rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked'}
+              <span>{rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked'}</span>
+              {rankedProfile && !rankedPlaying && (
+                <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>
+                  {rankedProfile.tierIcon} {rankedProfile.elo} ELO · {rankedProfile.wins}W · {rankedProfile.losses}L · {rankedProfile.draws || 0}D
+                </span>
+              )}
             </button>
           </div>
 
@@ -1280,6 +1366,7 @@ const Lobby = () => {
           placementProgress={rankedPlacementProgress}
           cooldownUntil={rankedCooldownUntil}
           onCancel={handleRankedCancel}
+          profile={rankedProfile}
         />
       )}
     </div>
