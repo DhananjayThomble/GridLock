@@ -51,11 +51,10 @@ echo ""
 echo "Version: v${VERSION}"
 echo "This will:"
 echo "  1. Tag develop as v${VERSION}-beta"
-echo "  2. Create GitHub Release (draft) with changelog"
 echo ""
 echo "After DJ merges develop → main:"
-echo "  3. Tag main as v${VERSION}"
-echo "  4. Publish GitHub Release"
+echo "  2. Tag main as v${VERSION}"
+echo "  3. Publish GitHub Release"
 echo ""
 read -p "Continue? [y/N] " confirm
 if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then

@@ -9,6 +9,7 @@ const {
     clearAllTimers,
     lobbyTimers,
     postgameTimers,
+    graceTimers,
     LOBBY_TIMEOUT_MS,
     POSTGAME_TIMEOUT_MS,
 } = require('../middleware/idleTimeout');
@@ -18,14 +19,17 @@ beforeEach(() => {
     jest.useFakeTimers();
     lobbyTimers.clear();
     postgameTimers.clear();
+    graceTimers.clear();
 });
 
 afterEach(() => {
     // Clear any remaining timers
     lobbyTimers.forEach((timer) => clearTimeout(timer));
     postgameTimers.forEach((timer) => clearTimeout(timer));
+    graceTimers.forEach((timer) => clearTimeout(timer));
     lobbyTimers.clear();
     postgameTimers.clear();
+    graceTimers.clear();
     jest.useRealTimers();
 });
 

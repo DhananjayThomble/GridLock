@@ -54,8 +54,10 @@ for f in package.json frontend/package.json backend/package.json; do
 done
 
 # Also update frontend/.env.production VITE_APP_VERSION if it exists
-if grep -q "VITE_APP_VERSION" frontend/.env.production 2>/dev/null; then
-  sed -i "s/VITE_APP_VERSION=.*/VITE_APP_VERSION=$NEW/" frontend/.env.production
+if [ -f frontend/.env.production ] && grep -q "VITE_APP_VERSION" frontend/.env.production; then
+  tmp_env="$(mktemp)"
+  sed "s/VITE_APP_VERSION=.*/VITE_APP_VERSION=$NEW/" frontend/.env.production > "$tmp_env"
+  mv "$tmp_env" frontend/.env.production
   echo "  Updated frontend/.env.production VITE_APP_VERSION"
 else
   echo "VITE_APP_VERSION=$NEW" >> frontend/.env.production

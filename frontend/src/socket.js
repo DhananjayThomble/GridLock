@@ -27,8 +27,6 @@ const socket = io(socketUrl, {
 // ── Sentry socket tracking ────────────────────────────────────────────────────
 
 socket.on('connect', () => {
-  // Reset idle disconnect state on reconnect (#390 P2)
-  socket._idleDisconnect = false;
   socket.io.opts.reconnection = true;
 
   addBreadcrumb({
@@ -83,7 +81,6 @@ socket.io.on('reconnect_failed', () => {
 // Disable auto-reconnect and disconnect from client side to prevent Socket.IO
 // from auto-reconnecting (P0 fix).
 socket.on('idle_timeout', ({ reason, timeoutMs }) => {
-  socket._idleDisconnect = true;
   // Disable auto-reconnect BEFORE server disconnects us
   socket.io.opts.reconnection = false;
 
