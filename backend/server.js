@@ -16,6 +16,7 @@ const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics')
 
 const socketHandlers = require('./controllers/socketHandlers');
 const { httpLimiter, healthLimiter, normalizeIp, getSocketCountForIP, trackSocketConnection, untrackSocketConnection, MAX_SOCKETS_PER_IP } = require('./middleware/rateLimiter');
+const { startLobbyTimer, clearAllTimers: clearIdleTimers } = require('./middleware/idleTimeout');
 const { isInternalRequest } = require('./middleware/internalAccess');
 const leaderboardRoutes = require('./routes/leaderboard');
 const profileRoutes = require('./routes/profile');
@@ -123,7 +124,11 @@ io.use((socket, next) => {
     }
     socket.on('disconnect', () => {
         untrackSocketConnection(ip, socket.id);
+        clearIdleTimers(socket.id);
     });
+
+    // Start lobby idle timer — disconnects if no game activity within timeout
+    startLobbyTimer(socket);
 
     next();
 });
