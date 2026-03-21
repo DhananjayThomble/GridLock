@@ -1,6 +1,22 @@
 # Changelog
 
 All notable changes to GridLock are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+
+## [1.1.0] — 2026-03-21
+
+### Added
+- Sentry frontend integration — error boundaries, breadcrumbs, session replay (#382)
+- Source map upload pipeline via sentry-cli (#383)
+- Idle socket timeout — 5min lobby, 30min post-game (#391)
+
+### Fixed
+- Redis SCAN cursor type in getAllActiveGames (#386)
+- Zombie game GC — MongoDB sweep for orphaned games (#388)
+
+### Changed
+- Deploy scripts now upload source maps to Sentry automatically
+- Removed @sentry/vite-plugin (incompatible with self-hosted Sentry)
 
 ## [4.1] - 2026-03-20
 ### Added

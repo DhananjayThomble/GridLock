@@ -47,6 +47,60 @@ fi
 
 echo "🔍 Checking PR #${PR_NUMBER} merge readiness..."
 
+# ── Version validation for release PRs targeting main ──
+PR_BASE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json baseRefName --jq '.baseRefName')
+if [ "$PR_BASE" = "main" ]; then
+  echo "   Release PR detected (target: main) — running version checks..."
+
+  # All 3 package.json versions must match
+  ROOT_V=$(jq -r '.version' package.json)
+  FE_V=$(jq -r '.version' frontend/package.json)
+  BE_V=$(jq -r '.version' backend/package.json)
+  if [ "$ROOT_V" != "$FE_V" ] || [ "$ROOT_V" != "$BE_V" ]; then
+    echo -e "${RED}❌ BLOCKED: Version mismatch: root=$ROOT_V frontend=$FE_V backend=$BE_V${NC}"
+    echo -e "${YELLOW}   Run: bash scripts/bump-version.sh $ROOT_V${NC}"
+    exit 1
+  fi
+  echo -e "   Version consistency: ${GREEN}OK${NC} ($ROOT_V)"
+
+  # Version must be valid semver
+  if ! echo "$ROOT_V" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+    echo -e "${RED}❌ BLOCKED: Version '$ROOT_V' is not valid semver${NC}"
+    exit 1
+  fi
+  echo -e "   Semver format: ${GREEN}OK${NC}"
+
+  # Version tag must not already exist
+  if git tag -l "v${ROOT_V}" | grep -q "v${ROOT_V}"; then
+    echo -e "${RED}❌ BLOCKED: Tag v${ROOT_V} already exists${NC}"
+    exit 1
+  fi
+  echo -e "   Tag available: ${GREEN}OK${NC}"
+
+  # Version must be higher than latest git tag
+  LATEST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 | sed 's/^v//')
+  if [ -n "$LATEST_TAG" ]; then
+    IS_HIGHER=$(node -e "
+      const [ca,cb,cc] = '$LATEST_TAG'.split('.').map(Number);
+      const [na,nb,nc] = '$ROOT_V'.split('.').map(Number);
+      console.log((na*1000000+nb*1000+nc) > (ca*1000000+cb*1000+cc) ? 'yes' : 'no');
+    ")
+    if [ "$IS_HIGHER" != "yes" ]; then
+      echo -e "${RED}❌ BLOCKED: Version $ROOT_V is not higher than latest tag v${LATEST_TAG}${NC}"
+      exit 1
+    fi
+    echo -e "   Version bump: ${GREEN}OK${NC} (v${LATEST_TAG} → v${ROOT_V})"
+  fi
+
+  # CHANGELOG.md must have an entry for this version
+  if ! grep -q "\[${ROOT_V}\]" CHANGELOG.md 2>/dev/null; then
+    echo -e "${RED}❌ BLOCKED: CHANGELOG.md has no entry for version ${ROOT_V}${NC}"
+    echo -e "${YELLOW}   Add a ## [${ROOT_V}] section to CHANGELOG.md${NC}"
+    exit 1
+  fi
+  echo -e "   CHANGELOG entry: ${GREEN}OK${NC}"
+fi
+
 # 1. Check for actual review cycle comments (must contain "## Review Cycle" pattern)
 # This prevents gaming with dummy comments like "lgtm" or emoji
 REVIEW_CYCLE_COUNT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments --jq "[.comments[].body | select(contains(\"$REVIEW_PATTERN\"))] | length")

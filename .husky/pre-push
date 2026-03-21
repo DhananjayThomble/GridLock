@@ -1,5 +1,20 @@
 #!/bin/sh
 echo "🧪 Running pre-push checks..."
 cd "$(git rev-parse --show-toplevel)"
+
+# Version consistency warning for develop/main branches
+BRANCH=$(git branch --show-current)
+if [ "$BRANCH" = "develop" ] || [ "$BRANCH" = "main" ]; then
+  ROOT_V=$(jq -r '.version' package.json 2>/dev/null || echo "")
+  FE_V=$(jq -r '.version' frontend/package.json 2>/dev/null || echo "")
+  BE_V=$(jq -r '.version' backend/package.json 2>/dev/null || echo "")
+  if [ -n "$ROOT_V" ] && { [ "$ROOT_V" != "$FE_V" ] || [ "$ROOT_V" != "$BE_V" ]; }; then
+    echo "⚠️  Version mismatch detected on $BRANCH!"
+    echo "   root=$ROOT_V frontend=$FE_V backend=$BE_V"
+    echo "   Run: bash scripts/bump-version.sh $ROOT_V"
+    echo ""
+  fi
+fi
+
 # Quick checks only — full E2E runs in CI pipeline
 bash scripts/ci-test.sh --skip-e2e
