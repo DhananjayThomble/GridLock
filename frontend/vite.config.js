@@ -27,6 +27,12 @@ export default defineConfig(async () => {
     //   - E2E / local dev: leave unset (defaults to '/')
     base: process.env.VITE_BASE_PATH || '/',
     plugins,
+    build: {
+      // Generate hidden source maps for Sentry upload during deploys.
+      // Upload is handled by sentry-cli in deploy scripts (not vite plugin —
+      // self-hosted Sentry's relay rejects the plugin's chunk upload with 413).
+      sourcemap: process.env.SENTRY_SOURCEMAPS ? 'hidden' : false,
+    },
     server: {
       proxy: {
         '/socket.io': {

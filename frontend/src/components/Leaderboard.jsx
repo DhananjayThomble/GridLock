@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import RankBadge from './RankBadge';
+import { captureException } from '../lib/sentry';
 
 const DEFAULT_LIMIT = 20;
 const API_BASE = (
@@ -73,6 +74,7 @@ const Leaderboard = () => {
         }
       } catch (err) {
         if (!cancelled) {
+          captureException(err, { tags: { source: 'leaderboard.casual' } });
           setError(err?.message || 'Unable to load leaderboard');
           setRows([]);
         }
@@ -112,6 +114,7 @@ const Leaderboard = () => {
         }
       } catch (err) {
         if (!cancelled) {
+          captureException(err, { tags: { source: 'leaderboard.ranked' } });
           setRankedError(err?.message || 'Unable to load ranked leaderboard');
           setRankedRows([]);
         }
@@ -174,6 +177,7 @@ const Leaderboard = () => {
       }
     } catch (err) {
       if (err?.name !== 'AbortError' && !controller.signal.aborted) {
+        captureException(err, { tags: { source: 'leaderboard.playerSearch' } });
         setPlayerError(err?.message || 'Unable to find player');
       }
     } finally {

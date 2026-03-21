@@ -64,6 +64,7 @@ cd "$REPO_DIR/frontend"
 npm ci --loglevel=warn
 
 log "Building frontend (with SEO prerendering)..."
+export SENTRY_SOURCEMAPS=1
 PUPPETEER_SKIP_DOWNLOAD=true npm run build:seo
 
 if [ ! -d "$REPO_DIR/frontend/dist" ]; then
@@ -71,6 +72,12 @@ if [ ! -d "$REPO_DIR/frontend/dist" ]; then
   exit 1
 fi
 log "✅ Build succeeded ($(du -sh "$REPO_DIR/frontend/dist" | cut -f1) total)"
+
+# --- Upload source maps to Sentry ---------------------------------------------
+log "Uploading source maps to Sentry..."
+cd "$REPO_DIR"
+bash scripts/upload-sourcemaps.sh gridlock-prod sentry
+cd "$REPO_DIR/frontend"
 
 # --- Deploy to /var/www/gridlock -----------------------------------------------
 if [ "$DRY_RUN" = true ]; then

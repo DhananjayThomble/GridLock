@@ -20,6 +20,7 @@ import { RATE_LIMIT_MS } from './chat/chatConstants';
 
 import { countLines } from '../utils/postGameUtils';
 import { capture } from '../lib/posthog';
+import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -284,6 +285,18 @@ const Board = () => {
         } catch { /* quota exceeded / private browsing */ }
       }
 
+      // ── Sentry context: game started / player joined ──────────────────────
+      setUser({ username, id: username });
+      setTag('gameId', gameId);
+      setTag('gridSize', gridSize);
+      setTag('playerCount', data.playerCount || 2);
+      addBreadcrumb({
+        category: 'game',
+        message: data.playerId ? 'Player joined game' : 'Game started',
+        level: 'info',
+        data: { gameId, gridSize, playerCount: data.playerCount || 2, role: data.playerId },
+      });
+
       // Count how many slots are still waiting
       const count = data.playerCount || 2;
       let filled = 0;
@@ -409,6 +422,14 @@ const Board = () => {
         }
         setShowWinner(true);
         setStatus('🎉 Game Over!');
+
+        // ── Sentry breadcrumb: game ended ────────────────────────────────────
+        addBreadcrumb({
+          category: 'game',
+          message: 'Game ended',
+          level: 'info',
+          data: { gameId, winner, scores: gs.scores, playerCount: gs.playerCount || 2 },
+        });
       } else {
         setStatus(getStatusFromState(gs));
       }
@@ -587,6 +608,7 @@ const Board = () => {
     initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
+    addBreadcrumb({ category: 'game', message: 'Move made', level: 'info', data: { type, r, c, player: role } });
     sounds.linePlaced();
   }, [gameState, role, gameId, sessionToken, isSpectator]);
 
