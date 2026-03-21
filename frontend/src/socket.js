@@ -74,4 +74,18 @@ socket.io.on('reconnect_failed', () => {
   });
 });
 
+// ── Idle timeout handling (#390) ──────────────────────────────────────────────
+// Server emits 'idle_timeout' before disconnecting idle sockets.
+// Flag the disconnect so auto-reconnect doesn't fire unnecessarily.
+socket.on('idle_timeout', ({ reason, timeoutMs }) => {
+  socket._idleDisconnect = true;
+  addBreadcrumb({
+    category: 'socket',
+    message: `Idle timeout: ${reason}`,
+    level: 'warning',
+    data: { reason, timeoutMs },
+  });
+  console.warn(`[GridLock] Disconnected: idle timeout (${reason})`);
+});
+
 export default socket;
