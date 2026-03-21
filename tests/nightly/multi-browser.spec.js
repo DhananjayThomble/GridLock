@@ -126,10 +126,12 @@ test.describe('Multi-Browser WebSocket Tests', () => {
 
         if (hasLeaveBtn) {
           await leaveBtn.first().click();
-          // May have a confirmation dialog
-          const confirmBtn = p1.locator('button:has-text("Confirm"), button:has-text("Yes"), button:has-text("Leave Game")');
-          if (await confirmBtn.count() > 0) {
-            await confirmBtn.first().click();
+          // Confirmation dialog appears — click "Leave" inside the dialog
+          const dialog = p1.locator('[role="dialog"]');
+          const dialogVisible = await dialog.isVisible({ timeout: 3000 }).catch(() => false);
+          if (dialogVisible) {
+            // The dialog has "Stay" and "Leave" buttons — click the red "Leave" one
+            await dialog.locator('button:has-text("Leave")').click({ timeout: 5000 });
           }
 
           // P2 should see some indication

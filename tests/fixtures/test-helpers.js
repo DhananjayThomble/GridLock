@@ -15,6 +15,34 @@ async function goToLobby(page) {
 }
 
 /**
+ * Select player count — handles both desktop ("2 Players Classic duel") and mobile ("2P") layouts.
+ */
+async function selectPlayerCount(page, playerCount) {
+  // Try desktop layout first (button with "N Players" text)
+  const desktopBtn = page.locator(`button:has-text("${playerCount} Players"):visible`);
+  if (await desktopBtn.count() > 0) {
+    await desktopBtn.first().click({ timeout: 3000 });
+    return;
+  }
+  // Mobile layout uses radio buttons labeled "2P", "3P", "4P"
+  const mobileBtn = page.locator(`[role="radio"]:has-text("${playerCount}P"):visible, button:has-text("${playerCount}P"):visible`);
+  if (await mobileBtn.count() > 0) {
+    await mobileBtn.first().click({ timeout: 3000 });
+    return;
+  }
+}
+
+/**
+ * Select grid size — handles both desktop and mobile layouts.
+ */
+async function selectGridSize(page, gridSize) {
+  const btn = page.locator(`button:has-text("${gridSize}"):visible, [role="radio"]:has-text("${gridSize}"):visible`);
+  if (await btn.count() > 0) {
+    await btn.first().click({ timeout: 3000 }).catch(() => {});
+  }
+}
+
+/**
  * Fill lobby form and create a game. Returns the room code.
  * @param {import('@playwright/test').Page} page
  * @param {object} opts
@@ -23,8 +51,8 @@ async function goToLobby(page) {
 async function createGame(page, { username = 'NightlyAlice', playerCount = 2, gridSize = '3×3' } = {}) {
   await goToLobby(page);
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
-  await page.click(`button:has-text("${playerCount} Players")`);
-  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+  await selectPlayerCount(page, playerCount);
+  await selectGridSize(page, gridSize);
   await page.click('button:has-text("🚀 Create Game")');
 
   await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
@@ -59,8 +87,8 @@ async function createCpuGame(page, {
 } = {}) {
   await goToLobby(page);
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
-  await page.click(`button:has-text("${playerCount} Players")`);
-  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+  await selectPlayerCount(page, playerCount);
+  await selectGridSize(page, gridSize);
 
   await page.locator('button:has-text("Play vs CPU")').click();
   await page.waitForSelector('button:has-text("Easy")', { timeout: 10000 });
@@ -83,8 +111,10 @@ async function createCpuGame(page, {
  */
 async function joinGame(page, { username = 'NightlyBob', roomCode, joinMode = 'player' } = {}) {
   await goToLobby(page);
-  await page.click('button:has-text("🔗 Join Game")');
-  await page.waitForTimeout(200);
+  // Click "Join Game" — desktop shows "🔗 Join Game", mobile shows "🔗 Join"
+  const joinBtn = page.locator('button:has-text("Join Game"):visible, button:has-text("🔗 Join"):visible');
+  await joinBtn.first().click();
+  await page.waitForTimeout(300);
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   if (joinMode === 'spectator') {
@@ -250,8 +280,8 @@ async function createGameWithOptions(page, {
 } = {}) {
   await goToLobby(page);
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
-  await page.click(`button:has-text("${playerCount} Players")`);
-  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+  await selectPlayerCount(page, playerCount);
+  await selectGridSize(page, gridSize);
 
   if (cpuCount > 0) {
     // Enable CPU toggle
