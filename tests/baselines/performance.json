@@ -1,0 +1,12 @@
+{
+  "pageLoad": {
+    "home": { "domContentLoaded": 1500, "load": 3000, "lcp": 2500, "fcp": 1200 },
+    "leaderboard": { "domContentLoaded": 1500, "load": 3500, "lcp": 3000, "fcp": 1200 },
+    "howToPlay": { "domContentLoaded": 1000, "load": 2000, "lcp": 2000, "fcp": 1000 },
+    "profile": { "domContentLoaded": 1500, "load": 3000, "lcp": 2500, "fcp": 1200 }
+  },
+  "websocketConnectMs": 2000,
+  "gameStartMs": 3000,
+  "moveLatencyMs": 500,
+  "updatedAt": "2026-03-21T00:00:00Z"
+}

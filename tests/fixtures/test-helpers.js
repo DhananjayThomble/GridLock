@@ -1,0 +1,215 @@
+// tests/fixtures/test-helpers.js — Shared utilities for nightly/weekly tests
+// Mirrors patterns from e2e/helpers.js but targets live beta environment
+
+const { expect } = require('@playwright/test');
+
+const BETA_URL = process.env.BETA_URL || 'https://beta.gridlock.pro';
+const BETA_API = process.env.BETA_API || 'https://beta-api.gridlock.pro';
+
+/**
+ * Navigate to the beta lobby and wait for it to be ready.
+ */
+async function goToLobby(page) {
+  await page.goto(BETA_URL, { waitUntil: 'networkidle' });
+  await expect(page.locator('body')).toContainText('GridLock');
+}
+
+/**
+ * Fill lobby form and create a game. Returns the room code.
+ * @param {import('@playwright/test').Page} page
+ * @param {object} opts
+ * @returns {Promise<string>} room code
+ */
+async function createGame(page, { username = 'NightlyAlice', playerCount = 2, gridSize = '3×3' } = {}) {
+  await goToLobby(page);
+  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.click(`button:has-text("${playerCount} Players")`);
+  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+  await page.click('button:has-text("🚀 Create Game")');
+
+  await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/waiting/')) {
+    const urlMatch = currentUrl.match(/\/waiting\/([A-Z0-9]+)/i);
+    if (!urlMatch) throw new Error(`Could not extract game ID from waiting URL: ${currentUrl}`);
+    return urlMatch[1].toUpperCase().trim();
+  }
+
+  await page.waitForFunction(
+    () => /ROOM|room code/i.test(document.body.innerText),
+    { timeout: 15_000 }
+  );
+
+  const bodyText = await page.locator('body').innerText();
+  const match = bodyText.match(/(?:ROOM|room code)[:\s\n]+([A-Z0-9]{4,8})/i)
+    || bodyText.match(/Share the room code:\s*([A-Z0-9]{4,8})/i);
+  if (!match) throw new Error(`Could not extract room code from: ${bodyText.slice(0, 200)}`);
+  return match[1].trim();
+}
+
+/**
+ * Create a CPU game — starts immediately, no room code needed.
+ */
+async function createCpuGame(page, {
+  username = 'NightlyCPU',
+  gridSize = '3×3',
+  playerCount = 2,
+  cpuDifficulty,
+} = {}) {
+  await goToLobby(page);
+  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.click(`button:has-text("${playerCount} Players")`);
+  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+
+  await page.locator('button:has-text("Play vs CPU")').click();
+  await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
+
+  if (cpuDifficulty) {
+    const label = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
+    await page.click(`button:has-text("${label}")`);
+  }
+
+  await page.click('button:has-text("🚀 Create Game")');
+  await page.waitForURL(/\/game/, { timeout: 15_000 });
+  await page.waitForFunction(
+    () => /turn/i.test(document.body.innerText),
+    { timeout: 20_000 }
+  );
+}
+
+/**
+ * Join an existing game using its room code.
+ */
+async function joinGame(page, { username = 'NightlyBob', roomCode, joinMode = 'player' } = {}) {
+  await goToLobby(page);
+  await page.click('button:has-text("🔗 Join Game")');
+  await page.waitForTimeout(200);
+  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.fill('input[placeholder*="e.g"]', roomCode);
+  if (joinMode === 'spectator') {
+    await page.click('button:has-text("Join as Spectator")');
+  } else {
+    await page.click('button:has-text("Join as Player")');
+  }
+  if (joinMode === 'spectator') {
+    await page.getByRole('button', { name: /Spectate Game/i }).click();
+  } else {
+    await page.getByRole('button', { name: /Join Game/i }).last().click();
+  }
+  await page.waitForURL(/\/game/, { timeout: 15_000 });
+}
+
+/**
+ * Wait until all pages show a turn indicator.
+ */
+async function waitForGameStart(...pages) {
+  await Promise.all(
+    pages.map(p =>
+      p.waitForFunction(() => /turn/i.test(document.body.innerText), { timeout: 20_000 })
+    )
+  );
+}
+
+/**
+ * Returns which page has "Your turn" and which is waiting.
+ */
+async function getTurnState(p1, p2) {
+  const [t1, t2] = await Promise.all([
+    p1.locator('body').innerText(),
+    p2.locator('body').innerText(),
+  ]);
+  return {
+    p1HasTurn: t1.includes('Your turn'),
+    p2HasTurn: t2.includes('Your turn'),
+    p1Text: t1,
+    p2Text: t2,
+  };
+}
+
+/**
+ * Click the first interactive (unowned) line for the active player.
+ * Uses role="button" + aria-disabled="false" — stable attributes from Board.jsx.
+ */
+async function makeMove(page) {
+  const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
+  for (const line of lines.slice(0, 10)) {
+    try {
+      await line.click({ timeout: 2000, force: true });
+      return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
+}
+
+/**
+ * Play a game to completion by alternating moves.
+ */
+async function playToCompletion(pages, maxMoves = 80) {
+  for (let i = 0; i < maxMoves; i++) {
+    let moved = false;
+    for (const page of pages) {
+      try {
+        const text = await page.locator('body').innerText().catch(() => '');
+        if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+        if (text.includes('Your turn')) {
+          const ok = await makeMove(page);
+          if (ok) { moved = true; break; }
+        }
+      } catch { continue; }
+    }
+    if (!moved) {
+      for (const page of pages) {
+        try { await page.waitForTimeout(500); break; } catch { continue; }
+      }
+    }
+  }
+  for (const page of pages) {
+    try {
+      const text = await page.locator('body').innerText().catch(() => '');
+      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+    } catch { continue; }
+  }
+  return false;
+}
+
+/**
+ * Wait for game end state.
+ */
+async function waitForGameEnd(page, timeout = 60_000) {
+  await page.waitForFunction(
+    () => /Rematch|Game Over|Winner|wins!/i.test(document.body.innerText),
+    { timeout }
+  );
+}
+
+/**
+ * Extract game state from the DOM.
+ */
+async function getGameState(page) {
+  const bodyText = await page.locator('body').innerText();
+  const scoreMatch = bodyText.match(/(\d+)\s*[-–]\s*(\d+)/);
+  return {
+    isYourTurn: bodyText.includes('Your turn'),
+    isGameOver: /Rematch|Game Over|Winner|wins!/i.test(bodyText),
+    scores: scoreMatch ? [parseInt(scoreMatch[1]), parseInt(scoreMatch[2])] : null,
+    bodyText,
+  };
+}
+
+module.exports = {
+  BETA_URL,
+  BETA_API,
+  goToLobby,
+  createGame,
+  createCpuGame,
+  joinGame,
+  waitForGameStart,
+  getTurnState,
+  makeMove,
+  playToCompletion,
+  waitForGameEnd,
+  getGameState,
+};
