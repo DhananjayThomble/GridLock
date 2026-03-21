@@ -6,7 +6,7 @@ const { calculateNewState, initializeGameState, pickForfeitWinner, getNextActive
 
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter, ipLimiter, normalizeIp } = require('../middleware/rateLimiter');
-const { cancelLobbyTimer, cancelPostgameTimer, startPostgameTimer, clearAllTimers: clearIdleTimers } = require('../middleware/idleTimeout');
+const { startLobbyTimer, cancelLobbyTimer, cancelPostgameTimer, startPostgameTimer, clearAllTimers: clearIdleTimers } = require('../middleware/idleTimeout');
 const { validatePayload } = require('../middleware/socketSchemas');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
@@ -2028,6 +2028,8 @@ function attachSocketHandlers(io, log) {
         socket.on('start_game_early', async (rawPayload) => {
             try {
                 if (rateLimited('start_game_early')) return;
+                // Cancel idle timers — game is starting (#390)
+                cancelPostgameTimer(socket.id);
                 const validated = validate('start_game_early', rawPayload);
                 if (!validated) return;
                 const { gameId, sessionToken, cpuDifficulty } = validated;
@@ -2127,6 +2129,8 @@ function attachSocketHandlers(io, log) {
         socket.on('start_game', async (rawPayload) => {
             try {
                 if (rateLimited('start_game')) return;
+                // Cancel idle timers — game is starting (#390)
+                cancelPostgameTimer(socket.id);
                 const validated = validate('start_game', rawPayload);
                 if (!validated) return;
                 const { gameId, sessionToken } = validated;
@@ -3154,6 +3158,9 @@ function attachSocketHandlers(io, log) {
                 socket.leave(cleanGameId);
                 socket.data.gameId = undefined;
                 socket.data.playerId = undefined;
+
+                // Player returns to lobby — start lobby idle timer (#390 P1)
+                startLobbyTimer(socket);
 
                 // If game already finished, just persist and return
                 if (game.gameState?.winner) {

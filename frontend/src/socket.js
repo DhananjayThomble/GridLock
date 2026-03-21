@@ -27,6 +27,10 @@ const socket = io(socketUrl, {
 // ── Sentry socket tracking ────────────────────────────────────────────────────
 
 socket.on('connect', () => {
+  // Reset idle disconnect state on reconnect (#390 P2)
+  socket._idleDisconnect = false;
+  socket.io.opts.reconnection = true;
+
   addBreadcrumb({
     category: 'socket',
     message: 'Socket connected',
@@ -76,9 +80,13 @@ socket.io.on('reconnect_failed', () => {
 
 // ── Idle timeout handling (#390) ──────────────────────────────────────────────
 // Server emits 'idle_timeout' before disconnecting idle sockets.
-// Flag the disconnect so auto-reconnect doesn't fire unnecessarily.
+// Disable auto-reconnect and disconnect from client side to prevent Socket.IO
+// from auto-reconnecting (P0 fix).
 socket.on('idle_timeout', ({ reason, timeoutMs }) => {
   socket._idleDisconnect = true;
+  // Disable auto-reconnect BEFORE server disconnects us
+  socket.io.opts.reconnection = false;
+
   addBreadcrumb({
     category: 'socket',
     message: `Idle timeout: ${reason}`,
@@ -86,6 +94,16 @@ socket.on('idle_timeout', ({ reason, timeoutMs }) => {
     data: { reason, timeoutMs },
   });
   console.warn(`[GridLock] Disconnected: idle timeout (${reason})`);
+
+  // Disconnect from client side — voluntary client disconnect prevents auto-reconnect
+  socket.disconnect();
+
+  // Dispatch a custom event so UI components can show a reconnect prompt
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('gridlock:idle_timeout', {
+      detail: { reason, timeoutMs },
+    }));
+  }
 });
 
 export default socket;

@@ -8,9 +8,10 @@ const POSTGAME_TIMEOUT_MS = parseInt(process.env.IDLE_POSTGAME_TIMEOUT_MS, 10) |
 // Maps: socketId → timeout handle
 const lobbyTimers = new Map();
 const postgameTimers = new Map();
+const graceTimers = new Map();
 
 // Events that indicate game activity — cancel idle timers on any of these
-const ACTIVITY_EVENTS = ['create_game', 'join_game', 'quick_play', 'join_tournament', 'spectate', 'queue_join'];
+const ACTIVITY_EVENTS = ['create_game', 'join_game', 'join_tournament', 'queue_join'];
 
 /**
  * Start a lobby idle timer for a newly connected socket.
@@ -27,11 +28,14 @@ function startLobbyTimer(socket) {
         if (socket.connected) {
             socket.emit('idle_timeout', { reason: 'lobby', timeoutMs: LOBBY_TIMEOUT_MS });
             // Give client 1s to receive the event before disconnecting
-            setTimeout(() => {
+            const graceTimer = setTimeout(() => {
+                graceTimers.delete(socket.id);
                 if (socket.connected) {
                     socket.disconnect(true);
                 }
             }, 1000);
+            if (graceTimer.unref) graceTimer.unref();
+            graceTimers.set(socket.id, graceTimer);
         }
     }, LOBBY_TIMEOUT_MS);
 
@@ -67,11 +71,14 @@ function startPostgameTimer(socket) {
         postgameTimers.delete(socket.id);
         if (socket.connected) {
             socket.emit('idle_timeout', { reason: 'postgame', timeoutMs: POSTGAME_TIMEOUT_MS });
-            setTimeout(() => {
+            const graceTimer = setTimeout(() => {
+                graceTimers.delete(socket.id);
                 if (socket.connected) {
                     socket.disconnect(true);
                 }
             }, 1000);
+            if (graceTimer.unref) graceTimer.unref();
+            graceTimers.set(socket.id, graceTimer);
         }
     }, POSTGAME_TIMEOUT_MS);
 
@@ -93,13 +100,26 @@ function cancelPostgameTimer(socketId) {
 }
 
 /**
- * Clear all idle timers for a socket (lobby + postgame).
+ * Cancel the grace timeout for a socket.
+ * @param {string} socketId
+ */
+function cancelGraceTimer(socketId) {
+    const timer = graceTimers.get(socketId);
+    if (timer) {
+        clearTimeout(timer);
+        graceTimers.delete(socketId);
+    }
+}
+
+/**
+ * Clear all idle timers for a socket (lobby + postgame + grace).
  * Call on disconnect to prevent memory leaks.
  * @param {string} socketId
  */
 function clearAllTimers(socketId) {
     cancelLobbyTimer(socketId);
     cancelPostgameTimer(socketId);
+    cancelGraceTimer(socketId);
 }
 
 module.exports = {
@@ -108,9 +128,11 @@ module.exports = {
     ACTIVITY_EVENTS,
     lobbyTimers,
     postgameTimers,
+    graceTimers,
     startLobbyTimer,
     cancelLobbyTimer,
     startPostgameTimer,
     cancelPostgameTimer,
+    cancelGraceTimer,
     clearAllTimers,
 };
