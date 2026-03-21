@@ -3646,4 +3646,5 @@ module.exports._internal = {
     removeFromRankedQueue,
     activeDailyGames,
     chatRateLimiter,
+    recordGameHistory,
 };
