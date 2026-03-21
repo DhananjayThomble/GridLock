@@ -24,15 +24,16 @@ export function initSentry() {
     // Performance: light sampling in prod, full in dev
     tracesSampleRate: isProd ? 0.1 : 1.0,
 
-    // Replay: disabled (no need for session replay currently)
+    // Replay: capture on errors for debugging, no random session recording
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 0,
+    replaysOnErrorSampleRate: 1.0,
 
     // Privacy
     sendDefaultPii: false,
 
     integrations: [
       Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration(),
     ],
   });
 }

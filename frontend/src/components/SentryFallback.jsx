@@ -3,7 +3,7 @@
  * Styled to match the app's design language.
  */
 const SentryFallback = () => (
-  <div style={{
+  <div role="alert" style={{
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
@@ -44,6 +44,7 @@ const SentryFallback = () => (
           color: '#fff',
           backgroundColor: 'var(--accent, #3B82F6)',
           cursor: 'pointer',
+          outline: 'revert',
         }}
       >
         Reload

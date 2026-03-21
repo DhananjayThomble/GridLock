@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import useThemeColors from '../hooks/useThemeColors';
+import { captureException } from '../lib/sentry';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -176,6 +177,7 @@ const Profile = () => {
         if (!cancelled) setProfile(data.profile);
       } catch (err) {
         if (!cancelled) setError(err?.message || 'Failed to load profile');
+        captureException(err, { tags: { source: 'profile.fetch' } });
       } finally {
         if (!cancelled) setLoading(false);
       }

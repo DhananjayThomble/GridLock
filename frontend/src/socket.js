@@ -52,9 +52,6 @@ socket.on('connect_error', (error) => {
     level: 'error',
     data: { message: error.message },
   });
-  captureException(error, {
-    tags: { source: 'socket.connect_error' },
-  });
 });
 
 socket.io.on('reconnect', (attemptNumber) => {
@@ -71,6 +68,9 @@ socket.io.on('reconnect_failed', () => {
     category: 'socket',
     message: 'Socket reconnection failed (exhausted attempts)',
     level: 'error',
+  });
+  captureException(new Error('Socket reconnection failed after all attempts'), {
+    tags: { source: 'socket.reconnect_failed' },
   });
 });
 

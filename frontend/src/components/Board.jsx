@@ -286,7 +286,7 @@ const Board = () => {
       }
 
       // ── Sentry context: game started / player joined ──────────────────────
-      setUser({ username });
+      setUser({ username, id: username });
       setTag('gameId', gameId);
       setTag('gridSize', gridSize);
       setTag('playerCount', data.playerCount || 2);
