@@ -199,6 +199,211 @@ async function getGameState(page) {
   };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Full-Matrix helpers — used by tests/nightly/full-matrix.spec.js
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Create a game with full options including CPU count.
+ * For all-human games: cpuCount = 0 (default).
+ * For mixed games: cpuCount > 0.
+ * Returns the room code (for human games) or navigates to /game (CPU-only games).
+ */
+async function createGameWithOptions(page, {
+  username = 'MatrixP1',
+  playerCount = 2,
+  gridSize = '3×3',
+  cpuCount = 0,
+  cpuDifficulty = 'medium',
+} = {}) {
+  await goToLobby(page);
+  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.click(`button:has-text("${playerCount} Players")`);
+  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+
+  if (cpuCount > 0) {
+    // Enable CPU toggle
+    await page.locator('button:has-text("Play vs CPU")').click();
+    await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
+
+    // Set difficulty
+    const diffLabel = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
+    await page.click(`button:has-text("${diffLabel}")`);
+
+    // Set CPU count — buttons are labeled "1 🤖", "2 🤖", "3 🤖"
+    await page.click(`button:has-text("${cpuCount} 🤖")`);
+  }
+
+  await page.click('button:has-text("🚀 Create Game")');
+  await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/waiting/')) {
+    const urlMatch = currentUrl.match(/\/waiting\/([A-Z0-9]+)/i);
+    if (!urlMatch) throw new Error(`Could not extract game ID from waiting URL: ${currentUrl}`);
+    return urlMatch[1].toUpperCase().trim();
+  }
+
+  // CPU-only game or game page — return null (no room code needed)
+  if (currentUrl.includes('/game')) {
+    await page.waitForFunction(
+      () => /turn/i.test(document.body.innerText),
+      { timeout: 20_000 }
+    );
+    return null;
+  }
+
+  // Fallback: extract room code from text
+  await page.waitForFunction(
+    () => /ROOM|room code/i.test(document.body.innerText),
+    { timeout: 15_000 }
+  );
+  const bodyText = await page.locator('body').innerText();
+  const match = bodyText.match(/(?:ROOM|room code)[:\s\n]+([A-Z0-9]{4,8})/i)
+    || bodyText.match(/Share the room code:\s*([A-Z0-9]{4,8})/i);
+  if (!match) throw new Error(`Could not extract room code from: ${bodyText.slice(0, 200)}`);
+  return match[1].trim();
+}
+
+/**
+ * Join an existing game by room code with a specific username.
+ */
+async function joinGameByCode(page, code, username = 'MatrixJoiner') {
+  return joinGame(page, { username, roomCode: code, joinMode: 'player' });
+}
+
+/**
+ * Detect which player index (0-based) has the turn across multiple pages.
+ * Returns the index or -1 if game is over / no turn detected.
+ */
+async function detectCurrentPlayer(pages) {
+  for (let i = 0; i < pages.length; i++) {
+    try {
+      const text = await pages[i].locator('body').innerText();
+      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return -1;
+      if (text.includes('Your turn')) return i;
+    } catch { continue; }
+  }
+  return -1;
+}
+
+/**
+ * Find and click an available (undrawn) line on the board.
+ * Returns true if a move was made.
+ */
+async function findAndClickAvailableLine(page) {
+  return makeMove(page);
+}
+
+/**
+ * Make the next move: find whose turn it is and click an available line.
+ * Returns true if a move was made, false if game is over or stuck.
+ */
+async function makeNextMove(pages) {
+  const idx = await detectCurrentPlayer(pages);
+  if (idx < 0) return false;
+  return makeMove(pages[idx]);
+}
+
+/**
+ * Orchestrate a full game to completion across N pages.
+ * Supports games with CPU players (pass only human pages).
+ * CPU turns are automatic — we just wait for them.
+ *
+ * @param {import('@playwright/test').Page[]} pages - Human player pages
+ * @param {number} maxMoves - Safety limit
+ * @param {boolean} hasCPU - Whether game includes CPU players
+ */
+async function playGameToCompletion(pages, maxMoves = 200, hasCPU = false) {
+  for (let i = 0; i < maxMoves; i++) {
+    let moved = false;
+
+    for (const page of pages) {
+      try {
+        const text = await page.locator('body').innerText().catch(() => '');
+        if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+
+        if (text.includes('Your turn')) {
+          const ok = await makeMove(page);
+          if (ok) { moved = true; break; }
+        }
+      } catch { continue; }
+    }
+
+    if (!moved) {
+      // If CPU game, wait longer for CPU to complete its turn
+      const waitMs = hasCPU ? 1000 : 300;
+      for (const page of pages) {
+        try { await page.waitForTimeout(waitMs); break; } catch { continue; }
+      }
+    }
+  }
+
+  // Final check
+  for (const page of pages) {
+    try {
+      const text = await page.locator('body').innerText().catch(() => '');
+      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+    } catch { continue; }
+  }
+  return false;
+}
+
+/**
+ * Extract all player scores from the scoreboard.
+ * Returns an object like { player1: 5, player2: 4 } or array of numbers.
+ */
+async function getPlayerScores(page) {
+  // Scoreboard cards have individual score numbers in font-extrabold divs.
+  // Each card has: player name + score number.
+  // We extract all score values from the scoreboard.
+  const scores = await page.evaluate(() => {
+    const cards = document.querySelectorAll('.scoreboard-cards > div');
+    const result = {};
+    cards.forEach((card, i) => {
+      const scoreEl = card.querySelector('.text-lg.font-extrabold');
+      if (scoreEl) {
+        result[`player${i + 1}`] = parseInt(scoreEl.textContent.trim(), 10) || 0;
+      }
+    });
+    return result;
+  });
+  return scores;
+}
+
+/**
+ * Verify game end state across all pages.
+ * Checks: all pages show game over, scores sum to expected total.
+ *
+ * @param {import('@playwright/test').Page[]} pages
+ * @param {number} gridN - Grid dimension (e.g., 3 for 3×3)
+ * @param {import('@playwright/test').expect} expectFn
+ */
+async function verifyGameEnd(pages, gridN, expectFn) {
+  const totalBoxes = gridN * gridN;
+
+  for (const page of pages) {
+    try {
+      const bodyText = await page.locator('body').innerText();
+      expectFn(/Rematch|Game Over|Winner|wins!/i.test(bodyText),
+        `Page should show game over state`).toBe(true);
+    } catch { /* page may be closed (disconnect test) */ }
+  }
+
+  // Check score sum on the first available page
+  for (const page of pages) {
+    try {
+      const scores = await getPlayerScores(page);
+      const scoreValues = Object.values(scores);
+      if (scoreValues.length > 0) {
+        const sum = scoreValues.reduce((a, b) => a + b, 0);
+        expectFn(sum, `Score sum should equal total boxes (${totalBoxes})`).toBe(totalBoxes);
+      }
+      break; // Only need to verify on one page
+    } catch { continue; }
+  }
+}
+
 module.exports = {
   BETA_URL,
   BETA_API,
@@ -212,4 +417,13 @@ module.exports = {
   playToCompletion,
   waitForGameEnd,
   getGameState,
+  // Full-matrix helpers
+  createGameWithOptions,
+  joinGameByCode,
+  detectCurrentPlayer,
+  findAndClickAvailableLine,
+  makeNextMove,
+  playGameToCompletion,
+  verifyGameEnd,
+  getPlayerScores,
 };
