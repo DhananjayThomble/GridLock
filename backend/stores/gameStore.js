@@ -73,13 +73,13 @@ async function getAllActiveGames() {
 
     try {
         // Use SCAN instead of KEYS to avoid blocking Redis in production
-        let cursor = 0;
+        let cursor = '0';
         const allKeys = [];
         do {
             const result = await redis.scan(cursor, { MATCH: `${REDIS_KEY_PREFIX}*`, COUNT: 100 });
-            cursor = result.cursor;
+            cursor = String(result.cursor);
             allKeys.push(...result.keys);
-        } while (cursor !== 0);
+        } while (cursor !== '0');
 
         const games = new Map();
 

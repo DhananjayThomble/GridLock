@@ -162,7 +162,8 @@ const { gameStore, rematchStore, disconnectStore, localTimers } = socketHandlers
 
 // Start periodic game cleanup / GC (#365 Bug #14)
 const { startGameCleanup } = require('./services/gameCleanup');
-startGameCleanup(gameStore, log);
+const GameModel = require('./models/Game');
+startGameCleanup(gameStore, log, GameModel);
 
 // Leaderboard API routes
 app.use('/api/leaderboard', leaderboardRoutes);
