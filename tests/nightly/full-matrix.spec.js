@@ -21,9 +21,6 @@ const {
   BETA_URL,
 } = require('../fixtures/test-helpers');
 
-// Desktop viewport — chromium.launch() defaults to a small viewport that triggers mobile layout
-const DESKTOP_CTX = { viewport: { width: 1280, height: 720 } };
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Matrix Definitions
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -94,7 +91,7 @@ test.describe('Full Matrix — All Human Players', () => {
       try {
         // 1. Launch N browser contexts
         for (let i = 0; i < playerCount; i++) {
-          const ctx = await chromium.launch().then(b => b.newContext(DESKTOP_CTX));
+          const ctx = await chromium.launch().then(b => b.newContext());
           const page = await ctx.newPage();
           contexts.push(ctx);
           pages.push(page);
@@ -161,7 +158,7 @@ test.describe('Full Matrix — Human + CPU Players', () => {
       try {
         // Launch browser contexts for human players only
         for (let i = 0; i < humanCount; i++) {
-          const ctx = await chromium.launch().then(b => b.newContext(DESKTOP_CTX));
+          const ctx = await chromium.launch().then(b => b.newContext());
           const page = await ctx.newPage();
           contexts.push(ctx);
           pages.push(page);
@@ -234,7 +231,7 @@ test.describe('Full Matrix — Player Disconnect', () => {
 
       try {
         for (let i = 0; i < playerCount; i++) {
-          const ctx = await chromium.launch().then(b => b.newContext(DESKTOP_CTX));
+          const ctx = await chromium.launch().then(b => b.newContext());
           const page = await ctx.newPage();
           contexts.push(ctx);
           pages.push(page);
@@ -325,7 +322,7 @@ test.describe('Full Matrix — Spectator View', () => {
       try {
         // Launch player browser contexts
         for (let i = 0; i < playerCount; i++) {
-          const ctx = await chromium.launch().then(b => b.newContext(DESKTOP_CTX));
+          const ctx = await chromium.launch().then(b => b.newContext());
           const page = await ctx.newPage();
           contexts.push(ctx);
           pages.push(page);
@@ -333,7 +330,7 @@ test.describe('Full Matrix — Spectator View', () => {
 
         // Launch spectator browser context
         const specBrowser = await chromium.launch();
-        spectatorCtx = await specBrowser.newContext(DESKTOP_CTX);
+        spectatorCtx = await specBrowser.newContext();
         spectator = await spectatorCtx.newPage();
 
         // Create and join game
