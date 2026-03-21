@@ -13,9 +13,10 @@ set -euo pipefail
 
 PROJECT="${1:-gridlock-prod}"
 ORG="${2:-sentry}"
+# Default to localhost — deploy scripts run on the same EC2 that hosts Sentry
 SENTRY_URL="${SENTRY_URL:-http://localhost:9000}"
 DIST_DIR="frontend/dist/assets"
-RELEASE="$(git rev-parse HEAD)"
+RELEASE="gridlock-frontend@$(jq -r '.version' package.json)"
 
 # Resolve auth token
 if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
@@ -54,6 +55,7 @@ $SENTRY_CLI sourcemaps upload \
   --org "$ORG" \
   --project "$PROJECT" \
   --release "$RELEASE" \
+  --url-prefix '~/assets' \
   "$DIST_DIR"
 
 echo "🗑️  Removing .map files from build output..."

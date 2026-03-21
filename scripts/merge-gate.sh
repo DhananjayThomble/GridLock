@@ -47,7 +47,36 @@ fi
 
 echo "🔍 Checking PR #${PR_NUMBER} merge readiness..."
 
+# 1. Check for actual review cycle comments (must contain "## Review Cycle" pattern)
+# This prevents gaming with dummy comments like "lgtm" or emoji
+REVIEW_CYCLE_COUNT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments --jq "[.comments[].body | select(contains(\"$REVIEW_PATTERN\"))] | length")
+echo "   Review cycle comments: ${REVIEW_CYCLE_COUNT} (minimum: ${MIN_REVIEW_CYCLES})"
+
+if [ "$REVIEW_CYCLE_COUNT" -lt "$MIN_REVIEW_CYCLES" ]; then
+  echo -e "${RED}❌ BLOCKED: PR #${PR_NUMBER} has only ${REVIEW_CYCLE_COUNT} review cycle comments.${NC}"
+  echo -e "${RED}   Need ${MIN_REVIEW_CYCLES} comments containing '${REVIEW_PATTERN}'.${NC}"
+  echo -e "${YELLOW}   Run at least ${MIN_REVIEW_CYCLES} review cycles using scripts/review-prompt.md before merging.${NC}"
+  exit 1
+fi
+
+# 2. Checkout the PR branch before running CI (ensure we test the actual PR code)
+PR_BRANCH=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName --jq '.headRefName')
+echo "   Checking out PR branch: ${PR_BRANCH}..."
+
+if ! (cd "$REPO_ROOT" && git fetch origin "$PR_BRANCH" && git checkout "$PR_BRANCH" && git pull origin "$PR_BRANCH"); then
+  echo -e "${RED}❌ BLOCKED: Failed to checkout PR branch '${PR_BRANCH}'.${NC}"
+  exit 1
+fi
+
+# Verify checkout actually succeeded (belt-and-suspenders)
+CURRENT_BRANCH=$(git -C "$REPO_ROOT" branch --show-current)
+if [ "$CURRENT_BRANCH" != "$PR_BRANCH" ]; then
+  echo -e "${RED}❌ BLOCKED: Expected branch '${PR_BRANCH}' but on '${CURRENT_BRANCH}'.${NC}"
+  exit 1
+fi
+
 # ── Version validation for release PRs targeting main ──
+# Must run AFTER checkout so we check versions from the PR branch, not the current branch
 PR_BASE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json baseRefName --jq '.baseRefName')
 if [ "$PR_BASE" = "main" ]; then
   echo "   Release PR detected (target: main) — running version checks..."
@@ -99,34 +128,6 @@ if [ "$PR_BASE" = "main" ]; then
     exit 1
   fi
   echo -e "   CHANGELOG entry: ${GREEN}OK${NC}"
-fi
-
-# 1. Check for actual review cycle comments (must contain "## Review Cycle" pattern)
-# This prevents gaming with dummy comments like "lgtm" or emoji
-REVIEW_CYCLE_COUNT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments --jq "[.comments[].body | select(contains(\"$REVIEW_PATTERN\"))] | length")
-echo "   Review cycle comments: ${REVIEW_CYCLE_COUNT} (minimum: ${MIN_REVIEW_CYCLES})"
-
-if [ "$REVIEW_CYCLE_COUNT" -lt "$MIN_REVIEW_CYCLES" ]; then
-  echo -e "${RED}❌ BLOCKED: PR #${PR_NUMBER} has only ${REVIEW_CYCLE_COUNT} review cycle comments.${NC}"
-  echo -e "${RED}   Need ${MIN_REVIEW_CYCLES} comments containing '${REVIEW_PATTERN}'.${NC}"
-  echo -e "${YELLOW}   Run at least ${MIN_REVIEW_CYCLES} review cycles using scripts/review-prompt.md before merging.${NC}"
-  exit 1
-fi
-
-# 2. Checkout the PR branch before running CI (ensure we test the actual PR code)
-PR_BRANCH=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName --jq '.headRefName')
-echo "   Checking out PR branch: ${PR_BRANCH}..."
-
-if ! (cd "$REPO_ROOT" && git fetch origin "$PR_BRANCH" && git checkout "$PR_BRANCH" && git pull origin "$PR_BRANCH"); then
-  echo -e "${RED}❌ BLOCKED: Failed to checkout PR branch '${PR_BRANCH}'.${NC}"
-  exit 1
-fi
-
-# Verify checkout actually succeeded (belt-and-suspenders)
-CURRENT_BRANCH=$(git -C "$REPO_ROOT" branch --show-current)
-if [ "$CURRENT_BRANCH" != "$PR_BRANCH" ]; then
-  echo -e "${RED}❌ BLOCKED: Expected branch '${PR_BRANCH}' but on '${CURRENT_BRANCH}'.${NC}"
-  exit 1
 fi
 
 # 3. Run CI locally (GitHub Actions quota exhausted — all checks run here)

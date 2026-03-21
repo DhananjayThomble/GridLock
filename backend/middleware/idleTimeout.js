@@ -10,9 +10,6 @@ const lobbyTimers = new Map();
 const postgameTimers = new Map();
 const graceTimers = new Map();
 
-// Events that indicate game activity — cancel idle timers on any of these
-const ACTIVITY_EVENTS = ['create_game', 'join_game', 'join_tournament', 'queue_join'];
-
 /**
  * Start a lobby idle timer for a newly connected socket.
  * If the socket doesn't join/create a game within LOBBY_TIMEOUT_MS,
@@ -125,7 +122,6 @@ function clearAllTimers(socketId) {
 module.exports = {
     LOBBY_TIMEOUT_MS,
     POSTGAME_TIMEOUT_MS,
-    ACTIVITY_EVENTS,
     lobbyTimers,
     postgameTimers,
     graceTimers,
