@@ -1,4 +1,4 @@
-// Sentry must initialize before anything else — keep this as the first import
+// Initialize Sentry before React renders (ES module imports are hoisted, but initSentry() runs first)
 import { initSentry, SentryErrorBoundary } from './lib/sentry';
 initSentry();
 

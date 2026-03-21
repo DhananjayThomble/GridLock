@@ -41,7 +41,14 @@ echo "   Org: $ORG | Project: $PROJECT"
 echo "   Release: $RELEASE"
 echo "   URL: $SENTRY_URL"
 
-SENTRY_CLI="$(command -v sentry-cli 2>/dev/null || echo "npx @sentry/cli")"
+# Use repo-pinned sentry-cli to avoid fetching from registry at deploy time
+SENTRY_CLI="$(command -v sentry-cli 2>/dev/null || echo "")"
+if [ -z "$SENTRY_CLI" ] && [ -x "./frontend/node_modules/.bin/sentry-cli" ]; then
+  SENTRY_CLI="./frontend/node_modules/.bin/sentry-cli"
+elif [ -z "$SENTRY_CLI" ]; then
+  echo "❌ sentry-cli not found. Install it: cd frontend && npm install @sentry/cli"
+  exit 1
+fi
 
 $SENTRY_CLI sourcemaps upload \
   --org "$ORG" \

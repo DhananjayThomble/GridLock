@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { createElement } from 'react';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 const isEnabled = !!dsn;
@@ -71,8 +72,13 @@ export function setTag(key, value) {
 }
 
 /**
- * Sentry ErrorBoundary — falls back to children if Sentry is not available.
+ * Sentry ErrorBoundary wrapper.
+ * When Sentry is enabled, delegates to Sentry.ErrorBoundary.
+ * When disabled, renders children directly (no error boundary overhead).
  */
-export const SentryErrorBoundary = Sentry.ErrorBoundary;
+export function SentryErrorBoundary({ children, ...props }) {
+  if (!isEnabled) return children;
+  return createElement(Sentry.ErrorBoundary, props, children);
+}
 
 export { Sentry, isEnabled };
