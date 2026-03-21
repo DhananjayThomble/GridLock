@@ -1,6 +1,7 @@
 // src/socket.js
 // Singleton socket instance shared across all components
 import io from 'socket.io-client';
+import { addBreadcrumb, captureException, setTag } from './lib/sentry';
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL ||
   (typeof window !== 'undefined' ? window.location.origin : '');
@@ -21,6 +22,56 @@ const socket = io(socketUrl, {
   reconnectionDelay: 1000,         // Start at 1s
   reconnectionDelayMax: 5000,      // Cap at 5s
   timeout: 20000,                  // Connection timeout
+});
+
+// ── Sentry socket tracking ────────────────────────────────────────────────────
+
+socket.on('connect', () => {
+  addBreadcrumb({
+    category: 'socket',
+    message: 'Socket connected',
+    level: 'info',
+    data: { transport: socket.io?.engine?.transport?.name },
+  });
+  setTag('socket.transport', socket.io?.engine?.transport?.name);
+});
+
+socket.on('disconnect', (reason) => {
+  addBreadcrumb({
+    category: 'socket',
+    message: `Socket disconnected: ${reason}`,
+    level: 'warning',
+    data: { reason },
+  });
+});
+
+socket.on('connect_error', (error) => {
+  addBreadcrumb({
+    category: 'socket',
+    message: `Socket connect_error: ${error.message}`,
+    level: 'error',
+    data: { message: error.message },
+  });
+});
+
+socket.io.on('reconnect', (attemptNumber) => {
+  addBreadcrumb({
+    category: 'socket',
+    message: `Socket reconnected after ${attemptNumber} attempts`,
+    level: 'info',
+    data: { attemptNumber },
+  });
+});
+
+socket.io.on('reconnect_failed', () => {
+  addBreadcrumb({
+    category: 'socket',
+    message: 'Socket reconnection failed (exhausted attempts)',
+    level: 'error',
+  });
+  captureException(new Error('Socket reconnection failed after all attempts'), {
+    tags: { source: 'socket.reconnect_failed' },
+  });
 });
 
 export default socket;

@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import Bracket from './Bracket';
 import { capture } from '../lib/posthog';
+import { addBreadcrumb } from '../lib/sentry';
 
 const TournamentLobby = () => {
   const location = useLocation();
@@ -36,12 +37,14 @@ const TournamentLobby = () => {
     const onTournamentUpdate = ({ tournament: t }) => {
       setTournament(t);
       setSocketError('');
+      addBreadcrumb({ category: 'tournament', message: 'Tournament update', level: 'info', data: { status: t?.status, tournamentId: t?.tournamentId } });
     };
 
     const onTournamentGameAssigned = ({ tournamentId: tid, gameId, playerId, sessionToken, gridSize: assignedGridSize, playerCount: assignedPlayerCount }) => {
       if (navigatedRef.current) return;
       navigatedRef.current = true;
       capture('tournament_joined', { tournamentId: tid || tournamentId });
+      addBreadcrumb({ category: 'tournament', message: 'Tournament game assigned', level: 'info', data: { tournamentId: tid, gameId } });
       navigate('/game', {
         state: {
           username,
@@ -59,6 +62,7 @@ const TournamentLobby = () => {
     const onTournamentCompleted = ({ champion }) => {
       setWinner(champion);
       setCompleted(true);
+      addBreadcrumb({ category: 'tournament', message: 'Tournament completed', level: 'info', data: { champion, tournamentId } });
     };
 
     const onError = (msg) => {
