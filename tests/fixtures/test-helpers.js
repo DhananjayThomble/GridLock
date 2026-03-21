@@ -132,22 +132,29 @@ async function getTurnState(p1, p2) {
  * Uses role="button" + aria-disabled="false" — stable attributes from Board.jsx.
  */
 async function makeMove(page) {
-  const lines = await page.locator('[role="button"][aria-disabled="false"]').all();
-  for (const line of lines.slice(0, 10)) {
+  const lineLocator = page.locator('[role="button"][aria-disabled="false"]');
+  const count = await lineLocator.count();
+  if (count === 0) return false;
+  // Pick a random available line to avoid always picking the same pattern
+  const idx = Math.floor(Math.random() * count);
+  try {
+    await lineLocator.nth(idx).click({ timeout: 3000 });
+    return true;
+  } catch {
+    // Fallback: try first available
     try {
-      await line.click({ timeout: 2000, force: true });
+      await lineLocator.first().click({ timeout: 3000 });
       return true;
     } catch {
-      continue;
+      return false;
     }
   }
-  return false;
 }
 
 /**
  * Play a game to completion by alternating moves.
  */
-async function playToCompletion(pages, maxMoves = 200, timeoutMs = 60000) {
+async function playToCompletion(pages, maxMoves = 200, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
   let moves = 0;
 
@@ -156,27 +163,41 @@ async function playToCompletion(pages, maxMoves = 200, timeoutMs = 60000) {
 
     for (const page of pages) {
       try {
-        const text = await page.locator('body').innerText().catch(() => '');
-        if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+        const state = await page.evaluate(() => {
+          const text = document.body?.innerText || '';
+          return {
+            gameOver: /Rematch|Game Over|Winner|wins!/i.test(text),
+            yourTurn: text.includes('Your turn'),
+          };
+        }).catch(() => ({ gameOver: false, yourTurn: false }));
 
-        if (text.includes('Your turn')) {
+        if (state.gameOver) return true;
+
+        if (state.yourTurn) {
           const ok = await makeMove(page);
-          if (ok) { moved = true; moves++; break; }
+          if (ok) {
+            moved = true;
+            moves++;
+            // Wait for server to process move and propagate turn change
+            await page.waitForTimeout(200).catch(() => {});
+            break;
+          }
         }
       } catch { continue; }
     }
 
     if (!moved) {
-      // CPU turn or board state change — wait then re-check
-      await pages[0].waitForTimeout(400).catch(() => {});
+      await pages[0].waitForTimeout(200).catch(() => {});
     }
   }
 
-  // Final check — maybe game ended on the last CPU move
+  // Final check
   for (const page of pages) {
     try {
-      const text = await page.locator('body').innerText().catch(() => '');
-      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+      const gameOver = await page.evaluate(() =>
+        /Rematch|Game Over|Winner|wins!/i.test(document.body?.innerText || '')
+      ).catch(() => false);
+      if (gameOver) return true;
     } catch { continue; }
   }
   return false;
@@ -196,16 +217,18 @@ async function waitForGameEnd(page, timeout = 60_000) {
  * Extract game state from the DOM.
  */
 async function getGameState(page) {
-  const bodyText = await page.locator('body').innerText();
-  // Scores appear in DOM as quoted numbers "N" — extract all score numbers
-  const allNumbers = bodyText.match(/^"(\d+)"$/gm) || bodyText.match(/(\d+)/g) || [];
-  const scoreNumbers = allNumbers.map(n => parseInt(n.replace(/[^\d]/g, ''))).filter(n => !isNaN(n) && n < 1000);
-  return {
-    isYourTurn: bodyText.includes('Your turn'),
-    isGameOver: /Rematch|Game Over|Winner|wins!/i.test(bodyText),
-    scores: scoreNumbers.length >= 2 ? scoreNumbers.slice(0, 4) : null,
-    bodyText,
-  };
+  return page.evaluate(() => {
+    const text = document.body?.innerText || '';
+    // Find score numbers — look for standalone small numbers
+    const scoreMatches = text.match(/(?:^|\n)\s*"?(\d{1,3})"?\s*(?:\n|$)/gm) || [];
+    const scores = scoreMatches.map(m => parseInt(m.replace(/[^\d]/g, ''))).filter(n => !isNaN(n) && n < 1000);
+    return {
+      isYourTurn: text.includes('Your turn'),
+      isGameOver: /Rematch|Game Over|Winner|wins!/i.test(text),
+      scores: scores.length >= 2 ? scores.slice(0, 4) : null,
+      bodyText: text,
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -288,9 +311,15 @@ async function joinGameByCode(page, code, username = 'MatrixJoiner') {
 async function detectCurrentPlayer(pages) {
   for (let i = 0; i < pages.length; i++) {
     try {
-      const text = await pages[i].locator('body').innerText();
-      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return -1;
-      if (text.includes('Your turn')) return i;
+      const state = await pages[i].evaluate(() => {
+        const text = document.body?.innerText || '';
+        return {
+          gameOver: /Rematch|Game Over|Winner|wins!/i.test(text),
+          yourTurn: text.includes('Your turn'),
+        };
+      }).catch(() => ({ gameOver: false, yourTurn: false }));
+      if (state.gameOver) return -1;
+      if (state.yourTurn) return i;
     } catch { continue; }
   }
   return -1;
@@ -329,19 +358,31 @@ async function playGameToCompletion(pages, maxMoves = 200, hasCPU = false) {
 
     for (const page of pages) {
       try {
-        const text = await page.locator('body').innerText().catch(() => '');
-        if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+        const state = await page.evaluate(() => {
+          const text = document.body?.innerText || '';
+          return {
+            gameOver: /Rematch|Game Over|Winner|wins!/i.test(text),
+            yourTurn: text.includes('Your turn'),
+          };
+        }).catch(() => ({ gameOver: false, yourTurn: false }));
 
-        if (text.includes('Your turn')) {
+        if (state.gameOver) return true;
+
+        if (state.yourTurn) {
           const ok = await makeMove(page);
-          if (ok) { moved = true; break; }
+          if (ok) {
+            moved = true;
+            // Wait for server to process move
+            await page.waitForTimeout(200).catch(() => {});
+            break;
+          }
         }
       } catch { continue; }
     }
 
     if (!moved) {
       // If CPU game, wait longer for CPU to complete its turn
-      const waitMs = hasCPU ? 1000 : 300;
+      const waitMs = hasCPU ? 500 : 200;
       for (const page of pages) {
         try { await page.waitForTimeout(waitMs); break; } catch { continue; }
       }
@@ -351,8 +392,10 @@ async function playGameToCompletion(pages, maxMoves = 200, hasCPU = false) {
   // Final check
   for (const page of pages) {
     try {
-      const text = await page.locator('body').innerText().catch(() => '');
-      if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+      const gameOver = await page.evaluate(() =>
+        /Rematch|Game Over|Winner|wins!/i.test(document.body?.innerText || '')
+      ).catch(() => false);
+      if (gameOver) return true;
     } catch { continue; }
   }
   return false;
