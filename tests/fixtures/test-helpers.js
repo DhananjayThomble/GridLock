@@ -288,12 +288,18 @@ async function createGameWithOptions(page, {
     await page.locator('button:has-text("Play vs CPU")').click();
     await page.waitForSelector('button:has-text("Easy")', { timeout: 10000 });
 
-    // Set difficulty
-    const diffLabel = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
-    await page.click(`button:has-text("${diffLabel}")`);
+    // Set difficulty — only click if different from default (clicking default may toggle off)
+    if (cpuDifficulty && cpuDifficulty.toLowerCase() !== 'medium') {
+      const diffLabel = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
+      await page.click(`button:has-text("${diffLabel}")`);
+    }
 
     // Set CPU count — buttons are labeled "1 🤖", "2 🤖", "3 🤖"
-    await page.click(`button:has-text("${cpuCount} 🤖")`);
+    // For 2-player games with 1 CPU, there's no count selector (only 1 option)
+    const cpuCountBtn = page.locator(`button:has-text("${cpuCount} 🤖")`);
+    if (await cpuCountBtn.count() > 0) {
+      await cpuCountBtn.click({ timeout: 3000 }).catch(() => {});
+    }
   }
 
   await page.click('button:has-text("🚀 Create Game")');
@@ -303,7 +309,28 @@ async function createGameWithOptions(page, {
   if (currentUrl.includes('/waiting/')) {
     const urlMatch = currentUrl.match(/\/waiting\/([A-Z0-9]+)/i);
     if (!urlMatch) throw new Error(`Could not extract game ID from waiting URL: ${currentUrl}`);
-    return urlMatch[1].toUpperCase().trim();
+    const roomCode = urlMatch[1].toUpperCase().trim();
+
+    // If all non-human slots are CPU, add CPUs in waiting room and wait for game start
+    const allCpu = cpuCount >= playerCount - 1;
+    if (allCpu) {
+      // Click "🤖 CPU" button for each empty slot
+      for (let i = 0; i < cpuCount; i++) {
+        const cpuSlotBtn = page.locator('button:has-text("🤖 CPU")');
+        if (await cpuSlotBtn.count() > 0) {
+          await cpuSlotBtn.first().click({ timeout: 5000 });
+          await page.waitForTimeout(500);
+        }
+      }
+      // Wait for game to start (redirect to /game/)
+      await page.waitForURL(/\/game/, { timeout: 30_000 });
+      await page.waitForFunction(
+        () => /turn/i.test(document.body.innerText),
+        { timeout: 20_000 }
+      );
+      return null;
+    }
+    return roomCode;
   }
 
   // CPU-only game or game page — return null (no room code needed)
@@ -383,7 +410,10 @@ async function makeNextMove(pages) {
  * @param {boolean} hasCPU - Whether game includes CPU players
  */
 async function playGameToCompletion(pages, maxMoves = 200, hasCPU = false) {
-  for (let i = 0; i < maxMoves; i++) {
+  const deadline = Date.now() + (hasCPU ? 180_000 : 120_000);
+  let humanMoves = 0;
+
+  while (humanMoves < maxMoves && Date.now() < deadline) {
     let moved = false;
 
     for (const page of pages) {
@@ -402,7 +432,7 @@ async function playGameToCompletion(pages, maxMoves = 200, hasCPU = false) {
           const ok = await makeMove(page);
           if (ok) {
             moved = true;
-            // Wait for server to process move
+            humanMoves++;
             await page.waitForTimeout(200).catch(() => {});
             break;
           }
@@ -411,7 +441,7 @@ async function playGameToCompletion(pages, maxMoves = 200, hasCPU = false) {
     }
 
     if (!moved) {
-      // If CPU game, wait longer for CPU to complete its turn
+      // Wait for CPU turn or state update
       const waitMs = hasCPU ? 500 : 200;
       for (const page of pages) {
         try { await page.waitForTimeout(waitMs); break; } catch { continue; }
