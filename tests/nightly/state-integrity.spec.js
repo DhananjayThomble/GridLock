@@ -1,11 +1,22 @@
 // tests/nightly/state-integrity.spec.js — DB/Redis state checks
 const { test, expect } = require('@playwright/test');
 const { MongoClient } = require('mongodb');
-const { createClient } = require('redis');
+const { execSync } = require('child_process');
 const { BETA_URL, BETA_API } = require('../fixtures/test-helpers');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/gridlock_beta';
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+
+/**
+ * Run a redis-cli command and return stdout.
+ * Uses redis-cli directly to avoid depending on the redis npm package at root level.
+ */
+function redisCliExec(cmd) {
+  const url = new URL(REDIS_URL);
+  const host = url.hostname || '127.0.0.1';
+  const port = url.port || '6379';
+  return execSync(`redis-cli -h ${host} -p ${port} ${cmd}`, { encoding: 'utf8' }).trim();
+}
 
 test.describe('State Integrity', () => {
 
@@ -34,11 +45,9 @@ test.describe('State Integrity', () => {
   test('no major Redis/MongoDB game count mismatch', async () => {
     test.setTimeout(30_000);
     const mongoClient = new MongoClient(MONGO_URI);
-    const redisClient = createClient({ url: REDIS_URL });
 
     try {
       await mongoClient.connect();
-      await redisClient.connect();
       const db = mongoClient.db();
 
       // Count active games in MongoDB
@@ -46,9 +55,9 @@ test.describe('State Integrity', () => {
         status: { $in: ['waiting', 'playing'] },
       });
 
-      // Count game keys in Redis
-      const redisKeys = await redisClient.keys('game:*');
-      const redisGameCount = redisKeys.length;
+      // Count game keys in Redis using redis-cli
+      const keysOutput = redisCliExec('KEYS "game:*"');
+      const redisGameCount = keysOutput === '' ? 0 : keysOutput.split('\n').length;
 
       console.log(`  MongoDB active games: ${mongoActiveGames}`);
       console.log(`  Redis game keys: ${redisGameCount}`);
@@ -60,7 +69,6 @@ test.describe('State Integrity', () => {
       expect(diff).toBeLessThanOrEqual(Math.max(mongoActiveGames, redisGameCount, 10));
     } finally {
       await mongoClient.close();
-      await redisClient.disconnect();
     }
   });
 

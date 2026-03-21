@@ -10,7 +10,7 @@ K6="${K6:-/snap/bin/k6}"
 
 mkdir -p "$RESULTS_DIR"
 
-echo "📅 Weekly Test Suite — $(date '+%Y-%m-%d %H:%M IST')"
+echo "📅 Weekly Test Suite — $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M IST')"
 echo "Target: $BETA_URL"
 echo ""
 

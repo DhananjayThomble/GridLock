@@ -20,7 +20,7 @@ module.exports = defineConfig({
   use: {
     baseURL: BETA_URL,
     headless: true,
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'off',
   },

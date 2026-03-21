@@ -9,7 +9,7 @@ BETA_API="${BETA_API:-https://beta-api.gridlock.pro}"
 
 mkdir -p "$RESULTS_DIR"
 
-echo "🌙 Nightly Test Suite — $(date '+%Y-%m-%d %H:%M IST')"
+echo "🌙 Nightly Test Suite — $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M IST')"
 echo "Target: $BETA_URL"
 echo ""
 

@@ -144,7 +144,7 @@ test.describe('Performance Baselines', () => {
     }
   });
 
-  test('compare to baselines and update', async () => {
+  test('compare to baselines', async () => {
     const baselines = loadBaselines();
     const warnings = [];
 
@@ -190,21 +190,30 @@ test.describe('Performance Baselines', () => {
       console.log('\n✅ All metrics within baseline thresholds');
     }
 
-    // Update baselines with current results
-    const newBaselines = {
-      pageLoad: {},
-      ...baselines,
-    };
+    // Only update baselines when explicitly requested (UPDATE_BASELINES=1)
+    // or when no baselines file exists yet (first run).
+    const shouldUpdate = !baselines || process.env.UPDATE_BASELINES === '1';
 
-    for (const [name, metrics] of Object.entries(results)) {
-      if (typeof metrics === 'object' && metrics.load) {
-        newBaselines.pageLoad[name] = metrics;
-      } else if (typeof metrics === 'number') {
-        newBaselines[name] = metrics;
+    if (shouldUpdate) {
+      const newBaselines = {
+        pageLoad: {},
+        ...(baselines || {}),
+      };
+
+      for (const [name, metrics] of Object.entries(results)) {
+        if (typeof metrics === 'object' && metrics.load) {
+          newBaselines.pageLoad[name] = metrics;
+        } else if (typeof metrics === 'number') {
+          newBaselines[name] = metrics;
+        }
       }
-    }
 
-    saveBaselines(newBaselines);
-    console.log('📊 Baselines updated');
+      saveBaselines(newBaselines);
+      console.log(baselines
+        ? '📊 Baselines updated (UPDATE_BASELINES=1)'
+        : '📊 Baselines created (first run)');
+    } else {
+      console.log('📊 Baselines unchanged (set UPDATE_BASELINES=1 to update)');
+    }
   });
 });
