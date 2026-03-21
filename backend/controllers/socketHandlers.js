@@ -6,6 +6,7 @@ const { calculateNewState, initializeGameState, pickForfeitWinner, getNextActive
 
 const { sanitizeUsername, sanitizeAvatar, sanitizeGameId, validateNumber } = require('../utils/sanitize');
 const { socketLimiter, ipLimiter, normalizeIp } = require('../middleware/rateLimiter');
+const { startLobbyTimer, cancelLobbyTimer, cancelPostgameTimer, startPostgameTimer, clearAllTimers: clearIdleTimers } = require('../middleware/idleTimeout');
 const { validatePayload } = require('../middleware/socketSchemas');
 const gameStore = require('../stores/gameStore');
 const rematchStore = require('../stores/rematchStore');
@@ -824,6 +825,15 @@ function scheduleCPUMove(io, log, gameId, delay) {
             if (newState.winner) {
                 // Issue #3: include totalMoves in game_over
                 io.to(gameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
+                // Start post-game idle timers for human players (#390)
+                for (let pi = 1; pi <= game.playerCount; pi++) {
+                    const pid = `player${pi}`;
+                    const p = game.players[pid];
+                    if (p && !p.isCPU && !p.disconnectedAt) {
+                        const playerSocket = io.sockets.sockets.get(p.id);
+                        if (playerSocket) startPostgameTimer(playerSocket);
+                    }
+                }
                 // Prometheus: record game completion + duration
                 if (promMetrics) {
                     promMetrics.gamesCompletedTotal.inc();
@@ -1289,6 +1299,9 @@ function attachSocketHandlers(io, log) {
         socket.on('create_tournament', async (rawPayload) => {
             try {
                 if (rateLimited('create_tournament')) return;
+                // Cancel idle timers — player is creating a tournament (#390)
+                cancelLobbyTimer(socket.id);
+                cancelPostgameTimer(socket.id);
                 const validated = validate('create_tournament', rawPayload);
                 if (!validated) return;
                 const { username, avatar, tournamentSize = 4, gridSize = 3 } = validated;
@@ -1332,6 +1345,9 @@ function attachSocketHandlers(io, log) {
         socket.on('join_tournament', async (rawPayload) => {
             try {
                 if (rateLimited('join_tournament')) return;
+                // Cancel idle timers — player is joining a tournament (#390)
+                cancelLobbyTimer(socket.id);
+                cancelPostgameTimer(socket.id);
                 const validated = validate('join_tournament', rawPayload);
                 if (!validated) return;
                 const { tournamentId, username, avatar } = validated;
@@ -1468,6 +1484,9 @@ function attachSocketHandlers(io, log) {
         socket.on('create_game', async (rawPayload, callback) => {
             try {
                 if (rateLimited('create_game')) return;
+                // Cancel idle timers — player is actively creating a game (#390)
+                cancelLobbyTimer(socket.id);
+                cancelPostgameTimer(socket.id);
                 const validated = validate('create_game', rawPayload);
                 if (!validated) return;
                 const { gridSize, username, avatar, playerCount = 2, cpuPlayers = 0, cpuDifficulty = 'medium', dailyChallenge = false, dailySeed = null } = validated;
@@ -1634,6 +1653,9 @@ function attachSocketHandlers(io, log) {
         socket.on('join_game', async (rawPayload) => {
             try {
                 if (rateLimited('join_game')) return;
+                // Cancel idle timers — player is actively joining a game (#390)
+                cancelLobbyTimer(socket.id);
+                cancelPostgameTimer(socket.id);
                 const validated = validate('join_game', rawPayload);
                 if (!validated) return;
                 const { gameId, username, avatar, sessionToken, joinMode } = validated;
@@ -2006,6 +2028,8 @@ function attachSocketHandlers(io, log) {
         socket.on('start_game_early', async (rawPayload) => {
             try {
                 if (rateLimited('start_game_early')) return;
+                // Cancel idle timers — game is starting (#390)
+                cancelPostgameTimer(socket.id);
                 const validated = validate('start_game_early', rawPayload);
                 if (!validated) return;
                 const { gameId, sessionToken, cpuDifficulty } = validated;
@@ -2105,6 +2129,8 @@ function attachSocketHandlers(io, log) {
         socket.on('start_game', async (rawPayload) => {
             try {
                 if (rateLimited('start_game')) return;
+                // Cancel idle timers — game is starting (#390)
+                cancelPostgameTimer(socket.id);
                 const validated = validate('start_game', rawPayload);
                 if (!validated) return;
                 const { gameId, sessionToken } = validated;
@@ -2237,6 +2263,15 @@ function attachSocketHandlers(io, log) {
                 if (newState.winner) {
                     // Issue #3: include totalMoves in game_over
                     io.to(cleanGameId).emit('game_over', { winner: newState.winner, scores: newState.scores, totalMoves: game.gameState.moveCount || 0 });
+                    // Start post-game idle timers for human players (#390)
+                    for (let i = 1; i <= game.playerCount; i++) {
+                        const pid = `player${i}`;
+                        const p = game.players[pid];
+                        if (p && !p.isCPU && !p.disconnectedAt) {
+                            const playerSocket = io.sockets.sockets.get(p.id);
+                            if (playerSocket) startPostgameTimer(playerSocket);
+                        }
+                    }
                     // Prometheus: record game completion + duration
                     if (promMetrics) {
                         promMetrics.gamesCompletedTotal.inc();
@@ -2303,6 +2338,8 @@ function attachSocketHandlers(io, log) {
         socket.on('request_rematch', async (rawPayload) => {
             try {
                 if (rateLimited('request_rematch')) return;
+                // Cancel postgame idle timer — player wants a rematch (#390)
+                cancelPostgameTimer(socket.id);
                 const validated = validate('request_rematch', rawPayload);
                 if (!validated) return;
                 const { gameId, sessionToken } = validated;
@@ -2478,6 +2515,9 @@ function attachSocketHandlers(io, log) {
         socket.on('queue_join', async (rawPayload) => {
             try {
                 if (rateLimited('queue_join')) return;
+                // Cancel idle timers — player is entering matchmaking (#390)
+                cancelLobbyTimer(socket.id);
+                cancelPostgameTimer(socket.id);
                 const validated = validate('queue_join', rawPayload);
                 if (!validated) return;
                 const { username, avatar, gridSize, playerCount } = validated;
@@ -2865,6 +2905,9 @@ function attachSocketHandlers(io, log) {
         socket.on('ranked_queue_join', async (rawPayload) => {
             try {
                 if (rateLimited('ranked_queue_join')) return;
+                // Cancel idle timers — player is entering ranked matchmaking (#390)
+                cancelLobbyTimer(socket.id);
+                cancelPostgameTimer(socket.id);
                 const validated = validate('ranked_queue_join', rawPayload);
                 if (!validated) return;
                 const { username, avatar, gridSize } = validated;
@@ -3116,6 +3159,9 @@ function attachSocketHandlers(io, log) {
                 socket.data.gameId = undefined;
                 socket.data.playerId = undefined;
 
+                // Player returns to lobby — start lobby idle timer (#390 P1)
+                startLobbyTimer(socket);
+
                 // If game already finished, just persist and return
                 if (game.gameState?.winner) {
                     await rematchStore.removeVote(cleanGameId, playerId);
@@ -3156,7 +3202,15 @@ function attachSocketHandlers(io, log) {
                         scores: game.gameState.scores,
                         reason: 'opponent_left',
                     });
-
+                    // Start post-game idle timers for remaining human players (#390)
+                    for (let pi = 1; pi <= game.playerCount; pi++) {
+                        const pid = `player${pi}`;
+                        const p = game.players[pid];
+                        if (p && !p.isCPU && !p.disconnectedAt && pid !== playerId) {
+                            const playerSocket = io.sockets.sockets.get(p.id);
+                            if (playerSocket) startPostgameTimer(playerSocket);
+                        }
+                    }
                     if (promMetrics) {
                         promMetrics.gamesCompletedTotal.inc();
                         if (game.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - game.createdAt) / 1000);
@@ -3222,6 +3276,7 @@ function attachSocketHandlers(io, log) {
             socketLimiter.cleanup(socket.id);
             inviteSenderLimiter.cleanup(socket.id);
             chatRateLimiter.cleanup(socket.id);
+            clearIdleTimers(socket.id);
             matchmaking.leaveQueue(socket.id);
             removeFromRankedQueue(socket.id);
 
@@ -3293,6 +3348,15 @@ function attachSocketHandlers(io, log) {
                                 io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
                                 io.to(gameId).emit('player_forfeited', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
                                 io.to(gameId).emit('game_over', { winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected' });
+                                // Start post-game idle timers for remaining human players (#390)
+                                for (let pi = 1; pi <= currentGame.playerCount; pi++) {
+                                    const pid2 = `player${pi}`;
+                                    const p2 = currentGame.players[pid2];
+                                    if (p2 && !p2.isCPU && !p2.disconnectedAt && pid2 !== playerId) {
+                                        const pSock = io.sockets.sockets.get(p2.id);
+                                        if (pSock) startPostgameTimer(pSock);
+                                    }
+                                }
                                 if (promMetrics) {
                                     promMetrics.gamesCompletedTotal.inc();
                                     if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
@@ -3461,6 +3525,15 @@ function attachSocketHandlers(io, log) {
                                 scores: currentGame.gameState.scores,
                                 reason: 'opponent_disconnected',
                             });
+                            // Start post-game idle timers for remaining human players (#390)
+                            for (let pi = 1; pi <= currentGame.playerCount; pi++) {
+                                const pid2 = `player${pi}`;
+                                const p2 = currentGame.players[pid2];
+                                if (p2 && !p2.isCPU && !p2.disconnectedAt && pid2 !== playerId) {
+                                    const pSock = io.sockets.sockets.get(p2.id);
+                                    if (pSock) startPostgameTimer(pSock);
+                                }
+                            }
                             // Prometheus: record game completion + duration (forfeit)
                             if (promMetrics) {
                                 promMetrics.gamesCompletedTotal.inc();
