@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { captureException } from '../lib/sentry';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -150,6 +151,7 @@ const GameHistory = () => {
       }
     } catch (err) {
       if (err?.name !== 'AbortError' && !controller.signal.aborted) {
+        captureException(err, { tags: { source: 'gameHistory.fetch' } });
         setError(err?.message || 'Failed to fetch game history');
         setHistory([]);
       }

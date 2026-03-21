@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as Sentry from '@sentry/react';
+import { captureException } from '../lib/sentry';
 import socket from '../socket';
 
 class ErrorBoundaryInner extends React.Component {
@@ -15,7 +15,7 @@ class ErrorBoundaryInner extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('UI crashed in ErrorBoundary:', error, errorInfo);
-    Sentry.captureException(error, { extra: { componentStack: errorInfo?.componentStack } });
+    captureException(error, { extra: { componentStack: errorInfo?.componentStack } });
   }
 
   handleReturnToLobby = () => {
