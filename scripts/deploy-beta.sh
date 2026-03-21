@@ -74,7 +74,13 @@ export VITE_SOCKET_URL=https://beta-api.gridlock.pro
 export VITE_API_BASE_URL=https://beta-api.gridlock.pro
 export VITE_SITE_URL=https://beta.gridlock.pro
 export PUPPETEER_SKIP_DOWNLOAD=true
+export SENTRY_SOURCEMAPS=1
 npm run build:seo --silent
+
+# Upload source maps before deploying
+cd "$BETA_REPO"
+bash scripts/upload-sourcemaps.sh gridlock-beta sentry
+cd "$BETA_REPO/frontend"
 
 sudo rm -rf "$BETA_WEB"/*
 sudo cp -r dist/. "$BETA_WEB/"

@@ -41,7 +41,9 @@ echo "   Org: $ORG | Project: $PROJECT"
 echo "   Release: $RELEASE"
 echo "   URL: $SENTRY_URL"
 
-npx @sentry/cli sourcemaps upload \
+SENTRY_CLI="$(command -v sentry-cli 2>/dev/null || echo "npx @sentry/cli")"
+
+$SENTRY_CLI sourcemaps upload \
   --org "$ORG" \
   --project "$PROJECT" \
   --release "$RELEASE" \
