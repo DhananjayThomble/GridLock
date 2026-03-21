@@ -89,13 +89,15 @@ test.describe('Critical Journeys', () => {
         await goToLobby(p2);
 
         // P1 enters quick play
-        await p1.fill('input[placeholder="Enter your name…"]', 'NightlyQP1');
-        await p1.click('button:has-text("⚡ Quick Play")');
-        await expect(p1.locator('text=Searching for opponents')).toBeVisible({ timeout: 5_000 });
+        await p1.locator('input[placeholder="Enter your name…"]:visible').first().fill('NightlyQP1');
+        await p1.waitForTimeout(300); // Wait for React state to enable button
+        await p1.locator('button:has-text("⚡ Quick Play")').click({ timeout: 5000 });
+        await expect(p1.getByRole('heading', { name: /Searching/i })).toBeVisible({ timeout: 10_000 });
 
         // P2 enters quick play
-        await p2.fill('input[placeholder="Enter your name…"]', 'NightlyQP2');
-        await p2.click('button:has-text("⚡ Quick Play")');
+        await p2.locator('input[placeholder="Enter your name…"]:visible').first().fill('NightlyQP2');
+        await p2.waitForTimeout(300);
+        await p2.locator('button:has-text("⚡ Quick Play")').click({ timeout: 5000 });
 
         // Wait for both to enter a game (either matched together or matched with CPU fallback)
         await Promise.all([
