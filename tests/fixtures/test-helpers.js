@@ -22,7 +22,7 @@ async function goToLobby(page) {
  */
 async function createGame(page, { username = 'NightlyAlice', playerCount = 2, gridSize = '3×3' } = {}) {
   await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.click(`button:has-text("${playerCount} Players")`);
   await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
   await page.click('button:has-text("🚀 Create Game")');
@@ -58,12 +58,12 @@ async function createCpuGame(page, {
   cpuDifficulty,
 } = {}) {
   await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.click(`button:has-text("${playerCount} Players")`);
   await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
 
   await page.locator('button:has-text("Play vs CPU")').click();
-  await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
+  await page.waitForSelector('button:has-text("Easy")', { timeout: 10000 });
 
   if (cpuDifficulty) {
     const label = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
@@ -85,7 +85,7 @@ async function joinGame(page, { username = 'NightlyBob', roomCode, joinMode = 'p
   await goToLobby(page);
   await page.click('button:has-text("🔗 Join Game")');
   await page.waitForTimeout(200);
-  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   if (joinMode === 'spectator') {
     await page.click('button:has-text("Join as Spectator")');
@@ -217,14 +217,14 @@ async function createGameWithOptions(page, {
   cpuDifficulty = 'medium',
 } = {}) {
   await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.click(`button:has-text("${playerCount} Players")`);
   await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
 
   if (cpuCount > 0) {
     // Enable CPU toggle
     await page.locator('button:has-text("Play vs CPU")').click();
-    await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
+    await page.waitForSelector('button:has-text("Easy")', { timeout: 10000 });
 
     // Set difficulty
     const diffLabel = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
