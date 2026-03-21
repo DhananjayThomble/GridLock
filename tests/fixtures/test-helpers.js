@@ -147,25 +147,32 @@ async function makeMove(page) {
 /**
  * Play a game to completion by alternating moves.
  */
-async function playToCompletion(pages, maxMoves = 80) {
-  for (let i = 0; i < maxMoves; i++) {
+async function playToCompletion(pages, maxMoves = 200, timeoutMs = 60000) {
+  const deadline = Date.now() + timeoutMs;
+  let moves = 0;
+
+  while (moves < maxMoves && Date.now() < deadline) {
     let moved = false;
+
     for (const page of pages) {
       try {
         const text = await page.locator('body').innerText().catch(() => '');
         if (/Rematch|Game Over|Winner|wins!/i.test(text)) return true;
+
         if (text.includes('Your turn')) {
           const ok = await makeMove(page);
-          if (ok) { moved = true; break; }
+          if (ok) { moved = true; moves++; break; }
         }
       } catch { continue; }
     }
+
     if (!moved) {
-      for (const page of pages) {
-        try { await page.waitForTimeout(500); break; } catch { continue; }
-      }
+      // CPU turn or board state change — wait then re-check
+      await pages[0].waitForTimeout(400).catch(() => {});
     }
   }
+
+  // Final check — maybe game ended on the last CPU move
   for (const page of pages) {
     try {
       const text = await page.locator('body').innerText().catch(() => '');
@@ -190,11 +197,13 @@ async function waitForGameEnd(page, timeout = 60_000) {
  */
 async function getGameState(page) {
   const bodyText = await page.locator('body').innerText();
-  const scoreMatch = bodyText.match(/(\d+)\s*[-–]\s*(\d+)/);
+  // Scores appear in DOM as quoted numbers "N" — extract all score numbers
+  const allNumbers = bodyText.match(/^"(\d+)"$/gm) || bodyText.match(/(\d+)/g) || [];
+  const scoreNumbers = allNumbers.map(n => parseInt(n.replace(/[^\d]/g, ''))).filter(n => !isNaN(n) && n < 1000);
   return {
     isYourTurn: bodyText.includes('Your turn'),
     isGameOver: /Rematch|Game Over|Winner|wins!/i.test(bodyText),
-    scores: scoreMatch ? [parseInt(scoreMatch[1]), parseInt(scoreMatch[2])] : null,
+    scores: scoreNumbers.length >= 2 ? scoreNumbers.slice(0, 4) : null,
     bodyText,
   };
 }
