@@ -32,7 +32,7 @@ test.describe('Lobby', () => {
 
   test('shows Join tab with game code input', async ({ page }) => {
     await goToLobby(page);
-    await page.click('button:has-text("🔗 Join Game")');
+    await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
     await expect(page.locator('input[placeholder*="e.g"]')).toBeVisible();
   });
 

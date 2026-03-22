@@ -73,9 +73,9 @@ test.describe('Graceful degradation without Sentry/PostHog', () => {
     // Verify main UI elements render correctly
     await expect(page.locator('body')).toContainText('GridLock');
     // The lobby should have the create game button
-    await expect(page.locator('button:has-text("🚀 Create Game")')).toBeVisible();
+    await expect(page.locator('button:has-text("🚀 Create Game"):visible').first()).toBeVisible();
     // Join game button should be visible
-    await expect(page.locator('button:has-text("🔗 Join Game")')).toBeVisible();
+    await expect(page.locator('button:has-text("🔗 Join Game"):visible').first()).toBeVisible();
   });
 
   test('frontend loads cleanly — core functionality works', async ({ page }) => {
@@ -89,7 +89,7 @@ test.describe('Graceful degradation without Sentry/PostHog', () => {
     await expect(page.locator('input[placeholder="Enter your name…"]:visible')).toHaveValue('GracefulTest');
 
     // Click player count button to verify interactivity
-    await page.click('button:has-text("2 Players")');
+    await page.locator('button:has-text("2 Players"):visible').first().click();
 
     // No critical JS errors
     const criticalErrors = jsErrors.filter(

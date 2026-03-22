@@ -40,8 +40,8 @@ test.describe('Tournament', () => {
     await goToLobby(page);
     await page.fill('input[placeholder="Enter your name…"]:visible', 'TourneyHost');
     await page.click('button:has-text("🏆 Tournament")');
-    await page.click('button:has-text("4 Players")');
-    await page.click('button:has-text("🏆 Create Tournament")');
+    await page.locator('button:has-text("4 Players"):visible').first().click();
+    await page.locator('button:has-text("🏆 Create Tournament"):visible').first().click();
 
     // Should navigate to /tournament
     await page.waitForURL(/\/tournament/, { timeout: 15_000 });

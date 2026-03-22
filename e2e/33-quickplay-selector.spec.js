@@ -72,7 +72,7 @@ test.describe('Quick Play Player Count Selector', () => {
     await cancelBtn.click();
 
     // Should return to lobby
-    await expect(page.locator('button:has-text("🚀 Create Game")')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('button:has-text("🚀 Create Game"):visible').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('CPU fallback creates game with selected player count', async ({ page }) => {

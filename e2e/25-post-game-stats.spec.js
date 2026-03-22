@@ -9,15 +9,15 @@ const { goToLobby } = require('./helpers');
 async function playCpuGameToCompletion(page, { username = 'StatsPlayer' } = {}) {
   await goToLobby(page);
   await page.fill('input[placeholder="Enter your name…"]:visible', username);
-  await page.click('button:has-text("2 Players")');
+  await page.locator('button:has-text("2 Players"):visible').first().click();
 
   // Enable CPU toggle
-  const cpuToggle = page.locator('button:has-text("Play vs CPU")');
+  const cpuToggle = page.locator('button:has-text("Play vs CPU"):visible').first();
   await cpuToggle.click();
   await page.waitForTimeout(500);
 
   // Create game
-  await page.click('button:has-text("🚀 Create Game")');
+  await page.locator('button:has-text("🚀 Create Game"):visible').first().click();
   await page.waitForURL(/\/game/, { timeout: 30_000 });
 
   // Wait for game to start

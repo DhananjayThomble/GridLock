@@ -74,7 +74,7 @@ async function createGame(page, { username = 'Alice', playerCount = 2, gridSize 
  */
 async function joinGame(page, { username = 'Bob', roomCode, baseUrl = BASE_URL, joinMode = 'player' } = {}) {
   await goToLobby(page, baseUrl);
-  await page.click('button:has-text("🔗 Join Game")');
+  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
   await page.waitForTimeout(200);
   await page.fill('input[placeholder="Enter your name…"]:visible', username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
@@ -166,18 +166,18 @@ async function createCpuGame(page, {
 
   // Enable CPU toggle
   await page.locator('button:has-text("Play vs CPU"):visible').click();
-  await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
+  await page.locator('button:has-text("Easy"), button:has-text("Medium"), button:has-text("Hard")').filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 5000 });
 
   // Set difficulty if specified
   if (cpuDifficulty) {
     const label = cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1);
-    await page.click(`button:has-text("${label}")`);
+    await page.locator(`button:has-text("${label}"):visible`).first().click();
   }
 
   // Set CPU count for 3P/4P
   if (effectiveCpuCount > 1) {
     for (let i = 1; i < effectiveCpuCount; i++) {
-      await page.click('button:has-text("+")');
+      await page.locator('button:has-text("+"):visible').first().click();
     }
   }
 

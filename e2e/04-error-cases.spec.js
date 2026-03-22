@@ -7,7 +7,7 @@ test.describe('Error Handling & Edge Cases', () => {
 
   test('joining non-existent room shows error, stays on lobby or shows message', async ({ page }) => {
     await goToLobby(page);
-    await page.click('button:has-text("🔗 Join Game")');
+    await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
     await page.waitForTimeout(200);
     await page.fill('input[placeholder="Enter your name…"]:visible', 'Charlie');
     await page.fill('input[placeholder*="e.g"]', 'ZZZZZZ');
