@@ -21,6 +21,7 @@ import { RATE_LIMIT_MS } from './chat/chatConstants';
 import { countLines } from '../utils/postGameUtils';
 import { capture } from '../lib/posthog';
 import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
+import { useToast } from '../contexts/ToastContext';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -103,6 +104,7 @@ const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const themeColors = useThemeColors();
+  const { showToast } = useToast();
   const getCSSVar = (varName) => themeColors[varName] || '';
   const {
     username,
@@ -235,7 +237,7 @@ const Board = () => {
 
   // ── Socket events ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!gameId || !username) { navigate('/'); return; }
+    if (!gameId || !username) { showToast('Game not found — returned to lobby', { type: 'error' }); navigate('/'); return; }
 
     const onGameStarted = (data) => {
       const gs = data.gameState;
