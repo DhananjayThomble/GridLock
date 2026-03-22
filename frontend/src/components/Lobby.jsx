@@ -9,7 +9,7 @@ import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby';
+import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons } from './lobby';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -742,52 +742,37 @@ const Lobby = () => {
             {/* Grid size — compact pills on mobile, card grid on desktop */}
             <GridSizeSelector gridSize={gridSize} onSelect={setGridSize} />
 
-            {/* CPU Toggle — prominent card (#272) */}
+            {/* CPU Toggle — compact on mobile */}
             <div>
               <button
-                role="switch"
-                aria-checked={cpuEnabled}
-                aria-label="Add CPU opponents"
                 onClick={() => setCpuEnabled(!cpuEnabled)}
-                className="w-full py-3 sm:py-4 px-4 sm:px-5 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between gap-3"
+                className="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
                 style={cpuEnabled
-                  ? { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 18%, transparent), color-mix(in srgb, var(--warning) 10%, transparent))', border: '2px solid color-mix(in srgb, var(--warning) 50%, transparent)', color: 'var(--warning)' }
-                  : { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 8%, var(--bg-card)), var(--bg-card))', border: '2px dashed color-mix(in srgb, var(--warning) 30%, var(--border-color-strong))', color: 'var(--text-secondary)' }}
+                  ? { background: 'color-mix(in srgb, var(--warning) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }
+                  : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
               >
-                <span className="flex items-center gap-3 min-w-0">
-                  <span
-                    className="text-2xl sm:text-3xl flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center"
-                    style={cpuEnabled
-                      ? { background: 'color-mix(in srgb, var(--warning) 25%, transparent)' }
-                      : { background: 'color-mix(in srgb, var(--warning) 10%, transparent)' }}
-                  >
-                    🤖
-                  </span>
-                  <span className="min-w-0">
-                    <span className="text-sm sm:text-base font-bold block" style={{ color: cpuEnabled ? 'var(--warning)' : 'var(--text-primary)' }}>
-                      {cpuEnabled ? (
-                        <>
-                          <span className="sm:hidden">CPU On · {cpuCount} × {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}</span>
-                          <span className="hidden sm:inline">Play vs CPU</span>
-                        </>
-                      ) : (
-                        'Add CPU Opponents'
-                      )}
-                    </span>
-                    <span className="text-xs block mt-0.5" style={{ color: cpuEnabled ? 'color-mix(in srgb, var(--warning) 80%, var(--text-secondary))' : 'var(--text-muted)' }}>
-                      {cpuEnabled ? 'AI opponents enabled — configure below' : 'Play solo against AI opponents'}
-                    </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-base sm:text-lg">🤖</span>
+                  <span className="text-xs sm:text-sm font-semibold">
+                    {cpuEnabled ? (
+                      <>
+                        <span className="sm:hidden">CPU · {cpuCount} × {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}</span>
+                        <span className="hidden sm:inline">Play vs CPU</span>
+                      </>
+                    ) : (
+                      'Play vs CPU'
+                    )}
                   </span>
                 </span>
-                <span className={`w-11 h-6 rounded-full transition-all flex items-center flex-shrink-0 ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)', boxShadow: cpuEnabled ? '0 0 8px color-mix(in srgb, var(--warning) 40%, transparent)' : 'none' }}>
-                  <span className="w-5 h-5 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
+                <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
+                  <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
                 </span>
               </button>
             </div>
 
             {/* CPU Settings (visible when enabled) */}
             {cpuEnabled && (
-              <div className="card-surface space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+              <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                 {/* CPU count */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>
@@ -832,17 +817,11 @@ const Lobby = () => {
               </div>
             )}
 
-            {/* Create Game — PRIMARY action (top, bold accent) */}
             <button
               onClick={handleCreate}
               disabled={creating || !username.trim()}
-              aria-label="Create Game — start a new game room"
-              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{
-                background: creating ? 'var(--bg-surface)' : 'var(--accent)',
-                boxShadow: creating ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
-                ...(creating && { color: 'var(--text-muted)' }),
-              }}
+              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
             >
               {creating ? (
                 <span className="flex items-center justify-center gap-2">
@@ -854,13 +833,17 @@ const Lobby = () => {
               )}
             </button>
 
-            {/* Quick Play — SECONDARY action */}
+            {/* Quick Play — secondary outline action below Create */}
             <button
               onClick={handleQuickPlay}
               disabled={quickPlaying || creating || !username.trim()}
               aria-label="Quick Play — instant match with random opponents"
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={primaryStyle(quickPlaying || creating)}
+              className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{
+                background: 'transparent',
+                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--accent)',
+                border: `1px solid ${(quickPlaying || creating) ? 'var(--border-color-strong)' : 'var(--accent)'}`,
+              }}
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
@@ -912,32 +895,29 @@ const Lobby = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setJoinMode('player')}
-                  aria-pressed={joinMode === 'player'}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'player'
-                    ? secondaryStyle(true)
-                    : inactiveOptionStyle}
+                    ? { background: 'var(--success)', border: '1px solid var(--success)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--success) 30%, transparent)' }
+                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   🎮 Join as Player
                 </button>
                 <button
                   onClick={() => setJoinMode('spectator')}
-                  aria-pressed={joinMode === 'spectator'}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'spectator'
-                    ? secondaryStyle(true)
-                    : inactiveOptionStyle}
+                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   👀 Join as Spectator
                 </button>
               </div>
 
-              {/* Join — TERTIARY action */}
               <button
                 onClick={handleJoin}
                 disabled={joining || !username.trim() || !gameId.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={joining ? disabledOverlay : tertiaryStyle()}
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
@@ -980,12 +960,11 @@ const Lobby = () => {
               {/* Grid size for tournament */}
               <GridSizeSelector gridSize={tournamentGridSize} onSelect={setTournamentGridSize} label="Grid Size" />
 
-              {/* Create Tournament — SECONDARY action */}
               <button
                 onClick={handleCreateTournament}
                 disabled={creatingTournament || !username.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={primaryStyle(creatingTournament)}
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1032,12 +1011,11 @@ const Lobby = () => {
                 )}
               </div>
 
-              {/* Join Tournament — TERTIARY action */}
               <button
                 onClick={handleJoinTournament}
                 disabled={joiningTournament || !username.trim() || !tournamentId.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={joiningTournament ? disabledOverlay : tertiaryStyle()}
+                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
