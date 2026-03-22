@@ -9,26 +9,12 @@ import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-
-const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
+import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons } from './lobby';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
   try { localStorage.setItem(key, value); } catch { /* quota exceeded / private browsing */ }
 };
-
-const PLAYER_COUNT_OPTIONS = [
-  { value: 2, label: '2 Players', icon: '👥', desc: 'Classic duel' },
-  { value: 3, label: '3 Players', icon: '👨👩👦', desc: 'Triple threat' },
-  { value: 4, label: '4 Players', icon: '👨👩👧👦', desc: 'Party mode' },
-];
-
-const GRID_OPTIONS = [
-  { value: 3, label: '3×3', desc: 'Quick' },
-  { value: 4, label: '4×4', desc: 'Standard' },
-  { value: 5, label: '5×5', desc: 'Pro' },
-  { value: 6, label: '6×6', desc: 'Epic' },
-];
 
 const DIFFICULTY_OPTIONS = [
   { value: 'easy',   label: 'Easy',   icon: '😊', desc: 'Random moves' },
@@ -676,64 +662,17 @@ const Lobby = () => {
                 style={{ maxHeight: profileExpanded ? '500px' : '0px', opacity: profileExpanded ? 1 : 0 }}
               >
                 <div className="pt-3 space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
-                    <input
-                      ref={usernameInputRef}
-                      type="text"
-                      value={username}
-                      onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
-                      onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
-                      placeholder="Enter your name…"
-                      minLength={2}
-                      maxLength={16}
-                      pattern="[a-zA-Z0-9_\-]+"
-                      autoComplete="nickname"
-                      autoCorrect="off"
-                      autoCapitalize="words"
-                      spellCheck={false}
-                      inputMode="text"
-                      enterKeyHint="done"
-                      className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
-                      style={{
-                        background: 'var(--input-bg)',
-                        border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
-                        color: 'var(--text-primary)',
-                      }}
-                    />
-                    <div className="flex justify-between mt-1">
-                      {usernameError ? (
-                        <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
-                      ) : <span />}
-                      <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                        {username.length}/16
-                      </p>
-                    </div>
-                  </div>
+                  <NameInput
+                    inputRef={usernameInputRef}
+                    username={username}
+                    usernameError={usernameError}
+                    onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
+                    onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
+                  />
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
-                    <div className="grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="Pick avatar">
-                      {AVATARS.map((av) => (
-                        <button
-                          key={av}
-                          onClick={() => setSelectedAvatar(av)}
-                          role="radio"
-                          aria-checked={selectedAvatar === av}
-                          aria-label={`Avatar ${av}`}
-                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 lobby-avatar-btn ${
-                            selectedAvatar === av
-                              ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
-                              : ''
-                          }`}
-                          style={selectedAvatar === av
-                            ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
-                            : { background: 'var(--bg-card-hover)' }}
-                        >
-                          {av}
-                        </button>
-                      ))}
-                    </div>
+                    <AvatarGrid selectedAvatar={selectedAvatar} onSelect={setSelectedAvatar} />
                   </div>
 
                   {username.trim() && (
@@ -747,38 +686,13 @@ const Lobby = () => {
 
             {/* ── Desktop: full form (unchanged) ── */}
             <div className="hidden sm:block">
-              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
-              <input
-                ref={usernameInputRef}
-                type="text"
-                value={username}
+              <NameInput
+                inputRef={usernameInputRef}
+                username={username}
+                usernameError={usernameError}
                 onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
                 onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
-                placeholder="Enter your name…"
-                minLength={2}
-                maxLength={16}
-                pattern="[a-zA-Z0-9_\-]+"
-                autoComplete="nickname"
-                autoCorrect="off"
-                autoCapitalize="words"
-                spellCheck={false}
-                inputMode="text"
-                enterKeyHint="done"
-                className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
-                style={{
-                  background: 'var(--input-bg)',
-                  border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
-                  color: 'var(--text-primary)',
-                }}
               />
-              <div className="flex justify-between mt-1">
-                {usernameError ? (
-                  <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
-                ) : <span />}
-                <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                  {username.length}/16
-                </p>
-              </div>
 
               {/* Avatar — desktop: collapsed/expanded */}
               <div className="mt-3">
@@ -801,27 +715,7 @@ const Lobby = () => {
                 ) : (
                   <>
                     <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Pick Avatar</label>
-                    <div className="grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="Pick avatar">
-                      {AVATARS.map((av) => (
-                        <button
-                          key={av}
-                          onClick={() => { setSelectedAvatar(av); setProfileExpanded(false); }}
-                          role="radio"
-                          aria-checked={selectedAvatar === av}
-                          aria-label={`Avatar ${av}`}
-                          className={`aspect-square rounded-lg text-lg flex items-center justify-center transition-all active:scale-90 lobby-avatar-btn ${
-                            selectedAvatar === av
-                              ? 'ring-2 ring-offset-2 scale-110 shadow-lg'
-                              : ''
-                          }`}
-                          style={selectedAvatar === av
-                            ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
-                            : { background: 'var(--bg-card-hover)' }}
-                        >
-                          {av}
-                        </button>
-                      ))}
-                    </div>
+                    <AvatarGrid selectedAvatar={selectedAvatar} onSelectAndCollapse={(av) => { setSelectedAvatar(av); setProfileExpanded(false); }} />
                     {username && (
                       <p className="text-center mt-2 text-xs lobby-playing-as" style={{ color: 'var(--text-muted)' }}>
                         Playing as {selectedAvatar} <span className="font-bold lobby-username" style={{ color: 'var(--text-primary)' }}>{username}</span>
@@ -836,95 +730,17 @@ const Lobby = () => {
           {/* ── Create Game (hero — always visible) ── */}
           <div className="p-4 sm:p-5 space-y-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* Players — compact pill row on mobile, card grid on desktop */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 sm:mb-2" style={{ color: 'var(--label-color)' }}>
-                <span className="hidden sm:inline">Number of Players</span>
-                <span className="sm:hidden">Players</span>
-              </label>
-              {/* Mobile: horizontal pill row */}
-              <div className="flex gap-1.5 sm:hidden" role="radiogroup" aria-label="Number of players">
-                {PLAYER_COUNT_OPTIONS.map(({ value }) => (
-                  <button
-                    key={value}
-                    onClick={() => {
-                      setPlayerCount(value);
-                      const maxCpu = Math.max(1, value - 1);
-                      if (cpuCount > maxCpu) setCpuCount(maxCpu);
-                    }}
-                    role="radio"
-                    aria-checked={playerCount === value}
-                    className="flex-1 py-1.5 rounded-xl text-center transition-all active:scale-95 text-xs font-bold"
-                    style={playerCount === value
-                      ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent)' }
-                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                  >
-                    {value}P
-                  </button>
-                ))}
-              </div>
-              {/* Desktop: full card grid */}
-              <div className="hidden sm:grid grid-cols-3 gap-2">
-                {PLAYER_COUNT_OPTIONS.map(({ value, label, icon, desc }) => (
-                  <button
-                    key={value}
-                    onClick={() => {
-                      setPlayerCount(value);
-                      const maxCpu = Math.max(1, value - 1);
-                      if (cpuCount > maxCpu) setCpuCount(maxCpu);
-                    }}
-                    className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
-                    style={playerCount === value
-                      ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
-                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                  >
-                    <div className="text-lg">{icon}</div>
-                    <div className="text-xs font-bold">{label}</div>
-                    <div className="text-xs">{desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <PlayerCountSelector
+              playerCount={playerCount}
+              onSelect={(value) => {
+                setPlayerCount(value);
+                const maxCpu = Math.max(1, value - 1);
+                if (cpuCount > maxCpu) setCpuCount(maxCpu);
+              }}
+            />
 
             {/* Grid size — compact pills on mobile, card grid on desktop */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 sm:mb-2" style={{ color: 'var(--label-color)' }}>
-                <span className="hidden sm:inline">Grid Size</span>
-                <span className="sm:hidden">Grid</span>
-              </label>
-              {/* Mobile: horizontal pill row */}
-              <div className="flex gap-1.5 sm:hidden" role="radiogroup" aria-label="Grid size">
-                {GRID_OPTIONS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => setGridSize(value)}
-                    role="radio"
-                    aria-checked={gridSize === value}
-                    className="flex-1 py-1.5 rounded-xl text-center transition-all active:scale-95 text-xs font-bold"
-                    style={gridSize === value
-                      ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 2px 8px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
-                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {/* Desktop: full card grid */}
-              <div className="hidden sm:grid grid-cols-4 gap-2">
-                {GRID_OPTIONS.map(({ value, label, desc }) => (
-                  <button
-                    key={value}
-                    onClick={() => setGridSize(value)}
-                    className="py-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
-                    style={gridSize === value
-                      ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
-                      : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                  >
-                    <div className="text-sm font-bold">{label}</div>
-                    <div className="text-xs">{desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <GridSizeSelector gridSize={gridSize} onSelect={setGridSize} />
 
             {/* CPU Toggle — compact on mobile */}
             <div>
@@ -1033,114 +849,18 @@ const Lobby = () => {
             </button>
           </div>
 
-          {/* ── Secondary actions — compact chip row on mobile ── */}
-          <div className="px-3 py-2 flex flex-wrap gap-1.5 sm:hidden" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            <button
-              onClick={() => navigate('/daily')}
-              disabled={creating || !username.trim()}
-              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
-              style={{
-                background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)',
-                color: 'var(--warning)',
-              }}
-            >
-              🎯 Daily
-            </button>
-            <button
-              onClick={handleRankedPlay}
-              disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
-              style={{
-                background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 12%, transparent)',
-                border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 30%, transparent)'}`,
-                color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
-              }}
-            >
-              {rankedPlaying ? '⏳…' : '⚔️ Ranked'}
-            </button>
-            <button
-              onClick={() => setTab(tab === 'join' ? '' : 'join')}
-              aria-pressed={tab === 'join'}
-              className="flex-1 min-w-[60px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
-              style={{
-                background: tab === 'join' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : 'var(--bg-card)',
-                border: `1px solid ${tab === 'join' ? 'color-mix(in srgb, var(--success) 40%, transparent)' : 'var(--border-color-strong)'}`,
-                color: tab === 'join' ? 'var(--success)' : 'var(--text-secondary)',
-              }}
-            >
-              🔗 Join
-            </button>
-            <button
-              onClick={() => setTab(tab === 'tournament' ? '' : 'tournament')}
-              aria-pressed={tab === 'tournament'}
-              className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1"
-              style={{
-                background: tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 15%, transparent)' : 'var(--bg-card)',
-                border: `1px solid ${tab === 'tournament' ? 'color-mix(in srgb, var(--warning) 40%, transparent)' : 'var(--border-color-strong)'}`,
-                color: tab === 'tournament' ? 'var(--warning)' : 'var(--text-secondary)',
-              }}
-            >
-              🏆 Tourney
-            </button>
-          </div>
-
-          {/* Desktop: full-size Daily + Ranked row */}
-          <div className="hidden sm:flex px-5 py-3 gap-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            <button
-              onClick={() => navigate('/daily')}
-              disabled={creating || !username.trim()}
-              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5"
-              style={{
-                background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
-                color: 'var(--warning)',
-              }}
-            >
-              🎯 Daily Challenge
-            </button>
-            <button
-              onClick={handleRankedPlay}
-              disabled={rankedPlaying || creating || quickPlaying || !username.trim()}
-              className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60 flex flex-col items-center justify-center gap-0.5"
-              style={{
-                minHeight: '44px',
-                background: rankedPlaying ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--danger) 15%, transparent)',
-                border: `1px solid ${rankedPlaying ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--danger) 40%, transparent)'}`,
-                color: rankedPlaying ? 'var(--text-muted)' : 'var(--danger)',
-              }}
-            >
-              <span>{rankedPlaying ? '⏳ Searching…' : '⚔️ Ranked'}</span>
-              {rankedProfile && !rankedPlaying && (
-                <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>
-                  {rankedProfile.tierIcon} {rankedProfile.elo} ELO · {rankedProfile.wins}W · {rankedProfile.losses}L · {rankedProfile.draws || 0}D
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Desktop: Join / Tournament tabs */}
-          <div className="hidden sm:flex" style={{ borderBottom: '1px solid var(--border-color)' }}>
-            {[
-              { key: 'join',   label: '🔗 Join Game' },
-              { key: 'tournament', label: '🏆 Tournament' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setTab(tab === key ? '' : key)}
-                className={`flex-1 py-3 text-sm font-semibold transition-all lobby-tab ${
-                  tab === key ? 'border-b-2' : ''
-                }`}
-                style={{
-                  color: tab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  background: tab === key ? 'var(--bg-card)' : 'transparent',
-                  borderColor: tab === key ? 'var(--accent)' : 'transparent',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* ── Secondary actions — shared mobile chips + desktop buttons ── */}
+          <GameModeButtons
+            tab={tab}
+            creating={creating}
+            quickPlaying={quickPlaying}
+            rankedPlaying={rankedPlaying}
+            username={username}
+            rankedProfile={rankedProfile}
+            onNavigateDaily={() => navigate('/daily')}
+            onRankedPlay={handleRankedPlay}
+            onSetTab={setTab}
+          />
 
           {/* ── Join Tab ── */}
           {tab === 'join' && (
@@ -1238,24 +958,7 @@ const Lobby = () => {
               </div>
 
               {/* Grid size for tournament */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>Grid Size</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {GRID_OPTIONS.map(({ value, label, desc }) => (
-                    <button
-                      key={value}
-                      onClick={() => setTournamentGridSize(value)}
-                      className="py-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
-                      style={tournamentGridSize === value
-                        ? { background: 'var(--player4-color)', border: '1px solid var(--player4-color)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--player4-color) 30%, transparent)' }
-                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
-                    >
-                      <div className="text-sm font-bold">{label}</div>
-                      <div className="text-xs">{desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <GridSizeSelector gridSize={tournamentGridSize} onSelect={setTournamentGridSize} label="Grid Size" />
 
               <button
                 onClick={handleCreateTournament}
