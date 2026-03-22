@@ -122,7 +122,14 @@
   }
 }
 
-/* ── Bottom Tab Navigation (#261) ──────────────────────────────────────────── */
+/* ── Galaxy S22 / narrow screen fixes (#416) ─────────────────────────────── */
+
+@media (max-width: 380px) {
+  /* Prevent "Waiting for player…" from truncating mid-word */
+  .waiting-room-player-text {
+    font-size: 0.75rem;
+  }
+}
 
 .bottom-nav {
   display: none; /* hidden on desktop/tablet */
