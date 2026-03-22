@@ -1680,7 +1680,8 @@ function attachSocketHandlers(io, log) {
                 if (isSpectatorJoinRequest(joinMode)) {
                     // Cap spectators to prevent unbounded resource usage (#374 review)
                     const MAX_SPECTATORS = 20;
-                    if ((game.spectatorCount || 0) >= MAX_SPECTATORS) {
+                    const currentSpectators = await gameStore.getSpectatorCount(cleanGameId);
+                    if (currentSpectators >= MAX_SPECTATORS) {
                         socket.emit('error', 'Spectator limit reached for this game');
                         return;
                     }
@@ -1694,11 +1695,9 @@ function attachSocketHandlers(io, log) {
                     socket.data.spectatorUsername = cleanUsername;
                     socket.data.username = cleanUsername;
 
-                    // Track spectator count
-                    // TODO: This is a non-atomic read-modify-write. Under concurrent spectator
-                    // joins, the count can drift by ±1. Consider Redis HINCRBY for accuracy.
-                    if (!game.spectatorCount) game.spectatorCount = 0;
-                    game.spectatorCount++;
+                    // Track spectator count atomically via dedicated Redis counter (#303)
+                    const spectatorCount = await gameStore.adjustSpectatorCount(cleanGameId, +1);
+                    game.spectatorCount = spectatorCount;
                     await gameStore.setGame(cleanGameId, game);
 
                     socket.emit('game_started', {
@@ -3584,16 +3583,17 @@ function attachSocketHandlers(io, log) {
                 const hintedIsSpectator = socket.data?.isSpectator === true || hintedPlayerId === 'spectator';
                 if (hintedGameId && hintedPlayerId) {
                     if (hintedIsSpectator) {
-                        // Decrement spectator count and notify remaining participants
+                        // Decrement spectator count atomically (#303)
                         try {
+                            const newCount = await gameStore.adjustSpectatorCount(hintedGameId, -1);
                             const hintedGame = await gameStore.getGame(hintedGameId);
                             if (hintedGame) {
-                                hintedGame.spectatorCount = Math.max(0, (hintedGame.spectatorCount || 1) - 1);
+                                hintedGame.spectatorCount = newCount;
                                 await gameStore.setGame(hintedGameId, hintedGame);
-                                io.to(hintedGameId).emit('spectator_count', { count: hintedGame.spectatorCount });
+                                io.to(hintedGameId).emit('spectator_count', { count: newCount });
                                 io.to(hintedGameId).emit('spectator_left', {
                                     username: socket.data.spectatorUsername || 'A spectator',
-                                    count: hintedGame.spectatorCount,
+                                    count: newCount,
                                 });
                             }
                         } catch (err) {
