@@ -15,6 +15,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import BottomNav from './components/BottomNav';
 import PageSeo from './components/PageSeo';
+import ScrollToTop from './components/ScrollToTop';
 import './App.css';
 
 // Lazy-loaded route components — split into separate chunks to reduce initial bundle
@@ -273,6 +274,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router basename={basePath}>
+        <ScrollToTop />
         <ConnectionOverlay />
         <AppLayout />
       </Router>
