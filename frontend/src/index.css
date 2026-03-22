@@ -147,6 +147,9 @@ body {
   --spectator-text:   #57606a;
   --spectator-bg:     rgba(87, 96, 106, 0.10);
   --spectator-border: rgba(87, 96, 106, 0.20);
+
+  /* Turn badge — darker green for WCAG AA contrast on light bg */
+  --turn-badge-text: #15603a;
 }
 
 /* ── Theme transition (only during toggle) ─────────────────────────────────── */

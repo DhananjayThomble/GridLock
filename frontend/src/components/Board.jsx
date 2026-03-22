@@ -1269,10 +1269,11 @@ const Board = () => {
             <div
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300"
               style={isMyTurnNow ? {
-                backgroundColor: `color-mix(in srgb, var(--success) 15%, transparent)`,
-                color: 'var(--success)',
+                backgroundColor: `color-mix(in srgb, var(--success) 20%, transparent)`,
+                color: 'var(--turn-badge-text, var(--success))',
                 transform: 'scale(1.05)',
                 boxShadow: `0 0 12px color-mix(in srgb, var(--success) 20%, transparent)`,
+                border: '1px solid color-mix(in srgb, var(--success) 35%, transparent)',
               } : {
                 backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-secondary)',
