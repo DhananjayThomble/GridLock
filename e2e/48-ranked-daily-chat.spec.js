@@ -100,6 +100,10 @@ test.describe('Daily Challenge', () => {
 
   test('daily challenge page loads and shows content', async ({ page }) => {
     await page.goto(`${BASE_URL}/daily`, { waitUntil: 'networkidle' });
+
+    // Wait for lazy-loaded chunk — spinner disappears once content renders
+    await page.locator('[aria-label="Loading page"]').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+
     // Should show daily challenge content
     await expect(page.locator('body')).toContainText(/daily|challenge|puzzle|score|move/i, { timeout: 10000 });
   });
@@ -113,6 +117,10 @@ test.describe('Daily Challenge', () => {
 
     // Should navigate to /daily
     await page.waitForURL(/\/daily/, { timeout: 10000 });
+
+    // Wait for lazy-loaded chunk
+    await page.locator('[aria-label="Loading page"]').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+
     const bodyText = await page.locator('body').innerText();
     expect(bodyText).toMatch(/daily|challenge|puzzle|score|move/i);
   });
@@ -203,7 +211,7 @@ test.describe('Game Chat', () => {
       await p1.locator('.chat-msg-btn:has-text("Hello!")').first().click();
 
       // Chat bubble should appear on P2's screen (via socket broadcast)
-      await expect(p2.locator('text=Hello! 👋')).toBeVisible({ timeout: 8000 });
+      await expect(p2.locator('.chat-overlay >> text=Hello! 👋')).toBeVisible({ timeout: 8000 });
 
       // Now P2 sends a message back — wait for rate limit cooldown
       await p2.waitForTimeout(2500);
@@ -212,7 +220,7 @@ test.describe('Game Chat', () => {
       await p2.locator('.chat-msg-btn:has-text("GG!")').first().click();
 
       // Chat bubble should appear on P1's screen
-      await expect(p1.locator('text=GG! 🤝')).toBeVisible({ timeout: 8000 });
+      await expect(p1.locator('.chat-overlay >> text=GG! 🤝')).toBeVisible({ timeout: 8000 });
     } finally {
       await ctx1.close();
       await ctx2.close();
@@ -266,7 +274,7 @@ test.describe('Game Chat', () => {
       await chatPanel.locator('.chat-emoji-btn:has-text("🔥")').click();
 
       // 🔥 should appear on P2's screen as a chat bubble
-      await expect(p2.locator('text=🔥')).toBeVisible({ timeout: 8000 });
+      await expect(p2.locator('.chat-overlay >> text=🔥')).toBeVisible({ timeout: 8000 });
     } finally {
       await ctx1.close();
       await ctx2.close();
