@@ -116,12 +116,12 @@ test.describe('Game UI & Mechanics', () => {
       await makeMove(current);
       await p1.waitForTimeout(200);
       const t = await p1.locator('body').innerText();
-      if (t.includes('Rematch') || t.includes('Leave Game')) { gameOver = true; }
+      if (t.includes('Rematch') || t.includes('Game Over') || t.includes('Winner') || t.includes('wins!')) { gameOver = true; }
     }
 
     if (gameOver) {
-      // Click Leave Game
-      const leaveBtn = p1.locator('button:has-text("Leave Game")');
+      // Click the post-game Leave Game button (has .postgame-btn class in winner modal)
+      const leaveBtn = p1.locator('button.postgame-btn:has-text("Leave Game")');
       if (await leaveBtn.isVisible()) {
         await leaveBtn.click();
         // In CI: URL returns to http://localhost:4173/ (base=/)
