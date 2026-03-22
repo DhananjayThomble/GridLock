@@ -144,6 +144,7 @@ function startGameCleanup(gameStore, log, Game) {
                     var abandonedMs = now - new Date(abandonResult.oldestDisconnect).getTime();
                     if (abandonedMs > ABANDONED_GAME_TTL_MS) {
                         await gameStore.deleteGame(gameId);
+                        await gameStore.deleteSpectatorCount(gameId);
                         zombieCount++;
                         continue;
                     }
@@ -154,6 +155,7 @@ function startGameCleanup(gameStore, log, Game) {
                     var createdAt = game.createdAt ? new Date(game.createdAt).getTime() : 0;
                     if (createdAt > 0 && (now - createdAt) > WAITING_GAME_TTL_MS) {
                         await gameStore.deleteGame(gameId);
+                        await gameStore.deleteSpectatorCount(gameId);
                         waitingCount++;
                         continue;
                     }
@@ -166,6 +168,7 @@ function startGameCleanup(gameStore, log, Game) {
                     var refTime = finishedAt || gameCreatedAt;
                     if (refTime > 0 && (now - refTime) > ABANDONED_GAME_TTL_MS) {
                         await gameStore.deleteGame(gameId);
+                        await gameStore.deleteSpectatorCount(gameId);
                         zombieCount++;
                         continue;
                     }
