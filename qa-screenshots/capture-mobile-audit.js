@@ -4,7 +4,8 @@ const fs = require('fs');
 
 const BASE_URL = 'https://beta.gridlock.pro';
 const API_URL = 'https://beta-api.gridlock.pro';
-const OUT_DIR = path.join(__dirname, 'mobile-audit-2026-03-22');
+const dateStr = new Date().toISOString().split("T")[0];
+const OUT_DIR = path.join(__dirname, `mobile-audit-${dateStr}`);
 
 const DEVICES = [
   { name: 'iphone-14', width: 390, height: 844, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1', dpr: 3 },

@@ -57,3 +57,6 @@ screenshot.mjs
 /screenshots/
 backend/.env
 frontend/.env
+
+# QA screenshot output (generated, large binaries)
+qa-screenshots/**/mobile-audit-*/

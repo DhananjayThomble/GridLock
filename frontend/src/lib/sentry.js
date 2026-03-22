@@ -20,10 +20,10 @@ export function initSentry() {
     release: import.meta.env.VITE_APP_VERSION
       ? `gridlock-frontend@${import.meta.env.VITE_APP_VERSION}`
       : undefined,
-    enabled: true,
+    enabled: isProd,
 
-    // Performance: light sampling in prod, full in dev
-    tracesSampleRate: isProd ? 0.1 : 1.0,
+    // Performance: light sampling in prod
+    tracesSampleRate: 0.1,
 
     // Replay: capture on errors for debugging, no random session recording
     replaysSessionSampleRate: 0,
@@ -36,18 +36,6 @@ export function initSentry() {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
     ],
-
-    // Drop events from local dev/test environments (#408)
-    beforeSend(event) {
-      if (
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1')
-      ) {
-        return null;
-      }
-      return event;
-    },
   });
 }
 
