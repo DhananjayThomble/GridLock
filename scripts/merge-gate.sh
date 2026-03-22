@@ -19,7 +19,7 @@ NC='\033[0m'
 
 REPO="DhananjayThomble/GridLock"
 MIN_REVIEW_CYCLES=2
-REVIEW_PATTERN="## Review Cycle"
+REVIEW_PATTERN="## Review"
 MERGE_STRATEGY="${2:---squash}"
 TOUCH_FILES=("Board.jsx" "BoardZoomWrapper.jsx")
 
