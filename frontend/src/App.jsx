@@ -49,7 +49,7 @@ const NotFoundRedirect = () => {
   useEffect(() => {
     showToast('Page not found — returned to lobby', { type: 'error', duration: 4000 });
     navigate('/', { replace: true });
-  }, []);
+  }, [navigate, showToast]);
   return null;
 };
 

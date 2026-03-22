@@ -528,7 +528,7 @@ const Lobby = () => {
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="min-h-screen flex items-start justify-center p-2 pt-1 sm:p-4 sm:pt-8 sm:items-center safe-bottom lobby-container overflow-y-auto"
+      className="min-h-screen flex items-start justify-center p-2 pt-1 sm:p-4 sm:pt-8 sm:items-center safe-bottom lobby-container"
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-lg md:max-w-[720px] lg:max-w-[960px]">
