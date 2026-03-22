@@ -315,6 +315,12 @@ const Board = () => {
 
     const onAllJoined = () => {
       setWaitingCount(0);
+      // #421: Record game start time when all players join — this ensures
+      // duration is always available regardless of how many lines the first
+      // game_update carries (fixes '—' duration on 5×5 2P games).
+      if (!gameStartTimeRef.current) {
+        gameStartTimeRef.current = Date.now();
+      }
       // Game start sound — once
       if (!gameStarted.current) {
         gameStarted.current = true;
@@ -345,10 +351,11 @@ const Board = () => {
         if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
         setMoveCount(lineOwners);
         if (prevLineCountRef.current === 0 && currentLineCount > 0) {
-          // Only set game start if this is truly the first move (1 line).
-          // If currentLineCount > 1 on first update, we reconnected mid-game —
-          // leave gameStartTimeRef null so duration shows "—" instead of wrong values.
-          if (currentLineCount === 1) {
+          // Set game start time on first move if not already set by all_players_joined.
+          // For reconnection mid-game (currentLineCount >> 1 on first update with no
+          // prior gameStartTimeRef), leave it null so duration shows "—" rather than
+          // an incorrect value — unless all_players_joined already set it (#421).
+          if (!gameStartTimeRef.current && currentLineCount === 1) {
             gameStartTimeRef.current = Date.now();
           }
         }
