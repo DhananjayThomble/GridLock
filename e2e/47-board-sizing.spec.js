@@ -12,7 +12,7 @@ async function createCpuGameMobile(page, { username = 'MobileUser', gridSize = '
   await goToLobby(page);
 
   // Fill the name input (mobile has only one visible input)
-  const nameInput = page.locator('input[placeholder="Enter your name…"]').first();
+  const nameInput = page.locator('input[placeholder="Enter your name…"]:visible').first();
   await nameInput.fill(username);
 
   // Mobile uses compact pill buttons: "2P" / "3P" / "4P"

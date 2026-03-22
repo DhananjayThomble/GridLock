@@ -38,7 +38,7 @@ test.describe('Tournament', () => {
 
   test('can create a tournament and navigate to tournament lobby', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', 'TourneyHost');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'TourneyHost');
     await page.click('button:has-text("🏆 Tournament")');
     await page.click('button:has-text("4 Players")');
     await page.click('button:has-text("🏆 Create Tournament")');

@@ -22,7 +22,7 @@ test.describe('Push Notification Toggle', () => {
     await goToLobby(page);
 
     // Clear the username field
-    await page.fill('input[placeholder="Enter your name…"]', '');
+    await page.fill('input[placeholder="Enter your name…"]:visible', '');
 
     // Listen for dialog (alert)
     let alertMessage = '';
@@ -41,7 +41,7 @@ test.describe('Push Notification Toggle', () => {
 
   test('toggling push with username changes state', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', 'PushTester');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'PushTester');
 
     const toggle = page.locator('button[aria-label="Toggle push notifications"]');
 

@@ -10,7 +10,7 @@ test.describe('Join Error Handling', () => {
     test.setTimeout(30_000);
 
     await page.goto(`${BASE_URL}/join/XXXXXX`, { waitUntil: 'networkidle' });
-    await page.fill('input[placeholder="Enter your name…"]', 'TestUser');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'TestUser');
 
     // Click the Join button
     const joinBtn = page.locator('button:has-text("Join")').first();
@@ -47,7 +47,7 @@ test.describe('Join Error Handling', () => {
 
     // P3 navigates to join page for this game
     await p3.goto(`${BASE_URL}/join/${roomCode}`, { waitUntil: 'networkidle' });
-    await p3.fill('input[placeholder="Enter your name…"]', 'Charlie');
+    await p3.fill('input[placeholder="Enter your name…"]:visible', 'Charlie');
     await p3.locator('button:has-text("Join")').first().click();
 
     // Verify "Game is full" error

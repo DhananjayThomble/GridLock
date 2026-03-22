@@ -8,7 +8,7 @@ test.describe('CPU Player Games', () => {
 
   test('CPU toggle shows count and difficulty selectors', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', 'CpuTester');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'CpuTester');
 
     const cpuToggle = page.locator('button:has-text("Play vs CPU")');
     await expect(cpuToggle).toBeVisible();
@@ -86,7 +86,7 @@ test.describe('CPU Player Games', () => {
 
   test('CPU difficulty options are selectable', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', 'DiffTester');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'DiffTester');
 
     const cpuToggle = page.locator('button:has-text("Play vs CPU")');
     await cpuToggle.click();

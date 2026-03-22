@@ -85,8 +85,8 @@ test.describe('Graceful degradation without Sentry/PostHog', () => {
     await goToLobby(page, BASE_URL);
 
     // Fill in a name and verify interaction works
-    await page.fill('input[placeholder="Enter your name…"]', 'GracefulTest');
-    await expect(page.locator('input[placeholder="Enter your name…"]')).toHaveValue('GracefulTest');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'GracefulTest');
+    await expect(page.locator('input[placeholder="Enter your name…"]:visible')).toHaveValue('GracefulTest');
 
     // Click player count button to verify interactivity
     await page.click('button:has-text("2 Players")');

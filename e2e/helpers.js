@@ -39,10 +39,10 @@ async function goToLobby(page, baseUrl = BASE_URL) {
  * Fill lobby form and create a game. Returns the room code.
  */
 async function createGame(page, { username = 'Alice', playerCount = 2, gridSize = '3×3' } = {}) {
-  await page.fill('input[placeholder="Enter your name…"]', username);
-  await page.click(`button:has-text("${playerCount} Players")`);
-  await page.click(`button:has-text("${gridSize}")`);
-  await page.click('button:has-text("🚀 Create Game")');
+  await page.fill('input[placeholder="Enter your name…"]:visible', username);
+  await page.locator(`button:has-text("${playerCount} Players"):visible`).click();
+  await page.locator(`button:has-text("${gridSize}"):visible`).first().click();
+  await page.locator('button:has-text("🚀 Create Game"):visible').click();
 
   // New flow: CPU games go directly to /game, human games go to /waiting/:gameId first
   await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
@@ -76,7 +76,7 @@ async function joinGame(page, { username = 'Bob', roomCode, baseUrl = BASE_URL, 
   await goToLobby(page, baseUrl);
   await page.click('button:has-text("🔗 Join Game")');
   await page.waitForTimeout(200);
-  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.fill('input[placeholder="Enter your name…"]:visible', username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   if (joinMode === 'spectator') {
     await page.click('button:has-text("Join as Spectator")');
@@ -160,12 +160,12 @@ async function createCpuGame(page, {
   // Default cpuCount: fill all non-human slots with CPU
   const effectiveCpuCount = cpuCount ?? (playerCount - 1);
   await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]', username);
-  await page.click(`button:has-text("${playerCount} Players")`);
-  await page.click(`button:has-text("${gridSize}")`, { timeout: 3000 }).catch(() => {});
+  await page.fill('input[placeholder="Enter your name…"]:visible', username);
+  await page.locator(`button:has-text("${playerCount} Players"):visible`).click();
+  await page.locator(`button:has-text("${gridSize}"):visible`).first().click({ timeout: 3000 }).catch(() => {});
 
   // Enable CPU toggle
-  await page.locator('button:has-text("Play vs CPU")').click();
+  await page.locator('button:has-text("Play vs CPU"):visible').click();
   await page.waitForSelector('text=/Easy|Medium|Hard/i', { timeout: 3000 });
 
   // Set difficulty if specified
@@ -181,7 +181,7 @@ async function createCpuGame(page, {
     }
   }
 
-  await page.click('button:has-text("🚀 Create Game")');
+  await page.locator('button:has-text("🚀 Create Game"):visible').click();
   await page.waitForURL(/\/game/, { timeout: 15_000 });
   await page.waitForFunction(
     () => /turn/i.test(document.body.innerText),

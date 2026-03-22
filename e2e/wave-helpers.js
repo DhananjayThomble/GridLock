@@ -7,7 +7,7 @@ const { goToLobby } = require('./helpers');
 
 /** Fill the visible name input (handles mobile/desktop duplicate inputs). */
 async function fillVisibleNameInput(page, username) {
-  const inputs = page.locator('input[placeholder="Enter your name…"]');
+  const inputs = page.locator('input[placeholder="Enter your name…"]:visible');
   const count = await inputs.count();
   if (count > 1) {
     await inputs.nth(1).fill(username);
@@ -94,7 +94,7 @@ async function joinGameV(page, { username = 'Bob', roomCode, baseUrl, joinMode =
   await page.click('button:has-text("🔗 Join Game")');
   await page.waitForTimeout(200);
   // Use nth(1) to pick the visible desktop input
-  const inputs = page.locator('input[placeholder="Enter your name…"]');
+  const inputs = page.locator('input[placeholder="Enter your name…"]:visible');
   const count = await inputs.count();
   if (count > 1) {
     await inputs.nth(1).fill(username);
@@ -121,7 +121,7 @@ async function joinToWaitingRoom(page, { username = 'Bob', roomCode, baseUrl } =
   await goToLobby(page, baseUrl || BASE_URL);
   await page.click('button:has-text("🔗 Join Game")');
   await page.waitForTimeout(200);
-  const inputs = page.locator('input[placeholder="Enter your name…"]');
+  const inputs = page.locator('input[placeholder="Enter your name…"]:visible');
   const count = await inputs.count();
   if (count > 1) {
     await inputs.nth(1).fill(username);

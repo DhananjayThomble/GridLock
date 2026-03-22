@@ -8,7 +8,7 @@ const { goToLobby } = require('./helpers');
  */
 async function playCpuGameToCompletion(page, { username = 'StatsPlayer' } = {}) {
   await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]', username);
+  await page.fill('input[placeholder="Enter your name…"]:visible', username);
   await page.click('button:has-text("2 Players")');
 
   // Enable CPU toggle

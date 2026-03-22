@@ -9,7 +9,7 @@ test.describe('Error Handling & Edge Cases', () => {
     await goToLobby(page);
     await page.click('button:has-text("🔗 Join Game")');
     await page.waitForTimeout(200);
-    await page.fill('input[placeholder="Enter your name…"]', 'Charlie');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'Charlie');
     await page.fill('input[placeholder*="e.g"]', 'ZZZZZZ');
     await page.locator('button:has-text("Join Game")').last().click();
 

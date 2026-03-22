@@ -8,7 +8,7 @@ test.describe('Quick Play Player Count Selector', () => {
   test.beforeEach(async ({ page }) => {
     await goToLobby(page, BASE_URL);
     // Fill username so Quick Play button works
-    await page.fill('input[placeholder="Enter your name…"]', 'TestPlayer');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'TestPlayer');
   });
 
   test('Quick Play modal shows player count toggle', async ({ page }) => {

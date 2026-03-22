@@ -9,7 +9,7 @@ test.describe('Negative Lobby Tests', () => {
     await goToLobby(page);
 
     // Clear username
-    await page.fill('input[placeholder="Enter your name…"]', '');
+    await page.fill('input[placeholder="Enter your name…"]:visible', '');
 
     let alertMessage = '';
     page.on('dialog', async dialog => {
@@ -33,7 +33,7 @@ test.describe('Negative Lobby Tests', () => {
 
   test('whitespace-only username rejects game creation', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', '   ');
+    await page.fill('input[placeholder="Enter your name…"]:visible', '   ');
 
     let alertMessage = '';
     page.on('dialog', async dialog => {
@@ -56,7 +56,7 @@ test.describe('Negative Lobby Tests', () => {
     await goToLobby(page);
     await page.click('button:has-text("🔗 Join Game")');
     await page.waitForTimeout(200);
-    await page.fill('input[placeholder="Enter your name…"]', 'JoinTester');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'JoinTester');
     // Leave code empty
     const codeInput = page.locator('input[placeholder*="e.g"]');
     await codeInput.fill('');
@@ -82,7 +82,7 @@ test.describe('Negative Lobby Tests', () => {
     await goToLobby(page);
     await page.click('button:has-text("🔗 Join Game")');
     await page.waitForTimeout(200);
-    await page.fill('input[placeholder="Enter your name…"]', 'InvalidJoiner');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'InvalidJoiner');
     await page.fill('input[placeholder*="e.g"]', 'ZZZZZ9');
     await page.locator('button:has-text("Join Game")').last().click();
 
@@ -139,7 +139,7 @@ test.describe('Negative Lobby Tests', () => {
       await goToLobby(page2);
       await page2.click('button:has-text("🔗 Join Game")');
       await page2.waitForTimeout(200);
-      await page2.fill('input[placeholder="Enter your name…"]', 'SelfJoiner');
+      await page2.fill('input[placeholder="Enter your name…"]:visible', 'SelfJoiner');
       await page2.fill('input[placeholder*="e.g"]', roomCode);
       await page2.locator('button:has-text("Join Game")').last().click();
 
