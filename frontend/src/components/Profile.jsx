@@ -168,8 +168,10 @@ const Profile = () => {
     setError('');
 
     const fetchProfile = async () => {
+      let status = 0;
       try {
         const res = await fetch(apiUrl(`/api/profile/${encodeURIComponent(username)}`));
+        status = res.status;
         const data = await res.json();
         if (!res.ok || !data?.success) {
           throw new Error(data?.error || 'Failed to load profile');
@@ -177,7 +179,10 @@ const Profile = () => {
         if (!cancelled) setProfile(data.profile);
       } catch (err) {
         if (!cancelled) setError(err?.message || 'Failed to load profile');
-        captureException(err, { tags: { source: 'profile.fetch' } });
+        // Only report unexpected errors to Sentry — 404 "player not found" is expected
+        if (status === 0 || status >= 500) {
+          captureException(err, { tags: { source: 'profile.fetch' } });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
