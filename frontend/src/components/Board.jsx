@@ -980,7 +980,7 @@ const Board = () => {
               return (
                 <div
                   key={pid}
-                  className="flex justify-between items-center px-2 py-1 rounded-lg"
+                  className="flex justify-between items-center px-2 py-1 rounded-lg winner-score-row"
                   style={{
                     ...(isWin ? { backgroundColor: 'var(--winner-bg)' } : {}),
                     ...(isTied ? {

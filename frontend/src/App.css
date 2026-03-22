@@ -129,6 +129,21 @@
   .waiting-room-player-text {
     font-size: 0.75rem;
   }
+
+  /* #417: Tighten 4P winner modal stats to prevent awkward text wrapping */
+  [data-testid="post-game-stats"] .grid {
+    gap: 2px 8px;
+  }
+  [data-testid="post-game-stats"] .text-xs {
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+
+  /* #417: Winner modal score rows — tighter on narrow screens */
+  .winner-score-row {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+  }
 }
 
 .bottom-nav {
