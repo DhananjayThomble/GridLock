@@ -272,6 +272,13 @@ textarea::placeholder {
   height: 1.25rem;
 }
 
+/* Light mode: add border and darken track for better progress bar visibility */
+[data-theme="light"] .score-progress-thin,
+[data-theme="light"] .score-progress-thick {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #c8cfd6 !important;
+}
+
 /* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
 .game-layout {
   min-height: 100dvh;
