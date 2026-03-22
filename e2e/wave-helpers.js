@@ -1,47 +1,28 @@
 // e2e/wave-helpers.js — shared helpers for Wave 1-4 E2E tests
-// Workaround: the lobby has duplicate name inputs (mobile + desktop).
-// At desktop viewport, the mobile input is collapsed (invisible).
-// Standard helpers pick the first (invisible) one, so we use .nth(1).
+// Uses :visible selectors to handle mobile/desktop duplicate elements in the responsive lobby.
 
 const { goToLobby } = require('./helpers');
 
 /** Fill the visible name input (handles mobile/desktop duplicate inputs). */
 async function fillVisibleNameInput(page, username) {
-  const inputs = page.locator('input[placeholder="Enter your name…"]');
-  const count = await inputs.count();
-  if (count > 1) {
-    await inputs.nth(1).fill(username);
-  } else {
-    await inputs.first().fill(username);
-  }
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
 }
 
 /** Create a CPU game using visible locators. */
 async function createCpuGameV(page, { username = 'HumanPlayer', gridSize = '3×3', playerCount = 2 } = {}) {
   await goToLobby(page);
   await fillVisibleNameInput(page, username);
-  // Use nth(1) for desktop buttons that have mobile duplicates
-  const playerBtn = page.locator(`button:has-text("${playerCount} Players")`);
-  if (await playerBtn.count() > 1) {
-    await playerBtn.nth(1).click();
-  } else {
-    await playerBtn.click();
-  }
-  const gridBtn = page.locator(`button:has-text("${gridSize}")`);
-  if (await gridBtn.count() > 1) {
-    await gridBtn.nth(1).click({ timeout: 3000 }).catch(() => {});
-  } else {
-    await gridBtn.click({ timeout: 3000 }).catch(() => {});
-  }
+  await page.locator(`button:has-text("${playerCount} Players"):visible`).first().click();
+  await page.locator(`button:has-text("${gridSize}"):visible`).first().click({ timeout: 3000 }).catch(() => {});
 
   // Ensure CPU toggle is ON (it persists in localStorage, so check first)
   const cpuAlreadyOn = await page.evaluate(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   if (!cpuAlreadyOn) {
-    await page.locator('button:has-text("Play vs CPU")').click();
+    await page.locator('button:has-text("Play vs CPU"):visible').first().click();
     await page.waitForTimeout(300);
   }
 
-  await page.click('button:has-text("🚀 Create Game")');
+  await page.locator('button:has-text("🚀 Create Game"):visible').first().click();
   await page.waitForURL(/\/game/, { timeout: 15_000 });
   await page.waitForFunction(() => /turn/i.test(document.body.innerText), { timeout: 20_000 });
 }
@@ -50,26 +31,15 @@ async function createCpuGameV(page, { username = 'HumanPlayer', gridSize = '3×3
 async function createGameV(page, { username = 'Alice', playerCount = 2, gridSize = '3×3' } = {}) {
   await goToLobby(page);
   await fillVisibleNameInput(page, username);
-  // Use nth(1) for desktop version of buttons that have mobile duplicates
-  const playerBtn = page.locator(`button:has-text("${playerCount} Players")`);
-  if (await playerBtn.count() > 1) {
-    await playerBtn.nth(1).click();
-  } else {
-    await playerBtn.click();
-  }
-  const gridBtn = page.locator(`button:has-text("${gridSize}")`);
-  if (await gridBtn.count() > 1) {
-    await gridBtn.nth(1).click();
-  } else {
-    await gridBtn.click();
-  }
+  await page.locator(`button:has-text("${playerCount} Players"):visible`).first().click();
+  await page.locator(`button:has-text("${gridSize}"):visible`).first().click();
   // Ensure CPU is OFF for human-only game
   const cpuOn = await page.evaluate(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   if (cpuOn) {
-    await page.locator('button:has-text("Play vs CPU")').click();
+    await page.locator('button:has-text("Play vs CPU"):visible').first().click();
     await page.waitForTimeout(300);
   }
-  await page.click('button:has-text("🚀 Create Game")');
+  await page.locator('button:has-text("🚀 Create Game"):visible').first().click();
   await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
 
   const currentUrl = page.url();
@@ -91,16 +61,9 @@ async function createGameV(page, { username = 'Alice', playerCount = 2, gridSize
 async function joinGameV(page, { username = 'Bob', roomCode, baseUrl, joinMode = 'player' } = {}) {
   const { BASE_URL } = require('./helpers');
   await goToLobby(page, baseUrl || BASE_URL);
-  await page.click('button:has-text("🔗 Join Game")');
+  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
   await page.waitForTimeout(200);
-  // Use nth(1) to pick the visible desktop input
-  const inputs = page.locator('input[placeholder="Enter your name…"]');
-  const count = await inputs.count();
-  if (count > 1) {
-    await inputs.nth(1).fill(username);
-  } else {
-    await inputs.first().fill(username);
-  }
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   if (joinMode === 'spectator') {
     await page.click('button:has-text("Join as Spectator")');
@@ -119,15 +82,9 @@ async function joinGameV(page, { username = 'Bob', roomCode, baseUrl, joinMode =
 async function joinToWaitingRoom(page, { username = 'Bob', roomCode, baseUrl } = {}) {
   const { BASE_URL } = require('./helpers');
   await goToLobby(page, baseUrl || BASE_URL);
-  await page.click('button:has-text("🔗 Join Game")');
+  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
   await page.waitForTimeout(200);
-  const inputs = page.locator('input[placeholder="Enter your name…"]');
-  const count = await inputs.count();
-  if (count > 1) {
-    await inputs.nth(1).fill(username);
-  } else {
-    await inputs.first().fill(username);
-  }
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   await page.click('button:has-text("Join as Player")');
   await page.getByRole('button', { name: /Join Game/i }).last().click();

@@ -23,8 +23,8 @@ test.describe('Tournament', () => {
     await expect(page.locator('button:has-text("Quick bracket")')).toBeVisible();
     await expect(page.locator('button:has-text("Full bracket")')).toBeVisible();
     // Grid size buttons exist in both create and tournament sections; verify at least one is visible
-    await expect(page.locator('button:has-text("3×3")').first()).toBeVisible();
-    await expect(page.locator('button:has-text("4×4")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("3×3"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("4×4"):visible').first()).toBeVisible();
   });
 
   test('shows join tournament input', async ({ page }) => {
@@ -38,10 +38,10 @@ test.describe('Tournament', () => {
 
   test('can create a tournament and navigate to tournament lobby', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', 'TourneyHost');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'TourneyHost');
     await page.click('button:has-text("🏆 Tournament")');
-    await page.click('button:has-text("4 Players")');
-    await page.click('button:has-text("🏆 Create Tournament")');
+    await page.locator('button:has-text("4 Players"):visible').first().click();
+    await page.locator('button:has-text("🏆 Create Tournament"):visible').first().click();
 
     // Should navigate to /tournament
     await page.waitForURL(/\/tournament/, { timeout: 15_000 });

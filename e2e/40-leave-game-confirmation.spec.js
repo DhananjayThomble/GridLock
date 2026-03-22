@@ -33,7 +33,7 @@ test.describe('Leave Game Confirmation', () => {
 
     await page.waitForURL(/\/(?:beta\/?)?$/, { timeout: 10_000 });
     await expect(page.locator('body')).toContainText('GridLock');
-    await expect(page.locator('button:has-text("🚀 Create Game")')).toBeVisible();
+    await expect(page.locator('button:has-text("🚀 Create Game"):visible').first()).toBeVisible();
   });
 
   test('can reopen modal after closing with Stay', async ({ page }) => {

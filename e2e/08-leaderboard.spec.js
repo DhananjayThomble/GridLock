@@ -24,7 +24,7 @@ test.describe('Leaderboard API + accessibility smoke', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(BASE_URL, { waitUntil: 'networkidle' });
 
-    await expect(page.getByPlaceholder('Enter your name…')).toBeVisible();
+    await expect(page.getByPlaceholder('Enter your name…').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /create game/i }).first()).toBeVisible();
   });
 });

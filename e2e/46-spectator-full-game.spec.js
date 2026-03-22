@@ -29,7 +29,7 @@ test.describe('Spectator on Full Game', () => {
 
     // P3 navigates to join page
     await p3.goto(`${BASE_URL}/join/${roomCode}`, { waitUntil: 'networkidle' });
-    await p3.fill('input[placeholder="Enter your name…"]', 'Charlie');
+    await p3.fill('input[placeholder="Enter your name…"]:visible', 'Charlie');
     await p3.locator('button:has-text("Join")').first().click();
 
     // "Game is full" message

@@ -44,14 +44,14 @@ test.describe('Mobile Comprehensive (375×667)', () => {
       await expect(page.getByPlaceholder('Enter your name…')).toBeVisible();
 
       // Player count buttons visible
-      await expect(page.locator('button:has-text("2 Players")')).toBeVisible();
+      await expect(page.locator('button:has-text("2 Players"):visible').first()).toBeVisible();
 
       // Create game button visible
-      const createBtn = page.locator('button:has-text("🚀 Create Game")');
+      const createBtn = page.locator('button:has-text("🚀 Create Game"):visible').first();
       await expect(createBtn).toBeVisible();
 
       // Join game tab visible
-      await expect(page.locator('button:has-text("🔗 Join Game")')).toBeVisible();
+      await expect(page.locator('button:has-text("🔗 Join Game"):visible').first()).toBeVisible();
 
       // No horizontal overflow
       const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);

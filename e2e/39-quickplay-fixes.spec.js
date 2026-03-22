@@ -7,7 +7,7 @@ test.describe('Quick Play player count fixes (#213)', () => {
 
   test.beforeEach(async ({ page }) => {
     await goToLobby(page, BASE_URL);
-    await page.fill('input[placeholder="Enter your name…"]', 'QPFixTest');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'QPFixTest');
     // Clear any persisted quickplay selection from prior tests
     await page.evaluate(() => localStorage.removeItem('gridlock-quickplay-playerCount'));
   });

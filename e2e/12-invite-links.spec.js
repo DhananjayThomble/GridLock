@@ -10,7 +10,7 @@ test.describe('Invite Links', () => {
     await expect(page.locator('text=TESTGAME')).toBeVisible();
 
     // Username input visible
-    await expect(page.locator('input[placeholder="Enter your name…"]')).toBeVisible();
+    await expect(page.locator('input[placeholder="Enter your name…"]:visible')).toBeVisible();
 
     // Join Game button visible
     await expect(page.getByRole('button', { name: /Join Game/i })).toBeVisible();
@@ -30,7 +30,7 @@ test.describe('Invite Links', () => {
     // Player 2: join via invite link
     await page2.goto(`${BASE_URL}/join/${roomCode}`, { waitUntil: 'networkidle' });
     await expect(page2.locator(`text=${roomCode}`)).toBeVisible();
-    await page2.fill('input[placeholder="Enter your name…"]', 'InviteGuest');
+    await page2.fill('input[placeholder="Enter your name…"]:visible', 'InviteGuest');
     await page2.getByRole('button', { name: /Join Game/i }).click();
 
     // Player 2 should navigate to /game
@@ -48,7 +48,7 @@ test.describe('Invite Links', () => {
 
   test('Error handling for invalid game ID', async ({ page }) => {
     await page.goto(`${BASE_URL}/join/INVALID123`, { waitUntil: 'networkidle' });
-    await page.fill('input[placeholder="Enter your name…"]', 'ErrorTest');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'ErrorTest');
     await page.getByRole('button', { name: /Join Game/i }).click();
 
     // Should show an error — the error container uses inline styles with --danger CSS var

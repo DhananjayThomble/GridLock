@@ -9,7 +9,7 @@ test.describe('Negative Lobby Tests', () => {
     await goToLobby(page);
 
     // Clear username
-    await page.fill('input[placeholder="Enter your name…"]', '');
+    await page.fill('input[placeholder="Enter your name…"]:visible', '');
 
     let alertMessage = '';
     page.on('dialog', async dialog => {
@@ -17,7 +17,7 @@ test.describe('Negative Lobby Tests', () => {
       await dialog.accept();
     });
 
-    await page.click('button:has-text("🚀 Create Game")');
+    await page.locator('button:has-text("🚀 Create Game"):visible').first().click();
     await page.waitForTimeout(2000);
 
     // Should either show alert, stay on lobby, or show inline error
@@ -33,7 +33,7 @@ test.describe('Negative Lobby Tests', () => {
 
   test('whitespace-only username rejects game creation', async ({ page }) => {
     await goToLobby(page);
-    await page.fill('input[placeholder="Enter your name…"]', '   ');
+    await page.fill('input[placeholder="Enter your name…"]:visible', '   ');
 
     let alertMessage = '';
     page.on('dialog', async dialog => {
@@ -41,7 +41,7 @@ test.describe('Negative Lobby Tests', () => {
       await dialog.accept();
     });
 
-    await page.click('button:has-text("🚀 Create Game")');
+    await page.locator('button:has-text("🚀 Create Game"):visible').first().click();
     await page.waitForTimeout(2000);
 
     const url = page.url();
@@ -54,9 +54,9 @@ test.describe('Negative Lobby Tests', () => {
 
   test('join with empty game code shows error', async ({ page }) => {
     await goToLobby(page);
-    await page.click('button:has-text("🔗 Join Game")');
+    await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
     await page.waitForTimeout(200);
-    await page.fill('input[placeholder="Enter your name…"]', 'JoinTester');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'JoinTester');
     // Leave code empty
     const codeInput = page.locator('input[placeholder*="e.g"]');
     await codeInput.fill('');
@@ -80,9 +80,9 @@ test.describe('Negative Lobby Tests', () => {
 
   test('join with random invalid code shows error', async ({ page }) => {
     await goToLobby(page);
-    await page.click('button:has-text("🔗 Join Game")');
+    await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
     await page.waitForTimeout(200);
-    await page.fill('input[placeholder="Enter your name…"]', 'InvalidJoiner');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'InvalidJoiner');
     await page.fill('input[placeholder*="e.g"]', 'ZZZZZ9');
     await page.locator('button:has-text("Join Game")').last().click();
 
@@ -137,9 +137,9 @@ test.describe('Negative Lobby Tests', () => {
       // Open a new page in same context and try to join
       const page2 = await ctx.newPage();
       await goToLobby(page2);
-      await page2.click('button:has-text("🔗 Join Game")');
+      await page2.locator('button:has-text("🔗 Join Game"):visible').first().click();
       await page2.waitForTimeout(200);
-      await page2.fill('input[placeholder="Enter your name…"]', 'SelfJoiner');
+      await page2.fill('input[placeholder="Enter your name…"]:visible', 'SelfJoiner');
       await page2.fill('input[placeholder*="e.g"]', roomCode);
       await page2.locator('button:has-text("Join Game")').last().click();
 
