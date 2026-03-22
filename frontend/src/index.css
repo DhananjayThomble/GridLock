@@ -784,6 +784,8 @@ button:active:not(:disabled) {
     padding-top: 0.125rem !important;
     padding-bottom: 3.5rem !important;
     min-height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Reduce title section bottom margin */
