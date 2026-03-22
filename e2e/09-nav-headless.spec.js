@@ -20,7 +20,7 @@ test.describe('Nav pill renders in headless chromium', () => {
 
     await page.getByRole('link', { name: /^Lobby$/ }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByPlaceholder('Enter your name…')).toBeVisible();
+    await expect(page.getByPlaceholder('Enter your name…').first()).toBeVisible();
   });
 
   test('nav remains visible on mobile viewport', async ({ page }) => {
