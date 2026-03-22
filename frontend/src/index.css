@@ -256,7 +256,7 @@ textarea::placeholder {
 
 /* Score bar player name — responsive width via CSS clamp */
 .score-bar-player-name {
-  max-width: clamp(60px, 15vw, 140px);
+  max-width: clamp(80px, 22vw, 160px);
   font-size: clamp(0.55rem, 2vw, 0.875rem);
 }
 
