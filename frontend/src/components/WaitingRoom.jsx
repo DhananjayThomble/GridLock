@@ -328,14 +328,14 @@ const WaitingRoom = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className="text-sm font-semibold truncate"
+                      className="text-sm font-semibold truncate waiting-room-player-text"
                       style={{ color: slot.username ? 'var(--text-primary)' : 'var(--text-muted)' }}
                     >
                       {slot.username
                         ? (slot.isCPU
                           ? `${slot.username} (${cpuDifficulty ? cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1) : 'Medium'})`
                           : (slot.username === username ? `${slot.username} (you)` : slot.username))
-                        : 'Waiting for player...'}
+                        : 'Waiting for player\u2026'}
                     </span>
                   </div>
                   {slot.isHost && (
@@ -389,8 +389,8 @@ const WaitingRoom = () => {
                   {i === 0 ? (avatar || '👦') : '👤'}
                 </span>
                 <div className="flex-1">
-                  <span className="text-sm font-semibold" style={{ color: i === 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                    {i === 0 ? `${username} (you)` : 'Waiting for player...'}
+                  <span className="text-sm font-semibold waiting-room-player-text" style={{ color: i === 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {i === 0 ? `${username} (you)` : 'Waiting for player\u2026'}
                   </span>
                   {i === 0 && (
                     <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Host</span>

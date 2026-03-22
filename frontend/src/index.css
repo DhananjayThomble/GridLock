@@ -147,6 +147,9 @@ body {
   --spectator-text:   #57606a;
   --spectator-bg:     rgba(87, 96, 106, 0.10);
   --spectator-border: rgba(87, 96, 106, 0.20);
+
+  /* Turn badge — darker green for WCAG AA contrast on light bg */
+  --turn-badge-text: #15603a;
 }
 
 /* ── Theme transition (only during toggle) ─────────────────────────────────── */
@@ -256,7 +259,7 @@ textarea::placeholder {
 
 /* Score bar player name — responsive width via CSS clamp */
 .score-bar-player-name {
-  max-width: clamp(60px, 15vw, 140px);
+  max-width: clamp(80px, 22vw, 160px);
   font-size: clamp(0.55rem, 2vw, 0.875rem);
 }
 
@@ -267,6 +270,13 @@ textarea::placeholder {
 
 .score-progress-thick {
   height: 1.25rem;
+}
+
+/* Light mode: add border and darken track for better progress bar visibility */
+[data-theme="light"] .score-progress-thin,
+[data-theme="light"] .score-progress-thick {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background-color: #c8cfd6 !important;
 }
 
 /* Game layout: use dvh for proper mobile viewport height (accounts for address bar) */
@@ -774,6 +784,8 @@ button:active:not(:disabled) {
     padding-top: 0.125rem !important;
     padding-bottom: 3.5rem !important;
     min-height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Reduce title section bottom margin */

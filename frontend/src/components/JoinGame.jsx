@@ -8,14 +8,20 @@ import { initAudio } from '../utils/sounds';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
+// Room codes are 6-char uppercase alphanumeric hex strings
+const ROOM_CODE_REGEX = /^[A-F0-9]{6}$/;
+const isValidRoomCode = (code) => ROOM_CODE_REGEX.test((code || '').toUpperCase());
+
 const JoinGame = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const [username, setUsername] = useState(() => localStorage.getItem('gridlock_username') || '');
   const [selectedAvatar, setSelectedAvatar] = useState('👦');
+  // #420: Validate room code format on mount
+  const invalidCode = gameId ? !isValidRoomCode(gameId) : false;
   const [joining, setJoining] = useState(false);
-  const [error, setError] = useState('');
-  const [permanentError, setPermanentError] = useState(false);
+  const [error, setError] = useState(() => invalidCode ? 'Invalid room code format. Codes are 6-character alphanumeric.' : '');
+  const [permanentError, setPermanentError] = useState(invalidCode);
   const [isGameFull, setIsGameFull] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(null);
   const handleJoinRef = useRef(null);
@@ -128,6 +134,7 @@ const JoinGame = () => {
   }, [navigate, username, selectedAvatar]);
 
   const handleJoin = () => {
+    if (invalidCode) return;
     const name = username.trim();
     if (!name) return setError('Please enter a username');
     setError('');

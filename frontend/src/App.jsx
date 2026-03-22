@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import {
   BrowserRouter as Router,
   NavLink,
@@ -7,6 +7,7 @@ import {
   Routes,
   Navigate,
   useLocation,
+  useNavigate,
 } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Lobby from './components/Lobby';
@@ -16,6 +17,7 @@ import ConnectionOverlay from './components/ConnectionOverlay';
 import BottomNav from './components/BottomNav';
 import PageSeo from './components/PageSeo';
 import ScrollToTop from './components/ScrollToTop';
+import ToastProvider, { useToast } from './contexts/ToastContext';
 import './App.css';
 
 // Lazy-loaded route components — split into separate chunks to reduce initial bundle
@@ -39,6 +41,17 @@ const withPageSeo = (element, seo) => (
     {element}
   </>
 );
+
+/** Redirect to lobby with a toast message for unknown routes */
+const NotFoundRedirect = () => {
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+  useEffect(() => {
+    showToast('Page not found — returned to lobby', { type: 'error', duration: 4000 });
+    navigate('/', { replace: true });
+  }, [navigate, showToast]);
+  return null;
+};
 
 /** Simple loading spinner shown while lazy chunks load */
 const RouteLoader = () => (
@@ -68,7 +81,7 @@ const RouteLoader = () => (
 
 const AppLayout = () => {
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname === '/daily' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
+  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   return (
     <>
@@ -261,8 +274,8 @@ const AppLayout = () => {
               )}
             />
             <Route path="/replays" element={<Navigate to="/history" replace />} />
-            {/* Catch-all: redirect unknown routes to home instead of 404 — acceptable UX for a game app */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Catch-all: show toast and redirect unknown routes to lobby (#418) */}
+            <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
         </Suspense>
       </main>
@@ -273,11 +286,13 @@ const AppLayout = () => {
 function App() {
   return (
     <ThemeProvider>
-      <Router basename={basePath}>
-        <ScrollToTop />
-        <ConnectionOverlay />
-        <AppLayout />
-      </Router>
+      <ToastProvider>
+        <Router basename={basePath}>
+          <ScrollToTop />
+          <ConnectionOverlay />
+          <AppLayout />
+        </Router>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

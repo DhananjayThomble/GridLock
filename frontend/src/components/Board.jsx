@@ -21,6 +21,7 @@ import { RATE_LIMIT_MS } from './chat/chatConstants';
 import { countLines } from '../utils/postGameUtils';
 import { capture } from '../lib/posthog';
 import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
+import { useToast } from '../contexts/ToastContext';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -60,7 +61,11 @@ function useGridSizes(gridSize) {
       // Grid width = (cells+1) * dot + cells * box
       // With dot = dotRatio * box: grid = box * ((cells+1)*dotRatio + cells)
       // So: box = avail / ((cells+1)*dotRatio + cells)
-      const minDot = w < 640 ? 10 : 8;
+      // #419: Enforce minimum 44px touch target for dots on narrow viewports
+      // (Apple HIG 44×44, Material 48×48dp). Larger grids on small screens
+      // need bigger minimum dots to remain tappable.
+      const needsLargerDot = w <= 400 && cells >= 5;
+      const minDot = needsLargerDot ? 14 : w < 640 ? 10 : 8;
       const dotRatio = 0.22;
 
       // First pass: estimate box assuming dot = dotRatio * box
@@ -103,6 +108,7 @@ const Board = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const themeColors = useThemeColors();
+  const { showToast } = useToast();
   const getCSSVar = (varName) => themeColors[varName] || '';
   const {
     username,
@@ -235,7 +241,7 @@ const Board = () => {
 
   // ── Socket events ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!gameId || !username) { navigate('/'); return; }
+    if (!gameId || !username) { showToast('Game not found — returned to lobby', { type: 'error' }); navigate('/'); return; }
 
     const onGameStarted = (data) => {
       const gs = data.gameState;
@@ -309,6 +315,12 @@ const Board = () => {
 
     const onAllJoined = () => {
       setWaitingCount(0);
+      // #421: Record game start time when all players join — this ensures
+      // duration is always available regardless of how many lines the first
+      // game_update carries (fixes '—' duration on 5×5 2P games).
+      if (!gameStartTimeRef.current) {
+        gameStartTimeRef.current = Date.now();
+      }
       // Game start sound — once
       if (!gameStarted.current) {
         gameStarted.current = true;
@@ -339,10 +351,11 @@ const Board = () => {
         if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
         setMoveCount(lineOwners);
         if (prevLineCountRef.current === 0 && currentLineCount > 0) {
-          // Only set game start if this is truly the first move (1 line).
-          // If currentLineCount > 1 on first update, we reconnected mid-game —
-          // leave gameStartTimeRef null so duration shows "—" instead of wrong values.
-          if (currentLineCount === 1) {
+          // Set game start time on first move if not already set by all_players_joined.
+          // For reconnection mid-game (currentLineCount >> 1 on first update with no
+          // prior gameStartTimeRef), leave it null so duration shows "—" rather than
+          // an incorrect value — unless all_players_joined already set it (#421).
+          if (!gameStartTimeRef.current && currentLineCount === 1) {
             gameStartTimeRef.current = Date.now();
           }
         }
@@ -718,7 +731,7 @@ const Board = () => {
     >
       <div
         className="rounded-full shadow-sm"
-        style={{ width: sizes.dot - 2, height: sizes.dot - 2, backgroundColor: 'var(--dot-color)' }}
+        style={{ width: Math.max(sizes.dot - 2, 8), height: Math.max(sizes.dot - 2, 8), backgroundColor: 'var(--dot-color)' }}
       />
     </div>
   );
@@ -766,6 +779,8 @@ const Board = () => {
     const lineColor = owner ? getPlayerColor(owner) : null;
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const touchHandlers = makeTouchHandler('horizontal', r, c);
+    // #419: ensure minimum 24px touch target cross-dimension on small screens
+    const hLineHeight = Math.max(sizes.dot, 24);
 
     return (
       <div
@@ -778,7 +793,7 @@ const Board = () => {
         aria-disabled={!isMyTurn}
         tabIndex={isMyTurn ? 0 : -1}
         onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
-        style={{ width: sizes.line, height: sizes.dot, flexShrink: 0, touchAction: 'manipulation' }}
+        style={{ width: sizes.line, height: hLineHeight, flexShrink: 0, touchAction: 'manipulation' }}
         className={`flex items-center justify-center ${
           owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
         }`}
@@ -803,6 +818,8 @@ const Board = () => {
     const lineColor = owner ? getPlayerColor(owner) : null;
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const touchHandlers = makeTouchHandler('vertical', r, c);
+    // #419: ensure minimum 24px touch target cross-dimension on small screens
+    const vLineWidth = Math.max(sizes.dot, 24);
 
     return (
       <div
@@ -815,7 +832,7 @@ const Board = () => {
         aria-disabled={!isMyTurn}
         tabIndex={isMyTurn ? 0 : -1}
         onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
-        style={{ width: sizes.dot, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
+        style={{ width: vLineWidth, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
         className={`flex items-center justify-center ${
           owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
         }`}
@@ -963,7 +980,7 @@ const Board = () => {
               return (
                 <div
                   key={pid}
-                  className="flex justify-between items-center px-2 py-1 rounded-lg"
+                  className="flex justify-between items-center px-2 py-1 rounded-lg winner-score-row"
                   style={{
                     ...(isWin ? { backgroundColor: 'var(--winner-bg)' } : {}),
                     ...(isTied ? {
@@ -1269,10 +1286,11 @@ const Board = () => {
             <div
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300"
               style={isMyTurnNow ? {
-                backgroundColor: `color-mix(in srgb, var(--success) 15%, transparent)`,
-                color: 'var(--success)',
+                backgroundColor: `color-mix(in srgb, var(--success) 20%, transparent)`,
+                color: 'var(--turn-badge-text, var(--success))',
                 transform: 'scale(1.05)',
                 boxShadow: `0 0 12px color-mix(in srgb, var(--success) 20%, transparent)`,
+                border: '1px solid color-mix(in srgb, var(--success) 35%, transparent)',
               } : {
                 backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-secondary)',
