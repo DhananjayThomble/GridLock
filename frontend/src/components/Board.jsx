@@ -61,7 +61,11 @@ function useGridSizes(gridSize) {
       // Grid width = (cells+1) * dot + cells * box
       // With dot = dotRatio * box: grid = box * ((cells+1)*dotRatio + cells)
       // So: box = avail / ((cells+1)*dotRatio + cells)
-      const minDot = w < 640 ? 10 : 8;
+      // #419: Enforce minimum 44px touch target for dots on narrow viewports
+      // (Apple HIG 44×44, Material 48×48dp). Larger grids on small screens
+      // need bigger minimum dots to remain tappable.
+      const needsLargerDot = w <= 400 && cells >= 5;
+      const minDot = needsLargerDot ? 14 : w < 640 ? 10 : 8;
       const dotRatio = 0.22;
 
       // First pass: estimate box assuming dot = dotRatio * box
@@ -720,7 +724,7 @@ const Board = () => {
     >
       <div
         className="rounded-full shadow-sm"
-        style={{ width: sizes.dot - 2, height: sizes.dot - 2, backgroundColor: 'var(--dot-color)' }}
+        style={{ width: Math.max(sizes.dot - 2, 8), height: Math.max(sizes.dot - 2, 8), backgroundColor: 'var(--dot-color)' }}
       />
     </div>
   );
@@ -768,6 +772,8 @@ const Board = () => {
     const lineColor = owner ? getPlayerColor(owner) : null;
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const touchHandlers = makeTouchHandler('horizontal', r, c);
+    // #419: ensure minimum 24px touch target cross-dimension on small screens
+    const hLineHeight = Math.max(sizes.dot, 24);
 
     return (
       <div
@@ -780,7 +786,7 @@ const Board = () => {
         aria-disabled={!isMyTurn}
         tabIndex={isMyTurn ? 0 : -1}
         onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
-        style={{ width: sizes.line, height: sizes.dot, flexShrink: 0, touchAction: 'manipulation' }}
+        style={{ width: sizes.line, height: hLineHeight, flexShrink: 0, touchAction: 'manipulation' }}
         className={`flex items-center justify-center ${
           owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
         }`}
@@ -805,6 +811,8 @@ const Board = () => {
     const lineColor = owner ? getPlayerColor(owner) : null;
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const touchHandlers = makeTouchHandler('vertical', r, c);
+    // #419: ensure minimum 24px touch target cross-dimension on small screens
+    const vLineWidth = Math.max(sizes.dot, 24);
 
     return (
       <div
@@ -817,7 +825,7 @@ const Board = () => {
         aria-disabled={!isMyTurn}
         tabIndex={isMyTurn ? 0 : -1}
         onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
-        style={{ width: sizes.dot, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
+        style={{ width: vLineWidth, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
         className={`flex items-center justify-center ${
           owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
         }`}
