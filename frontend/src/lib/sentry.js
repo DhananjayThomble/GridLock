@@ -36,6 +36,18 @@ export function initSentry() {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
     ],
+
+    // Drop events from local dev/test environments (#408)
+    beforeSend(event) {
+      if (
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1')
+      ) {
+        return null;
+      }
+      return event;
+    },
   });
 }
 
