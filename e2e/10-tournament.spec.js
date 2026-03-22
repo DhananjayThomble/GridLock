@@ -23,8 +23,8 @@ test.describe('Tournament', () => {
     await expect(page.locator('button:has-text("Quick bracket")')).toBeVisible();
     await expect(page.locator('button:has-text("Full bracket")')).toBeVisible();
     // Grid size buttons exist in both create and tournament sections; verify at least one is visible
-    await expect(page.locator('button:has-text("3×3")').first()).toBeVisible();
-    await expect(page.locator('button:has-text("4×4")').first()).toBeVisible();
+    await expect(page.locator('button:has-text("3×3"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("4×4"):visible').first()).toBeVisible();
   });
 
   test('shows join tournament input', async ({ page }) => {
