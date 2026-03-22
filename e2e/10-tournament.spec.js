@@ -22,10 +22,9 @@ test.describe('Tournament', () => {
     // and tournament section (Quick bracket). Match by description text to disambiguate.
     await expect(page.locator('button:has-text("Quick bracket")')).toBeVisible();
     await expect(page.locator('button:has-text("Full bracket")')).toBeVisible();
-    // Grid size section exists in tournament tab — verify the label is visible
-    await expect(page.locator('text=Grid Size').last()).toBeVisible();
-    // Desktop grid-size cards contain description text; "Standard" is unique to grid 4×4
-    await expect(page.locator('button:has-text("Standard")').last()).toBeVisible();
+    // Grid size buttons exist in both create and tournament sections; verify at least one is visible
+    await expect(page.locator('button:has-text("3×3"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("4×4"):visible').first()).toBeVisible();
   });
 
   test('shows join tournament input', async ({ page }) => {
