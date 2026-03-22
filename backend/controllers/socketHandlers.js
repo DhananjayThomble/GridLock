@@ -857,6 +857,7 @@ function scheduleCPUMove(io, log, gameId, delay) {
                 }
                 setTimeout(async () => {
                     await gameStore.deleteGame(gameId);
+                    await gameStore.deleteSpectatorCount(gameId);
                     await rematchStore.clearVotes(gameId);
                     await markGameFinished(gameId, 'normal');
                 }, CLEANUP_DELAY_MS);
@@ -2301,6 +2302,7 @@ function attachSocketHandlers(io, log) {
                     }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
+                        await gameStore.deleteSpectatorCount(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
                         await markGameFinished(cleanGameId, 'normal');
                         log.info('Game cleaned up', { gameId: cleanGameId });
@@ -3231,6 +3233,7 @@ function attachSocketHandlers(io, log) {
                     }
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
+                        await gameStore.deleteSpectatorCount(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
                     }, CLEANUP_DELAY_MS);
                 } else if (remaining.length === 0) {
@@ -3240,6 +3243,7 @@ function attachSocketHandlers(io, log) {
                     await persistGame(game, 'finished', { reason: 'all_left' });
                     setTimeout(async () => {
                         await gameStore.deleteGame(cleanGameId);
+                        await gameStore.deleteSpectatorCount(cleanGameId);
                         await rematchStore.clearVotes(cleanGameId);
                     }, 10_000);
                 } else {
@@ -3371,6 +3375,7 @@ function attachSocketHandlers(io, log) {
                                 await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
                                 setTimeout(async () => {
                                     await gameStore.deleteGame(gameId);
+                                    await gameStore.deleteSpectatorCount(gameId);
                                     await rematchStore.clearVotes(gameId);
                                 }, CLEANUP_DELAY_MS);
                             } else if (remaining.length === 0) {
@@ -3379,6 +3384,7 @@ function attachSocketHandlers(io, log) {
                                 await persistGame(currentGame, 'finished', { reason: 'all_disconnected' });
                                 setTimeout(async () => {
                                     await gameStore.deleteGame(gameId);
+                                    await gameStore.deleteSpectatorCount(gameId);
                                     await rematchStore.clearVotes(gameId);
                                 }, 10_000);
                             } else {
@@ -3559,6 +3565,7 @@ function attachSocketHandlers(io, log) {
                             }
                             setTimeout(async () => {
                                 await gameStore.deleteGame(gameId);
+                                await gameStore.deleteSpectatorCount(gameId);
                                 await rematchStore.clearVotes(gameId);
                             }, CLEANUP_DELAY_MS);
                         }
