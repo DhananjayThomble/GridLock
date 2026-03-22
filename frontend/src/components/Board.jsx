@@ -41,7 +41,7 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 // container refs (the ref's layout depends on the grid, which depends on the
 // ref measurement — causing the board to render tiny on first mount).
 function useGridSizes(gridSize) {
-  const [sizes, setSizes] = useState({ dot: 8, visualDot: 8, line: 48, box: 48, lineThickness: 8 });
+  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
 
   useEffect(() => {
     function calculate() {
@@ -51,8 +51,8 @@ function useGridSizes(gridSize) {
 
       // Horizontal: full width minus small padding (8px each side on mobile)
       const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
-      // Vertical: nav(~56) + score(~80) + header(~100) + toolbar(~60) + padding + bottom nav
-      const reservedH = w < 640 ? 320 : w < 768 ? 300 : 300;
+      // Vertical: ScoreBar(~80px) + header info(~100px) + toolbar(~60px) + breathing room
+      const reservedH = w < 640 ? 260 : w < 768 ? 280 : 300;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -77,11 +77,8 @@ function useGridSizes(gridSize) {
       // Cap: min 24px, max 180px
       box = Math.max(24, Math.min(box, 180));
 
-      // Compute visual dot size (original small size, 10-14px)
-      const visualDot = Math.max(minDot, Math.round(box * dotRatio));
-
-      // Layout dot: at least 24px for touch targets
-      let dot = Math.max(visualDot, 24);
+      // Compute actual dot size (may be larger than dotRatio*box due to minimum)
+      let dot = Math.max(minDot, Math.round(box * dotRatio));
 
       // Second pass: if dot minimum kicked in, recalculate box to fit
       // Grid width = (cells+1)*dot + cells*box ≤ availW
@@ -92,18 +89,10 @@ function useGridSizes(gridSize) {
         box = Math.max(24, box); // maintain minimum
       }
 
-      // Safety clamp: verify total grid dimensions actually fit the viewport
-      const totalGridW = (cells + 1) * dot + cells * box;
-      const totalGridH = (cells + 1) * dot + cells * box;
-      if (totalGridH > availH || totalGridW > availW) {
-        const scale = Math.min(availW / totalGridW, availH / totalGridH);
-        box = Math.max(24, Math.floor(box * scale));
-      }
-
       // Line thickness: proportional to box size, minimum 8px
       const lineThickness = Math.max(8, Math.round(box * 0.12));
 
-      setSizes({ dot, visualDot, line: box, box, lineThickness });
+      setSizes({ dot, line: box, box, lineThickness });
     }
 
     calculate();
@@ -742,7 +731,7 @@ const Board = () => {
     >
       <div
         className="rounded-full shadow-sm"
-        style={{ width: Math.max(sizes.visualDot - 2, 8), height: Math.max(sizes.visualDot - 2, 8), backgroundColor: 'var(--dot-color)' }}
+        style={{ width: Math.max(sizes.dot - 2, 8), height: Math.max(sizes.dot - 2, 8), backgroundColor: 'var(--dot-color)' }}
       />
     </div>
   );
@@ -1345,7 +1334,7 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
+        <div className="flex flex-1 items-center justify-center w-full">
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -1413,8 +1402,8 @@ const Board = () => {
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>{muted ? 'Unmute' : 'Mute'}</span>
           </button>
 
-          {/* Chat button — inline in toolbar (#216), hidden in CPU games (#275) */}
-          {gameState && !gameState.gameOver && !isSpectator && !isCPUGame && (
+          {/* Chat button — inline in toolbar (#216) */}
+          {gameState && !gameState.gameOver && !isSpectator && (
             <button
               onClick={() => setChatOpen((prev) => !prev)}
               disabled={chatCooldown}

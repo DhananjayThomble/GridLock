@@ -8,7 +8,7 @@ import { initAudio } from '../utils/sounds';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
-// Room codes are 6-char uppercase hexadecimal strings (A-F, 0-9)
+// Room codes are 6-char uppercase alphanumeric hex strings
 const ROOM_CODE_REGEX = /^[A-F0-9]{6}$/;
 const isValidRoomCode = (code) => ROOM_CODE_REGEX.test((code || '').toUpperCase());
 
@@ -20,7 +20,7 @@ const JoinGame = () => {
   // #420: Validate room code format on mount
   const invalidCode = gameId ? !isValidRoomCode(gameId) : false;
   const [joining, setJoining] = useState(false);
-  const [error, setError] = useState(() => invalidCode ? 'Invalid room code format. Codes are 6-character hexadecimal (A-F, 0-9).' : '');
+  const [error, setError] = useState(() => invalidCode ? 'Invalid room code format. Codes are 6-character alphanumeric.' : '');
   const [permanentError, setPermanentError] = useState(invalidCode);
   const [isGameFull, setIsGameFull] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(null);
