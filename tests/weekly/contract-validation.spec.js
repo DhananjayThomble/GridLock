@@ -157,7 +157,7 @@ test.describe('Contract Validation', () => {
     });
 
     // Create a CPU game
-    await page.fill('input[placeholder="Enter your name…"]', 'WsCapture');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'WsCapture');
     await page.click('button:has-text("2 Players")');
     await page.click('button:has-text("3×3")', { timeout: 3000 }).catch(() => {});
     await page.locator('button:has-text("Play vs CPU")').click();

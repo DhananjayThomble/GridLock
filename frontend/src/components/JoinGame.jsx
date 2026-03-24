@@ -20,7 +20,7 @@ const JoinGame = () => {
   // #420: Validate room code format on mount
   const invalidCode = gameId ? !isValidRoomCode(gameId) : false;
   const [joining, setJoining] = useState(false);
-  const [error, setError] = useState(() => invalidCode ? 'Invalid room code format. Codes are 6-character alphanumeric.' : '');
+  const [error, setError] = useState(() => invalidCode ? 'Invalid room code format. Room code must be a 6-character hex code (A-F, 0-9).' : '');
   const [permanentError, setPermanentError] = useState(invalidCode);
   const [isGameFull, setIsGameFull] = useState(false);
   const [retryCountdown, setRetryCountdown] = useState(null);
