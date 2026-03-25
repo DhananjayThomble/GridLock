@@ -186,9 +186,9 @@ const PostGameStatsCard = ({
           const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
           const moves = moveCount?.[pid] ?? 0;
           return (
-            <div key={`moves-${pid}`} className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{name} moves</span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }} data-testid={`move-count-${pid}`}>{moves}</span>
+            <div key={`moves-${pid}`} className="flex items-center justify-between gap-1">
+              <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{name} moves</span>
+              <span className="text-xs font-semibold flex-shrink-0" style={{ color: 'var(--text-primary)' }} data-testid={`move-count-${pid}`}>{moves}</span>
             </div>
           );
         })}

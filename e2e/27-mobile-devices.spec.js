@@ -43,7 +43,7 @@ test.describe('Mobile Device Layout Tests', () => {
 
       test('username input is visible and focusable', async ({ page }) => {
         await goToLobby(page);
-        const input = page.locator('input[placeholder="Enter your name…"]');
+        const input = page.locator('input[placeholder="Enter your name…"]:visible');
         await expect(input).toBeVisible();
         await input.focus();
         expect(await page.evaluate(() => document.activeElement?.tagName === 'INPUT')).toBe(true);

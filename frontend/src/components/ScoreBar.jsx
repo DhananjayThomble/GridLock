@@ -114,7 +114,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                   </div>
 
                   {/* Name — wider on mobile, truncated with ellipsis */}
-                  <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 'clamp(64px, 20vw, 96px)' }}>
+                  <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 'clamp(80px, 25vw, 140px)' }}>
                     <span
                       className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
                       style={{ backgroundColor: player.color }}

@@ -19,7 +19,7 @@ test.describe('Quick Play', () => {
   test('Quick Play requires username', async ({ page }) => {
     await goToLobby(page, BASE);
     // Clear username if any
-    await page.fill('input[placeholder="Enter your name…"]', '');
+    await page.fill('input[placeholder="Enter your name…"]:visible', '');
     page.on('dialog', async (dialog) => {
       expect(dialog.message()).toContain('username');
       await dialog.accept();
@@ -29,7 +29,7 @@ test.describe('Quick Play', () => {
 
   test('Quick Play shows searching overlay with cancel', async ({ page }) => {
     await goToLobby(page, BASE);
-    await page.fill('input[placeholder="Enter your name…"]', 'TestQP');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'TestQP');
 
     await page.click('button:has-text("⚡ Quick Play")');
 
@@ -48,7 +48,7 @@ test.describe('Quick Play', () => {
 
   test('Quick Play shows CPU fallback after waiting', async ({ page }) => {
     await goToLobby(page, BASE);
-    await page.fill('input[placeholder="Enter your name…"]', 'WaiterQP');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'WaiterQP');
 
     await page.click('button:has-text("⚡ Quick Play")');
     await expect(page.locator('text=Searching for opponents')).toBeVisible({ timeout: 5000 });
@@ -74,12 +74,12 @@ test.describe('Quick Play', () => {
       await goToLobby(page2, BASE);
 
       // Player 1 enters queue
-      await page1.fill('input[placeholder="Enter your name…"]', 'QPAlice');
+      await page1.fill('input[placeholder="Enter your name…"]:visible', 'QPAlice');
       await page1.click('button:has-text("⚡ Quick Play")');
       await expect(page1.locator('text=Searching for opponents')).toBeVisible({ timeout: 5000 });
 
       // Player 2 enters queue — should match
-      await page2.fill('input[placeholder="Enter your name…"]', 'QPBob');
+      await page2.fill('input[placeholder="Enter your name…"]:visible', 'QPBob');
       await page2.click('button:has-text("⚡ Quick Play")');
 
       // Both should navigate to /game
@@ -97,7 +97,7 @@ test.describe('Quick Play', () => {
 
   test('Queue leave on page navigation', async ({ page }) => {
     await goToLobby(page, BASE);
-    await page.fill('input[placeholder="Enter your name…"]', 'LeaveQP');
+    await page.fill('input[placeholder="Enter your name…"]:visible', 'LeaveQP');
 
     await page.click('button:has-text("⚡ Quick Play")');
     await expect(page.locator('text=Searching for opponents')).toBeVisible({ timeout: 5000 });

@@ -17,29 +17,29 @@ test.describe('Lobby', () => {
 
   test('shows Create and Join tabs', async ({ page }) => {
     await goToLobby(page);
-    await expect(page.locator('button:has-text("🚀 Create Game")')).toBeVisible();
-    await expect(page.locator('button:has-text("🔗 Join Game")')).toBeVisible();
+    await expect(page.locator('button:has-text("🚀 Create Game"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("🔗 Join Game"):visible').first()).toBeVisible();
   });
 
   test('shows player count and grid size options', async ({ page }) => {
     await goToLobby(page);
-    await expect(page.locator('button:has-text("2 Players")')).toBeVisible();
-    await expect(page.locator('button:has-text("3 Players")')).toBeVisible();
-    await expect(page.locator('button:has-text("4 Players")')).toBeVisible();
-    await expect(page.locator('button:has-text("3×3")')).toBeVisible();
-    await expect(page.locator('button:has-text("5×5")')).toBeVisible();
+    await expect(page.locator('button:has-text("2 Players"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("3 Players"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("4 Players"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("3×3"):visible').first()).toBeVisible();
+    await expect(page.locator('button:has-text("5×5"):visible').first()).toBeVisible();
   });
 
   test('shows Join tab with game code input', async ({ page }) => {
     await goToLobby(page);
-    await page.click('button:has-text("🔗 Join Game")');
+    await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
     await expect(page.locator('input[placeholder*="e.g"]')).toBeVisible();
   });
 
   test('rejects Create Game without a username', async ({ page }) => {
     await goToLobby(page);
     // Don't fill username — Create Game button should be disabled
-    const createBtn = page.locator('button:has-text("🚀 Create Game")');
+    const createBtn = page.locator('button:has-text("🚀 Create Game"):visible').first();
     await expect(createBtn).toBeDisabled();
     // Verify we stay on lobby
     expect(page.url()).not.toMatch(/\/(game|waiting)/);

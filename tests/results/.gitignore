@@ -1,0 +1,11 @@
+# Ignore test results (generated at runtime)
+nightly-*
+weekly-*
+screenshots/current/
+screenshots/diffs/
+*.log
+k6-*.json
+nightly-results.json
+weekly-results.json
+nightly-report/
+weekly-report/

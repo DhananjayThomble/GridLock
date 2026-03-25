@@ -1,6 +1,6 @@
 {
   "name": "gridlock",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "GridLock — multiplayer territory game",
   "private": true,
   "scripts": {
@@ -19,6 +19,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "mongodb": "^7.1.0",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0"
   }
 }

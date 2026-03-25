@@ -12,7 +12,7 @@ async function createCpuGameMobile(page, { username = 'MobileUser', gridSize = '
   await goToLobby(page);
 
   // Fill the name input (mobile has only one visible input)
-  const nameInput = page.locator('input[placeholder="Enter your name…"]').first();
+  const nameInput = page.locator('input[placeholder="Enter your name…"]:visible').first();
   await nameInput.fill(username);
 
   // Mobile uses compact pill buttons: "2P" / "3P" / "4P"
@@ -24,12 +24,12 @@ async function createCpuGameMobile(page, { username = 'MobileUser', gridSize = '
   // Toggle CPU on — check if already enabled via localStorage
   const cpuAlreadyOn = await page.evaluate(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
   if (!cpuAlreadyOn) {
-    await page.locator('button:has-text("Play vs CPU")').click();
+    await page.locator('button:has-text("Play vs CPU"):visible').first().click();
     await page.waitForTimeout(300);
   }
 
   // Create the game
-  await page.click('button:has-text("Create Game")');
+  await page.locator('button:has-text("Create Game"):visible').first().click();
   await page.waitForURL(/\/game/, { timeout: 15_000 });
   await page.waitForFunction(() => /turn/i.test(document.body.innerText), { timeout: 20_000 });
 }

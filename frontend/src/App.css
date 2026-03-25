@@ -47,7 +47,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   padding: 0.4rem 0.75rem;
-  border-radius: 999px;
+  border-radius: 0.5rem;
   transition: color 0.2s, background 0.2s;
   white-space: nowrap;
   flex-shrink: 0;
@@ -122,7 +122,29 @@
   }
 }
 
-/* ── Bottom Tab Navigation (#261) ──────────────────────────────────────────── */
+/* ── Galaxy S22 / narrow screen fixes (#416) ─────────────────────────────── */
+
+@media (max-width: 380px) {
+  /* Prevent "Waiting for player…" from truncating mid-word */
+  .waiting-room-player-text {
+    font-size: 0.75rem;
+  }
+
+  /* #417: Tighten 4P winner modal stats to prevent awkward text wrapping */
+  [data-testid="post-game-stats"] .grid {
+    gap: 2px 8px;
+  }
+  [data-testid="post-game-stats"] .text-xs {
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+
+  /* #417: Winner modal score rows — tighter on narrow screens */
+  .winner-score-row {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+  }
+}
 
 .bottom-nav {
   display: none; /* hidden on desktop/tablet */
