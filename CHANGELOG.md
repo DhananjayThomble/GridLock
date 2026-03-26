@@ -3,6 +3,33 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [1.3.0] — 2026-03-26
+
+### Added
+- Daily challenge leaderboard — top 10 fastest solvers per day with real-time updates (#277, #435)
+- 3-tier button hierarchy system — primary/secondary/tertiary with consistent visual weight (#273, #430, #433)
+
+### Changed
+- CPU toggle redesigned — clearer on/off states with improved touch targets (#272, #434)
+- Branch cleanup — reduced remote branches from 192 → 11
+- Backend test suite expanded to 511 tests (up from 505)
+
+### Fixed
+- **Wave C mobile UX** — 7 fixes for mobile gameplay:
+  - Timer/status bar overlap on small screens (#270)
+  - Touch target sizing for grid cells (#271)
+  - Landscape mode layout handling (#274)
+  - Bottom sheet drag-to-dismiss gesture (#275)
+  - Keyboard dismiss on game start (#276)
+  - Score animation jank on low-end devices (#278)
+  - Pull-to-refresh disabled during active games (#279)
+- Grid overflow on mobile — square alignment and viewport calculation fixes (#431, #432)
+- Chat FAB hidden in CPU games where no opponent exists
+
+### Security
+- Bumped socket.io-parser to patch prototype pollution vulnerability (#424)
+- Bumped picomatch to patch ReDoS vulnerability (#428)
+
 ## [1.2.1] — 2026-03-26
 
 ### Fixed
