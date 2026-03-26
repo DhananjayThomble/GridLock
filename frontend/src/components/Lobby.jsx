@@ -742,30 +742,45 @@ const Lobby = () => {
             {/* Grid size — compact pills on mobile, card grid on desktop */}
             <GridSizeSelector gridSize={gridSize} onSelect={setGridSize} />
 
-            {/* CPU Toggle — compact on mobile */}
+            {/* CPU Toggle — prominent card (#272) */}
             <div>
               <button
+                role="switch"
+                aria-checked={cpuEnabled}
+                aria-label="Add CPU opponents"
                 onClick={() => setCpuEnabled(!cpuEnabled)}
-                className="w-full py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between"
+                className="w-full py-3 sm:py-4 px-4 sm:px-5 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between gap-3"
                 style={cpuEnabled
-                  ? { background: 'color-mix(in srgb, var(--warning) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)', color: 'var(--warning)' }
-                  : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  ? { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 18%, transparent), color-mix(in srgb, var(--warning) 10%, transparent))', border: '2px solid color-mix(in srgb, var(--warning) 50%, transparent)', color: 'var(--warning)' }
+                  : { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 8%, var(--bg-card)), var(--bg-card))', border: '2px dashed color-mix(in srgb, var(--warning) 30%, var(--border-color-strong))', color: 'var(--text-secondary)' }}
               >
-                <span className="flex items-center gap-2">
-                  <span className="text-base sm:text-lg">🤖</span>
-                  <span className="text-xs sm:text-sm font-semibold">
-                    {cpuEnabled ? (
-                      <>
-                        <span className="sm:hidden">CPU · {cpuCount} × {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}</span>
-                        <span className="hidden sm:inline">Play vs CPU</span>
-                      </>
-                    ) : (
-                      'Play vs CPU'
-                    )}
+                <span className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="text-2xl sm:text-3xl flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center"
+                    style={cpuEnabled
+                      ? { background: 'color-mix(in srgb, var(--warning) 25%, transparent)' }
+                      : { background: 'color-mix(in srgb, var(--warning) 10%, transparent)' }}
+                  >
+                    🤖
+                  </span>
+                  <span className="min-w-0">
+                    <span className="text-sm sm:text-base font-bold block" style={{ color: cpuEnabled ? 'var(--warning)' : 'var(--text-primary)' }}>
+                      {cpuEnabled ? (
+                        <>
+                          <span className="sm:hidden">CPU On · {cpuCount} × {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}</span>
+                          <span className="hidden sm:inline">Play vs CPU</span>
+                        </>
+                      ) : (
+                        'Add CPU Opponents'
+                      )}
+                    </span>
+                    <span className="text-xs block mt-0.5" style={{ color: cpuEnabled ? 'color-mix(in srgb, var(--warning) 80%, var(--text-secondary))' : 'var(--text-muted)' }}>
+                      {cpuEnabled ? 'AI opponents enabled — configure below' : 'Play solo against AI opponents'}
+                    </span>
                   </span>
                 </span>
-                <span className={`w-10 h-5 rounded-full transition-all flex items-center ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)' }}>
-                  <span className="w-4 h-4 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
+                <span className={`w-11 h-6 rounded-full transition-all flex items-center flex-shrink-0 ${cpuEnabled ? 'justify-end' : 'justify-start'}`} style={{ background: cpuEnabled ? 'var(--warning)' : 'var(--bg-card-hover)', boxShadow: cpuEnabled ? '0 0 8px color-mix(in srgb, var(--warning) 40%, transparent)' : 'none' }}>
+                  <span className="w-5 h-5 rounded-full shadow mx-0.5 transition-all" style={{ backgroundColor: 'var(--text-primary)' }} />
                 </span>
               </button>
             </div>
