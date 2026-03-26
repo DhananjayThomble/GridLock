@@ -1402,8 +1402,8 @@ const Board = () => {
             <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-secondary)' }}>{muted ? 'Unmute' : 'Mute'}</span>
           </button>
 
-          {/* Chat button — inline in toolbar (#216) */}
-          {gameState && !gameState.gameOver && !isSpectator && (
+          {/* Chat button — inline in toolbar (#216), hidden in CPU games (#275) */}
+          {gameState && !gameState.gameOver && !isSpectator && !isCPUGame && (
             <button
               onClick={() => setChatOpen((prev) => !prev)}
               disabled={chatCooldown}

@@ -772,7 +772,7 @@ const Lobby = () => {
 
             {/* CPU Settings (visible when enabled) */}
             {cpuEnabled && (
-              <div className="space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+              <div className="card-surface space-y-3 rounded-xl p-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                 {/* CPU count */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--label-color)' }}>
