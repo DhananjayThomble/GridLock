@@ -745,6 +745,9 @@ const Lobby = () => {
             {/* CPU Toggle — prominent card (#272) */}
             <div>
               <button
+                role="switch"
+                aria-checked={cpuEnabled}
+                aria-label="Add CPU opponents"
                 onClick={() => setCpuEnabled(!cpuEnabled)}
                 className="w-full py-3 sm:py-4 px-4 sm:px-5 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between gap-3"
                 style={cpuEnabled
