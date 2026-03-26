@@ -3,6 +3,14 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [1.2.1] — 2026-03-26
+
+### Fixed
+- Grid overflow on mobile viewports — increased reservedH (260→320) for proper vertical chrome accounting (#431)
+- Safety clamp: scales grid box size down if total grid exceeds available viewport space (#431)
+- Board container overflow guard (overflow:hidden + max-height) as defense-in-depth (#431)
+- Chat FAB hidden in CPU games where no opponent exists to chat with (#431)
+
 ## [1.1.0] — 2026-03-21
 
 ### Added
