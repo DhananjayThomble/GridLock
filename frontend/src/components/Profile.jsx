@@ -147,7 +147,7 @@ const MatchRow = ({ match, onPlayerClick }) => {
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ label, value, sub }) => (
-  <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+  <div className="card-surface rounded-xl p-3 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
     <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
     <p className="text-xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>{value}</p>
     {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
@@ -287,13 +287,13 @@ const Profile = () => {
         )}
 
         {/* ELO History Chart */}
-        <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+        <div className="card-surface rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
           <h2 className="font-bold mb-3" style={{ color: 'var(--text-primary)' }}>📈 ELO History</h2>
           <EloChart history={p.eloHistory} />
         </div>
 
         {/* Recent Matches */}
-        <div className="rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+        <div className="card-surface rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
           <h2 className="font-bold mb-3" style={{ color: 'var(--text-primary)' }}>🎮 Recent Matches</h2>
           {p.recentMatches && p.recentMatches.length > 0 ? (
             <div>
@@ -303,7 +303,7 @@ const Profile = () => {
             </div>
           ) : (
             <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>
-              Play more games to build your history! 🎮
+              {p.gamesPlayed > 0 ? 'Match details are not available for older games' : 'Play more games to build your history! 🎮'}
             </p>
           )}
         </div>

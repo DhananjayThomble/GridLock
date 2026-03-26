@@ -5,7 +5,7 @@ import React from 'react';
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
 const AvatarGrid = ({ selectedAvatar, onSelect, onSelectAndCollapse }) => (
-  <div className="grid grid-cols-8 gap-1.5 sm:gap-2" role="radiogroup" aria-label="Pick avatar">
+  <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 sm:gap-2" role="radiogroup" aria-label="Pick avatar">
     {AVATARS.map((av) => (
       <button
         key={av}
@@ -19,8 +19,8 @@ const AvatarGrid = ({ selectedAvatar, onSelect, onSelectAndCollapse }) => (
             : ''
         }`}
         style={{
-          minWidth: '48px',
-          minHeight: '48px',
+          minWidth: '44px',
+          minHeight: '44px',
           ...(selectedAvatar === av
             ? { background: 'var(--accent)', '--tw-ring-color': 'var(--accent-hover)', '--tw-ring-offset-color': 'var(--bg-secondary)' }
             : { background: 'var(--bg-card-hover)' }),

@@ -261,7 +261,7 @@ const Leaderboard = () => {
         {activeTab === 'casual' && (
           <>
             {loading && (
-              <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading leaderboard…</div>
+              <div className="card-surface rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading leaderboard…</div>
             )}
 
             {!loading && error && (
@@ -271,7 +271,7 @@ const Leaderboard = () => {
             )}
 
             {!loading && !error && rows.length === 0 && (
-              <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
+              <div className="card-surface rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
                 No leaderboard data yet. Play some games to claim the top spot.
               </div>
             )}
@@ -315,7 +315,7 @@ const Leaderboard = () => {
                 </section>
 
                 {/* Desktop table */}
-                <section className="leaderboard-desktop-table overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
+                <section className="card-surface leaderboard-desktop-table overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
                   <div className="leaderboard-scroll-wrapper">
                     <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
                       <thead style={{ background: 'var(--bg-card-hover)' }}>
@@ -359,7 +359,7 @@ const Leaderboard = () => {
         {activeTab === 'ranked' && (
           <>
             {rankedLoading && (
-              <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading ranked leaderboard…</div>
+              <div className="card-surface rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading ranked leaderboard…</div>
             )}
 
             {!rankedLoading && rankedError && (
@@ -369,7 +369,7 @@ const Leaderboard = () => {
             )}
 
             {!rankedLoading && !rankedError && rankedRows.length === 0 && (
-              <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
+              <div className="card-surface rounded-2xl p-6" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>
                 No ranked players yet. Play ranked matches to climb the ladder!
               </div>
             )}
@@ -419,7 +419,7 @@ const Leaderboard = () => {
                 </section>
 
                 {/* Desktop table */}
-                <section className="leaderboard-desktop-table overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
+                <section className="card-surface leaderboard-desktop-table overflow-hidden rounded-2xl backdrop-blur-md" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}>
                   <div className="leaderboard-scroll-wrapper">
                     <table className="min-w-full text-left text-sm" style={{ color: 'var(--text-primary)' }}>
                       <thead style={{ background: 'var(--bg-card-hover)' }}>
