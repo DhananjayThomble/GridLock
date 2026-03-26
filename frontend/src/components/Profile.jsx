@@ -41,8 +41,8 @@ const formatTimeAgo = (value) => {
 const EloChart = ({ history }) => {
   const themeColors = useThemeColors();
 
-  if (!history || history.length < 2) {
-    return <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>Not enough data for chart</p>;
+  if (!history || history.length < 1) {
+    return <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>Play more games to see your ELO trend 📈</p>;
   }
 
   const width = 600, height = 200, pad = 40;
@@ -52,7 +52,7 @@ const EloChart = ({ history }) => {
   const range = maxElo - minElo || 1;
 
   const coords = history.map((h, i) => {
-    const x = pad + (i / (history.length - 1)) * (width - 2 * pad);
+    const x = pad + (history.length === 1 ? (width - 2 * pad) / 2 : (i / (history.length - 1)) * (width - 2 * pad));
     const y = pad + (1 - (h.elo - minElo) / range) * (height - 2 * pad);
     return { x, y };
   });
@@ -303,7 +303,7 @@ const Profile = () => {
             </div>
           ) : (
             <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>
-              {p.gamesPlayed > 0 ? 'Match history is not available for older games' : 'No matches played yet'}
+              Play more games to build your history! 🎮
             </p>
           )}
         </div>
