@@ -47,6 +47,7 @@ coverage/
 # Playwright
 playwright-report/
 test-results/
+tests/tests/results/
 e2e/screenshots/
 
 # Temp scripts
