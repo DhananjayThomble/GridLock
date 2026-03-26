@@ -127,6 +127,79 @@ router.get('/today', async (req, res) => {
 });
 
 /**
+ * GET /api/daily/leaderboard
+ * Top-10 mini-leaderboard for a given date (defaults to today).
+ * Query params: ?date=YYYY-MM-DD&username=xxx
+ * Returns: { date, totalPlayers, leaderboard: [...], userResult?: {...} }
+ * Issue #277: daily challenge leaderboard with player count and personal result.
+ */
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const dateStr = req.query.date || getTodayDateStr();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+
+    const filter = { date: dateStr };
+    const totalPlayers = await DailyResult.countDocuments(filter);
+
+    const results = await DailyResult.find(filter)
+      .sort({ score: -1, moves: 1, duration: 1 })
+      .limit(10)
+      .lean();
+
+    const leaderboard = results.map((r, i) => ({
+      rank: i + 1,
+      username: r.username,
+      score: r.score,
+      moves: r.moves,
+      duration: r.duration,
+      completedAt: r.completedAt,
+    }));
+
+    let userResult = null;
+    if (req.query.username) {
+      const san = sanitizeUsername(req.query.username);
+      if (san.valid) {
+        const result = await DailyResult.findOne({
+          date: dateStr,
+          username: san.value,
+        }).lean();
+        if (result) {
+          const rank = await DailyResult.countDocuments({
+            date: dateStr,
+            $or: [
+              { score: { $gt: result.score } },
+              { score: result.score, moves: { $lt: result.moves } },
+              { score: result.score, moves: result.moves, duration: { $lt: result.duration } },
+            ],
+          });
+          userResult = {
+            rank: rank + 1,
+            username: result.username,
+            score: result.score,
+            moves: result.moves,
+            duration: result.duration,
+            completedAt: result.completedAt,
+          };
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      date: dateStr,
+      totalPlayers,
+      leaderboard,
+      userResult,
+    });
+  } catch (error) {
+    console.error('[Daily] GET /leaderboard error:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
+  }
+});
+
+/**
  * GET /api/daily/leaderboard/:date
  * Paginated leaderboard for a specific date.
  * Issue #7: fixed percentile calculation for single player.

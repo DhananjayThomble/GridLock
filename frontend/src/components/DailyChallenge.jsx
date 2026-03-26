@@ -7,6 +7,7 @@ import socket from '../socket';
 import { initAudio } from '../utils/sounds';
 import { apiUrl, formatCountdown } from '../utils/daily';
 import DailyResult from './DailyResult';
+import DailyLeaderboard from './DailyLeaderboard';
 
 const DailyChallenge = () => {
   const [username] = useState(() => localStorage.getItem('gridlock_username') || '');
@@ -354,6 +355,16 @@ const DailyChallenge = () => {
             </>
           ) : null}
         </div>
+
+        {/* Mini-leaderboard — Issue #277 */}
+        {challenge && !loading && (
+          <DailyLeaderboard
+            date={challenge.date}
+            username={username}
+            gridSize={challenge.gridSize}
+            alreadyPlayed={alreadyPlayed}
+          />
+        )}
 
         {/* Back to lobby */}
         <div className="text-center mt-4">
