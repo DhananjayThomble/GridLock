@@ -41,7 +41,7 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 // container refs (the ref's layout depends on the grid, which depends on the
 // ref measurement — causing the board to render tiny on first mount).
 function useGridSizes(gridSize) {
-  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
+  const [sizes, setSizes] = useState({ dot: 8, visualDot: 8, line: 48, box: 48, lineThickness: 8 });
 
   useEffect(() => {
     function calculate() {
@@ -77,8 +77,11 @@ function useGridSizes(gridSize) {
       // Cap: min 24px, max 180px
       box = Math.max(24, Math.min(box, 180));
 
-      // Compute actual dot size (may be larger than dotRatio*box due to minimum)
-      let dot = Math.max(minDot, Math.round(box * dotRatio));
+      // Compute visual dot size (original small size, 10-14px)
+      const visualDot = Math.max(minDot, Math.round(box * dotRatio));
+
+      // Layout dot: at least 24px for touch targets
+      let dot = Math.max(visualDot, 24);
 
       // Second pass: if dot minimum kicked in, recalculate box to fit
       // Grid width = (cells+1)*dot + cells*box ≤ availW
@@ -100,7 +103,7 @@ function useGridSizes(gridSize) {
       // Line thickness: proportional to box size, minimum 8px
       const lineThickness = Math.max(8, Math.round(box * 0.12));
 
-      setSizes({ dot, line: box, box, lineThickness });
+      setSizes({ dot, visualDot, line: box, box, lineThickness });
     }
 
     calculate();
@@ -739,7 +742,7 @@ const Board = () => {
     >
       <div
         className="rounded-full shadow-sm"
-        style={{ width: Math.max(sizes.dot - 2, 8), height: Math.max(sizes.dot - 2, 8), backgroundColor: 'var(--dot-color)' }}
+        style={{ width: Math.max(sizes.visualDot - 2, 8), height: Math.max(sizes.visualDot - 2, 8), backgroundColor: 'var(--dot-color)' }}
       />
     </div>
   );
