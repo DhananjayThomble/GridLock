@@ -3,24 +3,7 @@
 // 3-tier hierarchy: Primary (Quick Play — in Lobby), Secondary (Daily/Ranked/Create/Tournament), Tertiary (Join).
 // Renders as compact chip row (mobile) or full-size button rows (desktop).
 import React from 'react';
-
-/* ── Shared style helpers (CSS-variable based, works in dark + light) ─────── */
-
-/** Secondary: muted accent tint — consistent across same-level actions */
-const secondaryStyle = (active = false) => ({
-  background: active
-    ? 'color-mix(in srgb, var(--accent) 18%, transparent)'
-    : 'color-mix(in srgb, var(--accent) 10%, transparent)',
-  border: `1px solid color-mix(in srgb, var(--accent) ${active ? '45%' : '25%'}, transparent)`,
-  color: 'var(--accent)',
-});
-
-/** Tertiary: minimal outline — for utility actions like Join */
-const tertiaryStyle = (active = false) => ({
-  background: active ? 'color-mix(in srgb, var(--text-secondary) 8%, transparent)' : 'transparent',
-  border: `1px solid ${active ? 'color-mix(in srgb, var(--text-secondary) 30%, transparent)' : 'var(--border-color-strong)'}`,
-  color: 'var(--text-secondary)',
-});
+import { secondaryStyle, tertiaryStyle, disabledOverlay } from './buttonStyles';
 
 const GameModeButtons = ({
   // State
@@ -50,7 +33,7 @@ const GameModeButtons = ({
           disabled={rankedPlaying || creating || quickPlaying || !trimmedUsername}
           className="flex-1 min-w-[70px] py-2 rounded-xl font-semibold text-xs transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1"
           style={rankedPlaying
-            ? { background: 'var(--bg-surface)', border: '1px solid var(--border-color-strong)', color: 'var(--text-muted)' }
+            ? disabledOverlay
             : secondaryStyle()
           }
         >
@@ -93,7 +76,7 @@ const GameModeButtons = ({
           style={{
             minHeight: '44px',
             ...(rankedPlaying
-              ? { background: 'var(--bg-surface)', border: '1px solid var(--border-color-strong)', color: 'var(--text-muted)' }
+              ? disabledOverlay
               : secondaryStyle()
             ),
           }}

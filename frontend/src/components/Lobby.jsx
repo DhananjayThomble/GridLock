@@ -9,7 +9,7 @@ import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons } from './lobby';
+import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -837,11 +837,7 @@ const Lobby = () => {
               onClick={handleCreate}
               disabled={creating || !username.trim()}
               className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={{
-                background: creating ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--accent) 12%, transparent)',
-                border: `1px solid ${creating ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--accent) 35%, transparent)'}`,
-                color: creating ? 'var(--text-muted)' : 'var(--accent)',
-              }}
+              style={primaryStyle(creating)}
             >
               {creating ? (
                 <span className="flex items-center justify-center gap-2">
@@ -900,19 +896,21 @@ const Lobby = () => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setJoinMode('player')}
+                  aria-pressed={joinMode === 'player'}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'player'
-                    ? { background: 'color-mix(in srgb, var(--accent) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)', color: 'var(--accent)' }
-                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                    ? secondaryStyle(true)
+                    : inactiveOptionStyle}
                 >
                   🎮 Join as Player
                 </button>
                 <button
                   onClick={() => setJoinMode('spectator')}
+                  aria-pressed={joinMode === 'spectator'}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'spectator'
-                    ? { background: 'color-mix(in srgb, var(--accent) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)', color: 'var(--accent)' }
-                    : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                    ? secondaryStyle(true)
+                    : inactiveOptionStyle}
                 >
                   👀 Join as Spectator
                 </button>
@@ -923,11 +921,7 @@ const Lobby = () => {
                 onClick={handleJoin}
                 disabled={joining || !username.trim() || !gameId.trim()}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{
-                  background: joining ? 'var(--bg-surface)' : 'transparent',
-                  border: `1px solid ${joining ? 'var(--border-color-strong)' : 'var(--border-color-strong)'}`,
-                  color: joining ? 'var(--text-muted)' : 'var(--text-secondary)',
-                }}
+                style={joining ? disabledOverlay : tertiaryStyle()}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
@@ -975,11 +969,7 @@ const Lobby = () => {
                 onClick={handleCreateTournament}
                 disabled={creatingTournament || !username.trim()}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{
-                  background: creatingTournament ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--accent) 12%, transparent)',
-                  border: `1px solid ${creatingTournament ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--accent) 35%, transparent)'}`,
-                  color: creatingTournament ? 'var(--text-muted)' : 'var(--accent)',
-                }}
+                style={primaryStyle(creatingTournament)}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1031,11 +1021,7 @@ const Lobby = () => {
                 onClick={handleJoinTournament}
                 disabled={joiningTournament || !username.trim() || !tournamentId.trim()}
                 className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{
-                  background: joiningTournament ? 'var(--bg-surface)' : 'transparent',
-                  border: `1px solid ${joiningTournament ? 'var(--border-color-strong)' : 'var(--border-color-strong)'}`,
-                  color: joiningTournament ? 'var(--text-muted)' : 'var(--text-secondary)',
-                }}
+                style={joiningTournament ? disabledOverlay : tertiaryStyle()}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
