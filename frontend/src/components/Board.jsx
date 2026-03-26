@@ -51,8 +51,8 @@ function useGridSizes(gridSize) {
 
       // Horizontal: full width minus small padding (8px each side on mobile)
       const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
-      // Vertical: ScoreBar(~80px) + header info(~100px) + toolbar(~60px) + breathing room
-      const reservedH = w < 640 ? 260 : w < 768 ? 280 : 300;
+      // Vertical: nav(~56) + score(~80) + header(~100) + toolbar(~60) + padding + bottom nav
+      const reservedH = w < 640 ? 320 : w < 768 ? 300 : 300;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -87,6 +87,14 @@ function useGridSizes(gridSize) {
         const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
         box = Math.min(box, maxBoxFromW, maxBoxFromH);
         box = Math.max(24, box); // maintain minimum
+      }
+
+      // Safety clamp: verify total grid dimensions actually fit the viewport
+      const totalGridW = (cells + 1) * dot + cells * box;
+      const totalGridH = (cells + 1) * dot + cells * box;
+      if (totalGridH > availH || totalGridW > availW) {
+        const scale = Math.min(availW / totalGridW, availH / totalGridH);
+        box = Math.max(24, Math.floor(box * scale));
       }
 
       // Line thickness: proportional to box size, minimum 8px
@@ -1334,7 +1342,7 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div className="flex flex-1 items-center justify-center w-full">
+        <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
@@ -1403,7 +1411,7 @@ const Board = () => {
           </button>
 
           {/* Chat button — inline in toolbar (#216) */}
-          {gameState && !gameState.gameOver && !isSpectator && (
+          {gameState && !gameState.gameOver && !isSpectator && !isCPUGame && (
             <button
               onClick={() => setChatOpen((prev) => !prev)}
               disabled={chatCooldown}
