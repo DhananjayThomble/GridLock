@@ -817,11 +817,31 @@ const Lobby = () => {
               </div>
             )}
 
+            {/* Quick Play — PRIMARY action (most common flow) */}
+            <button
+              onClick={handleQuickPlay}
+              disabled={quickPlaying || creating || !username.trim()}
+              aria-label="Quick Play — instant match with random opponents"
+              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{
+                background: (quickPlaying || creating) ? 'var(--bg-surface)' : 'var(--accent)',
+                boxShadow: (quickPlaying || creating) ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
+                ...((quickPlaying || creating) && { color: 'var(--text-muted)' }),
+              }}
+            >
+              {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
+            </button>
+
+            {/* Create Game — SECONDARY action */}
             <button
               onClick={handleCreate}
               disabled={creating || !username.trim()}
-              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={{ background: creating ? 'var(--bg-surface)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))', ...(creating && { color: 'var(--text-muted)' }) }}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={{
+                background: creating ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                border: `1px solid ${creating ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--accent) 35%, transparent)'}`,
+                color: creating ? 'var(--text-muted)' : 'var(--accent)',
+              }}
             >
               {creating ? (
                 <span className="flex items-center justify-center gap-2">
@@ -831,21 +851,6 @@ const Lobby = () => {
               ) : (
                 '🚀 Create Game'
               )}
-            </button>
-
-            {/* Quick Play — secondary outline action below Create */}
-            <button
-              onClick={handleQuickPlay}
-              disabled={quickPlaying || creating || !username.trim()}
-              aria-label="Quick Play — instant match with random opponents"
-              className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{
-                background: 'transparent',
-                color: (quickPlaying || creating) ? 'var(--text-muted)' : 'var(--accent)',
-                border: `1px solid ${(quickPlaying || creating) ? 'var(--border-color-strong)' : 'var(--accent)'}`,
-              }}
-            >
-              {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
           </div>
 
@@ -897,7 +902,7 @@ const Lobby = () => {
                   onClick={() => setJoinMode('player')}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'player'
-                    ? { background: 'var(--success)', border: '1px solid var(--success)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--success) 30%, transparent)' }
+                    ? { background: 'color-mix(in srgb, var(--accent) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)', color: 'var(--accent)' }
                     : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   🎮 Join as Player
@@ -906,18 +911,23 @@ const Lobby = () => {
                   onClick={() => setJoinMode('spectator')}
                   className="py-2 rounded-xl text-sm font-semibold transition-all"
                   style={joinMode === 'spectator'
-                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
+                    ? { background: 'color-mix(in srgb, var(--accent) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 40%, transparent)', color: 'var(--accent)' }
                     : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                 >
                   👀 Join as Spectator
                 </button>
               </div>
 
+              {/* Join — TERTIARY action */}
               <button
                 onClick={handleJoin}
                 disabled={joining || !username.trim() || !gameId.trim()}
-                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joining ? 'var(--bg-surface)' : 'var(--success)', ...(joining && { color: 'var(--text-muted)' }) }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background: joining ? 'var(--bg-surface)' : 'transparent',
+                  border: `1px solid ${joining ? 'var(--border-color-strong)' : 'var(--border-color-strong)'}`,
+                  color: joining ? 'var(--text-muted)' : 'var(--text-secondary)',
+                }}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
@@ -960,11 +970,16 @@ const Lobby = () => {
               {/* Grid size for tournament */}
               <GridSizeSelector gridSize={tournamentGridSize} onSelect={setTournamentGridSize} label="Grid Size" />
 
+              {/* Create Tournament — SECONDARY action */}
               <button
                 onClick={handleCreateTournament}
                 disabled={creatingTournament || !username.trim()}
-                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: creatingTournament ? 'var(--bg-surface)' : 'var(--warning)', ...(creatingTournament && { color: 'var(--text-muted)' }) }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background: creatingTournament ? 'var(--bg-surface)' : 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                  border: `1px solid ${creatingTournament ? 'var(--border-color-strong)' : 'color-mix(in srgb, var(--accent) 35%, transparent)'}`,
+                  color: creatingTournament ? 'var(--text-muted)' : 'var(--accent)',
+                }}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1011,11 +1026,16 @@ const Lobby = () => {
                 )}
               </div>
 
+              {/* Join Tournament — TERTIARY action */}
               <button
                 onClick={handleJoinTournament}
                 disabled={joiningTournament || !username.trim() || !tournamentId.trim()}
-                className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={{ background: joiningTournament ? 'var(--bg-surface)' : 'var(--success)', ...(joiningTournament && { color: 'var(--text-muted)' }) }}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+                style={{
+                  background: joiningTournament ? 'var(--bg-surface)' : 'transparent',
+                  border: `1px solid ${joiningTournament ? 'var(--border-color-strong)' : 'var(--border-color-strong)'}`,
+                  color: joiningTournament ? 'var(--text-muted)' : 'var(--text-secondary)',
+                }}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
