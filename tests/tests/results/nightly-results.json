@@ -1,0 +1,2762 @@
+{
+  "config": {
+    "configFile": "/home/ubuntu/projects/GridLock/tests/playwright.nightly.config.js",
+    "rootDir": "/home/ubuntu/projects/GridLock/tests/nightly",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 3600000,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/projects/GridLock/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/ubuntu/projects/GridLock/tests/nightly",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests/results/nightly-results.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "open": "never",
+          "outputFolder": "tests/results/nightly-report"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "critical-journeys.spec.js",
+      "file": "critical-journeys.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Critical Journeys",
+          "file": "critical-journeys.spec.js",
+          "line": 10,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Create & Play Solo vs CPU",
+              "file": "critical-journeys.spec.js",
+              "line": 12,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "play a full CPU game to completion",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 21689,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:30:10.107Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-e61bdbc0ee344556eb11",
+                  "file": "critical-journeys.spec.js",
+                  "line": 13,
+                  "column": 5
+                },
+                {
+                  "title": "scores are displayed correctly at game end",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 21522,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:30:31.904Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-6b90859c1cd987861c5e",
+                  "file": "critical-journeys.spec.js",
+                  "line": 30,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Two-Player Game (join via code)",
+              "file": "critical-journeys.spec.js",
+              "line": 42,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "create game, join via code, play to completion",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 120000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 9737,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:30:53.441Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-07b0f7808e5d018c76d9",
+                  "file": "critical-journeys.spec.js",
+                  "line": 43,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Quick Play Matchmaking",
+              "file": "critical-journeys.spec.js",
+              "line": 78,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "two browsers quick play and get matched",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 3276,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:31:03.197Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-40fc032a03a0712ac928",
+                  "file": "critical-journeys.spec.js",
+                  "line": 79,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Spectator Mode",
+              "file": "critical-journeys.spec.js",
+              "line": 126,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "spectator sees the board but cannot make moves",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 5126,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:31:06.489Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-45342736100a3caf4d0c",
+                  "file": "critical-journeys.spec.js",
+                  "line": 127,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Game Replay",
+              "file": "critical-journeys.spec.js",
+              "line": 170,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "replay page loads after game ends",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 22559,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:31:11.629Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-36aa4bf79b37990c4a9c",
+                  "file": "critical-journeys.spec.js",
+                  "line": 171,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Profile & Leaderboard",
+              "file": "critical-journeys.spec.js",
+              "line": 193,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "leaderboard page loads with data",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1338,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:31:34.208Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-6e3d27898ef349a85ee6",
+                  "file": "critical-journeys.spec.js",
+                  "line": 194,
+                  "column": 5
+                },
+                {
+                  "title": "how-to-play page loads without errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 1018,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:31:35.561Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "b23f36138f6e7dc47398-fb16fa87d63855061723",
+                  "file": "critical-journeys.spec.js",
+                  "line": 211,
+                  "column": 5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "full-matrix.spec.js",
+      "file": "full-matrix.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Full Matrix — All Human Players",
+          "file": "full-matrix.spec.js",
+          "line": 84,
+          "column": 6,
+          "specs": [
+            {
+              "title": "2P × 3×3 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9184,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:31:36.605Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-a6ce8985cec4dfed745e",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "2P × 4×4 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 13316,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:31:45.805Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-9ace18231373e53d2b3d",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "2P × 5×5 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 19069,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:31:59.137Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-e6beb90078bb2e1f727c",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "2P × 6×6 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 25446,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:32:18.217Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-9fddc50de1280a6c7fb7",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "3P × 3×3 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11593,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:32:43.675Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-d3380bc3a1af036ff9b7",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "3P × 4×4 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 15906,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:32:55.283Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-94ae8c4b460ff4b06465",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "3P × 5×5 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 20977,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:33:11.200Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-54758551ea95a6dcf94e",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "3P × 6×6 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 52072,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:33:32.188Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-bda817854fe82c671c7f",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "4P × 3×3 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 13675,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:34:24.272Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-521187f60db64316456c",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "4P × 4×4 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18530,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:34:37.958Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-e9723fbb19f89ad0e230",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "4P × 5×5 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 23945,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:34:56.505Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-fbf4ffb55dd0ddb8f3ff",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            },
+            {
+              "title": "4P × 6×6 — all human",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 30227,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:35:20.464Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-802975a73aa370b7b885",
+              "file": "full-matrix.spec.js",
+              "line": 88,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "title": "Full Matrix — Human + CPU Players",
+          "file": "full-matrix.spec.js",
+          "line": 151,
+          "column": 6,
+          "specs": [
+            {
+              "title": "2P (1H+1CPU) × 3×3",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 23378,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:35:50.705Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-65db90c7c3ef9383030d",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "2P (1H+1CPU) × 4×4",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 38248,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:36:14.098Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-1dba9c37a524e2efaeb7",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "2P (1H+1CPU) × 5×5",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 59404,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:36:52.358Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-b434a8fd6f9b2ff770c0",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "2P (1H+1CPU) × 6×6",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 82445,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:37:51.777Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-20655b6195bb07a13822",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (1H+2CPU) × 3×3",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 24727,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:39:14.236Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-63e96250acc7a6197e09",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (1H+2CPU) × 4×4",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 42064,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:39:38.975Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-b8ec3089dd7f9f9aa86f",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (1H+2CPU) × 5×5",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 63433,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:40:21.050Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-c9499ba307158239293b",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (1H+2CPU) × 6×6",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 87819,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:41:24.497Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-692192bb702bd9ac6860",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (2H+1CPU) × 3×3",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21910,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:42:52.333Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-964d617813e281f7889a",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (2H+1CPU) × 4×4",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 34207,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:43:14.256Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-7756b40c8448d36ac51a",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (2H+1CPU) × 5×5",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 51596,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:43:48.474Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-abe1c3f75e16827af0c4",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "3P (2H+1CPU) × 6×6",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 71969,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:44:40.081Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-3a5397308c2f73c0d843",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (1H+3CPU) × 3×3",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 26189,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:45:52.060Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-ab3f1e8298ea02923be1",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (1H+3CPU) × 4×4",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 43008,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:46:18.259Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-27da1798adf2729d4cef",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (1H+3CPU) × 5×5",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 65626,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:47:01.277Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-7fabc132225d503d7ec7",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (1H+3CPU) × 6×6",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 91343,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:48:06.913Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-171eea96766be5e3a90e",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (2H+2CPU) × 3×3",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 23849,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:49:38.265Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-2ac6025f06691d17d202",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (2H+2CPU) × 4×4",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 38297,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:50:02.129Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-f4e75f9521e15da75bb0",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (2H+2CPU) × 5×5",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 150000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 56323,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:50:40.440Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-27173f16257ef4332ae0",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            },
+            {
+              "title": "4P (2H+2CPU) × 6×6",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 210000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 81043,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:51:36.775Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-0ae02cb8a3f68ae47107",
+              "file": "full-matrix.spec.js",
+              "line": 155,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "title": "Full Matrix — Player Disconnect",
+          "file": "full-matrix.spec.js",
+          "line": 222,
+          "column": 6,
+          "specs": [
+            {
+              "title": "2P × 3×3 — player disconnect mid-game",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 12287,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:52:57.828Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-d36ebb081520b739556f",
+              "file": "full-matrix.spec.js",
+              "line": 229,
+              "column": 5
+            },
+            {
+              "title": "3P × 3×3 — player disconnect mid-game",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 14257,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:53:10.126Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-10dc867af2e785e3c8cd",
+              "file": "full-matrix.spec.js",
+              "line": 229,
+              "column": 5
+            },
+            {
+              "title": "4P × 3×3 — player disconnect mid-game",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 15881,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:53:24.396Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-275718dd99c63cf127d5",
+              "file": "full-matrix.spec.js",
+              "line": 229,
+              "column": 5
+            }
+          ]
+        },
+        {
+          "title": "Full Matrix — Spectator View",
+          "file": "full-matrix.spec.js",
+          "line": 311,
+          "column": 6,
+          "specs": [
+            {
+              "title": "2P × 3×3 — spectator view",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5092,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:53:40.288Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-a2191a5d4ddd767d7c8b",
+              "file": "full-matrix.spec.js",
+              "line": 317,
+              "column": 5
+            },
+            {
+              "title": "3P × 3×3 — spectator view",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6760,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:53:45.389Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-a2647be7868c4e69431a",
+              "file": "full-matrix.spec.js",
+              "line": 317,
+              "column": 5
+            },
+            {
+              "title": "4P × 3×3 — spectator view",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8721,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:53:52.159Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d703f046dbbb44eab1a3-aa5dc8306ebe9aeaba0a",
+              "file": "full-matrix.spec.js",
+              "line": 317,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "latency-simulation.spec.js",
+      "file": "latency-simulation.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Latency Simulation",
+          "file": "latency-simulation.spec.js",
+          "line": 8,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "High Latency Game",
+              "file": "latency-simulation.spec.js",
+              "line": 10,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "two players stay in sync with 200ms RTT on one side",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 120000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 11093,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:00.902Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "d82392edd1840a5ad91a-3f520f90c8025b78eab3",
+                  "file": "latency-simulation.spec.js",
+                  "line": 11,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "3G Mobile Network",
+              "file": "latency-simulation.spec.js",
+              "line": 63,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "homepage and game load on 3G connection",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 120000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 15941,
+                          "errors": [],
+                          "stdout": [
+                            {
+                              "text": "3G load time: 11640ms\n"
+                            }
+                          ],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:12.009Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "d82392edd1840a5ad91a-bbae03a57eb083f8e277",
+                  "file": "latency-simulation.spec.js",
+                  "line": 64,
+                  "column": 5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "mobile-emulation.spec.js",
+      "file": "mobile-emulation.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Mobile Emulation",
+          "file": "mobile-emulation.spec.js",
+          "line": 13,
+          "column": 6,
+          "specs": [
+            {
+              "title": "iPhone 14 — create and play CPU game",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1405,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:54:27.967Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5bd0aa1439ac61eb704c-96aaabddd51aa6587b9e",
+              "file": "mobile-emulation.spec.js",
+              "line": 15,
+              "column": 3
+            },
+            {
+              "title": "Pixel 7 — join game via room code",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2959,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:54:29.383Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5bd0aa1439ac61eb704c-272367574edeb4a911b7",
+              "file": "mobile-emulation.spec.js",
+              "line": 47,
+              "column": 3
+            },
+            {
+              "title": "iPad — landscape layout adapts",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2175,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:54:32.354Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5bd0aa1439ac61eb704c-94d9ce62a1b99656deaf",
+              "file": "mobile-emulation.spec.js",
+              "line": 75,
+              "column": 3
+            }
+          ],
+          "suites": [
+            {
+              "title": "Dark Mode",
+              "file": "mobile-emulation.spec.js",
+              "line": 100,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "iPhone 14 — dark mode renders without invisible elements",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 3196,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:34.542Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "5bd0aa1439ac61eb704c-d4b291645ffba66f9047",
+                  "file": "mobile-emulation.spec.js",
+                  "line": 102,
+                  "column": 7
+                },
+                {
+                  "title": "Pixel 7 — dark mode renders without invisible elements",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 3200,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:37.756Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "5bd0aa1439ac61eb704c-4c763a2e91514117044f",
+                  "file": "mobile-emulation.spec.js",
+                  "line": 102,
+                  "column": 7
+                },
+                {
+                  "title": "iPad — dark mode renders without invisible elements",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 60000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 3105,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:40.983Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "5bd0aa1439ac61eb704c-91e6ba212586629260e9",
+                  "file": "mobile-emulation.spec.js",
+                  "line": 102,
+                  "column": 7
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "multi-browser.spec.js",
+      "file": "multi-browser.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Multi-Browser WebSocket Tests",
+          "file": "multi-browser.spec.js",
+          "line": 8,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Simultaneous Move Attempt",
+              "file": "multi-browser.spec.js",
+              "line": 10,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "only current player's move succeeds",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 4183,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:44.110Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "7662da1f341d4369fc87-a00f74edfcedb1b86c4a",
+                  "file": "multi-browser.spec.js",
+                  "line": 11,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Disconnect & Reconnect Mid-Game",
+              "file": "multi-browser.spec.js",
+              "line": 49,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "game state preserved after disconnect and reconnect",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 13534,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:54:48.304Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "7662da1f341d4369fc87-c63ac5df771bc709d313",
+                  "file": "multi-browser.spec.js",
+                  "line": 50,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Player Leave Mid-Game",
+              "file": "multi-browser.spec.js",
+              "line": 110,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "leaving player triggers notification for other player",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 8825,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:55:01.850Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "7662da1f341d4369fc87-411850431fccc75b9d6d",
+                  "file": "multi-browser.spec.js",
+                  "line": 111,
+                  "column": 5
+                }
+              ]
+            },
+            {
+              "title": "Chat During Game",
+              "file": "multi-browser.spec.js",
+              "line": 163,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "chat messages are exchanged between players",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 90000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 3197,
+                          "errors": [],
+                          "stdout": [],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:55:10.691Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "7662da1f341d4369fc87-226b00515bef1aa6ef9e",
+                  "file": "multi-browser.spec.js",
+                  "line": 164,
+                  "column": 5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "performance.spec.js",
+      "file": "performance.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Performance Baselines",
+          "file": "performance.spec.js",
+          "line": 23,
+          "column": 6,
+          "specs": [
+            {
+              "title": "WebSocket connect time < 2s",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 613,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  WebSocket connect: 100ms\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:15.232Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "0395ec5c307b4a8c0388-9dc6908066e4084ef33c",
+              "file": "performance.spec.js",
+              "line": 68,
+              "column": 3
+            },
+            {
+              "title": "game start latency < 3s",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1420,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  Game start: 1290ms\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:15.860Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "0395ec5c307b4a8c0388-795dda71d3180893564e",
+              "file": "performance.spec.js",
+              "line": 98,
+              "column": 3
+            },
+            {
+              "title": "move latency < 500ms",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1567,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  Move latency: 55ms\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:17.298Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "0395ec5c307b4a8c0388-5c9cfbe3eb7947df72fd",
+              "file": "performance.spec.js",
+              "line": 109,
+              "column": 3
+            },
+            {
+              "title": "compare to baselines",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n✅ All metrics within baseline thresholds\n"
+                        },
+                        {
+                          "text": "📊 Baselines unchanged (set UPDATE_BASELINES=1 to update)\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:18.881Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "0395ec5c307b4a8c0388-b517ddf57fb3d5c7fa4c",
+              "file": "performance.spec.js",
+              "line": 147,
+              "column": 3
+            }
+          ],
+          "suites": [
+            {
+              "title": "Page Load Metrics",
+              "file": "performance.spec.js",
+              "line": 26,
+              "column": 8,
+              "specs": [
+                {
+                  "title": "measure home page load times",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 530,
+                          "errors": [],
+                          "stdout": [
+                            {
+                              "text": "  home: DCL=226ms, Load=279ms, FCP=144ms, TTFB=21ms\n"
+                            }
+                          ],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:55:13.910Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "0395ec5c307b4a8c0388-eab4ee9b77496355e0f0",
+                  "file": "performance.spec.js",
+                  "line": 34,
+                  "column": 7
+                },
+                {
+                  "title": "measure leaderboard page load times",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 385,
+                          "errors": [],
+                          "stdout": [
+                            {
+                              "text": "  leaderboard: DCL=235ms, Load=235ms, FCP=116ms, TTFB=33ms\n"
+                            }
+                          ],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:55:14.453Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "0395ec5c307b4a8c0388-53135f3cbc7af7124db1",
+                  "file": "performance.spec.js",
+                  "line": 34,
+                  "column": 7
+                },
+                {
+                  "title": "measure howToPlay page load times",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [
+                        {
+                          "workerIndex": 0,
+                          "parallelIndex": 0,
+                          "status": "passed",
+                          "duration": 366,
+                          "errors": [],
+                          "stdout": [
+                            {
+                              "text": "  howToPlay: DCL=214ms, Load=215ms, FCP=104ms, TTFB=26ms\n"
+                            }
+                          ],
+                          "stderr": [],
+                          "retry": 0,
+                          "startTime": "2026-03-25T18:55:14.854Z",
+                          "annotations": [],
+                          "attachments": []
+                        }
+                      ],
+                      "status": "expected"
+                    }
+                  ],
+                  "id": "0395ec5c307b4a8c0388-5dcd401828d67d66d23e",
+                  "file": "performance.spec.js",
+                  "line": 34,
+                  "column": 7
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "state-integrity.spec.js",
+      "file": "state-integrity.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "State Integrity",
+          "file": "state-integrity.spec.js",
+          "line": 21,
+          "column": 6,
+          "specs": [
+            {
+              "title": "no zombie games in MongoDB (inactive >2h, not completed)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 65,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  Zombie games (inactive >2h, not finished): 0\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:18.995Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "52afd44c7108b1bfaf5f-2748af344e4c8cb90cd0",
+              "file": "state-integrity.spec.js",
+              "line": 23,
+              "column": 3
+            },
+            {
+              "title": "no major Redis/MongoDB game count mismatch",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  MongoDB active games: 13\n"
+                        },
+                        {
+                          "text": "  Redis game keys: 0\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:19.082Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "52afd44c7108b1bfaf5f-26965a7e4d33f7d5eabd",
+              "file": "state-integrity.spec.js",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "idle timeout verification — socket disconnects after inactivity",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 1080000,
+                  "annotations": [
+                    {
+                      "type": "slow",
+                      "location": {
+                        "file": "/home/ubuntu/projects/GridLock/tests/nightly/state-integrity.spec.js",
+                        "line": 78,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 331094,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  Waiting 5m30s for idle timeout...\n"
+                        },
+                        {
+                          "text": "  Socket disconnected: true, reason: lobby\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T18:55:19.114Z",
+                      "annotations": [
+                        {
+                          "type": "slow",
+                          "location": {
+                            "file": "/home/ubuntu/projects/GridLock/tests/nightly/state-integrity.spec.js",
+                            "line": 78,
+                            "column": 10
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "52afd44c7108b1bfaf5f-3d2ee6a608eb98786dbe",
+              "file": "state-integrity.spec.js",
+              "line": 75,
+              "column": 3
+            },
+            {
+              "title": "leaderboard API vs page consistency",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3371,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "  Leaderboard: 10/10 API entries found on page\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-25T19:00:50.226Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "52afd44c7108b1bfaf5f-53d0b3685d62e5d6cd8b",
+              "file": "state-integrity.spec.js",
+              "line": 105,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-03-25T18:30:08.607Z",
+    "duration": 1845074.952,
+    "expected": 69,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
