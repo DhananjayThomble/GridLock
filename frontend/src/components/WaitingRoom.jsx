@@ -259,7 +259,7 @@ const WaitingRoom = () => {
               Room Code
             </span>
             <div
-              className="mt-2 font-mono text-4xl font-extrabold tracking-[0.12em] select-all"
+              className="mt-2 font-mono font-extrabold tracking-[0.12em] select-all text-[28px] sm:text-4xl"
               style={{ color: 'var(--text-primary)' }}
             >
               {gameId}
@@ -267,6 +267,17 @@ const WaitingRoom = () => {
             <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               {gridSize}×{gridSize} · {playerCount} Players
             </div>
+            <button
+              onClick={handleCopyCode}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
+              style={{
+                background: copied ? 'var(--success)' : 'var(--bg-card)',
+                border: '1px solid var(--border-color-strong)',
+                color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
+              }}
+            >
+              {copied ? '✅ Copied!' : '📋 Copy Code'}
+            </button>
           </div>
 
           {/* Share / Copy Buttons */}
