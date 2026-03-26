@@ -817,27 +817,17 @@ const Lobby = () => {
               </div>
             )}
 
-            {/* Quick Play — PRIMARY action (most common flow) */}
-            <button
-              onClick={handleQuickPlay}
-              disabled={quickPlaying || creating || !username.trim()}
-              aria-label="Quick Play — instant match with random opponents"
-              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{
-                background: (quickPlaying || creating) ? 'var(--bg-surface)' : 'var(--accent)',
-                boxShadow: (quickPlaying || creating) ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
-                ...((quickPlaying || creating) && { color: 'var(--text-muted)' }),
-              }}
-            >
-              {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
-            </button>
-
-            {/* Create Game — SECONDARY action */}
+            {/* Create Game — PRIMARY action (top, bold accent) */}
             <button
               onClick={handleCreate}
               disabled={creating || !username.trim()}
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={primaryStyle(creating)}
+              aria-label="Create Game — start a new game room"
+              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              style={{
+                background: creating ? 'var(--bg-surface)' : 'var(--accent)',
+                boxShadow: creating ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
+                ...(creating && { color: 'var(--text-muted)' }),
+              }}
             >
               {creating ? (
                 <span className="flex items-center justify-center gap-2">
@@ -847,6 +837,17 @@ const Lobby = () => {
               ) : (
                 '🚀 Create Game'
               )}
+            </button>
+
+            {/* Quick Play — SECONDARY action */}
+            <button
+              onClick={handleQuickPlay}
+              disabled={quickPlaying || creating || !username.trim()}
+              aria-label="Quick Play — instant match with random opponents"
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={primaryStyle(quickPlaying || creating)}
+            >
+              {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
           </div>
 
