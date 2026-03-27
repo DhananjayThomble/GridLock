@@ -14,23 +14,63 @@ function parseHex(hex) {
 }
 
 /**
- * Parse rgb(r, g, b) or rgba(r, g, b, a) string into [r, g, b] (0-255).
+ * Parse rgb(r, g, b) / rgba(r, g, b, a) or CSS4 space-separated rgb(r g b) / rgb(r g b / a)
+ * into [r, g, b, a?] (0-255, a 0-1). Values are clamped to valid ranges.
+ * Returns null if unparseable.
  */
 function parseRgb(str) {
-  const m = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  // CSS4 space-separated: rgb(r g b) or rgb(r g b / a)
+  let m = str.match(/rgba?\(\s*(\d+)\s+(\d+)\s+(\d+)(?:\s*\/\s*([\d.]+))?\s*\)/);
+  // Legacy comma-separated: rgb(r, g, b) or rgba(r, g, b, a)
+  if (!m) m = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/);
   if (!m) return null;
-  return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
+  const rgb = [
+    Math.min(255, Math.max(0, parseInt(m[1], 10))),
+    Math.min(255, Math.max(0, parseInt(m[2], 10))),
+    Math.min(255, Math.max(0, parseInt(m[3], 10))),
+  ];
+  if (m[4] !== undefined) {
+    const a = parseFloat(m[4]);
+    rgb.push(isNaN(a) ? 1 : Math.min(1, Math.max(0, a)));
+  }
+  return rgb;
+}
+
+/**
+ * Check if a color string represents a fully transparent color.
+ * rgba(0, 0, 0, 0), transparent, or any rgba with alpha=0.
+ * Handles both comma-separated and CSS4 space-separated syntax.
+ */
+function isTransparent(color) {
+  if (!color) return true;
+  const trimmed = color.trim().toLowerCase();
+  if (trimmed === 'transparent') return true;
+  // Comma-separated: rgba(r, g, b, a)
+  const mComma = trimmed.match(/rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/);
+  if (mComma && parseFloat(mComma[1]) === 0) return true;
+  // CSS4 space-separated: rgb(r g b / a)
+  const mSpace = trimmed.match(/rgba?\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*\/\s*([\d.]+)\s*\)/);
+  if (mSpace && parseFloat(mSpace[1]) === 0) return true;
+  return false;
 }
 
 /**
  * Parse any CSS color string into [r, g, b].
  * Supports #hex, rgb(), rgba().
+ * Returns null for transparent colors (can't measure contrast) or unparseable strings.
  */
 function parseColor(color) {
   if (!color) return null;
   const trimmed = color.trim();
+  if (isTransparent(trimmed)) return null; // transparent → can't measure
   if (trimmed.startsWith('#')) return parseHex(trimmed);
-  if (trimmed.startsWith('rgb')) return parseRgb(trimmed);
+  if (trimmed.startsWith('rgb')) {
+    const parsed = parseRgb(trimmed);
+    if (!parsed) return null;
+    // If alpha is present and effectively 0, treat as unmeasurable
+    if (parsed.length === 4 && parsed[3] < 0.01) return null;
+    return parsed.slice(0, 3);
+  }
   return null;
 }
 
@@ -69,4 +109,4 @@ function computeContrastRatio(color1, color2) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-module.exports = { computeContrastRatio, parseColor, relativeLuminance };
+module.exports = { computeContrastRatio, parseColor, isTransparent, relativeLuminance, parseRgb, parseHex };
