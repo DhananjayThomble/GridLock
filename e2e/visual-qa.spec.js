@@ -125,12 +125,38 @@ for (const viewport of spec.viewports) {
 
               /**
                * Check if a color is fully transparent / unmeasurable.
+               * NOTE: Duplicated from e2e/helpers/contrast.js (isTransparent).
+               * Browser evaluate() context can't import Node modules — keep in sync manually.
+               * Handles both comma-separated rgba(r,g,b,a) and CSS4 space-separated rgb(r g b / a).
                */
               function isTransparentColor(c) {
                 if (!c) return true;
                 if (c === 'transparent') return true;
-                const m = c.match(/rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/);
-                return m && parseFloat(m[1]) === 0;
+                const mComma = c.match(/rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/);
+                if (mComma && parseFloat(mComma[1]) === 0) return true;
+                const mSpace = c.match(/rgba?\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*\/\s*([\d.]+)\s*\)/);
+                if (mSpace && parseFloat(mSpace[1]) === 0) return true;
+                return false;
+              }
+
+              /**
+               * Parse an rgb/rgba color string into {r, g, b, a} or null.
+               * Handles both comma-separated and CSS4 space-separated syntax.
+               * NOTE: Duplicated inline because browser evaluate() can't import Node modules.
+               * Keep in sync with parseRgb in e2e/helpers/contrast.js.
+               */
+              function parseRgbInline(str) {
+                // CSS4 space-separated: rgb(r g b) or rgb(r g b / a)
+                let m = str.match(/rgba?\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\s*\)/);
+                // Legacy comma-separated: rgb(r, g, b) or rgba(r, g, b, a)
+                if (!m) m = str.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/);
+                if (!m) return null;
+                return {
+                  r: parseFloat(m[1]),
+                  g: parseFloat(m[2]),
+                  b: parseFloat(m[3]),
+                  a: m[4] !== undefined ? parseFloat(m[4]) : 1,
+                };
               }
 
               /**
@@ -154,16 +180,10 @@ for (const viewport of spec.viewports) {
 
                   const bgc = s.backgroundColor;
                   if (bgc && bgc !== 'transparent') {
-                    const m = bgc.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/);
-                    if (m) {
-                      const r = parseFloat(m[1]);
-                      const g = parseFloat(m[2]);
-                      const b = parseFloat(m[3]);
-                      const a = m[4] !== undefined ? parseFloat(m[4]) : 1;
-                      if (a > 0) {
-                        layers.push({ r, g, b, a });
-                        if (a >= 1) break; // opaque — no need to go further
-                      }
+                    const parsed = parseRgbInline(bgc);
+                    if (parsed && parsed.a > 0) {
+                      layers.push(parsed);
+                      if (parsed.a >= 1) break; // opaque — no need to go further
                     }
                   }
                   node = node.parentElement;
@@ -172,10 +192,9 @@ for (const viewport of spec.viewports) {
                 // Fallback to body bg
                 if (layers.length === 0 || layers[layers.length - 1].a < 1) {
                   const bodyBg = window.getComputedStyle(document.body).backgroundColor;
-                  const m = bodyBg && bodyBg.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/);
-                  if (m) {
-                    const a = m[4] !== undefined ? parseFloat(m[4]) : 1;
-                    if (a > 0) layers.push({ r: parseFloat(m[1]), g: parseFloat(m[2]), b: parseFloat(m[3]), a });
+                  const parsed = bodyBg && parseRgbInline(bodyBg);
+                  if (parsed && parsed.a > 0) {
+                    layers.push(parsed);
                   }
                 }
 
@@ -225,6 +244,12 @@ for (const viewport of spec.viewports) {
                   // For container elements (button, a) that have children with explicit
                   // color styles, check the deepest text-bearing child instead.
                   // The container's own color (often inherited default) isn't meaningful.
+                  // LIMITATION: Only checks child.style.color (inline styles). Children styled
+                  // via CSS classes won't be caught here. For the element itself we use
+                  // getComputedStyle (which resolves classes), but iterating all children with
+                  // getComputedStyle would be expensive and unreliable without knowing which
+                  // child actually renders the visible text. Inline style check is a pragmatic
+                  // best-effort approach.
                   if ((sel === 'button' || sel === 'a') && el.children.length > 0) {
                     // Find children with explicit inline color styles (most specific)
                     const allChildren = el.querySelectorAll('*');
@@ -463,8 +488,9 @@ for (const viewport of spec.viewports) {
               // Skip emoji-only avatar buttons (dense grid items — WCAG 2.5.8 spacing exception)
               const text = btn.textContent.trim();
               if (/^[\p{Emoji}\s]{1,4}$/u.test(text) && btn.classList.contains('lobby-avatar-btn')) continue;
-              // Also skip any single-emoji buttons in avatar grids
-              if (/^[\p{Emoji}]{1,2}$/u.test(text) && btn.closest('.lobby-avatar-grid, [class*="avatar"]')) continue;
+              // Also skip any single-emoji buttons in the lobby avatar grid specifically
+              // (not any element with "avatar" in the class — that's too broad)
+              if (/^[\p{Emoji}]{1,2}$/u.test(text) && btn.closest('.lobby-avatar-grid')) continue;
 
               const touchW = Math.max(rect.width, parseFloat(style.minWidth) || 0);
               const touchH = Math.max(rect.height, parseFloat(style.minHeight) || 0);
