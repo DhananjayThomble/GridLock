@@ -1356,6 +1356,10 @@ const Board = () => {
           style={{
             width: sizes.gridTotal || undefined,
             height: sizes.gridTotal || undefined,
+            maxWidth: 'none',
+            maxHeight: 'none',
+            padding: 0,
+            boxSizing: 'border-box',
             flexShrink: 0,
             overflow: 'hidden',
             backgroundColor: 'var(--bg-tertiary)',
