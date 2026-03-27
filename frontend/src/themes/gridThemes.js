@@ -1,13 +1,14 @@
 // src/themes/gridThemes.js
 // Grid visual theme definitions — affects VISUALS only, not layout/sizing math.
 // Each theme defines dot appearance, line style, board background, and player colors.
+// Note: dotSize and lineGlowIntensity were removed — unused by rendering code.
+// visualDotSize is the only dot sizing property consumed by components.
 
 export const GRID_THEMES = {
   clean: {
     id: 'clean',
     name: 'Clean',
     description: 'Modern and minimal with bold rounded lines',
-    dotSize: 5,
     visualDotSize: 5,
     lineThickness: 6,
     dotColor: '#52525b',
@@ -16,7 +17,6 @@ export const GRID_THEMES = {
     boardBorder: null,
     dotStyle: { borderRadius: '50%' },
     lineStyle: { borderRadius: '3px' },
-    lineGlowIntensity: 0,
     players: {
       p1: { lineColor: '#6366f1', lineGlow: 'none', boxBg: 'rgba(99,102,241,0.12)' },
       p2: { lineColor: '#f59e0b', lineGlow: 'none', boxBg: 'rgba(245,158,11,0.12)' },
@@ -29,7 +29,6 @@ export const GRID_THEMES = {
     id: 'classic',
     name: 'Classic',
     description: 'The original GridLock look — large dots, bold lines',
-    dotSize: 22,
     visualDotSize: 22,
     lineThickness: 8,
     dotColor: '#8ba4c4',
@@ -38,7 +37,6 @@ export const GRID_THEMES = {
     boardBorder: null,
     dotStyle: { borderRadius: '50%' },
     lineStyle: { borderRadius: '4px' },
-    lineGlowIntensity: 0,
     players: {
       p1: { lineColor: '#58a6ff', lineGlow: 'none', boxBg: 'rgba(88,166,255,0.12)' },
       p2: { lineColor: '#f0883e', lineGlow: 'none', boxBg: 'rgba(240,136,62,0.12)' },
@@ -51,7 +49,6 @@ export const GRID_THEMES = {
     id: 'minimal',
     name: 'Minimal',
     description: 'Tiny dots, thin lines — distraction-free',
-    dotSize: 8,
     visualDotSize: 8,
     lineThickness: 4,
     dotColor: '#4b5563',
@@ -60,7 +57,6 @@ export const GRID_THEMES = {
     boardBorder: null,
     dotStyle: { borderRadius: '50%' },
     lineStyle: { borderRadius: '2px' },
-    lineGlowIntensity: 0,
     players: {
       p1: { lineColor: '#6366f1', lineGlow: 'none', boxBg: 'rgba(99,102,241,0.08)' },
       p2: { lineColor: '#f59e0b', lineGlow: 'none', boxBg: 'rgba(245,158,11,0.08)' },
@@ -73,7 +69,6 @@ export const GRID_THEMES = {
     id: 'neon',
     name: 'Neon Glow',
     description: 'Glowing dots and electric lines',
-    dotSize: 10,
     visualDotSize: 10,
     lineThickness: 3,
     dotColor: '#a78bfa',
@@ -82,7 +77,6 @@ export const GRID_THEMES = {
     boardBorder: '1px solid rgba(167,139,250,0.2)',
     dotStyle: { borderRadius: '50%', boxShadow: '0 0 6px #a78bfa, 0 0 12px rgba(167,139,250,0.4)' },
     lineStyle: { borderRadius: '2px' },
-    lineGlowIntensity: 12,
     players: {
       p1: { lineColor: '#22d3ee', lineGlow: '0 0 8px #22d3ee, 0 0 16px rgba(34,211,238,0.3)', boxBg: 'rgba(34,211,238,0.1)' },
       p2: { lineColor: '#f472b6', lineGlow: '0 0 8px #f472b6, 0 0 16px rgba(244,114,182,0.3)', boxBg: 'rgba(244,114,182,0.1)' },
@@ -95,7 +89,6 @@ export const GRID_THEMES = {
     id: 'glass',
     name: 'Glassmorphism',
     description: 'Frosted glass with gradient lines',
-    dotSize: 12,
     visualDotSize: 12,
     lineThickness: 5,
     dotColor: '#818cf8',
@@ -104,7 +97,6 @@ export const GRID_THEMES = {
     boardBorder: '1px solid rgba(129,140,248,0.2)',
     dotStyle: { borderRadius: '50%', boxShadow: '0 0 4px rgba(129,140,248,0.3)' },
     lineStyle: { borderRadius: '3px' },
-    lineGlowIntensity: 6,
     players: {
       p1: { lineColor: '#818cf8', lineGlow: '0 0 6px rgba(129,140,248,0.3)', boxBg: 'rgba(129,140,248,0.1)' },
       p2: { lineColor: '#fb923c', lineGlow: '0 0 6px rgba(251,146,60,0.3)', boxBg: 'rgba(251,146,60,0.1)' },
@@ -121,8 +113,15 @@ export const playerKeyFromRole = (role) => {
   return `p${num}`;
 };
 
-/** Get theme by id, fallback to clean */
-export const getGridTheme = (id) => GRID_THEMES[id] || GRID_THEMES.clean;
+/** Default lineStyle fallback for themes missing borderRadius */
+const LINE_STYLE_DEFAULTS = { borderRadius: '2px' };
+
+/** Get theme by id, fallback to clean. Ensures lineStyle always has borderRadius. */
+export const getGridTheme = (id) => {
+  const theme = GRID_THEMES[id] || GRID_THEMES.clean;
+  if (theme.lineStyle && theme.lineStyle.borderRadius) return theme;
+  return { ...theme, lineStyle: { ...LINE_STYLE_DEFAULTS, ...theme.lineStyle } };
+};
 
 /** All theme ids */
 export const THEME_IDS = Object.keys(GRID_THEMES);

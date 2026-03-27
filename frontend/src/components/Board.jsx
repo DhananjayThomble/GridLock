@@ -415,9 +415,11 @@ const Board = () => {
             } catch { updatedStats.tournamentWins = 0; }
           }
           const newUnlocked = checkAndUnlockThemes(updatedStats);
-          if (newUnlocked) {
+          if (newUnlocked.length > 0) {
             const themeNames = { clean: 'Clean', classic: 'Classic', minimal: 'Minimal', neon: 'Neon Glow', glass: 'Glassmorphism' };
-            showToast(`🎨 New theme unlocked: ${themeNames[newUnlocked] || newUnlocked}!`, { type: 'success', duration: 5000 });
+            newUnlocked.forEach((id) => {
+              showToast(`🎨 New theme unlocked: ${themeNames[id] || id}!`, { type: 'success', duration: 5000 });
+            });
           }
 
           // Analytics: game completed

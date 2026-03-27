@@ -3,7 +3,7 @@
 // Persists to localStorage. Does NOT affect layout sizing.
 /* eslint-disable react-refresh/only-export-components */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { getGridTheme, THEME_IDS, checkUnlockCondition, GRID_THEMES } from '../themes/gridThemes';
 import { getStats } from '../utils/sessionStats';
 
@@ -15,7 +15,7 @@ const GridThemeContext = createContext(null);
 
 /**
  * Hook to access grid theme state.
- * @returns {{ theme: object, themeId: string, setTheme: (id: string) => void, unlockedThemes: string[], checkAndUnlockThemes: (stats?: object) => string|null }}
+ * @returns {{ theme: object, themeId: string, setTheme: (id: string) => void, unlockedThemes: string[], checkAndUnlockThemes: (stats?: object) => string[] }}
  */
 export const useGridTheme = () => {
   const ctx = useContext(GridThemeContext);
@@ -64,34 +64,38 @@ export const GridThemeProvider = ({ children }) => {
     return updated;
   });
 
+  // Ref tracks current unlocked themes so checkAndUnlockThemes can read synchronously
+  const unlockedRef = useRef(unlockedThemes);
+
   const theme = getGridTheme(themeId);
 
   const setTheme = useCallback((id) => {
     if (!GRID_THEMES[id]) return;
-    if (!unlockedThemes.includes(id)) return;
+    if (!unlockedRef.current.includes(id)) return;
     setThemeId(id);
     try { localStorage.setItem(THEME_KEY, id); } catch { /* ignore */ }
-  }, [unlockedThemes]);
+  }, []);
 
-  // Check and unlock themes based on current stats. Returns newly unlocked theme id or null.
+  // Check and unlock themes based on current stats.
+  // Returns array of newly unlocked theme ids (empty if none).
+  // Uses ref to read current state synchronously — avoids React 18 batching closure bug.
   const checkAndUnlockThemes = useCallback((statsOverride) => {
     const stats = statsOverride || getStats();
-    let newlyUnlocked = null;
+    const current = unlockedRef.current;
+    const newlyUnlocked = [];
 
-    setUnlockedThemes((prev) => {
-      const updated = [...prev];
-      for (const id of THEME_IDS) {
-        if (!updated.includes(id) && checkUnlockCondition(id, stats)) {
-          updated.push(id);
-          newlyUnlocked = id;
-        }
+    for (const id of THEME_IDS) {
+      if (!current.includes(id) && checkUnlockCondition(id, stats)) {
+        newlyUnlocked.push(id);
       }
-      if (updated.length !== prev.length) {
-        try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
-        return updated;
-      }
-      return prev;
-    });
+    }
+
+    if (newlyUnlocked.length > 0) {
+      const updated = [...new Set([...current, ...newlyUnlocked])];
+      unlockedRef.current = updated;
+      setUnlockedThemes(updated);
+      try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    }
 
     return newlyUnlocked;
   }, []);
