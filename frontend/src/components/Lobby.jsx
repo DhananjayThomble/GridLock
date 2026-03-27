@@ -631,6 +631,7 @@ const Lobby = () => {
               <button
                 onClick={() => setProfileExpanded(!profileExpanded)}
                 className="w-full flex items-center gap-3 py-1 bg-transparent border-none cursor-pointer text-left"
+                style={{ color: 'var(--text-primary)' }}
                 aria-expanded={profileExpanded}
                 aria-controls="mobile-profile-panel"
                 aria-label="Edit profile"
@@ -702,7 +703,7 @@ const Lobby = () => {
                     <button
                       onClick={() => setProfileExpanded(true)}
                       className="text-xs font-semibold px-3 py-1 rounded-lg transition-all active:scale-95"
-                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)', minHeight: '44px', minWidth: '44px' }}
                     >
                       Change
                     </button>
