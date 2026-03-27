@@ -18,6 +18,7 @@ const PAGES = [
   { name: 'daily', path: '/daily' },
   { name: 'how-to-play', path: '/how-to-play' },
   { name: 'history', path: '/history' },
+  { name: 'profile', path: '/profile/TestUser' },
 ];
 
 // Grid sizes to test board rendering
@@ -306,21 +307,34 @@ for (const viewport of spec.viewports) {
             }, { mode, theme, THEME_KEY, GRID_THEME_KEY });
 
             // Start a CPU game with the desired grid size
-            // Set grid size in localStorage to influence game creation
+            // Set grid size + enable CPU in localStorage (app uses hyphen-camelCase keys)
             await page.evaluate((size) => {
-              localStorage.setItem('gridlock_grid_size', String(size));
-              localStorage.setItem('gridlock_last_grid_size', String(size));
+              localStorage.setItem('gridlock-gridSize', String(size));
+              localStorage.setItem('gridlock-cpuEnabled', 'true');
+              localStorage.setItem('gridlock-cpuCount', '1');
+              localStorage.setItem('gridlock-cpuDifficulty', 'easy');
+              // Re-set username in case navigation cleared it
+              localStorage.setItem('gridlock_username', 'QA-Bot');
             }, gridSize);
 
-            // Click quick play / CPU game button
-            // Try multiple selectors for starting a game
-            const cpuButton = page.locator('button:has-text("Create Game"), button:has-text("CPU"), button:has-text("vs CPU"), button:has-text("Play CPU"), [data-testid="cpu-game"], button:has-text("Quick Play")').first();
+            // Reload to pick up the new localStorage values
+            await page.goto(BASE_URL + '/', { waitUntil: 'networkidle', timeout: 30000 });
+            await page.waitForTimeout(500);
+
+            // Click Create Game (with CPU enabled, it goes straight to /game)
+            const cpuButton = page.locator('button:has-text("Create Game")').first();
             const hasCpu = await cpuButton.isVisible({ timeout: 5000 }).catch(() => false);
 
             if (!hasCpu) {
-              // If no CPU button found, try navigating directly
-              // Some builds expose /game?mode=cpu&grid=N
-              test.skip(true, 'CPU game button not found on lobby — skipping board test');
+              test.skip(true, 'Create Game button not found on lobby — skipping board test');
+              return;
+            }
+
+            // The button is disabled without a username — wait for it to be enabled
+            await cpuButton.waitFor({ state: 'visible', timeout: 5000 }).catch(() => null);
+            const isDisabled = await cpuButton.isDisabled();
+            if (isDisabled) {
+              test.skip(true, 'Create Game button is disabled (username not set?) — skipping board test');
               return;
             }
 
@@ -355,8 +369,8 @@ for (const viewport of spec.viewports) {
 
             const ratio = await page.evaluate(() => {
               // Measure horizontal and vertical line elements
-              const hLines = document.querySelectorAll('[data-line-dir="h"], .h-line, .horizontal-line');
-              const vLines = document.querySelectorAll('[data-line-dir="v"], .v-line, .vertical-line');
+              const hLines = document.querySelectorAll('[data-line-dir="h"], .h-line, .horizontal-line, [data-testid="board-hline"]');
+              const vLines = document.querySelectorAll('[data-line-dir="v"], .v-line, .vertical-line, [data-testid="board-vline"]');
 
               if (hLines.length === 0 || vLines.length === 0) return null;
 
@@ -387,7 +401,7 @@ for (const viewport of spec.viewports) {
             }
 
             const dotSizes = await page.evaluate(() => {
-              const dots = document.querySelectorAll('.dot, [data-dot], .board-dot');
+              const dots = document.querySelectorAll('.dot, [data-dot], .board-dot, [data-testid="board-dot"]');
               if (dots.length === 0) return null;
               return Array.from(dots).map(d => {
                 const rect = d.getBoundingClientRect();
@@ -416,7 +430,7 @@ for (const viewport of spec.viewports) {
             }
 
             const boxSizes = await page.evaluate(() => {
-              const boxes = document.querySelectorAll('.box, [data-box], .board-box, .cell');
+              const boxes = document.querySelectorAll('.box, [data-box], .board-box, .cell, [data-testid="board-box"]');
               if (boxes.length === 0) return null;
               return Array.from(boxes).map(b => {
                 const rect = b.getBoundingClientRect();
