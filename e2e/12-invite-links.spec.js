@@ -4,10 +4,12 @@ const { goToLobby, createGame, BASE_URL } = require('./helpers');
 
 test.describe('Invite Links', () => {
   test('Join page renders with game ID from URL', async ({ page }) => {
-    await page.goto(`${BASE_URL}/join/TESTGAME`, { waitUntil: 'networkidle' });
+    // Room codes are 6-char hex (A-F, 0-9) since v1.3.0
+    const testGameId = 'AB12CD';
+    await page.goto(`${BASE_URL}/join/${testGameId}`, { waitUntil: 'networkidle' });
 
     // Game ID displayed
-    await expect(page.locator('text=TESTGAME')).toBeVisible();
+    await expect(page.locator(`text=${testGameId}`)).toBeVisible();
 
     // Username input visible
     await expect(page.locator('input[placeholder="Enter your name…"]:visible')).toBeVisible();
@@ -47,13 +49,16 @@ test.describe('Invite Links', () => {
   });
 
   test('Error handling for invalid game ID', async ({ page }) => {
+    // v1.3.0: Room codes are validated client-side as 6-char hex (A-F, 0-9).
+    // Invalid format triggers an immediate permanentError state with
+    // "🔄 Try Again" and "🏠 Find Another Game" buttons (no input/join shown).
     await page.goto(`${BASE_URL}/join/INVALID123`, { waitUntil: 'networkidle' });
-    await page.fill('input[placeholder="Enter your name…"]:visible', 'ErrorTest');
-    await page.getByRole('button', { name: /Join Game/i }).click();
 
-    // Should show an error — the error container uses inline styles with --danger CSS var
-    // Match by the "Go to Lobby" button that appears in the error block
-    await expect(page.getByRole('button', { name: 'Go to Lobby', exact: true })).toBeVisible({ timeout: 12_000 });
+    // Error message should be visible immediately (client-side validation)
+    await expect(page.locator('text=Invalid room code format')).toBeVisible({ timeout: 5_000 });
+
+    // "Find Another Game" button navigates to lobby
+    await expect(page.getByRole('button', { name: /Find Another Game/i })).toBeVisible({ timeout: 5_000 });
   });
 
   test('Copy invite link from Board', async ({ browser }) => {
@@ -67,16 +72,22 @@ test.describe('Invite Links', () => {
     const roomCode = await createGame(page, { username: 'CopyHost', playerCount: 2, gridSize: '3×3' });
     expect(roomCode).toBeTruthy();
 
-    // With waiting room flow, non-CPU games land on /waiting/:gameId
-    // Look for Share Invite Link (waiting room) or Copy Invite Link (board)
+    // v1.3.0: Human games land in WaitingRoom (/waiting/:gameId).
+    // WaitingRoom has "📤 Share Invite Link" (desktop) / "📤 Share" (mobile).
+    // Board has "📎 Copy Invite Link" (only if waiting for players).
+    // Also try the "📋 Copy Code" button as fallback.
     const shareBtn = page.getByRole('button', { name: /Share Invite Link/i });
-    const copyBtn = page.getByRole('button', { name: /Copy Invite Link/i });
-    const isWaitingRoom = await shareBtn.isVisible().catch(() => false);
-    const inviteBtn = isWaitingRoom ? shareBtn : copyBtn;
-    await expect(inviteBtn).toBeVisible({ timeout: 10_000 });
+    const copyInviteBtn = page.getByRole('button', { name: /Copy Invite Link/i });
+    const copyCodeBtn = page.getByRole('button', { name: /Copy Code/i });
 
-    // Click the share/copy button
-    await inviteBtn.click();
+    // Wait for any of the share/copy buttons to appear
+    const visibleBtn = await Promise.race([
+      shareBtn.waitFor({ state: 'visible', timeout: 10_000 }).then(() => shareBtn),
+      copyInviteBtn.waitFor({ state: 'visible', timeout: 10_000 }).then(() => copyInviteBtn),
+      copyCodeBtn.waitFor({ state: 'visible', timeout: 10_000 }).then(() => copyCodeBtn),
+    ]);
+
+    await visibleBtn.click();
 
     // Check clipboard contains the invite URL or game code
     const clipText = await page.evaluate(() => navigator.clipboard.readText());
