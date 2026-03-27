@@ -200,14 +200,14 @@ const TournamentLobby = () => {
                   <button
                     onClick={handleCopyId}
                     className="text-xs px-3 py-2.5 rounded-lg transition-all active:scale-95"
-                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', minHeight: '44px' }}
                   >
                     {showCopied ? '✅ Copied!' : '📋 Copy'}
                   </button>
                   <button
                     onClick={handleShare}
                     className="text-xs px-3 py-2.5 rounded-lg transition-all active:scale-95"
-                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', minHeight: '44px' }}
                     aria-label="Share tournament ID"
                   >
                     📤 Share

@@ -441,7 +441,7 @@ const WaitingRoom = () => {
                       onClick={() => setCpuDifficulty(value)}
                       className="py-2 rounded-xl text-center text-xs font-bold transition-all active:scale-95"
                       style={cpuDifficulty === value
-                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', minHeight: '44px', minWidth: '44px' }
+                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-warning)', minHeight: '44px', minWidth: '44px' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)', minHeight: '44px', minWidth: '44px' }}
                     >
                       {icon} {label}
