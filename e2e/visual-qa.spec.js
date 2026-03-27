@@ -10,6 +10,18 @@ const { envCfg } = require('./env-config');
 
 const BASE_URL = process.env.BASE_URL || process.env.TEST_BASE_URL || envCfg.baseURL;
 
+/**
+ * Gracefully skip a test if the page redirected away (e.g. waiting-room/tournament without
+ * a valid session). Call after navigation + settle delay for pages with mayRedirect: true.
+ */
+function skipIfRedirected(page, test, pg) {
+  if (!pg.mayRedirect) return;
+  const url = page.url();
+  if (!url.includes(pg.path)) {
+    test.skip(true, `${pg.name} redirected to ${url} — no active session, skipping`);
+  }
+}
+
 // Pages to check for overflow / clipping / contrast
 const PAGES = [
   { name: 'lobby', path: '/' },
@@ -81,13 +93,7 @@ for (const viewport of spec.viewports) {
             await page.waitForTimeout(500);
 
             // Graceful skip if page redirected (e.g. waiting-room/tournament without valid session)
-            if (pg.mayRedirect) {
-              const url = page.url();
-              if (!url.includes(pg.path)) {
-                test.skip(true, `${pg.name} redirected to ${url} — no active session, skipping`);
-                return;
-              }
-            }
+            skipIfRedirected(page, test, pg);
 
             const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
             expect(scrollWidth, `${pg.name} scrollWidth (${scrollWidth}) exceeds viewport (${viewport.width})`).toBeLessThanOrEqual(viewport.width);
@@ -98,13 +104,7 @@ for (const viewport of spec.viewports) {
             await page.waitForTimeout(500);
 
             // Graceful skip if page redirected
-            if (pg.mayRedirect) {
-              const url = page.url();
-              if (!url.includes(pg.path)) {
-                test.skip(true, `${pg.name} redirected to ${url} — no active session, skipping`);
-                return;
-              }
-            }
+            skipIfRedirected(page, test, pg);
 
             // Check that main content wrapper is within viewport bounds
             const clipped = await page.evaluate((vp) => {
@@ -127,13 +127,7 @@ for (const viewport of spec.viewports) {
             await page.waitForTimeout(500);
 
             // Graceful skip if page redirected
-            if (pg.mayRedirect) {
-              const url = page.url();
-              if (!url.includes(pg.path)) {
-                test.skip(true, `${pg.name} redirected to ${url} — no active session, skipping`);
-                return;
-              }
-            }
+            skipIfRedirected(page, test, pg);
 
             // Sample key text elements and verify contrast against their background
             const samples = await page.evaluate(() => {

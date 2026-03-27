@@ -322,10 +322,10 @@ const JoinGame = () => {
             <button
               onClick={handleJoin}
               disabled={joining || retryCountdown > 0}
-              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 background: (joining || retryCountdown > 0) ? 'var(--bg-surface)' : 'var(--success)',
-                ...((joining || retryCountdown > 0) && { color: 'var(--text-muted)' }),
+                color: (joining || retryCountdown > 0) ? 'var(--text-muted)' : 'var(--text-on-accent)',
               }}
             >
               {joining ? (

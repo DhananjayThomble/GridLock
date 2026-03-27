@@ -233,8 +233,8 @@ const Leaderboard = () => {
             />
             <button
               type="submit"
-              className="rounded-xl px-4 py-2.5 font-semibold text-white transition disabled:opacity-60"
-              style={{ backgroundColor: 'var(--accent)' }}
+              className="rounded-xl px-4 py-2.5 font-semibold transition disabled:opacity-60"
+              style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }}
               disabled={playerLoading}
             >
               {playerLoading ? 'Searching…' : 'Search'}

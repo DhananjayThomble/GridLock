@@ -44,8 +44,8 @@ class ErrorBoundaryInner extends React.Component {
             </p>
             <button
               onClick={this.handleReturnToLobby}
-              className="w-full py-3 rounded-xl font-bold text-sm text-white transition-colors"
-              style={{ backgroundColor: 'var(--accent)' }}
+              className="w-full py-3 rounded-xl font-bold text-sm transition-colors"
+              style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }}
             >
               Return to Lobby
             </button>
