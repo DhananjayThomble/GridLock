@@ -10,6 +10,18 @@ const { envCfg } = require('./env-config');
 
 const BASE_URL = process.env.BASE_URL || process.env.TEST_BASE_URL || envCfg.baseURL;
 
+/**
+ * Gracefully skip a test if the page redirected away (e.g. waiting-room/tournament without
+ * a valid session). Call after navigation + settle delay for pages with mayRedirect: true.
+ */
+function skipIfRedirected(page, test, pg) {
+  if (!pg.mayRedirect) return;
+  const url = page.url();
+  if (!url.includes(pg.path)) {
+    test.skip(true, `${pg.name} redirected to ${url} — no active session, skipping`);
+  }
+}
+
 // Pages to check for overflow / clipping / contrast
 const PAGES = [
   { name: 'lobby', path: '/' },
@@ -19,6 +31,8 @@ const PAGES = [
   { name: 'how-to-play', path: '/how-to-play' },
   { name: 'history', path: '/history' },
   { name: 'profile', path: '/profile/TestUser' },
+  { name: 'waiting-room', path: '/waiting-room/test-room', mayRedirect: true },
+  { name: 'tournament', path: '/tournament/test-tourney', mayRedirect: true },
 ];
 
 // Grid sizes to test board rendering
@@ -78,6 +92,9 @@ for (const viewport of spec.viewports) {
             // Wait a tick for any layout shifts
             await page.waitForTimeout(500);
 
+            // Graceful skip if page redirected (e.g. waiting-room/tournament without valid session)
+            skipIfRedirected(page, test, pg);
+
             const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
             expect(scrollWidth, `${pg.name} scrollWidth (${scrollWidth}) exceeds viewport (${viewport.width})`).toBeLessThanOrEqual(viewport.width);
           });
@@ -85,6 +102,9 @@ for (const viewport of spec.viewports) {
           test(`${pg.name} — no content clipped`, async () => {
             await page.goto(BASE_URL + pg.path, { waitUntil: 'networkidle', timeout: 30000 });
             await page.waitForTimeout(500);
+
+            // Graceful skip if page redirected
+            skipIfRedirected(page, test, pg);
 
             // Check that main content wrapper is within viewport bounds
             const clipped = await page.evaluate((vp) => {
@@ -105,6 +125,9 @@ for (const viewport of spec.viewports) {
           test(`${pg.name} — text contrast`, async () => {
             await page.goto(BASE_URL + pg.path, { waitUntil: 'networkidle', timeout: 30000 });
             await page.waitForTimeout(500);
+
+            // Graceful skip if page redirected
+            skipIfRedirected(page, test, pg);
 
             // Sample key text elements and verify contrast against their background
             const samples = await page.evaluate(() => {

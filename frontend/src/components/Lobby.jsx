@@ -801,7 +801,7 @@ const Lobby = () => {
                         onClick={() => setCpuCount(n)}
                         className="flex-1 py-2 rounded-xl text-center text-sm font-bold transition-all active:scale-95 lobby-option-card"
                         style={cpuCount === n
-                          ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                          ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-warning)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                           : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                       >
                         {n} 🤖
@@ -820,7 +820,7 @@ const Lobby = () => {
                         onClick={() => setCpuDifficulty(value)}
                         className="py-2 px-2 rounded-xl text-center transition-all active:scale-95"
                         style={cpuDifficulty === value
-                          ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                          ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-warning)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                           : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                       >
                         <div className="text-lg">{icon}</div>
@@ -967,7 +967,7 @@ const Lobby = () => {
                       onClick={() => setTournamentSize(value)}
                       className="py-2.5 px-2 rounded-xl text-center transition-all active:scale-95 lobby-option-card"
                       style={tournamentSize === value
-                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
+                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-warning)', boxShadow: '0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent)' }
                         : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
                     >
                       <div className="text-lg">{icon}</div>
