@@ -2,7 +2,7 @@
 // Shared button style helpers for 3-tier hierarchy (Primary → Secondary → Tertiary).
 // CSS-variable based — works in dark + light themes.
 
-/** Primary: bold accent — the main CTA */
+/** Primary: tinted accent fill — prominent secondary actions (Quick Play, Create Tournament) with outlined treatment */
 export const primaryStyle = (disabled = false) => ({
   background: disabled
     ? 'var(--bg-surface)'

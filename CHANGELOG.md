@@ -27,7 +27,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 - Chat FAB hidden in CPU games where no opponent exists
 
 ### Security
-- Bumped socket.io-parser to patch prototype pollution vulnerability (#424)
+- Bumped socket.io-parser to patch unbounded binary attachments / potential DoS vulnerability (#424)
 - Bumped picomatch to patch ReDoS vulnerability (#428)
 
 ## [1.2.1] — 2026-03-26
