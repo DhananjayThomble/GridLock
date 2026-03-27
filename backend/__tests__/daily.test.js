@@ -493,6 +493,95 @@ describe('Daily routes (supertest)', () => {
     expect(res.body.challenge.seed).toBeUndefined();
   });
 
+  test('GET /api/daily/leaderboard returns top 10 and total count', async () => {
+    const date = '2026-04-01';
+    const entries = [];
+    for (let i = 1; i <= 12; i++) {
+      entries.push({
+        date,
+        username: `player${i}`,
+        score: 9 - Math.floor(i / 3),
+        moves: 10 + i,
+        duration: 30 + i * 5,
+      });
+    }
+    await DailyResult.create(entries);
+
+    const res = await request(app).get(`/api/daily/leaderboard?date=${date}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.date).toBe(date);
+    expect(res.body.totalPlayers).toBe(12);
+    expect(res.body.leaderboard).toHaveLength(10);
+    expect(res.body.leaderboard[0].rank).toBe(1);
+    res.body.leaderboard.forEach((entry, idx) => {
+      expect(entry.rank).toBe(idx + 1);
+    });
+    expect(res.body.userResult).toBeNull();
+  });
+
+  test('GET /api/daily/leaderboard defaults to today when no date param', async () => {
+    const today = getTodayDateStr();
+    await DailyResult.create({
+      date: today,
+      username: 'todayplayer',
+      score: 7,
+      moves: 8,
+      duration: 25,
+    });
+
+    const res = await request(app).get('/api/daily/leaderboard');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.date).toBe(today);
+    expect(res.body.totalPlayers).toBe(1);
+    expect(res.body.leaderboard).toHaveLength(1);
+    expect(res.body.leaderboard[0].username).toBe('todayplayer');
+  });
+
+  test('GET /api/daily/leaderboard includes userResult when username provided', async () => {
+    const date = '2026-04-02';
+    await DailyResult.create([
+      { date, username: 'alice', score: 9, moves: 8, duration: 20 },
+      { date, username: 'bob', score: 7, moves: 10, duration: 30 },
+      { date, username: 'charlie', score: 5, moves: 12, duration: 45 },
+    ]);
+
+    const res = await request(app).get(`/api/daily/leaderboard?date=${date}&username=charlie`);
+    expect(res.status).toBe(200);
+    expect(res.body.userResult).toBeDefined();
+    expect(res.body.userResult.username).toBe('charlie');
+    expect(res.body.userResult.rank).toBe(3);
+  });
+
+  test('GET /api/daily/leaderboard returns null userResult for non-existent user', async () => {
+    const date = '2026-04-03';
+    await DailyResult.create({
+      date,
+      username: 'alice',
+      score: 5,
+      moves: 10,
+      duration: 30,
+    });
+
+    const res = await request(app).get(`/api/daily/leaderboard?date=${date}&username=ghost`);
+    expect(res.status).toBe(200);
+    expect(res.body.userResult).toBeNull();
+  });
+
+  test('GET /api/daily/leaderboard returns 400 for invalid date format', async () => {
+    const res = await request(app).get('/api/daily/leaderboard?date=bad-date');
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('GET /api/daily/leaderboard returns empty for date with no results', async () => {
+    const res = await request(app).get('/api/daily/leaderboard?date=2099-01-01');
+    expect(res.status).toBe(200);
+    expect(res.body.totalPlayers).toBe(0);
+    expect(res.body.leaderboard).toEqual([]);
+  });
+
   test('GET /api/daily/leaderboard/:date returns empty leaderboard', async () => {
     const res = await request(app).get('/api/daily/leaderboard/2026-03-11');
     expect(res.status).toBe(200);

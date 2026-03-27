@@ -152,6 +152,12 @@ body {
   --turn-badge-text: #15603a;
 }
 
+/* ── Light mode card contrast (#276) ───────────────────────────────────────── */
+[data-theme="light"] .card-surface {
+  --tw-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
 /* ── Theme transition (only during toggle) ─────────────────────────────────── */
 [data-theme-transitioning] *,
 [data-theme-transitioning] *::before,
@@ -743,8 +749,8 @@ button:active:not(:disabled) {
 
 /* Chat button positioning — use CSS class instead of hardcoded inline values */
 .chat-button-position {
-  bottom: calc(var(--bottom-bar-height, 64px) + 16px);
-  right: 16px;
+  bottom: calc(var(--bottom-bar-height, 64px) + 24px);
+  right: 20px;
 }
 
 /* Base styles for message buttons (moved from inline to enable hover without !important) */
