@@ -7,6 +7,8 @@ import { getSoundSettings, saveSoundSettings } from '../utils/sounds';
 import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 import { usePwaInstall } from '../hooks/usePwaInstall';
+import { useGridTheme } from '../contexts/GridThemeContext';
+import { GRID_THEMES, THEME_IDS, UNLOCK_CONDITIONS } from '../themes/gridThemes';
 import socket from '../socket';
 
 /* ─── Reusable Toggle Switch ─── */
@@ -283,6 +285,65 @@ const StatsPanel = ({ stats, onReset }) => (
   </div>
 );
 
+/* ─── Grid Theme Picker ─── */
+const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={isLocked}
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '12px 8px',
+      borderRadius: '12px',
+      border: isActive ? '2px solid var(--accent)' : '2px solid var(--border-color)',
+      backgroundColor: isActive ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-card))' : 'var(--bg-card)',
+      cursor: isLocked ? 'not-allowed' : 'pointer',
+      opacity: isLocked ? 0.6 : 1,
+      transition: 'all 200ms ease',
+      position: 'relative',
+      width: '100%',
+      minHeight: '100px',
+    }}
+  >
+    {/* Mini board preview */}
+    <div
+      style={{
+        width: '48px',
+        height: '48px',
+        borderRadius: '8px',
+        backgroundColor: theme.boardBg || 'var(--bg-tertiary)',
+        border: theme.boardBorder || '1px solid var(--border-color)',
+        display: 'grid',
+        gridTemplateColumns: `${Math.min(theme.visualDotSize, 6)}px 1fr ${Math.min(theme.visualDotSize, 6)}px`,
+        gridTemplateRows: `${Math.min(theme.visualDotSize, 6)}px 1fr ${Math.min(theme.visualDotSize, 6)}px`,
+        gap: '1px',
+        padding: '4px',
+        alignItems: 'center',
+        justifyItems: 'center',
+      }}
+    >
+      <div style={{ width: Math.min(theme.visualDotSize, 6), height: Math.min(theme.visualDotSize, 6), borderRadius: '50%', backgroundColor: theme.dotColor, ...theme.dotStyle }} />
+      <div style={{ width: '100%', height: Math.min(theme.lineThickness, 3), backgroundColor: theme.players.p1.lineColor, ...theme.lineStyle }} />
+      <div style={{ width: Math.min(theme.visualDotSize, 6), height: Math.min(theme.visualDotSize, 6), borderRadius: '50%', backgroundColor: theme.dotColor, ...theme.dotStyle }} />
+      <div style={{ height: '100%', width: Math.min(theme.lineThickness, 3), backgroundColor: theme.players.p2.lineColor, ...theme.lineStyle }} />
+      <div style={{ width: '100%', height: '100%', borderRadius: '2px', backgroundColor: theme.players.p1.boxBg }} />
+      <div style={{ height: '100%', width: Math.min(theme.lineThickness, 3), backgroundColor: theme.emptyLineColor, ...theme.lineStyle }} />
+      <div style={{ width: Math.min(theme.visualDotSize, 6), height: Math.min(theme.visualDotSize, 6), borderRadius: '50%', backgroundColor: theme.dotColor, ...theme.dotStyle }} />
+      <div style={{ width: '100%', height: Math.min(theme.lineThickness, 3), backgroundColor: theme.emptyLineColor, ...theme.lineStyle }} />
+      <div style={{ width: Math.min(theme.visualDotSize, 6), height: Math.min(theme.visualDotSize, 6), borderRadius: '50%', backgroundColor: theme.dotColor, ...theme.dotStyle }} />
+    </div>
+
+    <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'center' }}>
+      {isLocked && '🔒 '}{theme.name}
+    </div>
+    <div style={{ fontSize: '10px', color: isActive ? 'var(--accent)' : 'var(--text-muted)', textAlign: 'center' }}>
+      {isActive ? '✓ Active' : isLocked ? unlockLabel : 'Tap to apply'}
+    </div>
+  </button>
+);
+
 /* ─── Main Settings Component ─── */
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
@@ -290,6 +351,7 @@ const Settings = () => {
 
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
   const { canInstall, install: handleInstall } = usePwaInstall();
+  const { themeId: activeGridTheme, setTheme: setGridTheme, unlockedThemes } = useGridTheme();
   const [showSoundDetails, setShowSoundDetails] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(getStats);
@@ -367,6 +429,34 @@ const Settings = () => {
             right={<ToggleSwitch checked={pushEnabled} onChange={handlePushToggle} disabled={!hasUsername} label="Push notifications" />}
             showDivider={false}
           />
+        </SectionCard>
+
+        {/* ─── GRID THEME ─── */}
+        <SectionHeader title="Grid Theme" />
+        <SectionCard>
+          <div style={{ padding: '12px 16px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              Customize how the game board looks. Unlock new themes by playing!
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {THEME_IDS.map((id) => {
+                const theme = GRID_THEMES[id];
+                const isActive = id === activeGridTheme;
+                const isLocked = !unlockedThemes.includes(id);
+                const condition = UNLOCK_CONDITIONS[id];
+                return (
+                  <ThemePreview
+                    key={id}
+                    theme={theme}
+                    isActive={isActive}
+                    isLocked={isLocked}
+                    unlockLabel={condition?.label || ''}
+                    onClick={() => !isLocked && setGridTheme(id)}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </SectionCard>
 
         {/* ─── APP ─── */}
