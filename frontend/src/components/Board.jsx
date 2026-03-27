@@ -843,7 +843,7 @@ const Board = () => {
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
     const touchHandlers = makeTouchHandler('horizontal', r, c);
-    const hLineHeight = Math.max(sizes.dot, 24);
+    const hLineHeight = sizes.dot;
 
     return (
       <div
@@ -883,7 +883,7 @@ const Board = () => {
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
     const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
     const touchHandlers = makeTouchHandler('vertical', r, c);
-    const vLineWidth = Math.max(sizes.dot, 24);
+    const vLineWidth = sizes.dot;
 
     return (
       <div
