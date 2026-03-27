@@ -25,9 +25,10 @@ body {
   --border-color:     rgba(240,246,252,0.1);
   --border-color-strong: rgba(240,246,252,0.2);
 
-  --accent:           #58a6ff;
-  --accent-hover:     #79c0ff;
-  --accent-secondary: #79c0ff;
+  /* --accent: WCAG 1.4.11 compliant — ≥3:1 vs white text (3.54:1) and vs dark bg #141a22 (4.79:1) */
+  --accent:           #4d8fcc;
+  --accent-hover:     #5da0dd;
+  --accent-secondary: #5da0dd;
   --label-color:      #8b949e;
   --success:          #3fb950;
   --danger:           #f85149;

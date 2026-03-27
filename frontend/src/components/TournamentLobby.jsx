@@ -200,14 +200,14 @@ const TournamentLobby = () => {
                   <button
                     onClick={handleCopyId}
                     className="text-xs px-2 py-1 rounded-lg transition-all active:scale-95"
-                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', minHeight: '44px', minWidth: '44px' }}
                   >
                     {showCopied ? '✅ Copied!' : '📋 Copy'}
                   </button>
                   <button
                     onClick={handleShare}
                     className="text-xs px-2 py-1 rounded-lg transition-all active:scale-95"
-                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', minHeight: '44px', minWidth: '44px' }}
                     aria-label="Share tournament ID"
                   >
                     📤 Share
@@ -339,8 +339,8 @@ const TournamentLobby = () => {
 
               <button
                 onClick={() => navigate('/')}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-95"
-                style={{ background: 'var(--warning)' }}
+                className="w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95"
+                style={{ background: 'var(--warning)', color: 'var(--text-on-accent)' }}
               >
                 👋 Back to Lobby
               </button>

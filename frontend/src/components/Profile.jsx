@@ -125,7 +125,7 @@ const MatchRow = ({ match, onPlayerClick }) => {
         <button
           type="button"
           className="text-sm cursor-pointer hover:underline bg-transparent border-none p-0"
-          style={{ color: 'var(--text-primary)' }}
+          style={{ color: 'var(--text-primary)', minHeight: '44px', minWidth: '44px' }}
           onClick={() => onPlayerClick?.(match.opponents?.[0])}
         >
           vs {match.opponents?.join(', ') || 'Unknown'}
@@ -275,7 +275,7 @@ const Profile = () => {
                   <button
                     type="button"
                     className="cursor-pointer hover:underline bg-transparent border-none p-0 text-xl font-bold"
-                    style={{ color: 'var(--text-primary)' }}
+                    style={{ color: 'var(--text-primary)', minHeight: '44px', minWidth: '44px' }}
                     onClick={() => handlePlayerClick(p.computed.mostPlayedOpponent)}
                   >
                     {p.computed.mostPlayedOpponent}
