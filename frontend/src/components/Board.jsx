@@ -82,8 +82,11 @@ function useGridSizes(gridSize) {
       // Compute visual dot size (original small size, 10-14px)
       const visualDot = Math.max(minDot, Math.round(box * dotRatio));
 
-      // Layout dot: at least 24px for touch targets
-      let dot = Math.max(visualDot, 24);
+      // Layout dot: grid-size-aware minimum touch target
+      // 3×3: keep 24px for comfortable spacing
+      // 4×4+: reduce to 16px — lines are the primary tap target, not dots
+      const minTouchTarget = cells <= 3 ? 24 : 16;
+      let dot = Math.max(visualDot, minTouchTarget);
 
       // Second pass: if dot minimum kicked in, recalculate box to fit
       // Grid width = (cells+1)*dot + cells*box ≤ availW
