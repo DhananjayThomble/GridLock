@@ -41,7 +41,7 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 // container refs (the ref's layout depends on the grid, which depends on the
 // ref measurement — causing the board to render tiny on first mount).
 function useGridSizes(gridSize) {
-  const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48, lineThickness: 8 });
+  const [sizes, setSizes] = useState({ dot: 8, visualDot: 8, line: 48, box: 48, lineThickness: 8, gridTotal: 0 });
 
   useEffect(() => {
     function calculate() {
@@ -51,8 +51,8 @@ function useGridSizes(gridSize) {
 
       // Horizontal: full width minus small padding (8px each side on mobile)
       const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
-      // Vertical: ScoreBar(~80px) + header info(~100px) + toolbar(~60px) + breathing room
-      const reservedH = w < 640 ? 260 : w < 768 ? 280 : 300;
+      // Vertical: nav(~56) + score(~80) + header(~100) + toolbar(~60) + padding + bottom nav
+      const reservedH = w < 640 ? 320 : w < 768 ? 300 : 300;
 
       const availW = w - reservedW;
       const availH = h - reservedH;
@@ -77,8 +77,11 @@ function useGridSizes(gridSize) {
       // Cap: min 24px, max 180px
       box = Math.max(24, Math.min(box, 180));
 
-      // Compute actual dot size (may be larger than dotRatio*box due to minimum)
-      let dot = Math.max(minDot, Math.round(box * dotRatio));
+      // Compute visual dot size (original small size, 10-14px)
+      const visualDot = Math.max(minDot, Math.round(box * dotRatio));
+
+      // Layout dot: at least 24px for touch targets
+      let dot = Math.max(visualDot, 24);
 
       // Second pass: if dot minimum kicked in, recalculate box to fit
       // Grid width = (cells+1)*dot + cells*box ≤ availW
@@ -89,10 +92,21 @@ function useGridSizes(gridSize) {
         box = Math.max(24, box); // maintain minimum
       }
 
+      // Safety clamp: verify total grid dimensions actually fit the viewport
+      const totalGridW = (cells + 1) * dot + cells * box;
+      const totalGridH = (cells + 1) * dot + cells * box;
+      if (totalGridH > availH || totalGridW > availW) {
+        const scale = Math.min(availW / totalGridW, availH / totalGridH);
+        box = Math.max(24, Math.floor(box * scale));
+      }
+
       // Line thickness: proportional to box size, minimum 8px
       const lineThickness = Math.max(8, Math.round(box * 0.12));
 
-      setSizes({ dot, line: box, box, lineThickness });
+      // Total grid dimension: (cells+1) dots + cells boxes — identical in both axes → square
+      const gridTotal = (cells + 1) * dot + cells * box;
+
+      setSizes({ dot, visualDot, line: box, box, lineThickness, gridTotal });
     }
 
     calculate();
@@ -726,12 +740,12 @@ const Board = () => {
   const renderDot = (key) => (
     <div
       key={key}
-      style={{ width: sizes.dot, height: sizes.dot, flexShrink: 0 }}
+      style={{ width: sizes.dot, height: sizes.dot, flexShrink: 0, flexGrow: 0 }}
       className="flex items-center justify-center z-10"
     >
       <div
         className="rounded-full shadow-sm"
-        style={{ width: Math.max(sizes.dot - 2, 8), height: Math.max(sizes.dot - 2, 8), backgroundColor: 'var(--dot-color)' }}
+        style={{ width: Math.max(sizes.visualDot - 2, 8), height: Math.max(sizes.visualDot - 2, 8), backgroundColor: 'var(--dot-color)' }}
       />
     </div>
   );
@@ -793,7 +807,7 @@ const Board = () => {
         aria-disabled={!isMyTurn}
         tabIndex={isMyTurn ? 0 : -1}
         onKeyDown={(e) => handleLineKeyDown(e, 'horizontal', r, c, isMyTurn)}
-        style={{ width: sizes.line, height: hLineHeight, flexShrink: 0, touchAction: 'manipulation' }}
+        style={{ width: sizes.line, height: hLineHeight, flexShrink: 0, flexGrow: 0, touchAction: 'manipulation' }}
         className={`flex items-center justify-center ${
           owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
         }`}
@@ -832,7 +846,7 @@ const Board = () => {
         aria-disabled={!isMyTurn}
         tabIndex={isMyTurn ? 0 : -1}
         onKeyDown={(e) => handleLineKeyDown(e, 'vertical', r, c, isMyTurn)}
-        style={{ width: vLineWidth, height: sizes.line, flexShrink: 0, touchAction: 'manipulation' }}
+        style={{ width: vLineWidth, height: sizes.line, flexShrink: 0, flexGrow: 0, touchAction: 'manipulation' }}
         className={`flex items-center justify-center ${
           owner ? '' : isMyTurn ? 'cursor-pointer' : 'cursor-default'
         }`}
@@ -859,7 +873,7 @@ const Board = () => {
     return (
       <div
         key={`b-${r}-${c}`}
-        style={{ width: sizes.line, height: sizes.line, flexShrink: 0 }}
+        style={{ width: sizes.line, height: sizes.line, flexShrink: 0, flexGrow: 0 }}
         className="flex items-center justify-center"
       >
         <div
@@ -1334,12 +1348,15 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div className="flex flex-1 items-center justify-center w-full">
+        <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
         <div
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
           } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
+            width: sizes.gridTotal || undefined,
+            height: sizes.gridTotal || undefined,
+            flexShrink: 0,
             overflow: 'hidden',
             backgroundColor: 'var(--bg-tertiary)',
             border: `1px solid var(--border-color)`,
@@ -1350,9 +1367,9 @@ const Board = () => {
           }}
         >
           {gameState.horizontalLines.map((row, r) => (
-            <div key={`row-${r}`}>
+            <div key={`row-${r}`} style={{ flexShrink: 0, flexGrow: 0 }}>
               {/* Dot-HLine-Dot row */}
-              <div className="flex items-center">
+              <div className="flex items-center" style={{ height: sizes.dot, flexShrink: 0, flexGrow: 0 }}>
                 {row.map((_, c) => (
                   <React.Fragment key={`top-${c}`}>
                     {renderDot(`d-${r}-${c}`)}
@@ -1364,7 +1381,7 @@ const Board = () => {
 
               {/* VLine-Box row */}
               {r < gameState.boxes.length && (
-                <div className="flex items-center">
+                <div className="flex items-center" style={{ height: sizes.line, flexShrink: 0, flexGrow: 0 }}>
                   {gameState.boxes[r].map((_, c) => (
                     <React.Fragment key={`mid-${c}`}>
                       {renderVLine(r, c)}
