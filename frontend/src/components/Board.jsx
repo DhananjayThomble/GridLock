@@ -789,6 +789,7 @@ const Board = () => {
     >
       <div
         className="rounded-full"
+        data-testid="board-dot"
         style={{
           width: Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5),
           height: Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5),
@@ -848,6 +849,7 @@ const Board = () => {
     return (
       <div
         key={`h-${r}-${c}`}
+        data-testid="board-hline"
         onClick={() => handleLineClick('horizontal', r, c)}
         onTouchStart={touchHandlers.onTouchStart}
         onTouchEnd={touchHandlers.onTouchEnd}
@@ -888,6 +890,7 @@ const Board = () => {
     return (
       <div
         key={`v-${r}-${c}`}
+        data-testid="board-vline"
         onClick={() => handleLineClick('vertical', r, c)}
         onTouchStart={touchHandlers.onTouchStart}
         onTouchEnd={touchHandlers.onTouchEnd}
@@ -925,6 +928,7 @@ const Board = () => {
     return (
       <div
         key={`b-${r}-${c}`}
+        data-testid="board-box"
         style={{ width: sizes.line, height: sizes.line, flexShrink: 0, flexGrow: 0 }}
         className="flex items-center justify-center"
       >

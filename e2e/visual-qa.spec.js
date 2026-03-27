@@ -18,6 +18,7 @@ const PAGES = [
   { name: 'daily', path: '/daily' },
   { name: 'how-to-play', path: '/how-to-play' },
   { name: 'history', path: '/history' },
+  { name: 'profile', path: '/profile/TestUser' },
 ];
 
 // Grid sizes to test board rendering
@@ -368,8 +369,8 @@ for (const viewport of spec.viewports) {
 
             const ratio = await page.evaluate(() => {
               // Measure horizontal and vertical line elements
-              const hLines = document.querySelectorAll('[data-line-dir="h"], .h-line, .horizontal-line');
-              const vLines = document.querySelectorAll('[data-line-dir="v"], .v-line, .vertical-line');
+              const hLines = document.querySelectorAll('[data-line-dir="h"], .h-line, .horizontal-line, [data-testid="board-hline"]');
+              const vLines = document.querySelectorAll('[data-line-dir="v"], .v-line, .vertical-line, [data-testid="board-vline"]');
 
               if (hLines.length === 0 || vLines.length === 0) return null;
 
@@ -400,7 +401,7 @@ for (const viewport of spec.viewports) {
             }
 
             const dotSizes = await page.evaluate(() => {
-              const dots = document.querySelectorAll('.dot, [data-dot], .board-dot');
+              const dots = document.querySelectorAll('.dot, [data-dot], .board-dot, [data-testid="board-dot"]');
               if (dots.length === 0) return null;
               return Array.from(dots).map(d => {
                 const rect = d.getBoundingClientRect();
@@ -429,7 +430,7 @@ for (const viewport of spec.viewports) {
             }
 
             const boxSizes = await page.evaluate(() => {
-              const boxes = document.querySelectorAll('.box, [data-box], .board-box, .cell');
+              const boxes = document.querySelectorAll('.box, [data-box], .board-box, .cell, [data-testid="board-box"]');
               if (boxes.length === 0) return null;
               return Array.from(boxes).map(b => {
                 const rect = b.getBoundingClientRect();
