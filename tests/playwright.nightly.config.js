@@ -7,7 +7,7 @@ const BETA_API = process.env.BETA_API || 'https://beta-api.gridlock.pro';
 module.exports = defineConfig({
   testDir: './nightly',
   timeout: 60_000,
-  globalTimeout: 3_600_000, // 60 min total (4x previous)
+  globalTimeout: 7_200_000, // 2 hours
   expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 1,

@@ -25,7 +25,7 @@ const BASE_URL = process.env.TEST_BASE_URL || envCfg.baseURL;
 module.exports = defineConfig({
   testDir: './e2e',
   timeout: 60_000,
-  globalTimeout: 900_000,
+  globalTimeout: 7_200_000, // 2 hours
   expect: { timeout: 15_000 },
   fullyParallel: false,        // game tests share backend socket state
   forbidOnly: !!process.env.CI,

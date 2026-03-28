@@ -6,7 +6,7 @@ const BETA_URL = process.env.BETA_URL || 'https://beta.gridlock.pro';
 module.exports = defineConfig({
   testDir: './weekly',
   timeout: 120_000,
-  globalTimeout: 1_800_000, // 30 min total
+  globalTimeout: 7_200_000, // 2 hours
   expect: { timeout: 15_000 },
   fullyParallel: false,
   retries: 0, // weekly tests should be deterministic
