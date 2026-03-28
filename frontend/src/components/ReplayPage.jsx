@@ -179,6 +179,7 @@ const ReplayPage = () => {
     const [moveIndex, setMoveIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speedIdx, setSpeedIdx] = useState(0);
+    const totalMoves = replayData?.moveHistory?.length || 0;
     // Derive showWinner from moveIndex reaching the end
     const isAtEnd = moveIndex >= totalMoves && totalMoves > 0;
     const shouldShowWinner = isAtEnd && !!gameState?.winner;
@@ -237,7 +238,6 @@ const ReplayPage = () => {
         return state;
     }, [replayData, moveIndex]);
 
-    const totalMoves = replayData?.moveHistory?.length || 0;
 
     // Auto-play timer
     useEffect(() => {
