@@ -353,7 +353,7 @@ const GameHistory = () => {
                   aria-label="Filter by grid size"
                 >
                   <option value="">All</option>
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
+                  {[3, 4, 5, 6].map((s) => (
                     <option key={s} value={String(s)}>{s}×{s}</option>
                   ))}
                 </select>
