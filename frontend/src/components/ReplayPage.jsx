@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import useThemeColors from '../hooks/useThemeColors';
 
-const API_BASE = import.meta.env.VITE_API_URL ||
+const API_BASE = import.meta.env.VITE_API_BASE_URL ||
     (typeof window !== 'undefined' ? window.location.origin : '');
 
 const PLAYER_CONFIG = {
