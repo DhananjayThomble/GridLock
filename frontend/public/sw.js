@@ -1,6 +1,9 @@
 // GridLock Service Worker — cache-first for assets, network-first for HTML
 const CACHE_NAME = 'gridlock-v3';
-const STATIC_ASSETS = ['/', '/index.html'];
+
+// Derive base path from SW scope to support sub-path deployments (e.g. /beta)
+const BASE_PATH = new URL('./', self.registration?.scope || self.location.href).pathname;
+const STATIC_ASSETS = [BASE_PATH, `${BASE_PATH}index.html`];
 
 // Install: pre-cache app shell
 self.addEventListener('install', (event) => {
@@ -46,7 +49,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match(`${BASE_PATH}index.html`))
     );
     return;
   }

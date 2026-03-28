@@ -4,8 +4,9 @@ import React from 'react';
 
 const NameInput = ({ inputRef, username, usernameError, onChange, onKeyDown, placeholder = 'Enter your name…' }) => (
   <div>
-    <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
+    <label htmlFor="lobby-name-input" className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
     <input
+      id="lobby-name-input"
       ref={inputRef}
       type="text"
       value={username}

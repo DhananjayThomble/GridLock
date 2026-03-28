@@ -23,7 +23,7 @@ import { capture } from '../lib/posthog';
 import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
 import { useToast } from '../contexts/ToastContext';
 import { useGridTheme } from '../contexts/GridThemeContext';
-import { playerKeyFromRole } from '../themes/gridThemes';
+import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -419,9 +419,8 @@ const Board = () => {
           }
           const newUnlocked = checkAndUnlockThemes(updatedStats);
           if (newUnlocked.length > 0) {
-            const themeNames = { clean: 'Clean', classic: 'Classic', minimal: 'Minimal', neon: 'Neon Glow', glass: 'Glassmorphism' };
             newUnlocked.forEach((id) => {
-              showToast(`🎨 New theme unlocked: ${themeNames[id] || id}!`, { type: 'success', duration: 5000 });
+              showToast(`🎨 New theme unlocked: ${GRID_THEMES[id]?.name || id}!`, { type: 'success', duration: 5000 });
             });
           }
 
@@ -791,8 +790,8 @@ const Board = () => {
         className="rounded-full"
         data-testid="board-dot"
         style={{
-          width: Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5),
-          height: Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5),
+          width: Math.min(Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5), sizes.dot - 2),
+          height: Math.min(Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5), sizes.dot - 2),
           backgroundColor: gridTheme.dotColor || 'var(--dot-color)',
           ...gridTheme.dotStyle,
         }}
