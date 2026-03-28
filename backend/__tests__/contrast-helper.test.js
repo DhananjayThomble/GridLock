@@ -1,5 +1,5 @@
 // Unit tests for e2e/helpers/contrast.js
-const { parseRgb, parseHex, isTransparent, parseColor, computeContrastRatio } = require('./contrast');
+const { parseRgb, parseHex, isTransparent, parseColor, computeContrastRatio } = require('../../e2e/helpers/contrast');
 
 describe('parseRgb', () => {
   test('parses comma-separated rgb()', () => {
