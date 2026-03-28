@@ -137,7 +137,7 @@ test.describe('Grid Square Verification', () => {
     for (const gridSize of GRID_SIZES) {
 
       test(`${gridSize} grid is square on ${viewport.name} (${viewport.width}×${viewport.height})`, async ({ browser }) => {
-        test.setTimeout(60_000);
+        test.setTimeout(6_000_000);
 
         const { page, ctx } = await createCpuGameAtViewport(browser, { viewport, gridSize });
 

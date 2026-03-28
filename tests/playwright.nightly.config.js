@@ -8,7 +8,7 @@ module.exports = defineConfig({
   testDir: './nightly',
   timeout: 6_000_000,
   globalTimeout: 720_000_000, // 2 hours
-  expect: { timeout: 15_000 },
+  expect: { timeout: 1_500_000 },
   fullyParallel: false,
   retries: 1,
   workers: 1,

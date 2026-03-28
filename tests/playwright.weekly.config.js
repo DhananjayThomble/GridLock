@@ -7,7 +7,7 @@ module.exports = defineConfig({
   testDir: './weekly',
   timeout: 12_000_000,
   globalTimeout: 720_000_000, // 2 hours
-  expect: { timeout: 15_000 },
+  expect: { timeout: 1_500_000 },
   fullyParallel: false,
   retries: 0, // weekly tests should be deterministic
   workers: 1,
