@@ -452,30 +452,37 @@ async function updateLeaderboard(game, winner, log) {
  */
 async function recordGameHistory(game, winner, log) {
     try {
-        const playerEntries = [];
+        // Collect ALL players (including CPU) for opponent names and score lookups
+        const allPlayers = [];
+        const humanEntries = [];
         for (let i = 1; i <= game.playerCount; i++) {
             const pid = `player${i}`;
             const player = game.players[pid];
-            if (player && player.username && !player.isCPU) {
-                playerEntries.push({ pid, username: player.username });
+            if (player && player.username) {
+                allPlayers.push({ pid, username: player.username, isCPU: !!player.isCPU });
+                if (!player.isCPU) {
+                    humanEntries.push({ pid, username: player.username });
+                }
             }
         }
 
-        if (playerEntries.length === 0) return;
+        if (humanEntries.length === 0) return;
 
         const scores = game.gameState?.scores || {};
         const gameDuration = game.createdAt ? Math.round((Date.now() - game.createdAt) / 1000) : null;
         const now = new Date();
 
-        const docs = playerEntries.map(({ pid, username }) => {
+        const docs = humanEntries.map(({ pid, username }) => {
             const isWinner = pid === winner;
             const isDraw = winner === 'draw';
             const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
-            const opponents = playerEntries
-                .filter((p) => p.username !== username)
+            // Include ALL other players (including CPU) as opponents
+            const opponents = allPlayers
+                .filter((p) => p.pid !== pid)
                 .map((p) => p.username);
             const playerScore = Number.isFinite(scores[pid]) ? scores[pid] : 0;
-            const opponentScoreSum = playerEntries
+            // Sum scores of ALL opponents (including CPU)
+            const opponentScoreSum = allPlayers
                 .filter((p) => p.pid !== pid)
                 .reduce((sum, p) => sum + (Number.isFinite(scores[p.pid]) ? scores[p.pid] : 0), 0);
 
@@ -493,7 +500,7 @@ async function recordGameHistory(game, winner, log) {
         });
 
         await GameHistory.insertMany(docs, { ordered: false });
-        log.info('GameHistory recorded', { gameId: game.id, players: playerEntries.map((p) => p.username) });
+        log.info('GameHistory recorded', { gameId: game.id, players: humanEntries.map((p) => p.username) });
     } catch (err) {
         log.error('Failed to record GameHistory', { gameId: game.id, error: err.message });
     }
