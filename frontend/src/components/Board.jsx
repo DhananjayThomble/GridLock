@@ -380,6 +380,22 @@ const Board = () => {
           }
         }
       }
+      // Opponent move sound: plays when a line was placed by opponent without capturing
+      // Only triggers when: line count increased + no capture happened + it's now our turn
+      if (currentLineCount > prevLineCountRef.current && prevLineCountRef.current > 0) {
+        const prevTotal = Object.values(prevScores).reduce((a, b) => a + b, 0);
+        const currTotal = Object.values(gs.scores || {}).reduce((a, b) => a + b, 0);
+        const captureHappened = currTotal > prevTotal;
+
+        // Only play for opponent moves (it's now our turn = opponent just moved)
+        // Don't play if capture happened (opponentCapture sound already covers that)
+        // Don't play for our own moves (linePlaced already fires in handleLineClick)
+        if (!captureHappened && gs.currentPlayer === roleRef.current) {
+          initAudio();
+          sounds.opponentLinePlaced();
+        }
+      }
+
       prevLineCountRef.current = currentLineCount;
 
       setGameState(gs);

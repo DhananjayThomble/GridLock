@@ -246,9 +246,19 @@ export const turnNotify = () => {
   ]);
 };
 
+/**
+ * Opponent line placed - played when opponent places a line without capturing
+ * ~80ms, lower-pitched and softer than own linePlaced for auditory distinction
+ */
+export const opponentLinePlaced = () => {
+  if (!isSoundEnabled('moveSound')) return;
+  playTone(400, 0.08, 0, 0.14);
+};
+
 // Export all sounds as a single object for convenience
 export const sounds = {
   linePlaced,
+  opponentLinePlaced,
   tileCaptured,
   opponentCapture,
   gameStart,
