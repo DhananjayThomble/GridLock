@@ -32,6 +32,7 @@ const DailyChallenge = lazy(() => import('./components/DailyChallenge'));
 const HowToPlay = lazy(() => import('./components/HowToPlay'));
 const Settings = lazy(() => import('./components/Settings'));
 const WaitingRoom = lazy(() => import('./components/WaitingRoom'));
+const ChallengePage = lazy(() => import('./components/ChallengePage'));
 
 // Support /beta sub-path deployment via Vite's BASE_URL
 const basePath = import.meta.env.BASE_URL || '/';
@@ -275,6 +276,20 @@ const AppLayout = () => {
               )}
             />
             <Route path="/replays" element={<Navigate to="/history" replace />} />
+            <Route
+              path="/play/:username"
+              element={(
+                <ErrorBoundary>
+                  {withPageSeo(
+                    <ChallengePage />,
+                    {
+                      title: 'Challenge — Play GridLock',
+                      description: 'You\'ve been challenged to a GridLock match! Accept and play now.',
+                    },
+                  )}
+                </ErrorBoundary>
+              )}
+            />
             {/* Catch-all: show toast and redirect unknown routes to lobby (#418) */}
             <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
