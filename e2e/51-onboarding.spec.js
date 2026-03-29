@@ -78,4 +78,37 @@ test.describe('First-Time Onboarding', () => {
     await expect(page.locator('button:has-text("🚀 Create Game"):visible').first()).toBeVisible();
     await expect(page.locator('button:has-text("⚡ Quick Play"):visible').first()).toBeVisible();
   });
+
+  test('first-time user sees game demo animation', async ({ page }) => {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle' });
+
+    const demo = page.locator('[data-testid="game-demo"]');
+    await expect(demo).toBeVisible();
+
+    // Verify demo has correct structure (dots + lines)
+    const dots = demo.locator('[data-testid="demo-dot"]');
+    await expect(dots).toHaveCount(9);
+  });
+
+  test('game demo does not interfere with name input or Play Now button', async ({ page }) => {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.evaluate(() => localStorage.clear());
+    await page.reload({ waitUntil: 'networkidle' });
+
+    // Demo is visible
+    await expect(page.locator('[data-testid="game-demo"]')).toBeVisible();
+
+    // Name input is still functional
+    const nameInput = page.locator('[data-testid="onboarding-name-input"]');
+    await expect(nameInput).toBeVisible();
+    await nameInput.fill('TestPlayer');
+    await expect(nameInput).toHaveValue('TestPlayer');
+
+    // Play Now button is enabled and clickable
+    const playBtn = page.locator('[data-testid="onboarding-play-now"]');
+    await expect(playBtn).toBeVisible();
+    await expect(playBtn).toBeEnabled();
+  });
 });
