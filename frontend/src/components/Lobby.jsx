@@ -1227,7 +1227,7 @@ const Lobby = () => {
           </>)}
         </div>
 
-        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
+        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none;">DJ</a></p>
 
         {/* ── Recent Opponents ── */}
         <RecentOpponents
