@@ -24,6 +24,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cd "$ROOT_DIR"
 
+# Kill stale processes from previous runs
+kill $(lsof -ti :) 2>/dev/null || true
+kill $(lsof -ti :) 2>/dev/null || true
+sleep 1
+
+# Kill stale processes from previous runs
+kill $(lsof -ti :$BACKEND_PORT) 2>/dev/null || true
+kill $(lsof -ti :$FRONTEND_PORT) 2>/dev/null || true
+sleep 1
+
 echo "▶  Starting isolated test backend on port $BACKEND_PORT..."
 PORT=$BACKEND_PORT NODE_ENV=test MONGO_URI="$MONGO_URI" node backend/server.js \
   > /tmp/gridlock_e2e_backend.log 2>&1 &
