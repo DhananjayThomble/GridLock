@@ -27,6 +27,11 @@ cd "$REPO_DIR/frontend" && npm run build
 if [ "$SKIP_E2E" = false ]; then
   log "▶ E2E tests (local backend on :5105)"
 
+  # Kill stale processes from previous runs
+  kill $(lsof -ti :4173) 2>/dev/null || true
+  kill $(lsof -ti :5105) 2>/dev/null || true
+  sleep 1
+
   # Start a temporary backend on port 5105 using the test database
   MONGO_URI=mongodb://localhost:27017/gridlock-test PORT=5105 NODE_ENV=test \
     node "$REPO_DIR/backend/server.js" > /tmp/ci-e2e-backend.log 2>&1 &
