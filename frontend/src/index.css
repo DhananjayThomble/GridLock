@@ -265,7 +265,7 @@ textarea::placeholder {
 .board-container {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  max-width: min(95vw, 100%);
+  /* max-width removed — inline styles control exact square dimensions */
 }
 
 /* Score bar player name — responsive width via CSS clamp */
@@ -303,11 +303,10 @@ textarea::placeholder {
 /* On mobile: board centers and fits within viewport width */
 @media (max-width: 640px) {
   .board-container {
-    max-width: 100vw;
+    /* max-width removed — inline styles control exact square dimensions */
     margin-left: auto;
     margin-right: auto;
-    /* Remove padding and border on mobile — maximize board space */
-    padding: 4px !important;
+    /* padding removed — inline padding: 0 ensures exact square */
     border: none !important;
     border-radius: 0.75rem !important;
     box-shadow: none !important;
@@ -328,7 +327,7 @@ textarea::placeholder {
 /* ── Responsive breakpoints — tablet (768px+) ─────────────────────────────── */
 @media (min-width: 768px) {
   .board-container {
-    max-width: min(80vw, 600px);
+    /* max-width removed — inline styles control exact square dimensions */
   }
 
   .score-progress-thin {
@@ -347,7 +346,7 @@ textarea::placeholder {
 /* ── Responsive breakpoints — desktop (1024px+) ──────────────────────────── */
 @media (min-width: 1024px) {
   .board-container {
-    max-width: min(50vw, 620px);
+    /* max-width removed — inline styles control exact square dimensions */
   }
 
   .score-progress-thin {
