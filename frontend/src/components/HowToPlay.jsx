@@ -1,7 +1,7 @@
 // src/components/HowToPlay.jsx
 // SEO-rich "How to Play" page — targets 'how to play dots and boxes' queries
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import './HowToPlay.css';
 
@@ -24,22 +24,6 @@ const Card = ({ emoji, title, desc }) => (
 );
 
 const HowToPlay = () => {
-  useEffect(() => {
-    const prevTitle = document.title;
-    document.title = 'How to Play GridLock — Dots & Boxes Online | Rules, Strategy & Tips';
-
-    const metaDesc = document.querySelector('meta[name="description"]');
-    const prevDesc = metaDesc?.getAttribute('content');
-    if (metaDesc) {
-      metaDesc.setAttribute('content', 'Learn how to play GridLock, the online Dots & Boxes game. Master the rules, strategy tips, double-cross technique, and game modes. Play free multiplayer dots and boxes on GridLock.');
-    }
-
-    return () => {
-      document.title = prevTitle;
-      if (metaDesc && prevDesc) metaDesc.setAttribute('content', prevDesc);
-    };
-  }, []);
-
   return (
   <div className="htp-container">
     {/* Hero */}

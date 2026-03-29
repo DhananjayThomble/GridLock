@@ -119,8 +119,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Lobby />,
                     {
-                      title: 'Play Dots & Boxes Multiplayer',
-                      description: 'Play GridLock, a real-time multiplayer Dots & Boxes game built for competitive online matches.',
+                      title: 'Play Dots & Boxes Online Free | Multiplayer',
+                      description: 'Challenge friends to the classic dots and boxes strategy game. 2-4 players, real-time multiplayer, tournaments, daily challenges. Free, no download.',
                     },
                   )}
                 </ErrorBoundary>
@@ -147,8 +147,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Leaderboard />,
                     {
-                      title: 'Leaderboard',
-                      description: 'See the top GridLock players and track the latest multiplayer Dots & Boxes rankings.',
+                      title: 'Leaderboard — Top Players & Rankings',
+                      description: 'See the top GridLock players ranked by wins and ELO rating.',
                     },
                   )}
                 </ErrorBoundary>
@@ -161,8 +161,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <GameHistory />,
                     {
-                      title: 'Match History',
-                      description: 'Review recent GridLock matches, outcomes, and performance history.',
+                      title: 'Game History',
+                      description: 'Browse your past GridLock games with replays and stats.',
                     },
                   )}
                 </ErrorBoundary>
@@ -175,8 +175,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <DailyChallenge />,
                     {
-                      title: 'Daily Challenge',
-                      description: "Take on today's GridLock daily challenge and compare your score on the leaderboard.",
+                      title: 'Daily GridLock Challenge — Today\'s Puzzle',
+                      description: "Play today's GridLock challenge. Same puzzle for everyone. Compare your score on the daily leaderboard.",
                     },
                   )}
                 </ErrorBoundary>
@@ -239,8 +239,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <ReplayPage />,
                     {
-                      title: 'Match Replay',
-                      description: 'Watch a completed GridLock match replay and study every move.',
+                      title: 'Game Replay',
+                      description: 'Watch a GridLock game replay move by move.',
                     },
                   )}
                 </ErrorBoundary>
@@ -253,8 +253,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <HowToPlay />,
                     {
-                      title: 'How to Play — Rules, Strategy & Tips',
-                      description: 'Learn how to play GridLock, the online Dots & Boxes game. Master the rules, strategy tips, double-cross technique, and game modes.',
+                      title: 'How to Play GridLock — Rules & Strategy Guide',
+                      description: 'Learn how to play dots and boxes in 2 minutes. Simple rules, deep strategy. Tap lines, complete boxes, outscore your opponent.',
                     },
                   )}
                 </ErrorBoundary>
@@ -268,7 +268,7 @@ const AppLayout = () => {
                     <Settings />,
                     {
                       title: 'Settings',
-                      description: 'Customize your GridLock experience — theme, sound, notifications, and display preferences.',
+                      description: 'Customize your GridLock experience. Themes, sounds, notifications.',
                     },
                   )}
                 </ErrorBoundary>

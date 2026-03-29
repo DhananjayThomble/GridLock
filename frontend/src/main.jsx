@@ -13,6 +13,30 @@ import App from './App.jsx'
 // ── PostHog analytics (optional — requires VITE_POSTHOG_KEY) ─────────────────
 initPostHog();
 
+// Remove static fallback meta tags from index.html before React mounts.
+// These exist for crawlers that don't execute JS; react-helmet-async manages them at runtime.
+// Without this cleanup, Helmet adds duplicates alongside the static versions.
+(function cleanupStaticMetaTags() {
+  const head = document.head;
+  const selectors = [
+    'meta[name="description"]',
+    'meta[property="og:title"]',
+    'meta[property="og:description"]',
+    'meta[property="og:url"]',
+    'meta[property="og:image"]',
+    'meta[name="twitter:card"]',
+    'meta[name="twitter:title"]',
+    'meta[name="twitter:description"]',
+    'meta[name="twitter:image"]',
+  ];
+  selectors.forEach(sel => {
+    head.querySelectorAll(sel).forEach(el => el.remove());
+  });
+  // Remove static title — helmet will set the correct per-page title
+  const staticTitle = head.querySelector('title');
+  if (staticTitle) staticTitle.remove();
+})();
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
