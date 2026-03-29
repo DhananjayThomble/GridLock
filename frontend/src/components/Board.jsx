@@ -25,6 +25,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useGridTheme } from '../contexts/GridThemeContext';
 import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
 import useGridSizes from '../hooks/useGridSizes';
+import { markPlayed } from '../utils/onboarding';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -326,6 +327,9 @@ const Board = () => {
       if (gs.gameOver || gs.winner) {
         // Clear active game tracking — game is over (#365)
         try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+
+        // Mark first game as played (for onboarding flow — #455)
+        markPlayed();
 
         setGameDuration(prev => prev || (gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null));
         const winner = gs.winner;
@@ -1022,6 +1026,7 @@ const Board = () => {
             gameDuration={gameDuration}
             role={role}
             winnerData={winnerData}
+
           />
 
           <div className="flex gap-2">
