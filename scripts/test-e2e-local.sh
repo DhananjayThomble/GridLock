@@ -25,11 +25,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 # Kill stale processes from previous runs
-kill $(lsof -ti :) 2>/dev/null || true
-kill $(lsof -ti :) 2>/dev/null || true
-sleep 1
-
-# Kill stale processes from previous runs
 kill $(lsof -ti :$BACKEND_PORT) 2>/dev/null || true
 kill $(lsof -ti :$FRONTEND_PORT) 2>/dev/null || true
 sleep 1
