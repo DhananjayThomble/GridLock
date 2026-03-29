@@ -11,6 +11,7 @@ import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
 import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby';
 import { isFirstTime } from '../utils/onboarding';
+import GameDemo from './GameDemo';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -723,6 +724,8 @@ const Lobby = () => {
                   Tap lines between dots. Complete a square = you score!
                 </p>
               </div>
+
+              <GameDemo />
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
                 <input
