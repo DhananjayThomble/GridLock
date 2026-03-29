@@ -48,7 +48,7 @@ fi
 
 # ── Frontend ──
 cd "$BETA_REPO/frontend"
-npm ci --no-optional
+NODE_ENV=development npm ci --no-optional
 
 # Validate vite + native rollup binary are available.
 # git reset --hard can corrupt node_modules (missing native binaries like @rollup/rollup-linux-x64-gnu).
