@@ -82,13 +82,14 @@ describe('recordGameHistory', () => {
     expect(docs.every((d) => d.result === 'draw')).toBe(true);
   });
 
-  test('skips CPU players', async () => {
+  test('includes CPU opponents in names and scores', async () => {
     const log = createLog();
     const game = makeGame({
       players: {
         player1: { username: 'alice', isCPU: false },
         player2: { username: 'Bot-1', isCPU: true },
       },
+      gameState: { scores: { player1: 6, player2: 3 } },
     });
 
     await recordGameHistory(game, 'player1', log);
@@ -96,8 +97,11 @@ describe('recordGameHistory', () => {
     const docs = GameHistory.insertMany.mock.calls[0][0];
     expect(docs).toHaveLength(1);
     expect(docs[0].username).toBe('alice');
-    // CPU opponents should not appear in opponents list
-    expect(docs[0].opponents).toEqual([]);
+    // CPU opponents appear in opponents list
+    expect(docs[0].opponents).toEqual(['Bot-1']);
+    expect(docs[0].scores.player).toBe(6);
+    expect(docs[0].scores.opponent).toBe(3);
+    expect(docs[0].result).toBe('win');
   });
 
   test('does nothing when all players are CPU', async () => {
@@ -189,5 +193,82 @@ describe('recordGameHistory', () => {
     expect(aliceDoc.opponents).toEqual(expect.arrayContaining(['bob', 'charlie']));
     expect(aliceDoc.scores.player).toBe(5);
     expect(aliceDoc.scores.opponent).toBe(5); // 3 + 2
+  });
+
+  test('records correct loss result vs CPU', async () => {
+    const log = createLog();
+    const game = makeGame({
+      players: {
+        player1: { username: 'alice', isCPU: false },
+        player2: { username: 'Bot-Alpha', isCPU: true },
+      },
+      gameState: { scores: { player1: 3, player2: 6 } },
+    });
+
+    await recordGameHistory(game, 'player2', log);
+
+    const docs = GameHistory.insertMany.mock.calls[0][0];
+    expect(docs).toHaveLength(1);
+    expect(docs[0].username).toBe('alice');
+    expect(docs[0].result).toBe('loss');
+    expect(docs[0].opponents).toEqual(['Bot-Alpha']);
+    expect(docs[0].scores.player).toBe(3);
+    expect(docs[0].scores.opponent).toBe(6);
+  });
+
+  test('includes multiple CPU opponents with correct scores', async () => {
+    const log = createLog();
+    const game = makeGame({
+      playerCount: 3,
+      players: {
+        player1: { username: 'alice', isCPU: false },
+        player2: { username: 'Bot-Alpha', isCPU: true },
+        player3: { username: 'Bot-Beta', isCPU: true },
+      },
+      gameState: { scores: { player1: 5, player2: 3, player3: 4 } },
+    });
+
+    await recordGameHistory(game, 'player1', log);
+
+    const docs = GameHistory.insertMany.mock.calls[0][0];
+    expect(docs).toHaveLength(1);
+    expect(docs[0].username).toBe('alice');
+    expect(docs[0].result).toBe('win');
+    expect(docs[0].opponents).toEqual(expect.arrayContaining(['Bot-Alpha', 'Bot-Beta']));
+    expect(docs[0].opponents).toHaveLength(2);
+    expect(docs[0].scores.player).toBe(5);
+    expect(docs[0].scores.opponent).toBe(7); // 3 + 4
+  });
+
+  test('mixed human and CPU players', async () => {
+    const log = createLog();
+    const game = makeGame({
+      playerCount: 3,
+      players: {
+        player1: { username: 'alice', isCPU: false },
+        player2: { username: 'bob', isCPU: false },
+        player3: { username: 'Bot-Alpha', isCPU: true },
+      },
+      gameState: { scores: { player1: 5, player2: 3, player3: 4 } },
+    });
+
+    await recordGameHistory(game, 'player1', log);
+
+    const docs = GameHistory.insertMany.mock.calls[0][0];
+    // Only human players get history docs
+    expect(docs).toHaveLength(2);
+
+    const aliceDoc = docs.find((d) => d.username === 'alice');
+    expect(aliceDoc.result).toBe('win');
+    // Both human and CPU opponents listed
+    expect(aliceDoc.opponents).toEqual(expect.arrayContaining(['bob', 'Bot-Alpha']));
+    expect(aliceDoc.scores.player).toBe(5);
+    expect(aliceDoc.scores.opponent).toBe(7); // 3 + 4
+
+    const bobDoc = docs.find((d) => d.username === 'bob');
+    expect(bobDoc.result).toBe('loss');
+    expect(bobDoc.opponents).toEqual(expect.arrayContaining(['alice', 'Bot-Alpha']));
+    expect(bobDoc.scores.player).toBe(3);
+    expect(bobDoc.scores.opponent).toBe(9); // 5 + 4
   });
 });

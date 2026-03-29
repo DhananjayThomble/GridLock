@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import useThemeColors from '../hooks/useThemeColors';
 
-const API_BASE = import.meta.env.VITE_API_URL ||
+const API_BASE = import.meta.env.VITE_API_BASE_URL ||
     (typeof window !== 'undefined' ? window.location.origin : '');
 
 const PLAYER_CONFIG = {
@@ -179,9 +179,7 @@ const ReplayPage = () => {
     const [moveIndex, setMoveIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speedIdx, setSpeedIdx] = useState(0);
-    // Derive showWinner from moveIndex reaching the end
-    const isAtEnd = moveIndex >= totalMoves && totalMoves > 0;
-    const shouldShowWinner = isAtEnd && !!gameState?.winner;
+    const totalMoves = replayData?.moveHistory?.length || 0;
 
     const confettiFired = useRef(false);
     const timerRef = useRef(null);
@@ -236,8 +234,10 @@ const ReplayPage = () => {
         }
         return state;
     }, [replayData, moveIndex]);
+    // Derive showWinner from moveIndex reaching the end
+    const isAtEnd = moveIndex >= totalMoves && totalMoves > 0;
+    const shouldShowWinner = isAtEnd && !!gameState?.winner;
 
-    const totalMoves = replayData?.moveHistory?.length || 0;
 
     // Auto-play timer
     useEffect(() => {

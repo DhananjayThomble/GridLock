@@ -3,6 +3,30 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [1.4.0] — 2026-03-28
+
+### Added
+- Grid Theme System — 5 visual themes (Clean, Classic, Minimal, Neon, Glass) with unlockable rewards (#439, #440)
+- Visual QA pipeline with 210 automated UI checks (#443)
+- Playwright grid square verification tests
+- Production auto-deploy via gh-notify webhook
+- Sentry Discord relay improved alert formatting
+
+### Fixed
+- ReplayPage crash — 3 stacked bugs: TDZ totalMoves, TDZ gameState, wrong env var VITE_API_URL
+- Game history: CPU opponents now recorded, scores and results correct (#448)
+- Service worker cache strategy: skipWaiting + clients.claim + purge all on deploy (#447)
+- Grid layout: explicit square dimensions + flexGrow/flexShrink locked (#438)
+- Grid dot spacing: 16px for 4×4+ grids, 24px for 3×3 (#442)
+- WCAG AA contrast compliance across all themes (#441)
+- Touch targets ≥44px on all interactive elements (#446)
+- Accent color contrast fix (#446)
+- Button order: Create Game as primary action (#433)
+
+### Changed
+- CPU toggle redesigned for better discoverability (#434)
+- Test timeouts increased 100× to prevent false failures
+
 ## [1.3.0] — 2026-03-26
 
 ### Added

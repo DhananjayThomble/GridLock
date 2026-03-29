@@ -10,6 +10,7 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { GridThemeProvider } from './contexts/GridThemeContext';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -286,13 +287,15 @@ const AppLayout = () => {
 function App() {
   return (
     <ThemeProvider>
-      <ToastProvider>
-        <Router basename={basePath}>
-          <ScrollToTop />
-          <ConnectionOverlay />
-          <AppLayout />
-        </Router>
-      </ToastProvider>
+      <GridThemeProvider>
+        <ToastProvider>
+          <Router basename={basePath}>
+            <ScrollToTop />
+            <ConnectionOverlay />
+            <AppLayout />
+          </Router>
+        </ToastProvider>
+      </GridThemeProvider>
     </ThemeProvider>
   );
 }

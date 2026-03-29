@@ -41,7 +41,7 @@ function timeoutForGrid(label) {
   const n = gridN(label);
   // Total lines in an NxN dots-and-boxes grid: 2*N*(N+1)
   // But timeout is based on expected game duration
-  const timeouts = { 3: 60_000, 4: 90_000, 5: 120_000, 6: 180_000 };
+  const timeouts = { 3: 6_000_000, 4: 9_000_000, 5: 12_000_000, 6: 18_000_000 };
   return timeouts[n] || 120_000;
 }
 

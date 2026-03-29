@@ -1,6 +1,9 @@
 // GridLock Service Worker — cache-first for assets, network-first for HTML
-const CACHE_NAME = 'gridlock-v2';
-const STATIC_ASSETS = ['/', '/index.html'];
+const CACHE_NAME = 'gridlock-v3';
+
+// Derive base path from SW scope to support sub-path deployments (e.g. /beta)
+const BASE_PATH = new URL('./', self.registration?.scope || self.location.href).pathname;
+const STATIC_ASSETS = [BASE_PATH, `${BASE_PATH}index.html`];
 
 // Install: pre-cache app shell
 self.addEventListener('install', (event) => {
@@ -10,14 +13,16 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: purge old caches
+// Activate: purge ALL caches so stale hashed assets are dropped on deploy
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => caches.open(CACHE_NAME))
+      .then((cache) => cache.addAll(STATIC_ASSETS))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch: skip non-cacheable, network-first for HTML, cache-first for assets
@@ -44,7 +49,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-        .catch(() => caches.match('/index.html'))
+        .catch(() => caches.match(`${BASE_PATH}index.html`))
     );
     return;
   }

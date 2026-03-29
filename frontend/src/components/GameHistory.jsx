@@ -251,8 +251,8 @@ const GameHistory = () => {
             />
             <button
               type="submit"
-              className="rounded-xl px-4 py-2.5 font-semibold text-white transition disabled:opacity-60"
-              style={{ backgroundColor: 'var(--accent)' }}
+              className="rounded-xl px-4 py-2.5 font-semibold transition disabled:opacity-60"
+              style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }}
               disabled={loading || !usernameInput.trim()}
             >
               {loading ? (
@@ -353,7 +353,7 @@ const GameHistory = () => {
                   aria-label="Filter by grid size"
                 >
                   <option value="">All</option>
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
+                  {[3, 4, 5, 6].map((s) => (
                     <option key={s} value={String(s)}>{s}×{s}</option>
                   ))}
                 </select>

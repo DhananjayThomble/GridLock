@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import confetti from 'canvas-confetti';
-import { recordGame } from '../utils/sessionStats';
+import { recordGame, getStats } from '../utils/sessionStats';
 import { recordOpponent } from '../utils/recentOpponentsStore';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
@@ -22,6 +22,8 @@ import { countLines } from '../utils/postGameUtils';
 import { capture } from '../lib/posthog';
 import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
 import { useToast } from '../contexts/ToastContext';
+import { useGridTheme } from '../contexts/GridThemeContext';
+import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -80,8 +82,11 @@ function useGridSizes(gridSize) {
       // Compute visual dot size (original small size, 10-14px)
       const visualDot = Math.max(minDot, Math.round(box * dotRatio));
 
-      // Layout dot: at least 24px for touch targets
-      let dot = Math.max(visualDot, 24);
+      // Layout dot: grid-size-aware minimum touch target
+      // 3×3: keep 24px for comfortable spacing
+      // 4×4+: reduce to 16px — lines are the primary tap target, not dots
+      const minTouchTarget = cells <= 3 ? 24 : 16;
+      let dot = Math.max(visualDot, minTouchTarget);
 
       // Second pass: if dot minimum kicked in, recalculate box to fit
       // Grid width = (cells+1)*dot + cells*box ≤ availW
@@ -123,6 +128,7 @@ const Board = () => {
   const navigate  = useNavigate();
   const themeColors = useThemeColors();
   const { showToast } = useToast();
+  const { theme: gridTheme, checkAndUnlockThemes } = useGridTheme();
   const getCSSVar = (varName) => themeColors[varName] || '';
   const {
     username,
@@ -396,6 +402,27 @@ const Board = () => {
           const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
+
+          // Check grid theme unlocks after recording game stats
+          const updatedStats = getStats();
+          if (tournamentId && winner === role) {
+            try {
+              const twKey = 'gridlock_tournament_wins';
+              const tw = parseInt(localStorage.getItem(twKey) || '0', 10) + 1;
+              localStorage.setItem(twKey, String(tw));
+              updatedStats.tournamentWins = tw;
+            } catch { /* ignore */ }
+          } else {
+            try {
+              updatedStats.tournamentWins = parseInt(localStorage.getItem('gridlock_tournament_wins') || '0', 10);
+            } catch { updatedStats.tournamentWins = 0; }
+          }
+          const newUnlocked = checkAndUnlockThemes(updatedStats);
+          if (newUnlocked.length > 0) {
+            newUnlocked.forEach((id) => {
+              showToast(`🎨 New theme unlocked: ${GRID_THEMES[id]?.name || id}!`, { type: 'success', duration: 5000 });
+            });
+          }
 
           // Analytics: game completed
           capture('game_completed', {
@@ -733,8 +760,24 @@ const Board = () => {
   // ── Render helpers ────────────────────────────────────────────────────────────
   const getPlayerColor = (playerId) => {
     if (!playerId) return null;
+    const pk = playerKeyFromRole(playerId);
+    if (gridTheme.players[pk]) return gridTheme.players[pk].lineColor;
     const cfg = getConfig(playerId);
     return getCSSVar(cfg.colorVar);
+  };
+
+  const getPlayerBoxBg = (playerId) => {
+    if (!playerId) return undefined;
+    const pk = playerKeyFromRole(playerId);
+    if (gridTheme.players[pk]) return gridTheme.players[pk].boxBg;
+    return undefined;
+  };
+
+  const getPlayerLineGlow = (playerId) => {
+    if (!playerId) return undefined;
+    const pk = playerKeyFromRole(playerId);
+    if (gridTheme.players[pk]) return gridTheme.players[pk].lineGlow;
+    return undefined;
   };
 
   const renderDot = (key) => (
@@ -744,8 +787,14 @@ const Board = () => {
       className="flex items-center justify-center z-10"
     >
       <div
-        className="rounded-full shadow-sm"
-        style={{ width: Math.max(sizes.visualDot - 2, 8), height: Math.max(sizes.visualDot - 2, 8), backgroundColor: 'var(--dot-color)' }}
+        className="rounded-full"
+        data-testid="board-dot"
+        style={{
+          width: Math.min(Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5), sizes.dot - 2),
+          height: Math.min(Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5), sizes.dot - 2),
+          backgroundColor: gridTheme.dotColor || 'var(--dot-color)',
+          ...gridTheme.dotStyle,
+        }}
       />
     </div>
   );
@@ -792,13 +841,14 @@ const Board = () => {
     const isMyTurn = !isSpectator && gameState.currentPlayer === role && !owner;
     const lineColor = owner ? getPlayerColor(owner) : null;
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
+    const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
     const touchHandlers = makeTouchHandler('horizontal', r, c);
-    // #419: ensure minimum 24px touch target cross-dimension on small screens
-    const hLineHeight = Math.max(sizes.dot, 24);
+    const hLineHeight = sizes.dot;
 
     return (
       <div
         key={`h-${r}-${c}`}
+        data-testid="board-hline"
         onClick={() => handleLineClick('horizontal', r, c)}
         onTouchStart={touchHandlers.onTouchStart}
         onTouchEnd={touchHandlers.onTouchEnd}
@@ -813,13 +863,14 @@ const Board = () => {
         }`}
       >
         <div
-          className="w-full rounded"
+          className="w-full"
           style={{
-            height: sizes.lineThickness,
-            backgroundColor: lineColor || 'var(--line-empty)',
+            height: gridTheme.lineThickness || sizes.lineThickness,
+            backgroundColor: lineColor || gridTheme.emptyLineColor || 'var(--line-empty)',
             opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
-            boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            boxShadow: owner && ownerGlow && ownerGlow !== 'none' ? ownerGlow : (owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined)),
             transition: 'opacity 0.15s, background-color 0.15s',
+            ...gridTheme.lineStyle,
           }}
         />
       </div>
@@ -831,13 +882,14 @@ const Board = () => {
     const isMyTurn = !isSpectator && gameState.currentPlayer === role && !owner;
     const lineColor = owner ? getPlayerColor(owner) : null;
     const currentPlayerColor = isMyTurn ? getPlayerColor(gameState.currentPlayer) : null;
+    const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
     const touchHandlers = makeTouchHandler('vertical', r, c);
-    // #419: ensure minimum 24px touch target cross-dimension on small screens
-    const vLineWidth = Math.max(sizes.dot, 24);
+    const vLineWidth = sizes.dot;
 
     return (
       <div
         key={`v-${r}-${c}`}
+        data-testid="board-vline"
         onClick={() => handleLineClick('vertical', r, c)}
         onTouchStart={touchHandlers.onTouchStart}
         onTouchEnd={touchHandlers.onTouchEnd}
@@ -852,13 +904,14 @@ const Board = () => {
         }`}
       >
         <div
-          className="h-full rounded"
+          className="h-full"
           style={{
-            width: sizes.lineThickness,
-            backgroundColor: lineColor || 'var(--line-empty)',
+            width: gridTheme.lineThickness || sizes.lineThickness,
+            backgroundColor: lineColor || gridTheme.emptyLineColor || 'var(--line-empty)',
             opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
-            boxShadow: owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined),
+            boxShadow: owner && ownerGlow && ownerGlow !== 'none' ? ownerGlow : (owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined)),
             transition: 'opacity 0.15s, background-color 0.15s',
+            ...gridTheme.lineStyle,
           }}
         />
       </div>
@@ -869,16 +922,18 @@ const Board = () => {
     const owner = gameState.boxes[r]?.[c];
     const cfg   = owner ? getConfig(owner) : null;
     const ownerAvatar = owner ? (gameState[`${owner}Avatar`] || cfg.label) : null;
+    const themeBoxBg = owner ? getPlayerBoxBg(owner) : undefined;
 
     return (
       <div
         key={`b-${r}-${c}`}
+        data-testid="board-box"
         style={{ width: sizes.line, height: sizes.line, flexShrink: 0, flexGrow: 0 }}
         className="flex items-center justify-center"
       >
         <div
           className="w-full h-full flex items-center justify-center rounded transition-all duration-300"
-          style={cfg ? { backgroundColor: `var(${cfg.bgVar})` } : undefined}
+          style={owner ? { backgroundColor: themeBoxBg || `var(${cfg.bgVar})` } : undefined}
         >
           {ownerAvatar && (
             <span style={{ fontSize: Math.max(sizes.box * 0.38, 12) }}>
@@ -1356,14 +1411,10 @@ const Board = () => {
           style={{
             width: sizes.gridTotal || undefined,
             height: sizes.gridTotal || undefined,
-            maxWidth: 'none',
-            maxHeight: 'none',
-            padding: 0,
-            boxSizing: 'border-box',
             flexShrink: 0,
             overflow: 'hidden',
-            backgroundColor: 'var(--bg-tertiary)',
-            border: `1px solid var(--border-color)`,
+            backgroundColor: gridTheme.boardBg || 'var(--bg-tertiary)',
+            border: gridTheme.boardBorder || `1px solid var(--border-color)`,
             // 'manipulation' enables native pinch-to-zoom + pan but disables
             // double-tap zoom delay, keeping tap response fast for line clicks
             touchAction: 'manipulation',

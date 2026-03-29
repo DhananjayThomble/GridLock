@@ -1,0 +1,12 @@
+{
+  "grid": { "minRatio": 2.5, "squareTolerance": 2 },
+  "contrast": { "minRatio": 3.0 },
+  "touchTarget": { "minStandalone": 44, "minGrid": 16 },
+  "viewports": [
+    { "name": "mobile", "width": 390, "height": 844 },
+    { "name": "tablet", "width": 768, "height": 1024 },
+    { "name": "desktop", "width": 1280, "height": 800 }
+  ],
+  "themes": ["clean", "classic", "minimal", "neon", "glass"],
+  "modes": ["dark", "light"]
+}

@@ -379,6 +379,8 @@ const WaitingRoom = () => {
                         background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
                         border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
                         color: 'var(--warning)',
+                        minHeight: '44px',
+                        minWidth: '44px',
                       }}
                       title="Replace with CPU"
                     >
@@ -439,8 +441,8 @@ const WaitingRoom = () => {
                       onClick={() => setCpuDifficulty(value)}
                       className="py-2 rounded-xl text-center text-xs font-bold transition-all active:scale-95"
                       style={cpuDifficulty === value
-                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-accent)' }
-                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                        ? { background: 'var(--warning)', border: '1px solid var(--warning)', color: 'var(--text-on-warning)', minHeight: '44px', minWidth: '44px' }
+                        : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)', minHeight: '44px', minWidth: '44px' }}
                     >
                       {icon} {label}
                     </button>
@@ -483,7 +485,7 @@ const WaitingRoom = () => {
             <button
               onClick={handleLeave}
               className="text-xs transition-colors"
-              style={{ color: 'var(--text-muted)' }}
+              style={{ color: 'var(--text-muted)', minHeight: '44px', minWidth: '44px' }}
             >
               ← Leave Waiting Room
             </button>
