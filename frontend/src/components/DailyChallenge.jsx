@@ -221,7 +221,7 @@ const DailyChallenge = () => {
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Go to the lobby and enter a username to play the daily challenge.</p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-2 rounded-xl font-semibold"
+            className="px-6 py-3 rounded-xl font-semibold min-h-[44px]"
             style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
           >
             Go to Lobby
@@ -263,7 +263,7 @@ const DailyChallenge = () => {
           ) : error ? (
             <div className="p-8 text-center">
               <p className="text-lg mb-2" style={{ color: 'var(--danger)' }}>⚠️ {error}</p>
-              <button onClick={fetchChallenge} className="px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}>
+              <button onClick={fetchChallenge} className="px-4 py-2 rounded-xl text-sm font-semibold min-h-[44px]" style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}>
                 Retry
               </button>
             </div>
@@ -370,7 +370,7 @@ const DailyChallenge = () => {
         <div className="text-center mt-4">
           <button
             onClick={() => navigate('/')}
-            className="text-sm font-semibold transition-all"
+            className="text-sm font-semibold transition-all min-h-[44px] px-4"
             style={{ color: 'var(--text-secondary)' }}
           >
             ← Back to Lobby

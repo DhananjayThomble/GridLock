@@ -22,9 +22,9 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
     aria-label={label}
     tabIndex={disabled ? -1 : 0}
     style={{
-      width: '44px',
-      height: '24px',
-      borderRadius: '12px',
+      width: '48px',
+      height: '28px',
+      borderRadius: '14px',
       backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
@@ -33,12 +33,14 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
       padding: 0,
       flexShrink: 0,
       transition: 'background-color 200ms ease',
+      minWidth: '48px',
+      minHeight: '28px',
     }}
   >
     <div
       style={{
-        width: '18px',
-        height: '18px',
+        width: '22px',
+        height: '22px',
         borderRadius: '50%',
         backgroundColor: '#ffffff',
         boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
@@ -58,8 +60,8 @@ const SettingsRow = ({ icon, label, subtitle, right, onClick, showDivider = true
     style={{
       display: 'flex',
       alignItems: 'center',
-      padding: '12px 16px',
-      minHeight: '48px',
+      padding: '14px 16px',
+      minHeight: '52px',
       cursor: onClick ? 'pointer' : 'default',
       borderBottom: showDivider ? '1px solid var(--border-color)' : 'none',
       transition: 'background-color 150ms ease',
@@ -67,10 +69,10 @@ const SettingsRow = ({ icon, label, subtitle, right, onClick, showDivider = true
     }}
   >
     <span style={{ fontSize: '18px', width: '24px', textAlign: 'center', flexShrink: 0 }}>{icon}</span>
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
       <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: '20px' }}>{label}</div>
       {subtitle && (
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '16px', marginTop: '1px' }}>{subtitle}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '16px', marginTop: '2px', wordBreak: 'break-word' }}>{subtitle}</div>
       )}
     </div>
     {right}
@@ -124,8 +126,8 @@ const SoundDetails = ({ settings, onUpdate, muted }) => (
         style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '10px 16px 10px 52px',
-          minHeight: '44px',
+          padding: '10px 16px 10px 44px',
+          minHeight: '48px',
           gap: '12px',
           borderBottom: i < SOUND_OPTIONS.length - 1 ? '1px solid var(--border-color)' : 'none',
         }}
@@ -145,7 +147,7 @@ const SoundDetails = ({ settings, onUpdate, muted }) => (
     ))}
 
     {/* Volume slider */}
-    <div style={{ padding: '10px 16px 14px 52px' }}>
+    <div style={{ padding: '10px 16px 14px 44px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>🔉</span>
@@ -269,13 +271,14 @@ const StatsPanel = ({ stats, onReset }) => (
           onClick={() => { if (window.confirm('Reset all session stats? This cannot be undone.')) { onReset(); } }}
           style={{
             width: '100%',
-            padding: '6px',
-            fontSize: '12px',
+            padding: '10px 6px',
+            fontSize: '13px',
             color: 'var(--danger)',
             background: 'none',
             border: 'none',
             cursor: 'pointer',
             opacity: 0.8,
+            minHeight: '44px',
           }}
         >
           Reset Stats
@@ -438,7 +441,7 @@ const Settings = () => {
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
               Customize how the game board looks. Unlock new themes by playing!
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            <div className="settings-theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
               {THEME_IDS.map((id) => {
                 const theme = GRID_THEMES[id];
                 const isActive = id === activeGridTheme;
@@ -472,7 +475,7 @@ const Settings = () => {
                   <button
                     onClick={handleInstall}
                     style={{
-                      padding: '6px 14px',
+                      padding: '8px 16px',
                       borderRadius: '8px',
                       fontSize: '13px',
                       fontWeight: 600,
@@ -482,6 +485,8 @@ const Settings = () => {
                       cursor: 'pointer',
                       flexShrink: 0,
                       transition: 'opacity 150ms',
+                      minHeight: '44px',
+                      minWidth: '44px',
                     }}
                   >
                     Install

@@ -11,24 +11,25 @@ const SentryFallback = () => (
     backgroundColor: 'var(--bg-primary, #0f0f23)',
     color: 'var(--text-primary, #fff)',
     fontFamily: 'system-ui, sans-serif',
-    padding: '1.5rem',
+    padding: '1rem',
   }}>
     <div style={{
       maxWidth: '400px',
-      width: '100%',
+      width: 'calc(100% - 2rem)',
       textAlign: 'center',
-      padding: '2rem',
+      padding: '1.5rem',
       borderRadius: '1rem',
       backgroundColor: 'var(--bg-secondary, #1a1a2e)',
       border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     }}>
       <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>⚠️</div>
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Something went wrong</h2>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>Something went wrong</h2>
       <p style={{
         fontSize: '0.875rem',
         color: 'var(--text-secondary, #999)',
         marginBottom: '1.5rem',
+        lineHeight: '1.5',
       }}>
         The app hit an unexpected issue. Please reload to try again.
       </p>
@@ -45,6 +46,7 @@ const SentryFallback = () => (
           backgroundColor: 'var(--accent, #3B82F6)',
           cursor: 'pointer',
           outline: 'revert',
+          minHeight: '44px',
         }}
       >
         Reload
