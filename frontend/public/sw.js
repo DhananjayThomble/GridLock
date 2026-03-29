@@ -18,7 +18,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('gridlock-') && k !== CACHE_NAME).map((k) => caches.delete(k))))
       .then(() => caches.open(CACHE_NAME))
       .then((cache) => cache.addAll(STATIC_ASSETS))
       .then(() => self.clients.claim())

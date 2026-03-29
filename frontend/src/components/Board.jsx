@@ -382,7 +382,10 @@ const Board = () => {
       }
       // Opponent move sound: plays when a line was placed by opponent without capturing
       // Only triggers when: line count increased + no capture happened + it's now our turn
-      if (currentLineCount > prevLineCountRef.current && prevLineCountRef.current > 0) {
+      // Skip initial sync (0→N where N>1 means reconnect mid-game)
+      // Allow 0→1 transition (first move of game) but not 0→2+ (reconnect)
+      const isReconnect = prevLineCountRef.current === 0 && currentLineCount > 1;
+      if (currentLineCount > prevLineCountRef.current && !isReconnect) {
         const prevTotal = Object.values(prevScores).reduce((a, b) => a + b, 0);
         const currTotal = Object.values(gs.scores || {}).reduce((a, b) => a + b, 0);
         const captureHappened = currTotal > prevTotal;

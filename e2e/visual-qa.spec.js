@@ -1,5 +1,5 @@
 // e2e/visual-qa.spec.js
-// Visual QA pipeline — 210 automated UI checks across all viewport × mode × theme combinations.
+// Visual QA pipeline — ~1500 automated UI checks across all viewport × mode × theme combinations (depending on the current matrix).
 // Run with: npm run visual-qa
 // Targets BASE_URL env var or falls back to env-config.js resolution.
 
