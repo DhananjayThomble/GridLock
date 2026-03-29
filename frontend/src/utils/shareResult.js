@@ -7,7 +7,7 @@ const PLAYER_EMOJI = {
   player4: '🟨',
 };
 
-const UNCLAIMED = '⬜';
+const UNCLAIMED = '⬛';
 
 /**
  * Generate a shareable text representation of the game result.
@@ -26,31 +26,21 @@ export function generateShareText(gameState, gridSize, playerCount, role, option
   const count = playerCount || gameState.playerCount || 2;
   const size = gridSize || 3;
 
-  // Build player IDs and their scores sorted by score descending
+  // Build player IDs
   const playerIds = Array.from({ length: count }, (_, i) => `player${i + 1}`);
-  const myScore = scores[role] || 0;
 
-  // Determine outcome text
-  let outcomeText;
+  // Determine outcome keyword and emoji
+  let outcomeWord;
+  let outcomeEmoji;
   if (winner === 'draw') {
-    // For 2-player draw: "Drew 8-8"; multi: "Drew 3-3-3"
-    const scoreList = playerIds.map(pid => scores[pid] || 0);
-    outcomeText = `Drew ${scoreList.join('-')}`;
+    outcomeWord = 'Draw';
+    outcomeEmoji = '🤝';
   } else if (winner === role) {
-    // Sort other players' scores for display
-    const otherScores = playerIds
-      .filter(pid => pid !== role)
-      .map(pid => scores[pid] || 0)
-      .sort((a, b) => b - a);
-    outcomeText = `Won ${myScore}-${otherScores.join('-')}`;
+    outcomeWord = 'Won';
+    outcomeEmoji = '🏆';
   } else {
-    // Loss — show winner's score first, then others
-    const winnerScore = scores[winner] || 0;
-    const otherScores = playerIds
-      .filter(pid => pid !== role && pid !== winner)
-      .map(pid => scores[pid] || 0)
-      .sort((a, b) => b - a);
-    outcomeText = `Lost ${myScore}-${winnerScore}${otherScores.length ? '-' + otherScores.join('-') : ''}`;
+    outcomeWord = 'Lost';
+    outcomeEmoji = '💔';
   }
 
   // Build grid
@@ -60,17 +50,22 @@ export function generateShareText(gameState, gridSize, playerCount, role, option
     )
     .join('\n');
 
+  // Build score line from all player scores in player order
+  const scoreList = playerIds.map(pid => scores[pid] || 0);
+  const scoreLine = `Score: ${scoreList.join('-')} · ${outcomeWord}! ${outcomeEmoji}`;
+
   // Assemble
   const lines = [];
 
-  lines.push(`🔷 GridLock | ${outcomeText} | ${size}×${size}`);
+  lines.push(`🔲 GridLock ${size}×${size} · ${count}P`);
 
   if (options.tournamentRound) {
     lines.push('🏆 Tournament');
   }
 
   lines.push(grid);
-  lines.push('gridlock.pro');
+  lines.push(scoreLine);
+  lines.push('Play: gridlock.pro');
 
   return lines.join('\n');
 }
