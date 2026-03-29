@@ -152,7 +152,7 @@ const PostGameStatsCard = ({
 
   return (
     <div
-      className="stats-card-fade-in rounded-xl p-3 mb-4 w-full"
+      className="stats-card-fade-in rounded-xl p-3 sm:p-4 mb-4 w-full max-w-full overflow-hidden"
       data-testid="post-game-stats"
       style={{
         background: 'var(--bg-card)',
@@ -209,7 +209,7 @@ const PostGameStatsCard = ({
           const isCPU = !!gameState?.[`${pid}IsCPU`];
           if (isCPU) return null;
           return (
-            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline" style={{ color: 'var(--accent)' }} data-testid={`profile-link-${pid}`}>
+            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline min-h-[44px] flex items-center px-2" style={{ color: 'var(--accent)' }} data-testid={`profile-link-${pid}`}>
               👤 {name}
             </Link>
           );
