@@ -3,6 +3,17 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [1.4.1] — 2026-03-29
+
+### Added
+- Opponent move sound — distinct lower-pitch audio (400Hz) when opponent places a line without capturing
+
+### Fixed
+- Frontend deploy: NODE_ENV=development for npm ci (fixes vite not found in CI/CD)
+- History page: grid size filter limited to 3-6 (was 2-10)
+- ReplayPage: second TDZ bug (gameState useMemo used before declaration)
+- ReplayPage: wrong API env var (VITE_API_URL → VITE_API_BASE_URL)
+
 ## [1.4.0] — 2026-03-28
 
 ### Added
