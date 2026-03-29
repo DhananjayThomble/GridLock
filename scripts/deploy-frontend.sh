@@ -61,7 +61,7 @@ log "Build env: VITE_SITE_URL=$VITE_SITE_URL"
 # --- Build frontend ------------------------------------------------------------
 log "Installing frontend dependencies..."
 cd "$REPO_DIR/frontend"
-npm ci --loglevel=warn
+NODE_ENV=development npm ci --loglevel=warn
 
 log "Building frontend (with SEO prerendering)..."
 export SENTRY_SOURCEMAPS=1
