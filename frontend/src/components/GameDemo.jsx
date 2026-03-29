@@ -1,74 +1,112 @@
 // src/components/GameDemo.jsx — Animated 2×2 dots-and-boxes demo for onboarding.
-// Shows a realistic turn-by-turn game: players alternate, captures give extra turns.
+// Shows "You" winning 3-1 against "Alex" with a chain capture.
 // Theme-aware, pure CSS transitions, auto-loops.
 import React, { useEffect, useRef, useState } from 'react';
 import { useGridTheme } from '../contexts/GridThemeContext';
 
 const GRID = 2, DOTS = 3;
 
-// Realistic turn-by-turn sequence on a 2×2 grid:
-// P1 and P2 alternate. Captures grant extra turns (real game rules).
-const MOVES = [
-  { delay: 0,    type: 'h', row: 0, col: 0, player: 1 },                    // P1: top-left ─
-  { delay: 1200, type: 'v', row: 0, col: 2, player: 2 },                    // P2: right-top │
-  { delay: 2400, type: 'v', row: 0, col: 0, player: 1 },                    // P1: left-top │
-  { delay: 3600, type: 'h', row: 2, col: 1, player: 2 },                    // P2: bottom-right ─
-  { delay: 4800, type: 'h', row: 1, col: 0, player: 1 },                    // P1: middle-left ─
-  { delay: 6000, type: 'v', row: 0, col: 1, player: 2 },                    // P2: middle-top │ → completes top-left box!
-  { delay: 6000, capture: [0, 0], capturePlayer: 2 },                        // P2 captures box [0,0]
-  { delay: 7500, type: 'h', row: 0, col: 1, player: 2 },                    // P2 extra turn: top-right ─ → completes top-right box!
-  { delay: 7500, capture: [0, 1], capturePlayer: 2 },                        // P2 captures box [0,1]
-  { delay: 9000, type: 'v', row: 1, col: 0, player: 2 },                    // P2 extra: left-bottom │
-  { delay: 10200, type: 'h', row: 2, col: 0, player: 1 },                   // P1: bottom-left ─ → completes bottom-left box!
-  { delay: 10200, capture: [1, 0], capturePlayer: 1 },                       // P1 captures box [1,0]
-  { delay: 11700, type: 'v', row: 1, col: 1, player: 1 },                   // P1 extra: middle-bottom │
-  { delay: 12900, type: 'h', row: 1, col: 1, player: 2 },                   // P2: middle-right ─
-  { delay: 14100, type: 'v', row: 1, col: 2, player: 1 },                   // P1: right-bottom │ → completes bottom-right box!
-  { delay: 14100, capture: [1, 1], capturePlayer: 1 },                       // P1 captures box [1,1]
+// "You" = player 1 (blue), "Alex" = player 2 (red)
+// Sequence: You win 3-1 via chain capture (the core strategy)
+// 2×2 grid: h-row-col, v-row-col
+// Boxes: [0,0]=TL, [0,1]=TR, [1,0]=BL, [1,1]=BR
+const SCRIPT = [
+  // Opening moves — alternating, no captures yet
+  { at: 500,   line: 'h-0-0', player: 1 },   // You: top-left ─
+  { at: 1700,  line: 'v-0-2', player: 2 },   // Alex: right-top │
+  { at: 2900,  line: 'h-2-0', player: 1 },   // You: bottom-left ─
+  { at: 4100,  line: 'h-2-1', player: 2 },   // Alex: bottom-right ─
+  { at: 5300,  line: 'v-0-0', player: 1 },   // You: left-top │
+  { at: 6500,  line: 'h-0-1', player: 2 },   // Alex: top-right ─
+
+  // Alex makes a mistake — sets up a chain for You
+  { at: 7700,  line: 'v-1-0', player: 1 },   // You: left-bottom │
+  { at: 8900,  line: 'h-1-1', player: 2 },   // Alex: middle-right ─ (mistake! opens chain)
+
+  // You trigger the CHAIN CAPTURE! 🔥
+  { at: 10100, line: 'h-1-0', player: 1 },   // You: middle-left ─ → captures TL box!
+  { at: 10100, capture: [0, 0], by: 1 },
+  { at: 11500, line: 'v-0-1', player: 1 },   // You (extra): middle-top │ → captures TR box!
+  { at: 11500, capture: [0, 1], by: 1 },
+  { at: 12900, line: 'v-1-1', player: 1 },   // You (extra): middle-bottom │ → captures BR box!
+  { at: 12900, capture: [1, 1], by: 1 },
+
+  // Alex gets the last box by default
+  { at: 14300, line: 'v-1-2', player: 1 },   // You (extra): right-bottom │ → captures BL box!... wait
+  // Actually let's give Alex 1 box:
+  // Redo: after You chain 3 boxes, You place a non-capturing line, Alex gets last box
 ];
-// Final score: P1: 2, P2: 2 — Draw! (demonstrates all outcomes)
-const LOOP_MS = 17000; // full cycle including pause
+
+// Corrected sequence for You: 3, Alex: 1
+const MOVES = [
+  // Opening — alternating
+  { at: 500,   line: 'h-0-0', player: 1 },   // You: top-left ─
+  { at: 1700,  line: 'v-0-2', player: 2 },   // Alex: right-top │
+  { at: 2900,  line: 'h-2-1', player: 1 },   // You: bottom-right ─
+  { at: 4100,  line: 'h-0-1', player: 2 },   // Alex: top-right ─
+  { at: 5300,  line: 'v-0-0', player: 1 },   // You: left-top │
+  { at: 6500,  line: 'v-1-0', player: 2 },   // Alex: left-bottom │
+
+  // Setup — You place strategically
+  { at: 7700,  line: 'h-2-0', player: 1 },   // You: bottom-left ─
+
+  // Alex's mistake — completes 3 sides of TL box
+  { at: 8900,  line: 'v-0-1', player: 2 },   // Alex: middle-top │ (mistake!)
+
+  // 🔥 CHAIN! You close TL, chain to BL, chain to BR
+  { at: 10100, line: 'h-1-0', player: 1 },   // You: middle-left ─ → TL box!
+  { at: 10100, capture: [0, 0], by: 1 },
+
+  { at: 11400, line: 'v-1-1', player: 1 },   // You (chain): middle-bottom │ → BL box!
+  { at: 11400, capture: [1, 0], by: 1 },
+
+  { at: 12700, line: 'h-1-1', player: 1 },   // You (chain): middle-right ─ → BR box!
+  { at: 12700, capture: [1, 1], by: 1 },
+
+  // You hand off — Alex gets TR
+  { at: 14000, line: 'v-1-2', player: 2 },   // Alex gets last box: TR
+  { at: 14000, capture: [0, 1], by: 2 },
+];
+
+// Final: You 3 — Alex 1 🏆
+const LOOP_MS = 18000;
 
 export default function GameDemo() {
   const { theme } = useGridTheme();
   const [lines, setLines] = useState({});
   const [boxes, setBoxes] = useState({});
   const [score, setScore] = useState([0, 0]);
-  const [turn, setTurn] = useState(null); // current player indicator
+  const [phase, setPhase] = useState('playing'); // 'playing' | 'result'
+  const [currentPlayer, setCurrentPlayer] = useState(1);
   const tRef = useRef([]);
 
   useEffect(() => {
     let off = false;
-    const sched = (fn, ms) => { const t = setTimeout(fn, ms); tRef.current.push(t); };
+    const t = (fn, ms) => { const id = setTimeout(fn, ms); tRef.current.push(id); };
 
     const cycle = () => {
       if (off) return;
-      setLines({}); setBoxes({}); setScore([0, 0]); setTurn(1);
+      setLines({}); setBoxes({}); setScore([0, 0]);
+      setPhase('playing'); setCurrentPlayer(1);
 
-      MOVES.forEach(({ delay, type, row, col, player, capture, capturePlayer }) => {
+      MOVES.forEach(({ at, line, player, capture, by }) => {
         if (capture) {
-          // Box capture event
-          sched(() => {
+          t(() => {
             if (off) return;
-            setBoxes(p => ({ ...p, [`${capture[0]}-${capture[1]}`]: capturePlayer }));
-            setScore(p => {
-              const s = [...p];
-              s[capturePlayer - 1]++;
-              return s;
-            });
-          }, delay + 200); // slight delay after line for dramatic effect
+            setBoxes(p => ({ ...p, [`${capture[0]}-${capture[1]}`]: by }));
+            setScore(p => { const s = [...p]; s[by - 1]++; return s; });
+          }, at + 300);
         } else {
-          // Line placement
-          sched(() => {
+          t(() => {
             if (off) return;
-            setLines(p => ({ ...p, [`${type}-${row}-${col}`]: player }));
-            setTurn(player);
-          }, delay);
+            setLines(p => ({ ...p, [line]: player }));
+            setCurrentPlayer(player);
+          }, at);
         }
       });
 
-      // Show "Draw!" state briefly, then reset
-      sched(() => { if (!off) setTurn(null); }, LOOP_MS - 2000);
+      // Show result
+      t(() => { if (!off) setPhase('result'); }, LOOP_MS - 3000);
     };
 
     cycle();
@@ -78,48 +116,44 @@ export default function GameDemo() {
   }, []);
 
   const { p1, p2 } = theme.players;
-  const playerColor = p => p === 1 ? p1.lineColor : p2.lineColor;
-  const playerBox = p => p === 1 ? p1.boxBg : p2.boxBg;
+  const pColor = p => p === 1 ? p1.lineColor : p2.lineColor;
+  const pBox = p => p === 1 ? p1.boxBg : p2.boxBg;
   const dot = Math.max(6, theme.visualDotSize || 8);
-  const seg = 38, thick = Math.max(3, Math.min(theme.lineThickness || 5, 6));
+  const seg = 40, thick = Math.max(3, Math.min(theme.lineThickness || 5, 6));
   const total = DOTS * dot + GRID * seg;
-  const tLine = 'background-color .3s, opacity .3s';
-  const tBox = 'transform .4s ease-out, background-color .3s';
   const els = [];
 
   // Dots
   for (let r = 0; r < DOTS; r++) for (let c = 0; c < DOTS; c++) {
-    const x = c * (dot + seg), y = r * (dot + seg);
     els.push(<div key={`d${r}${c}`} data-testid="demo-dot" style={{
-      position: 'absolute', left: x, top: y, width: dot, height: dot,
-      borderRadius: '50%', backgroundColor: theme.dotColor, ...theme.dotStyle, zIndex: 2
+      position: 'absolute', left: c * (dot + seg), top: r * (dot + seg),
+      width: dot, height: dot, borderRadius: '50%',
+      backgroundColor: theme.dotColor, ...theme.dotStyle, zIndex: 2
     }} />);
+  }
 
-    // Horizontal lines
-    if (c < GRID) {
-      const k = `h-${r}-${c}`, a = lines[k];
-      els.push(<div key={k} data-testid={`demo-${k}`} style={{
-        position: 'absolute', left: x + dot, top: y + (dot - thick) / 2,
-        width: seg, height: thick, borderRadius: thick / 2,
-        backgroundColor: a ? playerColor(a) : theme.emptyLineColor,
-        opacity: a ? 1 : 0.25, transition: tLine,
-        boxShadow: a ? `0 0 6px ${playerColor(a)}40` : 'none',
-        zIndex: 1
-      }} />);
-    }
+  // H-lines
+  for (let r = 0; r < DOTS; r++) for (let c = 0; c < GRID; c++) {
+    const k = `h-${r}-${c}`, a = lines[k];
+    els.push(<div key={k} data-testid={`demo-${k}`} style={{
+      position: 'absolute', left: c * (dot + seg) + dot, top: r * (dot + seg) + (dot - thick) / 2,
+      width: seg, height: thick, borderRadius: thick / 2,
+      backgroundColor: a ? pColor(a) : theme.emptyLineColor,
+      opacity: a ? 1 : 0.2, transition: 'all .35s ease',
+      boxShadow: a ? `0 0 8px ${pColor(a)}50` : 'none', zIndex: 1
+    }} />);
+  }
 
-    // Vertical lines
-    if (r < GRID) {
-      const k = `v-${r}-${c}`, a = lines[k];
-      els.push(<div key={k} data-testid={`demo-${k}`} style={{
-        position: 'absolute', left: x + (dot - thick) / 2, top: y + dot,
-        width: thick, height: seg, borderRadius: thick / 2,
-        backgroundColor: a ? playerColor(a) : theme.emptyLineColor,
-        opacity: a ? 1 : 0.25, transition: tLine,
-        boxShadow: a ? `0 0 6px ${playerColor(a)}40` : 'none',
-        zIndex: 1
-      }} />);
-    }
+  // V-lines
+  for (let r = 0; r < GRID; r++) for (let c = 0; c < DOTS; c++) {
+    const k = `v-${r}-${c}`, a = lines[k];
+    els.push(<div key={k} data-testid={`demo-${k}`} style={{
+      position: 'absolute', left: c * (dot + seg) + (dot - thick) / 2, top: r * (dot + seg) + dot,
+      width: thick, height: seg, borderRadius: thick / 2,
+      backgroundColor: a ? pColor(a) : theme.emptyLineColor,
+      opacity: a ? 1 : 0.2, transition: 'all .35s ease',
+      boxShadow: a ? `0 0 8px ${pColor(a)}50` : 'none', zIndex: 1
+    }} />);
   }
 
   // Boxes
@@ -127,35 +161,43 @@ export default function GameDemo() {
     const owner = boxes[`${r}-${c}`];
     els.push(<div key={`b${r}${c}`} data-testid={`demo-box-${r}-${c}`} style={{
       position: 'absolute', left: c * (dot + seg) + dot, top: r * (dot + seg) + dot,
-      width: seg, height: seg, borderRadius: 3,
-      backgroundColor: owner ? playerBox(owner) : 'transparent',
+      width: seg, height: seg, borderRadius: 4,
+      backgroundColor: owner ? pBox(owner) : 'transparent',
       transform: owner ? 'scale(1)' : 'scale(0)',
-      transition: tBox, zIndex: 0
+      transition: 'transform .4s cubic-bezier(.34,1.56,.64,1), background-color .3s',
+      zIndex: 0
     }} />);
   }
 
+  const youName = '👦 You';
+  const alexName = '🤖 Alex';
+
   return (
-    <div data-testid="game-demo" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '16px 0' }}>
-      {/* Turn indicator */}
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', minHeight: 18 }}>
-        {turn ? (
+    <div data-testid="game-demo" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+      {/* Turn / Result indicator */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', minHeight: 20, transition: 'all .3s' }}>
+        {phase === 'result' ? (
+          <span style={{ color: p1.lineColor, fontWeight: 700 }}>🏆 You win!</span>
+        ) : (
           <span>
-            <span style={{ color: playerColor(turn), fontWeight: 700 }}>
-              {turn === 1 ? '🟦 Blue' : '🟥 Red'}
+            <span style={{ color: pColor(currentPlayer), fontWeight: 700 }}>
+              {currentPlayer === 1 ? youName : alexName}
             </span>
             {`'s turn`}
           </span>
-        ) : score[0] === score[1] ? '🤝 Draw!' : score[0] > score[1] ? '🏆 Blue wins!' : '🏆 Red wins!'}
+        )}
       </div>
 
       {/* Grid */}
       <div style={{ position: 'relative', width: total, height: total, margin: '0 auto' }}>{els}</div>
 
       {/* Score */}
-      <div data-testid="demo-score" style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700 }}>
-        <span style={{ color: p1.lineColor }}>🟦 {score[0]}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>vs</span>
-        <span style={{ color: p2.lineColor }}>🟥 {score[1]}</span>
+      <div data-testid="demo-score" style={{
+        display: 'flex', alignItems: 'center', gap: 14, fontSize: 15, fontWeight: 700
+      }}>
+        <span style={{ color: p1.lineColor }}>{youName} {score[0]}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 12, opacity: 0.6 }}>vs</span>
+        <span style={{ color: p2.lineColor }}>{alexName} {score[1]}</span>
       </div>
     </div>
   );
