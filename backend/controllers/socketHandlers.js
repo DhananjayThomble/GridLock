@@ -21,6 +21,7 @@ const disconnectHandler = require('./handlers/disconnectHandler');
 const spectatorHandler = require('./handlers/spectatorHandler');
 const matchmakingHandler = require('./handlers/matchmakingHandler');
 const rankedHandler = require('./handlers/rankedHandler');
+const challengeHandler = require('./handlers/challengeHandler');
 
 // ── Cross-handler dependency wiring ──────────────────────────────────────────
 // Some handlers need functions from other handlers (circular deps).
@@ -95,6 +96,7 @@ function attachSocketHandlers(io, log) {
         rankedHandler.register(io, socket, log, rateLimited, validate);
         chatHandler.register(io, socket, log, rateLimited, validate);
         spectatorHandler.register(io, socket, log, rateLimited, validate);
+        challengeHandler.register(io, socket, log, rateLimited, validate);
         disconnectHandler.register(io, socket, log, rateLimited, validate);
     });
 

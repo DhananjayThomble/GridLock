@@ -80,6 +80,8 @@ const Lobby = () => {
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
   const [quickPlaying, setQuickPlaying] = useState(false);
+  // Challenge link state (#455)
+  const [challengeCreating, setChallengeCreating] = useState(false);
   const [queueSize, setQueueSize] = useState(1);
   const [usernameError, setUsernameError] = useState('');
   const [gameIdError, setGameIdError] = useState('');
@@ -399,6 +401,44 @@ const Lobby = () => {
     socket.emit('ranked_queue_leave', {});
     setRankedPlaying(false);
     setRankedCooldownUntil(null);
+  };
+
+  // ── Challenge a Friend (#455) ──────────────────────────────────────────────
+  const handleCreateChallenge = () => {
+    initAudio();
+    const name = username.trim();
+    const nameErr = validateUsername(username);
+    if (nameErr) { setUsernameError(nameErr); return; }
+    setUsernameError('');
+    if (!socket.connected) socket.connect();
+    localStorage.setItem('gridlock_username', name);
+    setChallengeCreating(true);
+
+    socket.emit('create_challenge', { username: name, avatar: selectedAvatar }, (res) => {
+      setChallengeCreating(false);
+      if (res?.error) {
+        setUsernameError(res.error);
+        return;
+      }
+      if (res?.gameId) {
+        const origin = window.location.origin;
+        const link = `${origin}/play/${name}`;
+
+        // Navigate to waiting room for the challenge
+        navigate(`/waiting/${res.gameId}`, {
+          state: {
+            username: name,
+            gameId: res.gameId,
+            gridSize: 3,
+            avatar: selectedAvatar,
+            playerCount: 2,
+            sessionToken: res.sessionToken,
+            isHost: true,
+            challengeLink: link,
+          },
+        });
+      }
+    });
   };
 
   const handleQuickPlayCPU = (selectedCount) => {
@@ -864,6 +904,22 @@ const Lobby = () => {
               style={primaryStyle(quickPlaying || creating)}
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
+            </button>
+
+            {/* Challenge a Friend (#455) */}
+            <button
+              onClick={handleCreateChallenge}
+              disabled={challengeCreating || creating || !username.trim()}
+              aria-label="Challenge a Friend — generate a shareable invite link"
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={secondaryStyle(challengeCreating || creating)}
+            >
+              {challengeCreating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                  Creating…
+                </span>
+              ) : '🔗 Challenge a Friend'}
             </button>
           </div>
 
