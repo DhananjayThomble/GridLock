@@ -1,6 +1,6 @@
 {
   "name": "gridlock",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "GridLock \u2014 multiplayer territory game",
   "private": true,
   "scripts": {

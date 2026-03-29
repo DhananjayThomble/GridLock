@@ -26,7 +26,7 @@ createRoot(document.getElementById('root')).render(
 // Register service worker (production only)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    const swPath = `${import.meta.env.BASE_URL}sw.js?v=${Date.now()}`;
+    const swPath = `${import.meta.env.BASE_URL}sw.js?v=${import.meta.env.VITE_APP_VERSION || '0'}`;
     navigator.serviceWorker.register(swPath).catch((error) => { console.error('Service worker registration failed:', error); });
   });
 }
