@@ -18,9 +18,9 @@ describe('onboarding utils', () => {
       expect(isFirstTime()).toBe(false);
     });
 
-    it('returns true when played flag exists but is empty string', () => {
+    it('returns false when played flag exists but is empty string', () => {
       localStorage.setItem(PLAYED_KEY, '');
-      expect(isFirstTime()).toBe(true);
+      expect(isFirstTime()).toBe(false);
     });
   });
 

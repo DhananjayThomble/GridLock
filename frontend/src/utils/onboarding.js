@@ -8,7 +8,7 @@ export const PLAYED_KEY = 'gridlock_has_played';
 export const isFirstTime = () => {
   try {
     const value = localStorage.getItem(PLAYED_KEY);
-    return !value; // null or empty string → first time
+    return value === null; // only null → first time (empty string is NOT first-time)
   } catch {
     return true; // localStorage unavailable → treat as first time
   }

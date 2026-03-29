@@ -1026,8 +1026,7 @@ const Board = () => {
             gameDuration={gameDuration}
             role={role}
             winnerData={winnerData}
-            onShare={isSpectator ? undefined : handleShareResult}
-            shareStatus={shareStatus}
+
           />
 
           <div className="flex gap-2">
