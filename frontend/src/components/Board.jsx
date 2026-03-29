@@ -24,6 +24,7 @@ import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
 import { useToast } from '../contexts/ToastContext';
 import { useGridTheme } from '../contexts/GridThemeContext';
 import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
+import useGridSizes from '../hooks/useGridSizes';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -37,90 +38,6 @@ const getConfig = (playerId) => PLAYER_CONFIG[playerId] || PLAYER_CONFIG.player1
 
 // Helper to get computed CSS variable value at runtime (cached via useThemeColors hook)
 // getCSSVar kept as thin wrapper for inline usage — actual caching happens in the hook
-
-// ─── Responsive sizing hook ───────────────────────────────────────────────────
-// Uses window dimensions directly to avoid chicken-and-egg timing issues with
-// container refs (the ref's layout depends on the grid, which depends on the
-// ref measurement — causing the board to render tiny on first mount).
-function useGridSizes(gridSize) {
-  const [sizes, setSizes] = useState({ dot: 8, visualDot: 8, line: 48, box: 48, lineThickness: 8, gridTotal: 0 });
-
-  useEffect(() => {
-    function calculate() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const cells = gridSize || 3;
-
-      // Horizontal: full width minus small padding (8px each side on mobile)
-      const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
-      // Vertical: nav(~56) + score(~80) + header(~100) + toolbar(~60) + padding + bottom nav
-      const reservedH = w < 640 ? 320 : w < 768 ? 300 : 300;
-
-      const availW = w - reservedW;
-      const availH = h - reservedH;
-
-      // Dot size is proportional to box: dot ≈ max(minDot, box * 0.22)
-      // Grid width = (cells+1) * dot + cells * box
-      // With dot = dotRatio * box: grid = box * ((cells+1)*dotRatio + cells)
-      // So: box = avail / ((cells+1)*dotRatio + cells)
-      // #419: Enforce minimum 44px touch target for dots on narrow viewports
-      // (Apple HIG 44×44, Material 48×48dp). Larger grids on small screens
-      // need bigger minimum dots to remain tappable.
-      const needsLargerDot = w <= 400 && cells >= 5;
-      const minDot = needsLargerDot ? 14 : w < 640 ? 10 : 8;
-      const dotRatio = 0.22;
-
-      // First pass: estimate box assuming dot = dotRatio * box
-      const effectiveUnits = (cells + 1) * dotRatio + cells;
-      const fromW = availW / effectiveUnits;
-      const fromH = availH / effectiveUnits;
-      let box = Math.floor(Math.min(fromW, fromH));
-
-      // Cap: min 24px, max 180px
-      box = Math.max(24, Math.min(box, 180));
-
-      // Compute visual dot size (original small size, 10-14px)
-      const visualDot = Math.max(minDot, Math.round(box * dotRatio));
-
-      // Layout dot: grid-size-aware minimum touch target
-      // 3×3: keep 24px for comfortable spacing
-      // 4×4+: reduce to 16px — lines are the primary tap target, not dots
-      const minTouchTarget = cells <= 3 ? 24 : 16;
-      let dot = Math.max(visualDot, minTouchTarget);
-
-      // Second pass: if dot minimum kicked in, recalculate box to fit
-      // Grid width = (cells+1)*dot + cells*box ≤ availW
-      if (dot > box * dotRatio) {
-        const maxBoxFromW = Math.floor((availW - (cells + 1) * dot) / cells);
-        const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
-        box = Math.min(box, maxBoxFromW, maxBoxFromH);
-        box = Math.max(24, box); // maintain minimum
-      }
-
-      // Safety clamp: verify total grid dimensions actually fit the viewport
-      const totalGridW = (cells + 1) * dot + cells * box;
-      const totalGridH = (cells + 1) * dot + cells * box;
-      if (totalGridH > availH || totalGridW > availW) {
-        const scale = Math.min(availW / totalGridW, availH / totalGridH);
-        box = Math.max(24, Math.floor(box * scale));
-      }
-
-      // Line thickness: proportional to box size, minimum 8px
-      const lineThickness = Math.max(8, Math.round(box * 0.12));
-
-      // Total grid dimension: (cells+1) dots + cells boxes — identical in both axes → square
-      const gridTotal = (cells + 1) * dot + cells * box;
-
-      setSizes({ dot, visualDot, line: box, box, lineThickness, gridTotal });
-    }
-
-    calculate();
-    window.addEventListener('resize', calculate);
-    return () => window.removeEventListener('resize', calculate);
-  }, [gridSize]);
-
-  return sizes;
-}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Board = () => {

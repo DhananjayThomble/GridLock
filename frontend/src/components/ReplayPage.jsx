@@ -1,10 +1,14 @@
 // src/components/ReplayPage.jsx
 // Animated game replay viewer with play/pause, speed control, and scrubber
+// Uses shared useGridSizes hook + grid theme support (matching Board.jsx patterns)
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import useThemeColors from '../hooks/useThemeColors';
+import useGridSizes from '../hooks/useGridSizes';
+import { useGridTheme } from '../contexts/GridThemeContext';
+import { playerKeyFromRole } from '../themes/gridThemes';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ||
     (typeof window !== 'undefined' ? window.location.origin : '');
@@ -23,53 +27,6 @@ const SPEEDS = [
     { label: '2x', ms: 250 },
     { label: '4x', ms: 125 },
 ];
-
-// ─── Responsive sizing hook (same logic as Board.jsx) ────────────────────────
-function useGridSizes(gridSize) {
-    const [sizes, setSizes] = useState({ dot: 8, line: 48, box: 48 });
-
-    useEffect(() => {
-        function calculate() {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            // Replay page has more controls (scrubber, etc.) so keep slightly smaller reserves
-            // to let the board fill available space
-            const reservedH = w < 640 ? 240 : w < 768 ? 260 : 280;
-            const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
-            const availW = w - reservedW;
-            const availH = h - reservedH;
-            const cells = gridSize || 3;
-
-            // Dot size is proportional to box: dot ≈ max(minDot, box * dotRatio)
-            // Grid = box * ((cells+1)*dotRatio + cells)
-            const minDot = w < 640 ? 8 : 6;
-            const dotRatio = 0.18;
-
-            const effectiveUnits = (cells + 1) * dotRatio + cells;
-            const fromW = availW / effectiveUnits;
-            const fromH = availH / effectiveUnits;
-            let box = Math.floor(Math.min(fromW, fromH));
-            // Generous cap — let the board fill available space
-            box = Math.max(24, Math.min(box, 180));
-            let dot = Math.max(minDot, Math.round(box * dotRatio));
-
-            // Second pass: if dot minimum kicked in, recalculate box to fit
-            if (dot > box * dotRatio) {
-                const maxBoxFromW = Math.floor((availW - (cells + 1) * dot) / cells);
-                const maxBoxFromH = Math.floor((availH - (cells + 1) * dot) / cells);
-                box = Math.min(box, maxBoxFromW, maxBoxFromH);
-                box = Math.max(24, box);
-            }
-
-            setSizes({ dot, line: box, box });
-        }
-        calculate();
-        window.addEventListener('resize', calculate);
-        return () => window.removeEventListener('resize', calculate);
-    }, [gridSize]);
-
-    return sizes;
-}
 
 // ─── Initialize empty game state ─────────────────────────────────────────────
 function initEmptyState(gridSize, playerCount) {
@@ -172,6 +129,7 @@ const ReplayPage = () => {
     const navigate = useNavigate();
     const themeColors = useThemeColors();
     const getCSSVar = (varName) => themeColors[varName] || '';
+    const { theme: gridTheme } = useGridTheme();
 
     const [replayData, setReplayData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -234,10 +192,10 @@ const ReplayPage = () => {
         }
         return state;
     }, [replayData, moveIndex]);
+
     // Derive showWinner from moveIndex reaching the end
     const isAtEnd = moveIndex >= totalMoves && totalMoves > 0;
     const shouldShowWinner = isAtEnd && !!gameState?.winner;
-
 
     // Auto-play timer
     useEffect(() => {
@@ -256,7 +214,7 @@ const ReplayPage = () => {
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [isPlaying, speedIdx, totalMoves, moveIndex]);
 
-    // Winner celebration — confetti only (showWinner is now derived)
+    // Winner celebration — confetti only
     useEffect(() => {
         if (shouldShowWinner && !confettiFired.current) {
             confettiFired.current = true;
@@ -274,7 +232,6 @@ const ReplayPage = () => {
     const [shareStatus, setShareStatus] = useState(null);
     const shareTimeoutRef = useRef(null);
 
-    // Cleanup share timeout on unmount
     useEffect(() => {
         return () => {
             if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
@@ -302,38 +259,76 @@ const ReplayPage = () => {
         shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
     };
 
-    // ── Render helpers ───────────────────────────────────────────────────────
+    // ── Theme-aware render helpers (matching Board.jsx patterns) ─────────────
     const getPlayerColor = (playerId) => {
         if (!playerId) return null;
+        const pk = playerKeyFromRole(playerId);
+        if (gridTheme.players[pk]) return gridTheme.players[pk].lineColor;
         const cfg = getConfig(playerId);
         return getCSSVar(cfg.colorVar);
     };
 
+    const getPlayerBoxBg = (playerId) => {
+        if (!playerId) return undefined;
+        const pk = playerKeyFromRole(playerId);
+        if (gridTheme.players[pk]) return gridTheme.players[pk].boxBg;
+        return undefined;
+    };
+
+    const getPlayerLineGlow = (playerId) => {
+        if (!playerId) return undefined;
+        const pk = playerKeyFromRole(playerId);
+        if (gridTheme.players[pk]) return gridTheme.players[pk].lineGlow;
+        return undefined;
+    };
+
     const renderDot = (key) => (
-        <div key={key} style={{ width: sizes.dot, height: sizes.dot, flexShrink: 0 }}
-            className="flex items-center justify-center z-10">
-            <div className="rounded-full shadow-sm"
-                style={{ width: sizes.dot - 2, height: sizes.dot - 2, backgroundColor: 'var(--dot-color)' }} />
+        <div
+            key={key}
+            style={{ width: sizes.dot, height: sizes.dot, flexShrink: 0, flexGrow: 0 }}
+            className="flex items-center justify-center z-10"
+        >
+            <div
+                className="rounded-full"
+                style={{
+                    width: Math.min(Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5), sizes.dot - 2),
+                    height: Math.min(Math.max(gridTheme.visualDotSize || sizes.visualDot - 2, 5), sizes.dot - 2),
+                    backgroundColor: gridTheme.dotColor || 'var(--dot-color)',
+                    ...gridTheme.dotStyle,
+                }}
+            />
         </div>
     );
 
     const renderHLine = (r, c) => {
         const owner = gameState?.horizontalLines[r]?.[c];
         const lineColor = owner ? getPlayerColor(owner) : null;
+        const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
         // Highlight the latest move
         const lastMove = moveIndex > 0 ? replayData.moveHistory[moveIndex - 1] : null;
         const isLatest = lastMove && lastMove.type === 'h' && lastMove.row === r && lastMove.col === c;
 
         return (
-            <div key={`h-${r}-${c}`} style={{ width: sizes.line, height: sizes.dot, flexShrink: 0 }}
-                className="flex items-center px-0.5">
-                <div className={`h-2 w-full rounded transition-all duration-200 ${isLatest ? 'ring-2' : ''}`}
+            <div
+                key={`h-${r}-${c}`}
+                style={{ width: sizes.line, height: sizes.dot, flexShrink: 0, flexGrow: 0 }}
+                className="flex items-center justify-center"
+            >
+                <div
+                    className="w-full"
                     style={{
-                        backgroundColor: lineColor || 'var(--line-empty)',
+                        height: gridTheme.lineThickness || sizes.lineThickness,
+                        backgroundColor: lineColor || gridTheme.emptyLineColor || 'var(--line-empty)',
                         opacity: owner ? 1 : 0.5,
-                        boxShadow: isLatest && lineColor ? `0 0 10px ${lineColor}` : (owner && lineColor ? `0 0 6px ${lineColor}40` : undefined),
-                        ringColor: isLatest ? lineColor : undefined,
-                    }} />
+                        boxShadow: isLatest && lineColor
+                            ? `0 0 10px ${lineColor}`
+                            : (owner && ownerGlow && ownerGlow !== 'none'
+                                ? ownerGlow
+                                : (owner && lineColor ? `0 0 6px ${lineColor}40` : undefined)),
+                        transition: 'opacity 0.15s, background-color 0.15s',
+                        ...gridTheme.lineStyle,
+                    }}
+                />
             </div>
         );
     };
@@ -341,19 +336,31 @@ const ReplayPage = () => {
     const renderVLine = (r, c) => {
         const owner = gameState?.verticalLines[r]?.[c];
         const lineColor = owner ? getPlayerColor(owner) : null;
+        const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
         const lastMove = moveIndex > 0 ? replayData.moveHistory[moveIndex - 1] : null;
         const isLatest = lastMove && lastMove.type === 'v' && lastMove.row === r && lastMove.col === c;
 
         return (
-            <div key={`v-${r}-${c}`} style={{ width: sizes.dot, height: sizes.line, flexShrink: 0 }}
-                className="flex justify-center py-0.5">
-                <div className={`w-2 h-full rounded transition-all duration-200 ${isLatest ? 'ring-2' : ''}`}
+            <div
+                key={`v-${r}-${c}`}
+                style={{ width: sizes.dot, height: sizes.line, flexShrink: 0, flexGrow: 0 }}
+                className="flex items-center justify-center"
+            >
+                <div
+                    className="h-full"
                     style={{
-                        backgroundColor: lineColor || 'var(--line-empty)',
+                        width: gridTheme.lineThickness || sizes.lineThickness,
+                        backgroundColor: lineColor || gridTheme.emptyLineColor || 'var(--line-empty)',
                         opacity: owner ? 1 : 0.5,
-                        boxShadow: isLatest && lineColor ? `0 0 10px ${lineColor}` : (owner && lineColor ? `0 0 6px ${lineColor}40` : undefined),
-                        ringColor: isLatest ? lineColor : undefined,
-                    }} />
+                        boxShadow: isLatest && lineColor
+                            ? `0 0 10px ${lineColor}`
+                            : (owner && ownerGlow && ownerGlow !== 'none'
+                                ? ownerGlow
+                                : (owner && lineColor ? `0 0 6px ${lineColor}40` : undefined)),
+                        transition: 'opacity 0.15s, background-color 0.15s',
+                        ...gridTheme.lineStyle,
+                    }}
+                />
             </div>
         );
     };
@@ -363,12 +370,18 @@ const ReplayPage = () => {
         const cfg = owner ? getConfig(owner) : null;
         const playerInfo = owner && replayData?.players?.[owner];
         const ownerAvatar = playerInfo?.avatar || (cfg ? cfg.label : null);
+        const themeBoxBg = owner ? getPlayerBoxBg(owner) : undefined;
 
         return (
-            <div key={`b-${r}-${c}`} style={{ width: sizes.line, height: sizes.line, flexShrink: 0 }}
-                className="flex items-center justify-center">
-                <div className="w-full h-full flex items-center justify-center rounded transition-all duration-300"
-                    style={cfg ? { backgroundColor: `var(${cfg.bgVar})` } : undefined}>
+            <div
+                key={`b-${r}-${c}`}
+                style={{ width: sizes.line, height: sizes.line, flexShrink: 0, flexGrow: 0 }}
+                className="flex items-center justify-center"
+            >
+                <div
+                    className="w-full h-full flex items-center justify-center rounded transition-all duration-300"
+                    style={owner ? { backgroundColor: themeBoxBg || `var(${cfg.bgVar})` } : undefined}
+                >
                     {ownerAvatar && owner && (
                         <span style={{ fontSize: Math.max(sizes.box * 0.38, 12) }}>{ownerAvatar}</span>
                     )}
@@ -455,25 +468,31 @@ const ReplayPage = () => {
 
     return (
         <div className="flex flex-col items-center" style={{ minHeight: '100dvh', backgroundColor: 'var(--bg-primary)' }}>
-            {/* Header */}
-            <div className="w-full max-w-2xl px-4 pt-4 pb-2">
-                <div className="flex items-center justify-between mb-2">
-                    <Link to="/" className="text-sm font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95"
+            {/* Header — compact on mobile */}
+            <div className="w-full max-w-2xl px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
+                <div className="flex items-center justify-between mb-2 gap-2">
+                    <Link to="/" className="text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg transition-all active:scale-95 shrink-0"
                         style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
                         ← Back
                     </Link>
-                    <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                    <h1 className="text-base sm:text-lg font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                         🎬 Game Replay
                     </h1>
                     <button onClick={handleShare}
-                        className="text-sm font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95"
+                        className="text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg transition-all active:scale-95 shrink-0"
                         style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)', border: '1px solid var(--border-color)' }}>
                         {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
                     </button>
                 </div>
 
-                {/* Player scores */}
-                <div className={`grid gap-2 mb-3 ${playerCount <= 2 ? 'grid-cols-2' : playerCount === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
+                {/* Player scores — stack on very small, grid on wider */}
+                <div className={`grid gap-1.5 sm:gap-2 mb-3 ${
+                    playerCount <= 2
+                        ? 'grid-cols-2'
+                        : playerCount === 3
+                            ? 'grid-cols-1 sm:grid-cols-3'
+                            : 'grid-cols-2 sm:grid-cols-4'
+                }`}>
                     {playerIds.map(pid => {
                         const cfg = getConfig(pid);
                         const playerColor = getCSSVar(cfg.colorVar);
@@ -485,19 +504,19 @@ const ReplayPage = () => {
 
                         return (
                             <div key={pid}
-                                className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-300"
+                                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border-2 transition-all duration-300"
                                 style={{
                                     backgroundColor: isCurrent ? `var(${cfg.bgVar})` : 'var(--bg-secondary)',
                                     borderColor: isCurrent ? playerColor : 'var(--border-color)',
                                     ...(isCurrent ? { boxShadow: `0 0 12px ${playerColor}30`, transform: 'scale(1.05)' } : {}),
                                 }}>
-                                <span className="text-xl leading-none">{avatar}</span>
+                                <span className="text-lg sm:text-xl leading-none">{avatar}</span>
                                 <div className="min-w-0 flex-1">
                                     <div className="font-bold truncate text-xs" style={{ color: isCurrent ? playerColor : 'var(--text-primary)' }}>
                                         {name}
                                         {playerInfo?.isCPU && <span className="ml-1">🤖</span>}
                                     </div>
-                                    <div className="text-lg font-extrabold leading-none" style={{ color: playerColor }}>
+                                    <div className="text-base sm:text-lg font-extrabold leading-none" style={{ color: playerColor }}>
                                         {score}
                                     </div>
                                 </div>
@@ -509,16 +528,26 @@ const ReplayPage = () => {
             </div>
 
             {/* Board */}
-            <div className="flex flex-1 items-center justify-center w-full px-2">
-                <div className="relative rounded-2xl shadow-xl select-none board-container mx-auto"
+            <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
+                <div
+                    className="relative rounded-2xl shadow-xl select-none board-container mx-auto"
                     style={{
-                        touchAction: 'pan-y', padding: '12px',
-                        backgroundColor: 'var(--bg-tertiary)',
-                        border: '1px solid var(--border-color)',
-                    }}>
+                        width: sizes.gridTotal || undefined,
+                        height: sizes.gridTotal || undefined,
+                        flexShrink: 0,
+                        overflow: 'hidden',
+                        maxWidth: 'none',
+                        maxHeight: 'none',
+                        padding: 0,
+                        touchAction: 'pan-y',
+                        backgroundColor: gridTheme.boardBg || 'var(--bg-tertiary)',
+                        border: gridTheme.boardBorder || '1px solid var(--border-color)',
+                    }}
+                >
                     {gameState?.horizontalLines.map((row, r) => (
-                        <div key={`row-${r}`}>
-                            <div className="flex items-center">
+                        <div key={`row-${r}`} style={{ flexShrink: 0, flexGrow: 0 }}>
+                            {/* Dot-HLine-Dot row */}
+                            <div className="flex items-center" style={{ height: sizes.dot, flexShrink: 0, flexGrow: 0 }}>
                                 {row.map((_, c) => (
                                     <React.Fragment key={`top-${c}`}>
                                         {renderDot(`d-${r}-${c}`)}
@@ -527,8 +556,10 @@ const ReplayPage = () => {
                                 ))}
                                 {renderDot(`d-${r}-end`)}
                             </div>
+
+                            {/* VLine-Box row */}
                             {r < gameState.boxes.length && (
-                                <div className="flex items-center">
+                                <div className="flex items-center" style={{ height: sizes.line, flexShrink: 0, flexGrow: 0 }}>
                                     {gameState.boxes[r].map((_, c) => (
                                         <React.Fragment key={`mid-${c}`}>
                                             {renderVLine(r, c)}
@@ -543,15 +574,15 @@ const ReplayPage = () => {
                 </div>
             </div>
 
-            {/* Controls */}
-            <div className="w-full max-w-md px-4 pb-6 pt-3">
+            {/* Controls — full-width on mobile */}
+            <div className="w-full max-w-md px-3 sm:px-4 pb-4 sm:pb-6 pt-3">
                 {/* Move counter */}
                 <div className="text-center mb-2">
-                    <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="text-xs sm:text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
                         Move {moveIndex} / {totalMoves}
                     </span>
                     {shouldShowWinner && replayData.winner && (
-                        <span className="ml-2 text-sm font-bold" style={{ color: 'var(--winner-gold)' }}>
+                        <span className="ml-2 text-xs sm:text-sm font-bold" style={{ color: 'var(--winner-gold)' }}>
                             {replayData.winner === 'draw' ? '🤝 Draw!' : `🏆 ${replayData.players?.[replayData.winner]?.username || replayData.winner} wins!`}
                         </span>
                     )}
@@ -573,11 +604,11 @@ const ReplayPage = () => {
                 />
 
                 {/* Play/Pause + Speed */}
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-2 sm:gap-3">
                     {/* Reset */}
                     <button
                         onClick={() => { setMoveIndex(0); setIsPlaying(false); confettiFired.current = false; }}
-                        className="px-3 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
+                        className="px-2.5 sm:px-3 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
                         style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
                         aria-label="Reset replay"
                     >
@@ -593,7 +624,7 @@ const ReplayPage = () => {
                             }
                             setIsPlaying(p => !p);
                         }}
-                        className="px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95"
+                        className="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95"
                         style={{
                             background: isPlaying
                                 ? 'var(--bg-surface)'
@@ -609,7 +640,7 @@ const ReplayPage = () => {
                     {/* Speed selector */}
                     <button
                         onClick={() => setSpeedIdx(i => (i + 1) % SPEEDS.length)}
-                        className="px-3 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
+                        className="px-2.5 sm:px-3 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
                         style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--accent)', border: '1px solid var(--border-color)' }}
                         aria-label={`Speed: ${SPEEDS[speedIdx].label}`}
                     >
@@ -618,10 +649,10 @@ const ReplayPage = () => {
                 </div>
 
                 {/* Play GridLock CTA */}
-                <div className="mt-4 text-center">
+                <div className="mt-3 sm:mt-4 text-center">
                     <button
                         onClick={() => navigate('/')}
-                        className="px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 hover:shadow-lg"
+                        className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold text-sm transition-all active:scale-95 hover:shadow-lg"
                         style={{
                             background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
                             color: 'var(--text-on-accent)',
