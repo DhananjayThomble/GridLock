@@ -1,20 +1,46 @@
 // src/components/AuthAvatar.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const AuthAvatar = () => {
   const { user, loading, login, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState(-1);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef(null);
+  const menuItemsRef = useRef([]);
   const navigate = useNavigate();
+
+  // Auto-focus first item when dropdown opens; reset on close — handled via toggleOpen
+  const toggleOpen = useCallback((nextOpen) => {
+    setOpen(nextOpen);
+    setFocusedIndex(nextOpen ? 0 : -1);
+  }, []);
+
+  const menuActions = useCallback(() => [
+    {
+      label: '👤 View Profile',
+      action: () => {
+        toggleOpen(false);
+        navigate(`/profile/${encodeURIComponent(user.username)}`);
+      },
+    },
+    {
+      label: '🚪 Sign Out',
+      action: () => {
+        toggleOpen(false);
+        logout();
+      },
+    },
+  ], [user, navigate, logout, toggleOpen]);
 
   // Close dropdown on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
+        toggleOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -23,7 +49,35 @@ const AuthAvatar = () => {
       document.removeEventListener('mousedown', handler);
       document.removeEventListener('touchstart', handler);
     };
-  }, [open]);
+  }, [open, toggleOpen]);
+
+  // Close on Escape and handle arrow key navigation
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        toggleOpen(false);
+        return;
+      }
+      const items = menuActions();
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex(prev => (prev + 1) % items.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex(prev => (prev - 1 + items.length) % items.length);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, menuActions, toggleOpen]);
+
+  // Focus the menu item when focusedIndex changes
+  useEffect(() => {
+    if (focusedIndex >= 0 && menuItemsRef.current[focusedIndex]) {
+      menuItemsRef.current[focusedIndex].focus();
+    }
+  }, [focusedIndex]);
 
   if (loading) return null;
 
@@ -46,11 +100,13 @@ const AuthAvatar = () => {
     );
   }
 
+  const items = menuActions();
+
   // Authenticated: show avatar with dropdown
   return (
     <div style={styles.container} ref={ref}>
       <button
-        onClick={() => setOpen(prev => !prev)}
+        onClick={() => toggleOpen(!open)}
         style={styles.avatarButton}
         aria-label="Account menu"
         aria-expanded={open}
@@ -72,26 +128,23 @@ const AuthAvatar = () => {
 
       {open && (
         <div style={styles.dropdown} data-testid="auth-dropdown" role="menu">
-          <button
-            onClick={() => {
-              setOpen(false);
-              navigate(`/profile/${encodeURIComponent(user.username)}`);
-            }}
-            style={styles.dropdownItem}
-            role="menuitem"
-          >
-            👤 View Profile
-          </button>
-          <button
-            onClick={() => {
-              setOpen(false);
-              logout();
-            }}
-            style={styles.dropdownItem}
-            role="menuitem"
-          >
-            🚪 Sign Out
-          </button>
+          {items.map((item, i) => (
+            <button
+              key={i}
+              ref={el => { menuItemsRef.current[i] = el; }}
+              onClick={item.action}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(-1)}
+              style={{
+                ...styles.dropdownItem,
+                backgroundColor: hoveredIndex === i ? 'var(--bg-card-hover)' : 'transparent',
+              }}
+              role="menuitem"
+              tabIndex={0}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

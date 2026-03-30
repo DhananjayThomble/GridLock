@@ -66,7 +66,10 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
     await waitFor(() => {
-      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('/api/auth/me'));
+      expect(axios.get).toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/me'),
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
     });
   });
 
@@ -90,6 +93,19 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
     await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('null');
+    });
+  });
+
+  it('sets user to null on network error', async () => {
+    axios.get.mockRejectedValue(new Error('Network Error'));
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
       expect(screen.getByTestId('user')).toHaveTextContent('null');
     });
   });
@@ -182,5 +198,22 @@ describe('AuthContext', () => {
 
     expect(axios.get).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId('user')).toHaveTextContent('TestUser');
+  });
+
+  // #13 — Network error on /api/auth/me sets user to null and loading to false
+  it('sets user to null and loading to false on network error', async () => {
+    axios.get.mockRejectedValue(new Error('Network Error'));
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false');
+    });
+
+    expect(screen.getByTestId('user')).toHaveTextContent('null');
   });
 });

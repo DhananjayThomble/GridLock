@@ -1,5 +1,5 @@
 // src/components/AuthNudge.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const DISMISS_KEY = 'gridlock_auth_nudge_dismissed';
@@ -13,9 +13,21 @@ function isDismissed() {
   return Date.now() - timestamp < SEVEN_DAYS_MS;
 }
 
+// Check if browser supports color-mix()
+const supportsColorMix = typeof CSS !== 'undefined' && CSS.supports?.('background-color', 'color-mix(in srgb, red 50%, blue)');
+
 const AuthNudge = ({ message }) => {
   const { user, loading, login } = useAuth();
   const [dismissed, setDismissed] = useState(() => isDismissed());
+  const bannerRef = useRef(null);
+
+  // Apply color-mix styles progressively when supported
+  useEffect(() => {
+    if (supportsColorMix && bannerRef.current) {
+      bannerRef.current.style.backgroundColor = 'color-mix(in srgb, var(--accent) 12%, var(--bg-card))';
+      bannerRef.current.style.borderColor = 'color-mix(in srgb, var(--accent) 25%, var(--border-color))';
+    }
+  }, [dismissed, loading, user]);
 
   if (loading || user || dismissed) return null;
 
@@ -25,7 +37,7 @@ const AuthNudge = ({ message }) => {
   };
 
   return (
-    <div style={styles.banner} data-testid="auth-nudge" role="banner">
+    <div ref={bannerRef} style={styles.banner} data-testid="auth-nudge" role="banner">
       <span style={styles.text}>
         {message}
         {' '}
@@ -54,8 +66,9 @@ const styles = {
     padding: '10px 16px',
     margin: '0 0 12px',
     borderRadius: '10px',
-    backgroundColor: 'color-mix(in srgb, var(--accent) 12%, var(--bg-card))',
-    border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border-color))',
+    // Fallback for browsers without color-mix() (pre Chrome 111, Firefox 113, Safari 16.2)
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
   },
   text: {
     fontSize: '13px',

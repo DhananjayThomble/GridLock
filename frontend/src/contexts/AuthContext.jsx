@@ -1,12 +1,7 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-
-const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_SOCKET_URL ||
-  ''
-).replace(/\/$/, '');
+import { API_BASE } from '../config';
 
 // Set withCredentials globally — all axios requests include cookies
 axios.defaults.withCredentials = true;
@@ -28,10 +23,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API_BASE}/api/auth/me`)
-      .then(res => setUser(res.data.user))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    axios.get(`${API_BASE}/api/auth/me`, { signal: controller.signal })
+      .then(res => {
+        if (!controller.signal.aborted) setUser(res.data.user);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setUser(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   const login = useCallback(() => {

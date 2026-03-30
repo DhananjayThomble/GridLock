@@ -12,12 +12,7 @@ import { useGridTheme } from '../contexts/GridThemeContext';
 import { GRID_THEMES, THEME_IDS, UNLOCK_CONDITIONS } from '../themes/gridThemes';
 import axios from 'axios';
 import socket from '../socket';
-
-const AUTH_API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_SOCKET_URL ||
-  ''
-).replace(/\/$/, '');
+import { API_BASE as AUTH_API_BASE } from '../config';
 
 /* ─── Reusable Toggle Switch ─── */
 const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
@@ -370,6 +365,7 @@ const Settings = () => {
   const [soundSettings, setSoundSettings] = useState(() => getSoundSettings());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
 
   const handlePushToggle = async () => {
@@ -595,7 +591,7 @@ const Settings = () => {
                 subtitle="Permanently remove your account and data"
                 right={
                   <button
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
                     data-testid="auth-delete-button"
                     style={{
                       padding: '8px 16px',
@@ -627,7 +623,7 @@ const Settings = () => {
             style={{
               position: 'fixed', inset: 0, zIndex: 2000,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              backgroundColor: 'rgba(0,0,0,0.5)', padding: '16px',
+              backgroundColor: 'var(--overlay-bg)', padding: '16px',
             }}
             onClick={() => setShowDeleteConfirm(false)}
           >
@@ -645,6 +641,11 @@ const Settings = () => {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px' }}>
                 This will permanently delete your account and disassociate all your game data. This cannot be undone.
               </p>
+              {deleteError && (
+                <p style={{ fontSize: '13px', color: 'var(--danger)', margin: '0 0 12px', textAlign: 'left' }} role="alert" data-testid="delete-error">
+                  {deleteError}
+                </p>
+              )}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
@@ -659,21 +660,21 @@ const Settings = () => {
                 <button
                   onClick={async () => {
                     setDeleting(true);
+                    setDeleteError('');
                     try {
                       await axios.delete(`${AUTH_API_BASE}/api/auth/account`);
-                      logout();
-                    } catch {
-                      // Ignore — logout anyway
-                    } finally {
-                      setDeleting(false);
                       setShowDeleteConfirm(false);
+                      logout();
+                    } catch (err) {
+                      setDeleteError(err.response?.data?.error || 'Failed to delete account. Please try again.');
+                      setDeleting(false);
                     }
                   }}
                   disabled={deleting}
                   data-testid="delete-confirm-button"
                   style={{
                     flex: 1, padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                    backgroundColor: 'var(--danger)', color: '#fff',
+                    backgroundColor: 'var(--danger)', color: 'var(--text-on-accent)',
                     border: 'none', cursor: deleting ? 'not-allowed' : 'pointer',
                     opacity: deleting ? 0.5 : 1, minHeight: '44px',
                   }}

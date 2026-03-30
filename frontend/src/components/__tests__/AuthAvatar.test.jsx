@@ -23,6 +23,8 @@ vi.mock('react-router-dom', async () => {
 
 const { default: AuthAvatar } = await import('../AuthAvatar.jsx');
 
+const authenticatedUser = { username: 'DJ', avatar: 'https://example.com/pic.jpg', usernameSetupComplete: true };
+
 const renderAvatar = () => render(
   <MemoryRouter>
     <AuthAvatar />
@@ -47,20 +49,14 @@ describe('AuthAvatar', () => {
   });
 
   it('shows avatar when authenticated', () => {
-    mockAuthValue = {
-      ...mockAuthValue,
-      user: { username: 'DJ', avatar: 'https://example.com/pic.jpg', usernameSetupComplete: true },
-    };
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
     renderAvatar();
     expect(screen.getByTestId('auth-avatar-user')).toBeInTheDocument();
     expect(screen.getByAltText('DJ')).toBeInTheDocument();
   });
 
   it('dropdown opens on click', () => {
-    mockAuthValue = {
-      ...mockAuthValue,
-      user: { username: 'DJ', avatar: 'https://example.com/pic.jpg', usernameSetupComplete: true },
-    };
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
     renderAvatar();
     expect(screen.queryByTestId('auth-dropdown')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('auth-avatar-user'));
@@ -68,10 +64,7 @@ describe('AuthAvatar', () => {
   });
 
   it('dropdown has profile and sign-out links', () => {
-    mockAuthValue = {
-      ...mockAuthValue,
-      user: { username: 'DJ', avatar: 'https://example.com/pic.jpg', usernameSetupComplete: true },
-    };
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
     renderAvatar();
     fireEvent.click(screen.getByTestId('auth-avatar-user'));
     expect(screen.getByText(/View Profile/)).toBeInTheDocument();
@@ -79,10 +72,7 @@ describe('AuthAvatar', () => {
   });
 
   it('View Profile navigates to /profile/{username}', () => {
-    mockAuthValue = {
-      ...mockAuthValue,
-      user: { username: 'DJ', avatar: 'https://example.com/pic.jpg', usernameSetupComplete: true },
-    };
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
     renderAvatar();
     fireEvent.click(screen.getByTestId('auth-avatar-user'));
     fireEvent.click(screen.getByText(/View Profile/));
@@ -90,10 +80,7 @@ describe('AuthAvatar', () => {
   });
 
   it('Sign Out calls logout()', () => {
-    mockAuthValue = {
-      ...mockAuthValue,
-      user: { username: 'DJ', avatar: 'https://example.com/pic.jpg', usernameSetupComplete: true },
-    };
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
     renderAvatar();
     fireEvent.click(screen.getByTestId('auth-avatar-user'));
     fireEvent.click(screen.getByText(/Sign Out/));
@@ -104,5 +91,47 @@ describe('AuthAvatar', () => {
     mockAuthValue = { ...mockAuthValue, loading: true };
     const { container } = renderAvatar();
     expect(container.innerHTML).toBe('');
+  });
+
+  // #3 — Keyboard support tests
+  it('Escape key closes dropdown', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+    expect(screen.getByTestId('auth-dropdown')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('auth-dropdown')).not.toBeInTheDocument();
+  });
+
+  it('dropdown menu items have role="menuitem" and tabIndex', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+
+    const items = screen.getAllByRole('menuitem');
+    expect(items).toHaveLength(2);
+    items.forEach(item => {
+      expect(item).toHaveAttribute('tabindex', '0');
+    });
+  });
+
+  it('dropdown has role="menu"', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  // #12 — Outside click closes dropdown
+  it('outside click closes dropdown', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+    expect(screen.getByTestId('auth-dropdown')).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByTestId('auth-dropdown')).not.toBeInTheDocument();
   });
 });

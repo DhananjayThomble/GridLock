@@ -1,7 +1,7 @@
 // src/components/__tests__/AuthSetup.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import axios from 'axios';
 
@@ -54,6 +54,10 @@ describe('AuthSetup', () => {
     };
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('pre-fills displayName as username suggestion', () => {
     renderSetup();
     const input = screen.getByTestId('username-input');
@@ -88,6 +92,18 @@ describe('AuthSetup', () => {
     expect(await screen.findByTestId('setup-error')).toHaveTextContent('already taken');
   });
 
+  it('shows generic error on non-409 server error', async () => {
+    axios.post.mockRejectedValue({
+      response: { status: 500, data: {} },
+    });
+    renderSetup();
+    const input = screen.getByTestId('username-input');
+    fireEvent.change(input, { target: { value: 'ValidUser' } });
+    fireEvent.click(screen.getByTestId('setup-submit'));
+
+    expect(await screen.findByTestId('setup-error')).toHaveTextContent('Something went wrong');
+  });
+
   it('redirects on success', async () => {
     axios.post.mockResolvedValue({ data: { success: true, user: {} } });
     mockRefreshUser.mockResolvedValue(undefined);
@@ -110,5 +126,53 @@ describe('AuthSetup', () => {
     };
     renderSetup();
     expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+  });
+
+  it('shows availability status after debounce', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderSetup();
+    const input = screen.getByTestId('username-input');
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'GoodName' } });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByTestId('setup-available')).toHaveTextContent('Username looks good');
+  });
+
+  it('rejects reserved usernames after debounce', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderSetup();
+    const input = screen.getByTestId('username-input');
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'admin' } });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByTestId('setup-validation')).toHaveTextContent('reserved');
+  });
+
+  it('disables submit when validation fails after debounce', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderSetup();
+    const input = screen.getByTestId('username-input');
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'admin' } });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    expect(screen.getByTestId('setup-submit')).toBeDisabled();
   });
 });
