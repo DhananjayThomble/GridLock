@@ -124,6 +124,59 @@ describe('AuthAvatar', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
+  // #2 — ArrowDown/ArrowUp keyboard navigation
+  it('ArrowDown moves focus to next menu item', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+
+    const items = screen.getAllByRole('menuitem');
+    // First item should be focused initially (focusedIndex=0 on open)
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(items[1]).toHaveFocus();
+  });
+
+  it('ArrowUp moves focus to previous menu item', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+
+    const items = screen.getAllByRole('menuitem');
+    // focusedIndex starts at 0, ArrowDown to 1, then ArrowUp back to 0
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    fireEvent.keyDown(document, { key: 'ArrowUp' });
+    expect(items[0]).toHaveFocus();
+  });
+
+  it('Arrow keys wrap around (last → first, first → last)', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    fireEvent.click(screen.getByTestId('auth-avatar-user'));
+
+    const items = screen.getAllByRole('menuitem');
+    // From last item, ArrowDown wraps to first
+    fireEvent.keyDown(document, { key: 'ArrowDown' }); // 0 → 1
+    fireEvent.keyDown(document, { key: 'ArrowDown' }); // 1 → 0 (wrap)
+    expect(items[0]).toHaveFocus();
+
+    // From first item, ArrowUp wraps to last
+    fireEvent.keyDown(document, { key: 'ArrowUp' }); // 0 → 1 (wrap)
+    expect(items[1]).toHaveFocus();
+  });
+
+  // #3 — Escape restores focus to trigger
+  it('Escape key restores focus to trigger button', () => {
+    mockAuthValue = { ...mockAuthValue, user: authenticatedUser };
+    renderAvatar();
+    const trigger = screen.getByTestId('auth-avatar-user');
+    fireEvent.click(trigger);
+    expect(screen.getByTestId('auth-dropdown')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('auth-dropdown')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
   // #12 — Outside click closes dropdown
   it('outside click closes dropdown', () => {
     mockAuthValue = { ...mockAuthValue, user: authenticatedUser };

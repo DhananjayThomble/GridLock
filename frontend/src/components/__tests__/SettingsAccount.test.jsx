@@ -136,4 +136,45 @@ describe('Settings Account Section', () => {
     // Confirmation modal/text should appear
     expect(screen.getByTestId('delete-confirm-modal')).toBeInTheDocument();
   });
+
+  // #4 — Delete modal keyboard a11y
+  it('Escape closes the delete confirmation modal', () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      user: {
+        username: 'DJ_Grid',
+        email: 'dj@example.com',
+        avatar: 'https://example.com/pic.jpg',
+      },
+    };
+    renderSettings();
+    fireEvent.click(screen.getByTestId('auth-delete-button'));
+    expect(screen.getByTestId('delete-confirm-modal')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('delete-confirm-modal')).not.toBeInTheDocument();
+  });
+
+  it('delete modal focuses cancel button on open and restores focus to delete button on close', () => {
+    mockAuthValue = {
+      ...mockAuthValue,
+      user: {
+        username: 'DJ_Grid',
+        email: 'dj@example.com',
+        avatar: 'https://example.com/pic.jpg',
+      },
+    };
+    renderSettings();
+    const deleteBtn = screen.getByTestId('auth-delete-button');
+    fireEvent.click(deleteBtn);
+
+    // Cancel button should be focused when modal opens (focus trap)
+    const cancelBtn = screen.getByText('Cancel');
+    expect(cancelBtn).toHaveFocus();
+
+    // Escape should close and restore focus to delete button
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('delete-confirm-modal')).not.toBeInTheDocument();
+    expect(deleteBtn).toHaveFocus();
+  });
 });

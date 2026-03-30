@@ -1,5 +1,5 @@
 // src/components/AuthAvatar.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,7 +19,7 @@ const AuthAvatar = () => {
     setFocusedIndex(nextOpen ? 0 : -1);
   }, []);
 
-  const menuActions = useCallback(() => [
+  const menuActions = useMemo(() => [
     {
       label: '👤 View Profile',
       action: () => {
@@ -61,7 +61,7 @@ const AuthAvatar = () => {
         triggerRef.current?.focus();
         return;
       }
-      const items = menuActions();
+      const items = menuActions;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedIndex(prev => (prev + 1) % items.length);
@@ -102,7 +102,7 @@ const AuthAvatar = () => {
     );
   }
 
-  const items = menuActions();
+  const items = menuActions;
 
   // Authenticated: show avatar with dropdown
   return (
@@ -112,6 +112,7 @@ const AuthAvatar = () => {
         onClick={() => toggleOpen(!open)}
         style={styles.avatarButton}
         aria-label="Account menu"
+        aria-haspopup="true"
         aria-expanded={open}
         data-testid="auth-avatar-user"
       >
@@ -214,7 +215,7 @@ const styles = {
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+    boxShadow: '0 4px 16px var(--shadow-color)',
     overflow: 'hidden',
     zIndex: 1001,
   },
