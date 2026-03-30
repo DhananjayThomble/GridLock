@@ -46,8 +46,11 @@ function register(io, socket, log, rateLimited, validate) {
     // ── create_challenge ──────────────────────────────────────────────────
     socket.on('create_challenge', async (rawPayload, callback) => {
         try {
-            if (rateLimited('create_game')) return; // Reuse create_game rate limit
             if (!callback || typeof callback !== 'function') return;
+            if (rateLimited('create_game')) {
+                callback({ error: 'Too many requests. Please slow down.' });
+                return; // Reuse create_game rate limit
+            }
 
             const { username, avatar } = rawPayload || {};
 
@@ -143,8 +146,11 @@ function register(io, socket, log, rateLimited, validate) {
     // ── join_challenge ────────────────────────────────────────────────────
     socket.on('join_challenge', async (rawPayload, callback) => {
         try {
-            if (rateLimited('join_game')) return; // Reuse join_game rate limit
             if (!callback || typeof callback !== 'function') return;
+            if (rateLimited('join_game')) {
+                callback({ error: 'Too many join attempts. Please wait a moment and try again.' });
+                return; // Reuse join_game rate limit
+            }
 
             const { challengerUsername, username, avatar } = rawPayload || {};
 

@@ -36,6 +36,24 @@ const AuthSetup = () => {
     return sanitized.length >= 2 ? sanitized : '';
   });
 
+  // Track whether user has manually typed to avoid overwriting their input
+  const [userHasTyped, setUserHasTyped] = useState(false);
+
+  // #5 fix — Update username when user loads (initializer runs with user=null on fresh load)
+  useEffect(() => {
+    if (user?.displayName && !userHasTyped) {
+      const name = user.displayName;
+      const sanitized = name
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 16);
+      if (sanitized.length >= 2) {
+        setUsername(sanitized);
+      }
+    }
+  }, [user?.displayName, userHasTyped]);
+
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -125,6 +143,7 @@ const AuthSetup = () => {
               value={username}
               onChange={(e) => {
                 setUsername(e.target.value);
+                setUserHasTyped(true);
                 setError('');
               }}
               placeholder="Enter username"

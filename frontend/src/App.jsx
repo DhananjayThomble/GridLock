@@ -93,9 +93,12 @@ const AuthSetupRedirect = () => {
 
   useEffect(() => {
     if (shouldRedirect) {
-      navigate('/auth/setup', { replace: true });
+      // Preserve the original path so user can be routed back after setup
+      const returnTo = location.pathname + location.search;
+      const safeReturnTo = returnTo !== '/' ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+      navigate(`/auth/setup${safeReturnTo}`, { replace: true });
     }
-  }, [shouldRedirect, navigate]);
+  }, [shouldRedirect, navigate, location.pathname, location.search]);
 
   // Prevent content flash while redirect is pending
   if (shouldRedirect) return <RouteLoader />;
@@ -103,8 +106,15 @@ const AuthSetupRedirect = () => {
 };
 
 const AppLayout = () => {
+  const { user, loading } = useAuth();
   const location = useLocation();
   const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
+
+  // Block layout rendering while auth setup redirect is pending (#6 Copilot review)
+  const needsSetupRedirect = !loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup';
+  if (needsSetupRedirect) {
+    return <AuthSetupRedirect />;
+  }
 
   return (
     <>

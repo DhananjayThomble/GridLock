@@ -158,6 +158,7 @@ const Lobby = () => {
 
       setCreating(false);
       setJoining(false);
+      setChallengeCreating(false);
       setCreatingTournament(false);
       setJoiningTournament(false);
     };
@@ -415,9 +416,11 @@ const Lobby = () => {
     setUsernameError('');
     if (!socket.connected) socket.connect();
     localStorage.setItem('gridlock_username', name);
+    activeActionRef.current = 'challenge';
     setChallengeCreating(true);
 
     socket.emit('create_challenge', { username: name, avatar: selectedAvatar }, (res) => {
+      activeActionRef.current = null;
       setChallengeCreating(false);
       if (res?.error) {
         setUsernameError(res.error);
