@@ -1,46 +1,59 @@
 // models/User.js
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    password: {
-        type: String,
-        required: true
-    },
-    highScores: [{
-        gameType: String,
-        score: Number,
-        date: {
-            type: Date,
-            default: Date.now
-        }
-    }],
-    date: {
-        type: Date,
-        default: Date.now
-    }
-});
+  // ── Identity ──
+  googleId: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  },
 
-// Hash password before saving
-UserSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 12);
-    next();
-});
+  // ── Profile ──
+  displayName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 30,
+  },
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 2,
+    maxlength: 16,
+    match: /^[a-zA-Z0-9_-]+$/,
+  },
+  usernameSetupComplete: {
+    type: Boolean,
+    default: false,
+  },
+  avatar: {
+    type: String,
+    default: null,
+  },
 
-// Compare candidate password against stored hash
-UserSchema.methods.comparePassword = async function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
-};
+  // ── Metadata ──
+  lastLoginAt: {
+    type: Date,
+    default: Date.now,
+  },
+
+  // ── Data Migration ──
+  migratedFromGuest: {
+    type: String,
+    default: null,
+  },
+}, {
+  timestamps: true,
+});
 
 module.exports = mongoose.model('User', UserSchema);
