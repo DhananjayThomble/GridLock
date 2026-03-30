@@ -146,7 +146,7 @@ const AppLayout = () => {
         <div className="mobile-header">
           <span className="mobile-header-title">GridLock</span>
           <div className="mobile-header-actions">
-            <AuthAvatar />
+            <AuthAvatar isMobileHeader />
           </div>
         </div>
       )}

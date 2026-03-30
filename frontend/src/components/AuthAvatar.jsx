@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const AuthAvatar = () => {
+const AuthAvatar = ({ isMobileHeader = false }) => {
   const { user, loading, login, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState(-1);
@@ -131,7 +131,11 @@ const AuthAvatar = () => {
       </button>
 
       {open && (
-        <div style={styles.dropdown} data-testid="auth-dropdown" role="menu">
+        <div
+          style={isMobileHeader ? styles.dropdownMobile : styles.dropdown}
+          data-testid="auth-dropdown"
+          role="menu"
+        >
           {items.map((item, i) => (
             <button
               key={i}
@@ -209,18 +213,30 @@ const styles = {
     position: 'absolute',
     top: 'calc(100% + 6px)',
     right: 0,
-    minWidth: '160px',
+    minWidth: '180px',
     backgroundColor: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px',
-    boxShadow: '0 4px 16px var(--shadow-color)',
+    boxShadow: '0 4px 16px var(--shadow-color, rgba(0,0,0,0.15))',
     overflow: 'hidden',
-    zIndex: 9999,
+    zIndex: 10000,
+  },
+  dropdownMobile: {
+    position: 'fixed',
+    top: '54px',
+    right: '12px',
+    minWidth: '180px',
+    backgroundColor: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '12px',
+    boxShadow: '0 4px 16px var(--shadow-color, rgba(0,0,0,0.15))',
+    overflow: 'hidden',
+    zIndex: 10000,
   },
   dropdownItem: {
     width: '100%',
     padding: '12px 16px',
-    fontSize: '14px',
+    fontSize: '15px',
     fontWeight: 500,
     color: 'var(--text-primary)',
     backgroundColor: 'transparent',
@@ -229,6 +245,7 @@ const styles = {
     textAlign: 'left',
     display: 'block',
     transition: 'background-color 150ms',
+    minHeight: '44px',
   },
 };
 
