@@ -368,6 +368,7 @@ const Settings = () => {
   const [deleteError, setDeleteError] = useState('');
   const deleteButtonRef = useRef(null);
   const cancelButtonRef = useRef(null);
+  const confirmButtonRef = useRef(null);
 
   // Focus trap: focus cancel button when modal opens
   useEffect(() => {
@@ -376,13 +377,27 @@ const Settings = () => {
     }
   }, [showDeleteConfirm]);
 
-  // Escape key to close modal
+  // Escape key to close modal + Tab focus trap
   useEffect(() => {
     if (!showDeleteConfirm) return;
     const handler = (e) => {
       if (e.key === 'Escape') {
         setShowDeleteConfirm(false);
         deleteButtonRef.current?.focus();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusable = [cancelButtonRef.current, confirmButtonRef.current].filter(Boolean);
+        if (focusable.length < 2) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     document.addEventListener('keydown', handler);
@@ -685,6 +700,7 @@ const Settings = () => {
                   Cancel
                 </button>
                 <button
+                  ref={confirmButtonRef}
                   onClick={async () => {
                     setDeleting(true);
                     setDeleteError('');

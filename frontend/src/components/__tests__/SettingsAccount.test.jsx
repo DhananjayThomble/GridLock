@@ -1,8 +1,9 @@
 // src/components/__tests__/SettingsAccount.test.jsx
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import axios from 'axios';
 
 const mockLogin = vi.fn();
 const mockLogout = vi.fn();
@@ -176,5 +177,50 @@ describe('Settings Account Section', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByTestId('delete-confirm-modal')).not.toBeInTheDocument();
     expect(deleteBtn).toHaveFocus();
+  });
+
+  // Delete confirmation happy path
+  it('confirms delete calls API and logout', async () => {
+    axios.delete.mockResolvedValue({ data: { success: true } });
+    mockAuthValue = {
+      ...mockAuthValue,
+      user: {
+        username: 'DJ_Grid',
+        email: 'dj@example.com',
+        avatar: 'https://example.com/pic.jpg',
+      },
+    };
+    renderSettings();
+    fireEvent.click(screen.getByTestId('auth-delete-button'));
+    fireEvent.click(screen.getByTestId('delete-confirm-button'));
+
+    await waitFor(() => {
+      expect(axios.delete).toHaveBeenCalledWith(expect.stringContaining('/api/auth/account'));
+      expect(mockLogout).toHaveBeenCalled();
+    });
+  });
+
+  // Delete confirmation error path
+  it('shows error when delete API fails', async () => {
+    axios.delete.mockRejectedValue({
+      response: { status: 500, data: { error: 'Server error' } },
+    });
+    mockAuthValue = {
+      ...mockAuthValue,
+      user: {
+        username: 'DJ_Grid',
+        email: 'dj@example.com',
+        avatar: 'https://example.com/pic.jpg',
+      },
+    };
+    renderSettings();
+    fireEvent.click(screen.getByTestId('auth-delete-button'));
+    fireEvent.click(screen.getByTestId('delete-confirm-button'));
+
+    expect(await screen.findByTestId('delete-error')).toHaveTextContent('Server error');
+    // Should NOT logout on failure
+    expect(mockLogout).not.toHaveBeenCalled();
+    // Modal should still be open
+    expect(screen.getByTestId('delete-confirm-modal')).toBeInTheDocument();
   });
 });

@@ -89,11 +89,16 @@ const AuthSetupRedirect = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const shouldRedirect = !loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup';
+
   useEffect(() => {
-    if (!loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup') {
+    if (shouldRedirect) {
       navigate('/auth/setup', { replace: true });
     }
-  }, [user, loading, location.pathname, navigate]);
+  }, [shouldRedirect, navigate]);
+
+  // Prevent content flash while redirect is pending
+  if (shouldRedirect) return <RouteLoader />;
   return null;
 };
 
