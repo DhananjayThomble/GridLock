@@ -207,7 +207,7 @@ const styles = {
   },
   dropdown: {
     position: 'absolute',
-    top: '44px',
+    top: 'calc(100% + 6px)',
     right: 0,
     minWidth: '160px',
     backgroundColor: 'var(--bg-card)',
@@ -215,7 +215,7 @@ const styles = {
     borderRadius: '12px',
     boxShadow: '0 4px 16px var(--shadow-color)',
     overflow: 'hidden',
-    zIndex: 1001,
+    zIndex: 9999,
   },
   dropdownItem: {
     width: '100%',

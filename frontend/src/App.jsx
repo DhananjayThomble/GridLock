@@ -143,8 +143,11 @@ const AppLayout = () => {
         </nav>
       )}
       {!hideNav && (
-        <div className="mobile-auth-bar">
-          <AuthAvatar />
+        <div className="mobile-header">
+          <span className="mobile-header-title">GridLock</span>
+          <div className="mobile-header-actions">
+            <AuthAvatar />
+          </div>
         </div>
       )}
 
