@@ -223,7 +223,7 @@ const styles = {
   },
   dropdownMobile: {
     position: 'fixed',
-    top: '54px',
+    top: 'calc(54px + env(safe-area-inset-top, 0px))',
     right: '12px',
     minWidth: '180px',
     backgroundColor: 'var(--bg-card)',

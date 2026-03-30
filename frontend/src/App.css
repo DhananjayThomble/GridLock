@@ -59,8 +59,8 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 48px;
-    padding: 0 12px;
+    height: calc(48px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 12px 0 12px;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border-color);
     z-index: 1000;
@@ -149,15 +149,15 @@
 @media (max-width: 640px) {
   .app-content-with-nav {
     /* No top nav on mobile — all nav is in bottom bar */
-    /* Small top padding to clear fixed auth avatar */
-    padding-top: 52px;
+    /* Top padding clears fixed mobile header + safe area (notch/status bar) */
+    padding-top: calc(52px + env(safe-area-inset-top, 0px));
     /* Clear bottom nav bar (#261) */
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (max-width: 430px) {
   .app-content-with-nav {
-    padding-top: 52px;
+    padding-top: calc(52px + env(safe-area-inset-top, 0px));
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
