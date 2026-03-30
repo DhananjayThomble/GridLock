@@ -22,6 +22,12 @@ export default defineConfig(async () => {
   }
 
   return {
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/tests/setup.js',
+      css: false,
+    },
     // VITE_BASE_PATH controls asset base path:
     //   - Custom domain deploy: set to '/'
     //   - E2E / local dev: leave unset (defaults to '/')
