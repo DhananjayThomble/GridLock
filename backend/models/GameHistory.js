@@ -3,6 +3,13 @@ const mongoose = require('mongoose');
 const GameHistorySchema = new mongoose.Schema({
   gameId: { type: String, required: true, index: true },
   username: { type: String, required: true },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+    sparse: true,
+  },
   opponents: [String],
   playerCount: { type: Number, required: true },
   gridSize: { type: Number, required: true },

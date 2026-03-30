@@ -6,6 +6,7 @@ const sentry = require('./lib/sentry');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const helmet = require('helmet');
@@ -26,6 +27,7 @@ const gameHistoryRoutes = require('./routes/gameHistory');
 const rankedRoutes = require('./routes/ranked');
 const dailyRoutes = require('./routes/daily');
 const healthcheckRoutes = require('./routes/healthcheck');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const server = http.createServer(app);
@@ -64,8 +66,10 @@ app.use(cors({
         const err = new Error('Not allowed by CORS');
         err.status = 403;
         callback(err);
-    }
+    },
+    credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json());
 app.use(metricsMiddleware); // Prometheus HTTP request tracking (before rate limiter so 429s are counted)
 app.use(httpLimiter); // Global HTTP rate limiting
@@ -91,6 +95,7 @@ const io = new Server(server, {
     cors: {
         origin: ALLOWED_ORIGINS,
         methods: ["GET", "POST"],
+        credentials: true,
     },
 });
 
@@ -182,6 +187,9 @@ app.use('/api/ranked', rankedRoutes);
 
 // Daily challenge API routes
 app.use('/api/daily', dailyRoutes);
+
+// Auth API routes
+app.use('/api/auth', authRoutes);
 
 // Deep health check (post-deploy verification) — mounted before the lightweight
 // /health GET and any catch-all routes to ensure /health/deep is always reachable.

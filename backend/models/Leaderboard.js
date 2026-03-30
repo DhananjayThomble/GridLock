@@ -10,6 +10,13 @@ const LeaderboardSchema = new mongoose.Schema(
             index: true,
             trim: true,
         },
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+            index: true,
+            sparse: true,
+        },
         gamesPlayed: {
             type: Number,
             default: 0,
@@ -73,13 +80,12 @@ LeaderboardSchema.index({ wins: -1, winRate: -1, elo: -1 });
 /**
  * Compute winRate before saving (wins / gamesPlayed * 100, rounded to 2dp).
  */
-LeaderboardSchema.pre('save', function (next) {
+LeaderboardSchema.pre('save', function () {
     if (this.gamesPlayed > 0) {
         this.winRate = parseFloat(((this.wins / this.gamesPlayed) * 100).toFixed(2));
     } else {
         this.winRate = 0;
     }
-    next();
 });
 
 /**

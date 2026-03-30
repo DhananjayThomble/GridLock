@@ -14,6 +14,13 @@ const DailyResultSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+      sparse: true,
+    },
     score: {
       type: Number,
       required: true,
@@ -41,6 +48,13 @@ const DailyResultSchema = new mongoose.Schema(
 
 // Compound unique index — one attempt per user per day
 DailyResultSchema.index({ date: 1, username: 1 }, { unique: true });
+
+// Compound unique index — one attempt per userId per day (authenticated users)
+// partialFilterExpression ensures only docs with non-null userId are indexed
+DailyResultSchema.index(
+  { date: 1, userId: 1 },
+  { unique: true, partialFilterExpression: { userId: { $type: 'objectId' } } }
+);
 
 // Leaderboard sorting: higher score first, fewer moves as tiebreaker, then duration
 DailyResultSchema.index({ date: 1, score: -1, moves: 1, duration: 1 });
