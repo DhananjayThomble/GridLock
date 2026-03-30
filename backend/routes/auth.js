@@ -33,6 +33,7 @@ const oauthInitLimiter = rateLimit({
   skip: () => isTest,
   windowMs: 15 * 60 * 1000,
   max: 10,
+  standardHeaders: true,
   message: { success: false, error: 'Too many requests, please try again later' },
 });
 
@@ -40,6 +41,7 @@ const oauthCallbackLimiter = rateLimit({
   skip: () => isTest,
   windowMs: 15 * 60 * 1000,
   max: 10,
+  standardHeaders: true,
   message: { success: false, error: 'Too many requests, please try again later' },
 });
 
@@ -47,6 +49,7 @@ const setupUsernameLimiter = rateLimit({
   skip: () => isTest,
   windowMs: 60 * 1000,
   max: 5,
+  standardHeaders: true,
   message: { success: false, error: 'Too many requests, please try again later' },
 });
 
@@ -54,6 +57,7 @@ const deleteAccountLimiter = rateLimit({
   skip: () => isTest,
   windowMs: 60 * 60 * 1000,
   max: 3,
+  standardHeaders: true,
   message: { success: false, error: 'Too many requests, please try again later' },
 });
 
@@ -61,9 +65,9 @@ const migrateGuestLimiter = rateLimit({
   skip: () => isTest,
   windowMs: 60 * 60 * 1000,
   max: 3,
+  standardHeaders: true,
   message: { success: false, error: 'Too many requests, please try again later' },
 });
-
 
 // Cookie helper — spreads shared COOKIE_OPTIONS with optional maxAge override
 function cookieOpts(maxAge) {
@@ -132,7 +136,12 @@ router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
     }
 
     // Clear CSRF cookie
-    res.clearCookie('oauth_csrf', { path: '/' });
+    res.clearCookie('oauth_csrf', {
+      path: COOKIE_OPTIONS.path,
+      domain: COOKIE_OPTIONS.domain,
+      secure: COOKIE_OPTIONS.secure,
+      sameSite: COOKIE_OPTIONS.sameSite,
+    });
 
     const returnTo = validateReturnTo(decoded.returnTo);
 
@@ -183,7 +192,7 @@ router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
     }
     return res.redirect(`${FRONTEND_URL}${returnTo}`);
   } catch (err) {
-    log.error('[Auth] OAuth callback error', err.message);
+    log.error('[Auth] OAuth callback error', err.stack || err);
     return res.redirect(`${FRONTEND_URL}/?auth=error`);
   }
 });
@@ -251,8 +260,6 @@ router.post('/setup-username', setupUsernameLimiter, csrfHeader, requireAuth, as
     user.username = trimmed;
     user.usernameSetupComplete = true;
     await user.save();
-
-    log.info('[Auth] Username set up', { userId: user._id, username: trimmed });
 
     log.info('[Auth] Username set up', { userId: user._id, username: trimmed });
 

@@ -79,6 +79,7 @@ LeaderboardSchema.index({ wins: -1, winRate: -1, elo: -1 });
 
 /**
  * Compute winRate before saving (wins / gamesPlayed * 100, rounded to 2dp).
+ * NOTE: Mongoose 9 removed callback-style pre hooks; `next` is not passed.
  */
 LeaderboardSchema.pre('save', function () {
     if (this.gamesPlayed > 0) {
