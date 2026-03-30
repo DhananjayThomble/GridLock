@@ -11,6 +11,7 @@ import {
 } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { GridThemeProvider } from './contexts/GridThemeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -18,6 +19,7 @@ import ConnectionOverlay from './components/ConnectionOverlay';
 import BottomNav from './components/BottomNav';
 import PageSeo from './components/PageSeo';
 import ScrollToTop from './components/ScrollToTop';
+import AuthAvatar from './components/AuthAvatar';
 import ToastProvider, { useToast } from './contexts/ToastContext';
 import './App.css';
 
@@ -33,6 +35,7 @@ const HowToPlay = lazy(() => import('./components/HowToPlay'));
 const Settings = lazy(() => import('./components/Settings'));
 const WaitingRoom = lazy(() => import('./components/WaitingRoom'));
 const ChallengePage = lazy(() => import('./components/ChallengePage'));
+const AuthSetup = lazy(() => import('./components/AuthSetup'));
 
 // Support /beta sub-path deployment via Vite's BASE_URL
 const basePath = import.meta.env.BASE_URL || '/';
@@ -81,12 +84,32 @@ const RouteLoader = () => (
   </div>
 );
 
+/** Redirect authenticated users who haven't set up their username */
+const AuthSetupRedirect = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const shouldRedirect = !loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup';
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      navigate('/auth/setup', { replace: true });
+    }
+  }, [shouldRedirect, navigate]);
+
+  // Prevent content flash while redirect is pending
+  if (shouldRedirect) return <RouteLoader />;
+  return null;
+};
+
 const AppLayout = () => {
   const location = useLocation();
   const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   return (
     <>
+      <AuthSetupRedirect />
+      {!hideNav && <AuthAvatar />}
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
@@ -290,6 +313,20 @@ const AppLayout = () => {
                 </ErrorBoundary>
               )}
             />
+            <Route
+              path="/auth/setup"
+              element={(
+                <ErrorBoundary>
+                  {withPageSeo(
+                    <AuthSetup />,
+                    {
+                      title: 'Choose Username — GridLock',
+                      description: 'Pick your permanent GridLock username.',
+                    },
+                  )}
+                </ErrorBoundary>
+              )}
+            />
             {/* Catch-all: show toast and redirect unknown routes to lobby (#418) */}
             <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
@@ -305,9 +342,11 @@ function App() {
       <GridThemeProvider>
         <ToastProvider>
           <Router basename={basePath}>
-            <ScrollToTop />
-            <ConnectionOverlay />
-            <AppLayout />
+            <AuthProvider>
+              <ScrollToTop />
+              <ConnectionOverlay />
+              <AppLayout />
+            </AuthProvider>
           </Router>
         </ToastProvider>
       </GridThemeProvider>
