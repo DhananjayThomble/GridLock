@@ -387,7 +387,7 @@ Deletes user account and all associated data. GDPR compliance.
 2. Remove `userId` from all `Leaderboard`, `RankedProfile`, `GameHistory`, `DailyResult` docs (data becomes anonymous/guest again — not deleted, since the game data belongs to the game history)
 3. Clear JWT cookie
 
-**Note:** Google OAuth consent is NOT revoked server-side. If the user returns and signs in with Google again, they will auto-authenticate. This is acceptable for v1 — revoking consent would require storing and managing Google refresh tokens, which adds complexity for minimal benefit in a game app.
+**Note:** Google OAuth consent is revoked via Google's token revocation endpoint. Revocation is best-effort — if it fails (expired token, network error), deletion proceeds. The access token is stored in the User model with `select: false` to prevent accidental exposure.
 
 ---
 

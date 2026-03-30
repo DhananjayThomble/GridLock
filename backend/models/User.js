@@ -41,6 +41,13 @@ const UserSchema = new mongoose.Schema({
     default: null,
   },
 
+  // ── OAuth Tokens ──
+  googleAccessToken: {
+    type: String,
+    default: null,
+    select: false,  // Never included in queries by default (security)
+  },
+
   // ── Metadata ──
   lastLoginAt: {
     type: Date,

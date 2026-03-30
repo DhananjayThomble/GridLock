@@ -680,7 +680,7 @@ const Settings = () => {
                 Delete Account?
               </h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px' }}>
-                This will permanently delete your account and disassociate all your game data. This cannot be undone.
+                This will permanently delete your account, disassociate all your game data, and revoke GridLock's access to your Google account. This cannot be undone.
               </p>
               {deleteError && (
                 <p style={{ fontSize: '13px', color: 'var(--danger)', margin: '0 0 12px', textAlign: 'left' }} role="alert" data-testid="delete-error">

@@ -156,10 +156,11 @@ router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
     let isNewUser = false;
 
     if (user) {
-      // Update last login and profile info
+      // Update last login, profile info, and access token
       user.lastLoginAt = new Date();
       user.displayName = name;
       user.avatar = picture;
+      user.googleAccessToken = tokens.access_token;
       await user.save();
       log.info('[Auth] User logged in', { userId: user._id, email });
     } else {
@@ -173,6 +174,7 @@ router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
         username: tempUsername,
         avatar: picture,
         usernameSetupComplete: false,
+        googleAccessToken: tokens.access_token,
       });
       log.info('[Auth] New user created', { userId: user._id, email });
     }
@@ -375,6 +377,24 @@ router.post('/migrate-guest', migrateGuestLimiter, csrfHeader, requireAuth, asyn
 // ── DELETE /api/auth/account — Delete account and disassociate data ──
 router.delete('/account', deleteAccountLimiter, csrfHeader, requireAuth, async (req, res) => {
   const userId = req.user._id;
+
+  // Revoke Google OAuth consent (best-effort — don't block deletion on failure)
+  const userWithToken = await User.findById(userId).select('+googleAccessToken');
+  if (userWithToken && userWithToken.googleAccessToken) {
+    try {
+      await fetch('https://oauth2.googleapis.com/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `token=${userWithToken.googleAccessToken}`,
+      });
+      log.info('[Auth] Google consent revoked', { userId });
+    } catch (revokeErr) {
+      log.warn('[Auth] Google consent revoke failed (continuing with deletion)', {
+        userId,
+        error: revokeErr.message,
+      });
+    }
+  }
 
   // Wrap in a MongoDB transaction for atomicity; fall back to non-transactional
   // on standalone servers (MongoMemoryServer in tests, single-node Atlas dev cluster).

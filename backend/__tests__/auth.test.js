@@ -737,6 +737,18 @@ describe('POST /api/auth/migrate-guest', () => {
 
 // ── DELETE /api/auth/account ──────────────────────────────────────────────
 describe('DELETE /api/auth/account', () => {
+  // Mock global fetch for Google revocation tests
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   test('deletes user document', async () => {
     const user = await createTestUser();
     const token = signToken(user._id);
@@ -829,6 +841,63 @@ describe('DELETE /api/auth/account', () => {
 
     expect(res.status).toBe(403);
   });
+
+  test('calls Google revoke endpoint when googleAccessToken exists', async () => {
+    const user = await createTestUser();
+    // Set the access token directly (bypassing select: false)
+    await User.updateOne({ _id: user._id }, { googleAccessToken: 'test-access-token-123' });
+    const token = signToken(user._id);
+    const app = createApp();
+
+    await request(app)
+      .delete('/api/auth/account')
+      .set('Cookie', `gridlock_token=${token}`)
+      .set('X-Requested-With', 'XMLHttpRequest');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://oauth2.googleapis.com/revoke',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'token=test-access-token-123',
+      })
+    );
+  });
+
+  test('still succeeds if Google revoke fails (best-effort)', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+    const user = await createTestUser();
+    await User.updateOne({ _id: user._id }, { googleAccessToken: 'test-token-fail' });
+    const token = signToken(user._id);
+    const app = createApp();
+
+    const res = await request(app)
+      .delete('/api/auth/account')
+      .set('Cookie', `gridlock_token=${token}`)
+      .set('X-Requested-With', 'XMLHttpRequest');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    const deleted = await User.findById(user._id);
+    expect(deleted).toBeNull();
+  });
+
+  test('handles missing googleAccessToken gracefully', async () => {
+    const user = await createTestUser();
+    // No googleAccessToken set (default null)
+    const token = signToken(user._id);
+    const app = createApp();
+
+    const res = await request(app)
+      .delete('/api/auth/account')
+      .set('Cookie', `gridlock_token=${token}`)
+      .set('X-Requested-With', 'XMLHttpRequest');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    // fetch should not be called for revocation
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });
 
 // ── N5: migrate-guest with nonexistent guest username ─────────────────────
@@ -900,5 +969,76 @@ describe('POST /api/auth/setup-username — concurrent race condition', () => {
     // The loser should get "already taken"
     const loser = res1.status === 409 ? res1 : res2;
     expect(loser.body.error).toContain('already taken');
+  });
+});
+
+// ── googleAccessToken select: false ───────────────────────────────────────
+describe('User model googleAccessToken select: false', () => {
+  test('googleAccessToken is not returned in default queries', async () => {
+    const user = await createTestUser();
+    await User.updateOne({ _id: user._id }, { googleAccessToken: 'secret-token' });
+
+    // Default query should NOT include googleAccessToken
+    const found = await User.findById(user._id);
+    expect(found.googleAccessToken).toBeUndefined();
+
+    // Explicit select should include it
+    const foundWithToken = await User.findById(user._id).select('+googleAccessToken');
+    expect(foundWithToken.googleAccessToken).toBe('secret-token');
+  });
+
+  test('User.find() does not return googleAccessToken by default', async () => {
+    await createTestUser();
+    await User.updateOne({ googleId: 'google-test-123' }, { googleAccessToken: 'hidden-token' });
+
+    const users = await User.find({ googleId: 'google-test-123' });
+    expect(users[0].googleAccessToken).toBeUndefined();
+  });
+});
+
+// ── Google callback saves access token ────────────────────────────────────
+describe('Google callback saves access token', () => {
+  function mockGoogleSuccess(googleId = 'google-token-test', email = 'tokentest@example.com', name = 'Token Test', picture = 'https://photo.url') {
+    __mockGetToken.mockResolvedValue({
+      tokens: { id_token: 'mock-id-token', access_token: 'mock-saved-access-token' },
+    });
+    __mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: googleId,
+        email,
+        name,
+        picture,
+      }),
+    });
+  }
+
+  test('saves access token for new user', async () => {
+    mockGoogleSuccess('google-newtoken-123');
+    const csrf = crypto.randomBytes(32).toString('hex');
+    const state = makeState(csrf, '/');
+    const app = createApp();
+
+    await request(app)
+      .get(`/api/auth/google/callback?code=auth-code&state=${state}`)
+      .set('Cookie', `oauth_csrf=${csrf}`);
+
+    const user = await User.findOne({ googleId: 'google-newtoken-123' }).select('+googleAccessToken');
+    expect(user).toBeTruthy();
+    expect(user.googleAccessToken).toBe('mock-saved-access-token');
+  });
+
+  test('updates access token for existing user on repeat login', async () => {
+    await createTestUser({ googleId: 'google-existingtoken', googleAccessToken: 'old-token' });
+    mockGoogleSuccess('google-existingtoken', 'test@example.com', 'Test User');
+    const csrf = crypto.randomBytes(32).toString('hex');
+    const state = makeState(csrf, '/');
+    const app = createApp();
+
+    await request(app)
+      .get(`/api/auth/google/callback?code=auth-code&state=${state}`)
+      .set('Cookie', `oauth_csrf=${csrf}`);
+
+    const user = await User.findOne({ googleId: 'google-existingtoken' }).select('+googleAccessToken');
+    expect(user.googleAccessToken).toBe('mock-saved-access-token');
   });
 });
