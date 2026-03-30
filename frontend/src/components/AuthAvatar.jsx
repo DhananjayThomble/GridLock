@@ -157,9 +157,7 @@ const AuthAvatar = () => {
 
 const styles = {
   container: {
-    position: 'fixed',
-    top: '12px',
-    right: '12px',
+    position: 'relative',
     zIndex: 1000,
   },
   guestButton: {
