@@ -289,7 +289,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     log.info(`Server running on port ${PORT}`);
     log.info('Environment:', process.env.NODE_ENV || 'development');
-    log.info('Log level:', LOG_LEVEL);
+    log.info('Log level:', process.env.LOG_LEVEL || 'DEBUG');
 });
 
 // ── Graceful shutdown ───────────────────────────────────────────────────────
