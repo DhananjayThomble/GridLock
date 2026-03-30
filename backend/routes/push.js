@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const PushSubscription = require('../models/PushSubscription');
 const { sanitizeUsername } = require('../utils/sanitize');
+const log = require('../utils/logger');
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ async function handleUnsubscribe(req, res) {
         await PushSubscription.deleteOne({ endpoint });
         res.json({ message: 'Subscription removed' });
     } catch (err) {
-        console.error('[PUSH] Unsubscribe error:', err.message);
+        log.error('[PUSH] Unsubscribe error:', err.message);
         res.status(500).json({ error: 'Failed to remove subscription' });
     }
 }
@@ -82,7 +83,7 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
 
         res.status(201).json({ message: 'Subscription saved' });
     } catch (err) {
-        console.error('[PUSH] Subscribe error:', err.message);
+        log.error('[PUSH] Subscribe error:', err.message);
         res.status(500).json({ error: 'Failed to save subscription' });
     }
 });

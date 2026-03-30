@@ -3,6 +3,7 @@ const router = express.Router();
 const Leaderboard = require('../models/Leaderboard');
 const GameHistory = require('../models/GameHistory');
 const { sanitizeUsername } = require('../utils/sanitize');
+const log = require('../utils/logger');
 
 router.get('/:username', async (req, res) => {
   try {
@@ -72,7 +73,7 @@ router.get('/:username', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Profile] GET error:', error.message);
+    log.error('[Profile] GET error:', error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch profile' });
   }
 });

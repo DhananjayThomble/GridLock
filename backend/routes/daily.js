@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const DailyChallenge = require('../models/DailyChallenge');
 const DailyResult = require('../models/DailyResult');
 const { sanitizeUsername } = require('../utils/sanitize');
+const log = require('../utils/logger');
 const {
   LAUNCH_DATE,
   DEFAULT_GRID_SIZE,
@@ -121,7 +122,7 @@ router.get('/today', async (req, res) => {
       nextPuzzleIn,
     });
   } catch (error) {
-    console.error('[Daily] GET /today error:', error.message);
+    log.error('[Daily] GET /today error:', error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch daily challenge' });
   }
 });
@@ -194,7 +195,7 @@ router.get('/leaderboard', async (req, res) => {
       userResult,
     });
   } catch (error) {
-    console.error('[Daily] GET /leaderboard error:', error.message);
+    log.error('[Daily] GET /leaderboard error:', error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
   }
 });
@@ -282,7 +283,7 @@ router.get('/leaderboard/:date', async (req, res) => {
       userPosition,
     });
   } catch (error) {
-    console.error('[Daily] GET /leaderboard error:', error.message);
+    log.error('[Daily] GET /leaderboard error:', error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
   }
 });
@@ -379,7 +380,7 @@ router.get('/streak/:username', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[Daily] GET /streak error:', error.message);
+    log.error('[Daily] GET /streak error:', error.message);
     res.status(500).json({ success: false, error: 'Failed to fetch streak' });
   }
 });

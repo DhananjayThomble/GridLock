@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const Game = require('../models/Game');
+const log = require('../utils/logger');
 
 // Escape user-supplied strings for safe interpolation into HTML
 function escapeHtml(str) {
@@ -81,7 +82,7 @@ router.get('/:gameId/og', async (req, res) => {
 
         res.set('Content-Type', 'text/html').send(html);
     } catch (err) {
-        console.error('OG meta endpoint error:', err.message);
+        log.error('OG meta endpoint error:', err.message);
         res.status(500).send('Server error');
     }
 });
@@ -147,7 +148,7 @@ router.get('/:gameId/replay', async (req, res) => {
             finishedAt: game.finishedAt,
         });
     } catch (err) {
-        console.error('Replay API error:', err.message);
+        log.error('Replay API error:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
