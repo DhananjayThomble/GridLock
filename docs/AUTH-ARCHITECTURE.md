@@ -1088,8 +1088,8 @@ Authentication E2E
 
 ```bash
 # Production (.env on EC2)
-GOOGLE_CLIENT_ID=981230117350-4kfn5q4umm6qr5eej4eeahpl2s7t4mb4.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
 JWT_SECRET=<generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))">
 
 # Beta (.env — separate JWT secret for environment isolation)

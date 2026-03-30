@@ -11,12 +11,19 @@ const JWT_CONFIG = {
   expiresIn: '7d',
 };
 
+// Fix #11: Added 'auth' and 'login' to reserved list
 const RESERVED_USERNAMES = new Set([
   'admin', 'administrator', 'system', 'gridlock', 'null', 'undefined',
   'root', 'mod', 'moderator', 'support', 'help', 'api', 'www',
   'bot', 'official', 'staff', 'team', 'dev', 'test',
+  'auth', 'login',
 ]);
 
+// Fix #10: Query strings in returnTo are intentionally rejected for security.
+// The regex only allows path characters (letters, digits, /, _, -).
+// This prevents open-redirect attacks via crafted query parameters (e.g.,
+// returnTo=/?redirect=https://evil.com). If the frontend ever needs query
+// params in returnTo, add explicit allowlisting for known safe params.
 const ALLOWED_PATHS = /^\/[a-zA-Z0-9/_-]*$/;
 
 /**
@@ -30,10 +37,22 @@ function validateReturnTo(path) {
   return path;
 }
 
+// Fix #8: Shared cookie options used across auth middleware and routes.
+// Production sets domain to .gridlock.pro for cross-subdomain cookies.
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/',
+  domain: process.env.NODE_ENV === 'production' ? '.gridlock.pro' : undefined,
+};
+
 module.exports = {
   GOOGLE_CONFIG,
   JWT_CONFIG,
   RESERVED_USERNAMES,
   ALLOWED_PATHS,
   validateReturnTo,
+  COOKIE_OPTIONS,
 };

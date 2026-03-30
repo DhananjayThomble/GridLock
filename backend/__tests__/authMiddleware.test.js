@@ -97,7 +97,7 @@ describe('optionalAuth Middleware', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  test('passes through when user deleted', async () => {
+  test('passes through when user deleted (clears cookie)', async () => {
     const user = await createTestUser();
     const token = signToken(user._id);
     await User.deleteOne({ _id: user._id });
@@ -107,6 +107,7 @@ describe('optionalAuth Middleware', () => {
     await optionalAuth(req, res, next);
 
     expect(req.user).toBeUndefined();
+    expect(res.clearCookie).toHaveBeenCalledWith('gridlock_token', expect.any(Object));
     expect(next).toHaveBeenCalledTimes(1);
   });
 

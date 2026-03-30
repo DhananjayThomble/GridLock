@@ -715,6 +715,24 @@ describe('POST /api/auth/migrate-guest', () => {
 
     expect(res.status).toBe(403);
   });
+
+  // Fix #12: Test migration with nonexistent guest username
+  test('returns warning when guest username has no matching records', async () => {
+    const user = await createTestUser();
+    const token = signToken(user._id);
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/auth/migrate-guest')
+      .set('Cookie', `gridlock_token=${token}`)
+      .set('X-Requested-With', 'XMLHttpRequest')
+      .send({ guestUsername: 'nonexistentguest' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toBe('No guest data found for that username');
+    expect(res.body.migrated).toBe(0);
+  });
 });
 
 // ── DELETE /api/auth/account ──────────────────────────────────────────────
@@ -810,5 +828,77 @@ describe('DELETE /api/auth/account', () => {
       .set('Cookie', `gridlock_token=${token}`);
 
     expect(res.status).toBe(403);
+  });
+});
+
+// ── N5: migrate-guest with nonexistent guest username ─────────────────────
+describe('POST /api/auth/migrate-guest — nonexistent guest username', () => {
+  test('returns 200 with warning when no records found for that username', async () => {
+    const user = await createTestUser();
+    const token = signToken(user._id);
+    const app = createApp();
+
+    // Valid format username but no matching records in any collection
+    const res = await request(app)
+      .post('/api/auth/migrate-guest')
+      .set('Cookie', `gridlock_token=${token}`)
+      .set('X-Requested-With', 'XMLHttpRequest')
+      .send({ guestUsername: 'ghostuser99' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    // Should indicate zero records were migrated
+    expect(res.body.migrated).toBe(0);
+  });
+});
+
+// ── N6: setup-username concurrent race condition ───────────────────────────
+describe('POST /api/auth/setup-username — concurrent race condition', () => {
+  test('only one request succeeds when two users race for the same username', async () => {
+    // Create two users who haven't set up their username yet
+    const user1 = await createTestUser({
+      googleId: 'race-google-1',
+      email: 'race1@example.com',
+      username: 'temp_race1',
+      usernameSetupComplete: false,
+    });
+    const user2 = await createTestUser({
+      googleId: 'race-google-2',
+      email: 'race2@example.com',
+      username: 'temp_race2',
+      usernameSetupComplete: false,
+    });
+
+    const token1 = signToken(user1._id);
+    const token2 = signToken(user2._id);
+    const app = createApp();
+
+    // Fire both requests concurrently
+    const [res1, res2] = await Promise.all([
+      request(app)
+        .post('/api/auth/setup-username')
+        .set('Cookie', `gridlock_token=${token1}`)
+        .set('X-Requested-With', 'XMLHttpRequest')
+        .send({ username: 'racewinner' }),
+      request(app)
+        .post('/api/auth/setup-username')
+        .set('Cookie', `gridlock_token=${token2}`)
+        .set('X-Requested-With', 'XMLHttpRequest')
+        .send({ username: 'racewinner' }),
+    ]);
+
+    const statuses = [res1.status, res2.status].sort();
+
+    // One must succeed (200) and the other must get 409 conflict
+    expect(statuses).toEqual([200, 409]);
+
+    // The winner should have their username set
+    const winner = res1.status === 200 ? res1 : res2;
+    expect(winner.body.success).toBe(true);
+    expect(winner.body.user.username).toBe('racewinner');
+
+    // The loser should get "already taken"
+    const loser = res1.status === 409 ? res1 : res2;
+    expect(loser.body.error).toContain('already taken');
   });
 });

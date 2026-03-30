@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
 
 const User = require('../models/User');
 const Leaderboard = require('../models/Leaderboard');
@@ -11,7 +12,8 @@ const RankedProfile = require('../models/RankedProfile');
 const GameHistory = require('../models/GameHistory');
 const DailyResult = require('../models/DailyResult');
 const { optionalAuth, requireAuth, csrfHeader } = require('../middleware/auth');
-const { GOOGLE_CONFIG, JWT_CONFIG, RESERVED_USERNAMES, validateReturnTo } = require('../config/authConfig');
+const { GOOGLE_CONFIG, JWT_CONFIG, RESERVED_USERNAMES, validateReturnTo, COOKIE_OPTIONS } = require('../config/authConfig');
+const log = require('../utils/logger');
 
 const router = express.Router();
 const oauthClient = new OAuth2Client(
@@ -23,22 +25,54 @@ const oauthClient = new OAuth2Client(
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
+// Skip rate limiting in test environment to prevent test interference
+const isTest = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID;
+
+// ── Rate limiters ─────────────────────────────────────────────────────────
+const oauthInitLimiter = rateLimit({
+  skip: () => isTest,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: 'Too many requests, please try again later' },
+});
+
+const oauthCallbackLimiter = rateLimit({
+  skip: () => isTest,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: 'Too many requests, please try again later' },
+});
+
+const setupUsernameLimiter = rateLimit({
+  skip: () => isTest,
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { success: false, error: 'Too many requests, please try again later' },
+});
+
+const deleteAccountLimiter = rateLimit({
+  skip: () => isTest,
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { success: false, error: 'Too many requests, please try again later' },
+});
+
+const migrateGuestLimiter = rateLimit({
+  skip: () => isTest,
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { success: false, error: 'Too many requests, please try again later' },
+});
+
+
+// Cookie helper — spreads shared COOKIE_OPTIONS with optional maxAge override
 function cookieOpts(maxAge) {
-  const opts = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-  };
-  if (process.env.NODE_ENV === 'production') {
-    opts.domain = '.gridlock.pro';
-  }
+  const opts = { ...COOKIE_OPTIONS };
   if (maxAge !== undefined) {
     opts.maxAge = maxAge;
   }
   return opts;
 }
-
 function signJwt(userId) {
   return jwt.sign({ sub: userId.toString() }, JWT_CONFIG.secret || process.env.JWT_SECRET, {
     expiresIn: JWT_CONFIG.expiresIn,
@@ -46,7 +80,7 @@ function signJwt(userId) {
 }
 
 // ── GET /api/auth/google — OAuth initiation ──
-router.get('/google', (req, res) => {
+router.get('/google', oauthInitLimiter, (req, res) => {
   const returnTo = validateReturnTo(req.query.returnTo);
   const csrf = crypto.randomBytes(32).toString('hex');
 
@@ -62,19 +96,22 @@ router.get('/google', (req, res) => {
     prompt: 'select_account',
   });
 
+  log.info('[Auth] OAuth initiation', { returnTo });
   res.redirect(authUrl);
 });
 
 // ── GET /api/auth/google/callback — Token exchange ──
-router.get('/google/callback', async (req, res) => {
+router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
   try {
     // Handle user denial
     if (req.query.error) {
+      log.info('[Auth] OAuth cancelled by user');
       return res.redirect(`${FRONTEND_URL}/?auth=cancelled`);
     }
 
     const { code, state } = req.query;
     if (!code || !state) {
+      log.warn('[Auth] OAuth callback missing code or state');
       return res.redirect(`${FRONTEND_URL}/?auth=error`);
     }
 
@@ -83,12 +120,14 @@ router.get('/google/callback', async (req, res) => {
     try {
       decoded = JSON.parse(Buffer.from(state, 'base64url').toString());
     } catch {
+      log.warn('[Auth] OAuth callback invalid state encoding');
       return res.redirect(`${FRONTEND_URL}/?auth=error`);
     }
 
     // CSRF verification
     const csrfCookie = req.cookies?.oauth_csrf;
     if (!csrfCookie || csrfCookie !== decoded.csrf) {
+      log.warn('[Auth] OAuth CSRF mismatch');
       return res.redirect(`${FRONTEND_URL}/?auth=error`);
     }
 
@@ -118,6 +157,7 @@ router.get('/google/callback', async (req, res) => {
       user.displayName = name;
       user.avatar = picture;
       await user.save();
+      log.info('[Auth] User logged in', { userId: user._id, email });
     } else {
       // Create new user with temporary username
       isNewUser = true;
@@ -130,6 +170,7 @@ router.get('/google/callback', async (req, res) => {
         avatar: picture,
         usernameSetupComplete: false,
       });
+      log.info('[Auth] New user created', { userId: user._id, email });
     }
 
     // Sign JWT and set cookie
@@ -142,6 +183,7 @@ router.get('/google/callback', async (req, res) => {
     }
     return res.redirect(`${FRONTEND_URL}${returnTo}`);
   } catch (err) {
+    log.error('[Auth] OAuth callback error', err.message);
     return res.redirect(`${FRONTEND_URL}/?auth=error`);
   }
 });
@@ -167,12 +209,13 @@ router.get('/me', optionalAuth, (req, res) => {
 
 // ── POST /api/auth/logout — Clear cookie ──
 router.post('/logout', csrfHeader, requireAuth, (req, res) => {
+  log.info('[Auth] User logout', { userId: req.user._id });
   res.clearCookie('gridlock_token', cookieOpts(0));
   res.json({ success: true });
 });
 
 // ── POST /api/auth/setup-username — Pick username after first sign-in ──
-router.post('/setup-username', csrfHeader, requireAuth, async (req, res) => {
+router.post('/setup-username', setupUsernameLimiter, csrfHeader, requireAuth, async (req, res) => {
   const { username } = req.body;
 
   // Validation
@@ -209,6 +252,10 @@ router.post('/setup-username', csrfHeader, requireAuth, async (req, res) => {
     user.usernameSetupComplete = true;
     await user.save();
 
+    log.info('[Auth] Username set up', { userId: user._id, username: trimmed });
+
+    log.info('[Auth] Username set up', { userId: user._id, username: trimmed });
+
     res.json({
       success: true,
       user: {
@@ -230,7 +277,7 @@ router.post('/setup-username', csrfHeader, requireAuth, async (req, res) => {
 });
 
 // ── POST /api/auth/migrate-guest — Transfer guest data to account ──
-router.post('/migrate-guest', csrfHeader, requireAuth, async (req, res) => {
+router.post('/migrate-guest', migrateGuestLimiter, csrfHeader, requireAuth, async (req, res) => {
   const { guestUsername } = req.body;
 
   // Validate guest username
@@ -257,29 +304,26 @@ router.post('/migrate-guest', csrfHeader, requireAuth, async (req, res) => {
   // Use transaction for atomicity (if replica set available)
   // Operations are idempotent (filter on userId: null) so safe without transaction
   const session = await mongoose.startSession();
+  let totalMigrated = 0;
   try {
-    const txnSupported = !!mongoose.connection.client?.options?.replicaSet ||
-      mongoose.connection.readyState === 1; // attempt regardless
-    const sessionOpt = txnSupported ? { session } : {};
-
     const runMigration = async (sess) => {
       const opt = sess ? { session: sess } : {};
-      await Leaderboard.updateMany(
+      const lbResult = await Leaderboard.updateMany(
         { username: trimmed, userId: null },
         { $set: { userId } },
         opt
       );
-      await RankedProfile.updateMany(
+      const rpResult = await RankedProfile.updateMany(
         { username: trimmed, userId: null },
         { $set: { userId } },
         opt
       );
-      await GameHistory.updateMany(
+      const ghResult = await GameHistory.updateMany(
         { username: trimmed, userId: null },
         { $set: { userId } },
         opt
       );
-      await DailyResult.updateMany(
+      const drResult = await DailyResult.updateMany(
         { username: trimmed, userId: null },
         { $set: { userId } },
         opt
@@ -289,36 +333,75 @@ router.post('/migrate-guest', csrfHeader, requireAuth, async (req, res) => {
         { $set: { migratedFromGuest: trimmed } },
         opt
       );
+      return (lbResult.modifiedCount || 0) +
+        (rpResult.modifiedCount || 0) +
+        (ghResult.modifiedCount || 0) +
+        (drResult.modifiedCount || 0);
     };
 
     try {
       await session.withTransaction(async () => {
-        await runMigration(session);
+        totalMigrated = await runMigration(session);
       });
     } catch (txnErr) {
       // Transaction not supported (standalone server) — run without transaction
       // Operations are idempotent due to userId: null filter
-      await runMigration(null);
+      totalMigrated = await runMigration(null);
     }
   } finally {
     session.endSession();
   }
 
-  res.json({ success: true, message: `Guest data from "${trimmed}" migrated successfully` });
+  // Fix #9: Warn when 0 records found across all collections
+  if (totalMigrated === 0) {
+    log.warn('[Auth] Migration found 0 guest records', { userId, guestUsername: trimmed });
+    return res.json({
+      success: true,
+      warning: 'No guest data found for that username',
+      migrated: 0,
+    });
+  }
+
+  log.info('[Auth] Guest data migrated', { userId, guestUsername: trimmed, migrated: totalMigrated });
+  res.json({
+    success: true,
+    message: `Guest data from "${trimmed}" migrated successfully`,
+    migrated: totalMigrated,
+  });
 });
 
 // ── DELETE /api/auth/account — Delete account and disassociate data ──
-router.delete('/account', csrfHeader, requireAuth, async (req, res) => {
+router.delete('/account', deleteAccountLimiter, csrfHeader, requireAuth, async (req, res) => {
   const userId = req.user._id;
 
-  // Nullify userId on associated records (data becomes anonymous/guest again)
-  await Leaderboard.updateMany({ userId }, { $set: { userId: null } });
-  await RankedProfile.updateMany({ userId }, { $set: { userId: null } });
-  await GameHistory.updateMany({ userId }, { $set: { userId: null } });
-  await DailyResult.updateMany({ userId }, { $set: { userId: null } });
+  // Wrap in a MongoDB transaction for atomicity; fall back to non-transactional
+  // on standalone servers (MongoMemoryServer in tests, single-node Atlas dev cluster).
+  const session = await mongoose.startSession();
+  try {
+    const runDeletion = async (sess) => {
+      const opt = sess ? { session: sess } : {};
+      // Nullify userId on associated records (data becomes anonymous/guest again)
+      await Leaderboard.updateMany({ userId }, { $set: { userId: null } }, opt);
+      await RankedProfile.updateMany({ userId }, { $set: { userId: null } }, opt);
+      await GameHistory.updateMany({ userId }, { $set: { userId: null } }, opt);
+      await DailyResult.updateMany({ userId }, { $set: { userId: null } }, opt);
+      // Delete user document
+      await User.deleteOne({ _id: userId }, opt);
+    };
 
-  // Delete user document
-  await User.deleteOne({ _id: userId });
+    try {
+      await session.withTransaction(async () => {
+        await runDeletion(session);
+      });
+    } catch (txnErr) {
+      // Transaction not supported (standalone server) — run without transaction
+      await runDeletion(null);
+    }
+  } finally {
+    session.endSession();
+  }
+
+  log.info('[Auth] Account deleted', { userId });
 
   // Clear cookie
   res.clearCookie('gridlock_token', cookieOpts(0));
