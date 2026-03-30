@@ -7,7 +7,7 @@ const GOOGLE_CONFIG = {
 };
 
 const JWT_CONFIG = {
-  secret: process.env.JWT_SECRET,
+  get secret() { return process.env.JWT_SECRET; },
   expiresIn: '7d',
 };
 
@@ -48,6 +48,9 @@ const COOKIE_OPTIONS = {
   domain: process.env.NODE_ENV === 'production' ? '.gridlock.pro' : undefined,
 };
 
+// For clearCookie, only domain and path matter (other flags are ignored by browsers)
+const CLEAR_COOKIE_OPTS = { domain: COOKIE_OPTIONS.domain, path: COOKIE_OPTIONS.path };
+
 module.exports = {
   GOOGLE_CONFIG,
   JWT_CONFIG,
@@ -55,4 +58,5 @@ module.exports = {
   ALLOWED_PATHS,
   validateReturnTo,
   COOKIE_OPTIONS,
+  CLEAR_COOKIE_OPTS,
 };

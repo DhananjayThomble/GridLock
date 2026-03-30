@@ -12,7 +12,7 @@ const RankedProfile = require('../models/RankedProfile');
 const GameHistory = require('../models/GameHistory');
 const DailyResult = require('../models/DailyResult');
 const { optionalAuth, requireAuth, csrfHeader } = require('../middleware/auth');
-const { GOOGLE_CONFIG, JWT_CONFIG, RESERVED_USERNAMES, validateReturnTo, COOKIE_OPTIONS } = require('../config/authConfig');
+const { GOOGLE_CONFIG, JWT_CONFIG, RESERVED_USERNAMES, validateReturnTo, COOKIE_OPTIONS, CLEAR_COOKIE_OPTS } = require('../config/authConfig');
 const log = require('../utils/logger');
 
 const router = express.Router();
@@ -78,7 +78,7 @@ function cookieOpts(maxAge) {
   return opts;
 }
 function signJwt(userId) {
-  return jwt.sign({ sub: userId.toString() }, JWT_CONFIG.secret || process.env.JWT_SECRET, {
+  return jwt.sign({ sub: userId.toString() }, JWT_CONFIG.secret, {
     expiresIn: JWT_CONFIG.expiresIn,
   });
 }
@@ -136,12 +136,7 @@ router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
     }
 
     // Clear CSRF cookie
-    res.clearCookie('oauth_csrf', {
-      path: COOKIE_OPTIONS.path,
-      domain: COOKIE_OPTIONS.domain,
-      secure: COOKIE_OPTIONS.secure,
-      sameSite: COOKIE_OPTIONS.sameSite,
-    });
+    res.clearCookie('oauth_csrf', CLEAR_COOKIE_OPTS);
 
     const returnTo = validateReturnTo(decoded.returnTo);
 
@@ -219,7 +214,7 @@ router.get('/me', optionalAuth, (req, res) => {
 // ── POST /api/auth/logout — Clear cookie ──
 router.post('/logout', csrfHeader, requireAuth, (req, res) => {
   log.info('[Auth] User logout', { userId: req.user._id });
-  res.clearCookie('gridlock_token', cookieOpts(0));
+  res.clearCookie('gridlock_token', CLEAR_COOKIE_OPTS);
   res.json({ success: true });
 });
 
@@ -411,7 +406,7 @@ router.delete('/account', deleteAccountLimiter, csrfHeader, requireAuth, async (
   log.info('[Auth] Account deleted', { userId });
 
   // Clear cookie
-  res.clearCookie('gridlock_token', cookieOpts(0));
+  res.clearCookie('gridlock_token', CLEAR_COOKIE_OPTS);
   res.json({ success: true, message: 'Account and all associated data deleted' });
 });
 

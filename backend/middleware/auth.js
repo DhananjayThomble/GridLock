@@ -2,10 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { COOKIE_OPTIONS } = require('../config/authConfig');
-
-// For clearCookie, only domain and path matter
-const CLEAR_COOKIE_OPTS = { domain: COOKIE_OPTIONS.domain, path: COOKIE_OPTIONS.path };
+const { COOKIE_OPTIONS, CLEAR_COOKIE_OPTS } = require('../config/authConfig');
 
 /**
  * Attaches req.user if a valid JWT cookie is present.
