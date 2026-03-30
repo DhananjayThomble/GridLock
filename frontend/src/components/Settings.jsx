@@ -1,7 +1,7 @@
 // src/components/Settings.jsx
 // Polished iOS-style settings page with grouped sections
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getSoundSettings, saveSoundSettings } from '../utils/sounds';
@@ -366,6 +366,28 @@ const Settings = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const deleteButtonRef = useRef(null);
+  const cancelButtonRef = useRef(null);
+
+  // Focus trap: focus cancel button when modal opens
+  useEffect(() => {
+    if (showDeleteConfirm && cancelButtonRef.current) {
+      cancelButtonRef.current.focus();
+    }
+  }, [showDeleteConfirm]);
+
+  // Escape key to close modal
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        setShowDeleteConfirm(false);
+        deleteButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [showDeleteConfirm]);
 
 
   const handlePushToggle = async () => {
@@ -592,6 +614,7 @@ const Settings = () => {
                 right={
                   <button
                     onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
+                    ref={deleteButtonRef}
                     data-testid="auth-delete-button"
                     style={{
                       padding: '8px 16px',
@@ -620,12 +643,15 @@ const Settings = () => {
         {showDeleteConfirm && (
           <div
             data-testid="delete-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-modal-title"
             style={{
               position: 'fixed', inset: 0, zIndex: 2000,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backgroundColor: 'var(--overlay-bg)', padding: '16px',
             }}
-            onClick={() => setShowDeleteConfirm(false)}
+            onClick={() => { setShowDeleteConfirm(false); deleteButtonRef.current?.focus(); }}
           >
             <div
               style={{
@@ -635,7 +661,7 @@ const Settings = () => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>
+              <h3 id="delete-modal-title" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>
                 Delete Account?
               </h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px' }}>
@@ -648,7 +674,8 @@ const Settings = () => {
               )}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
-                  onClick={() => setShowDeleteConfirm(false)}
+                  ref={cancelButtonRef}
+                  onClick={() => { setShowDeleteConfirm(false); deleteButtonRef.current?.focus(); }}
                   style={{
                     flex: 1, padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
                     backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)',
@@ -663,6 +690,7 @@ const Settings = () => {
                     setDeleteError('');
                     try {
                       await axios.delete(`${AUTH_API_BASE}/api/auth/account`);
+                      setDeleting(false);
                       setShowDeleteConfirm(false);
                       logout();
                     } catch (err) {

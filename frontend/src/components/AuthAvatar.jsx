@@ -9,6 +9,7 @@ const AuthAvatar = () => {
   const [hoveredIndex, setHoveredIndex] = useState(-1);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef(null);
+  const triggerRef = useRef(null);
   const menuItemsRef = useRef([]);
   const navigate = useNavigate();
 
@@ -57,6 +58,7 @@ const AuthAvatar = () => {
     const handler = (e) => {
       if (e.key === 'Escape') {
         toggleOpen(false);
+        triggerRef.current?.focus();
         return;
       }
       const items = menuActions();
@@ -106,6 +108,7 @@ const AuthAvatar = () => {
   return (
     <div style={styles.container} ref={ref}>
       <button
+        ref={triggerRef}
         onClick={() => toggleOpen(!open)}
         style={styles.avatarButton}
         aria-label="Account menu"

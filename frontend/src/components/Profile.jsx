@@ -3,12 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import useThemeColors from '../hooks/useThemeColors';
 import AuthNudge from './AuthNudge';
 import { captureException } from '../lib/sentry';
-
-const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_SOCKET_URL ||
-  ''
-).replace(/\/$/, '');
+import { API_BASE } from '../config';
 
 const apiUrl = (path) => `${API_BASE}${path}`;
 
