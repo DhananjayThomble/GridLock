@@ -6,6 +6,7 @@ const sentry = require('./lib/sentry');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const helmet = require('helmet');
@@ -26,20 +27,24 @@ const gameHistoryRoutes = require('./routes/gameHistory');
 const rankedRoutes = require('./routes/ranked');
 const dailyRoutes = require('./routes/daily');
 const healthcheckRoutes = require('./routes/healthcheck');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const server = http.createServer(app);
 
-// Logging utility with levels
-const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
-const LOG_LEVEL = (process.env.LOG_LEVEL || 'DEBUG').toUpperCase();
-const currentLevel = LOG_LEVELS[LOG_LEVEL] ?? 0;
-const log = {
-    debug: (...args) => currentLevel <= 0 && console.log('[DEBUG]', new Date().toISOString(), ...args),
-    info: (...args) => currentLevel <= 1 && console.log('[INFO]', new Date().toISOString(), ...args),
-    warn: (...args) => currentLevel <= 2 && console.warn('[WARN]', new Date().toISOString(), ...args),
-    error: (...args) => currentLevel <= 3 && console.error('[ERROR]', new Date().toISOString(), ...args)
-};
+// Structured logger (shared module)
+const log = require('./utils/logger');
+
+// ── Environment validation ──────────────────────────────────────
+// Fail fast in production if critical env vars are missing.
+const REQUIRED_PROD_VARS = ['MONGO_URI', 'JWT_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'FRONTEND_URL'];
+if (process.env.NODE_ENV === 'production') {
+  const missing = REQUIRED_PROD_VARS.filter(v => !process.env[v]);
+  if (missing.length) {
+    log.error('Missing required environment variables:', missing.join(', '));
+    process.exit(1);
+  }
+}
 
 function isLocalProxyAddress(ip = '') {
     return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
@@ -72,8 +77,10 @@ app.use(cors({
         const err = new Error('Not allowed by CORS');
         err.status = 403;
         callback(err);
-    }
+    },
+    credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json());
 app.use(metricsMiddleware); // Prometheus HTTP request tracking (before rate limiter so 429s are counted)
 app.use(httpLimiter); // Global HTTP rate limiting
@@ -99,6 +106,7 @@ const io = new Server(server, {
     cors: {
         origin: ALLOWED_ORIGINS,
         methods: ["GET", "POST"],
+        credentials: true,
     },
 });
 
@@ -190,6 +198,9 @@ app.use('/api/ranked', rankedRoutes);
 
 // Daily challenge API routes
 app.use('/api/daily', dailyRoutes);
+
+// Auth API routes
+app.use('/api/auth', authRoutes);
 
 // Deep health check (post-deploy verification) — mounted before the lightweight
 // /health GET and any catch-all routes to ensure /health/deep is always reachable.
@@ -289,7 +300,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     log.info(`Server running on port ${PORT}`);
     log.info('Environment:', process.env.NODE_ENV || 'development');
-    log.info('Log level:', LOG_LEVEL);
+    log.info('Log level:', process.env.LOG_LEVEL || 'DEBUG');
 });
 
 // ── Graceful shutdown ───────────────────────────────────────────────────────

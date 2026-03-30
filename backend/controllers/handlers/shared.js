@@ -30,7 +30,7 @@ const GameHistory = require('../../models/GameHistory');
 // Prometheus metrics - safe to require (logs error if module not installed)
 let promMetrics;
 try { promMetrics = require('../../lib/metrics').metrics; } catch (err) {
-  console.warn('[metrics] Failed to load metrics module:', err.message);
+  const log = require('../../utils/logger'); log.warn('[metrics] Failed to load metrics module:', err.message);
   promMetrics = null;
 }
 

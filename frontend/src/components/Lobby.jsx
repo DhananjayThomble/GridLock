@@ -10,6 +10,8 @@ import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
 import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby';
+import { isFirstTime } from '../utils/onboarding';
+import GameDemo from './GameDemo';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -80,6 +82,8 @@ const Lobby = () => {
   const [creatingTournament, setCreatingTournament] = useState(false);
   const [joiningTournament, setJoiningTournament]   = useState(false);
   const [quickPlaying, setQuickPlaying] = useState(false);
+  // Challenge link state (#455)
+  const [challengeCreating, setChallengeCreating] = useState(false);
   const [queueSize, setQueueSize] = useState(1);
   const [usernameError, setUsernameError] = useState('');
   const [gameIdError, setGameIdError] = useState('');
@@ -97,6 +101,7 @@ const Lobby = () => {
   const [, setRankedProfileLoading] = useState(false);
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => localStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
+  const [firstTime] = useState(() => isFirstTime());
   // Active game banner state (#365)
   const [activeGame, setActiveGame] = useState(() => {
     try {
@@ -153,6 +158,7 @@ const Lobby = () => {
 
       setCreating(false);
       setJoining(false);
+      setChallengeCreating(false);
       setCreatingTournament(false);
       setJoiningTournament(false);
     };
@@ -401,6 +407,46 @@ const Lobby = () => {
     setRankedCooldownUntil(null);
   };
 
+  // ── Challenge a Friend (#455) ──────────────────────────────────────────────
+  const handleCreateChallenge = () => {
+    initAudio();
+    const name = username.trim();
+    const nameErr = validateUsername(username);
+    if (nameErr) { setUsernameError(nameErr); return; }
+    setUsernameError('');
+    if (!socket.connected) socket.connect();
+    localStorage.setItem('gridlock_username', name);
+    activeActionRef.current = 'challenge';
+    setChallengeCreating(true);
+
+    socket.emit('create_challenge', { username: name, avatar: selectedAvatar }, (res) => {
+      activeActionRef.current = null;
+      setChallengeCreating(false);
+      if (res?.error) {
+        setUsernameError(res.error);
+        return;
+      }
+      if (res?.gameId) {
+        const origin = window.location.origin;
+        const link = `${origin}/play/${name}`;
+
+        // Navigate to waiting room for the challenge
+        navigate(`/waiting/${res.gameId}`, {
+          state: {
+            username: name,
+            gameId: res.gameId,
+            gridSize: 3,
+            avatar: selectedAvatar,
+            playerCount: 2,
+            sessionToken: res.sessionToken,
+            isHost: true,
+            challengeLink: link,
+          },
+        });
+      }
+    });
+  };
+
   const handleQuickPlayCPU = (selectedCount) => {
     const pc = selectedCount || playerCount;
     socket.emit('queue_leave');
@@ -435,6 +481,53 @@ const Lobby = () => {
       } else {
         setCreating(false);
         setUsernameError('Failed to create CPU game. Please try again.');
+      }
+    });
+  };
+
+  // ── Onboarding: Play Now (first-time user → 3×3 CPU Easy) ────────────────
+  const handleOnboardingPlayNow = () => {
+    initAudio();
+    const name = username.trim();
+    const nameErr = validateUsername(username);
+    if (nameErr) { setUsernameError(nameErr); return; }
+    setUsernameError('');
+    if (!socket.connected) socket.connect();
+    localStorage.setItem('gridlock_username', name);
+    activeActionRef.current = 'create';
+    setCreating(true);
+    socket.emit('create_game', {
+      gridSize: 3,
+      username: name,
+      avatar: selectedAvatar,
+      playerCount: 2,
+      cpuPlayers: 1,
+      cpuDifficulty: 'easy',
+    }, (res) => {
+      if (res?.error) {
+        activeActionRef.current = null;
+        setCreating(false);
+        setUsernameError(res.error);
+        return;
+      }
+      if (res?.gameId) {
+        setCreating(false);
+        navigate('/game', {
+          state: {
+            username: name,
+            gridSize: 3,
+            gameId: res.gameId,
+            role: res.playerId,
+            avatar: selectedAvatar,
+            playerCount: 2,
+            sessionToken: res.sessionToken,
+            cpuDifficulty: 'easy',
+            isOnboarding: true,
+          },
+        });
+      } else {
+        setCreating(false);
+        setUsernameError('Failed to start game. Please try again.');
       }
     });
   };
@@ -623,6 +716,69 @@ const Lobby = () => {
             </h1>
           </div>
 
+          {/* ── First-Time Onboarding View ── */}
+          {firstTime && (
+            <div data-testid="onboarding-view" className="p-6 sm:p-8 text-center space-y-5">
+              <div>
+                <p className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                  Welcome! Complete boxes to win.
+                </p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Tap lines between dots. Complete a square = you score!
+                </p>
+              </div>
+
+              <GameDemo />
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
+                <input
+                  data-testid="onboarding-name-input"
+                  type="text"
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleOnboardingPlayNow()}
+                  placeholder="Enter your name"
+                  maxLength={16}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full sm:flex-1 rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+                  style={{
+                    background: 'var(--input-bg)',
+                    border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+                <button
+                  data-testid="onboarding-play-now"
+                  onClick={handleOnboardingPlayNow}
+                  disabled={creating || !username.trim()}
+                  className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-lg transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{
+                    background: creating ? 'var(--bg-surface)' : 'var(--accent)',
+                    color: creating ? 'var(--text-muted)' : 'var(--text-on-accent)',
+                    boxShadow: creating ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
+                  }}
+                >
+                  {creating ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                      Starting…
+                    </span>
+                  ) : (
+                    '▶ Play Now'
+                  )}
+                </button>
+              </div>
+
+              {usernameError && (
+                <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
+              )}
+            </div>
+          )}
+
+          {/* ── Full Lobby (returning users only) ── */}
+          {!firstTime && (<>
           {/* ── Username + Avatar (unified profile card) ── */}
           <div className="p-4 sm:p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* ── Mobile: tappable profile row ── */}
@@ -865,6 +1021,22 @@ const Lobby = () => {
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
+
+            {/* Challenge a Friend (#455) */}
+            <button
+              onClick={handleCreateChallenge}
+              disabled={challengeCreating || creating || !username.trim()}
+              aria-label="Challenge a Friend — generate a shareable invite link"
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
+              style={secondaryStyle(challengeCreating || creating)}
+            >
+              {challengeCreating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                  Creating…
+                </span>
+              ) : '🔗 Challenge a Friend'}
+            </button>
           </div>
 
           {/* ── Secondary actions — shared mobile chips + desktop buttons ── */}
@@ -1055,9 +1227,10 @@ const Lobby = () => {
               </p>
             </div>
           )}
+          </>)}
         </div>
 
-        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Real-time Multiplayer</p>
+        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>DJ</a></p>
 
         {/* ── Recent Opponents ── */}
         <RecentOpponents

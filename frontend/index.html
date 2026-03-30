@@ -4,16 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="GridLock is a real-time multiplayer Dots &amp; Boxes game where strategy and speed decide every match." />
+    <meta name="description" content="GridLock is a real-time multiplayer Dots &amp; Boxes game where strategy and speed decide every match." data-rh="true" />
+    <meta name="author" content="Dhananjay Thomble">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="keywords" content="dots and boxes, dots and boxes online, multiplayer board game, free online game, strategy game, gridlock game, play dots and boxes, browser game, no download" />
     <meta name="theme-color" content="#0F172A" />
     <link rel="canonical" href="%VITE_SITE_URL%/" />
 
-    <meta property="og:title" content="GridLock — Play Dots &amp; Boxes Online Multiplayer" />
-    <meta property="og:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." />
-    <meta property="og:url" content="%VITE_SITE_URL%/" />
-    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:title" content="GridLock — Play Dots &amp; Boxes Online Multiplayer" data-rh="true" />
+    <meta property="og:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." data-rh="true" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" data-rh="true" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" data-rh="true" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content="GridLock" />
@@ -21,10 +22,10 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="GridLock – Multiplayer Dots &amp; Boxes game board" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="GridLock — Play Dots &amp; Boxes Online Multiplayer" />
-    <meta name="twitter:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." />
-    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" data-rh="true" />
+    <meta name="twitter:title" content="GridLock — Play Dots &amp; Boxes Online Multiplayer" data-rh="true" />
+    <meta name="twitter:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." data-rh="true" />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" data-rh="true" />
 
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -32,7 +33,7 @@
     <meta name="apple-mobile-web-app-title" content="GridLock" />
     <link rel="manifest" href="%BASE_URL%manifest.json" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/icon-192.png" />
-    <title>GridLock</title>
+    <title data-rh="true">GridLock</title>
     <script>
       // Apply theme immediately to prevent flash of wrong theme
       (function () {
@@ -59,11 +60,18 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
+      "@type": "VideoGame",
       "name": "GridLock",
-      "description": "GridLock is a real-time multiplayer Dots & Boxes game with tournaments, spectator mode, CPU opponents, and game replay.",
+      "description": "Real-time multiplayer dots and boxes strategy game",
       "url": "%VITE_SITE_URL%",
-      "applicationCategory": "GameApplication",
+      "genre": ["Strategy", "Board Game", "Puzzle"],
+      "numberOfPlayers": {
+        "@type": "QuantitativeValue",
+        "minValue": 1,
+        "maxValue": 4
+      },
+      "playMode": ["MultiPlayer", "SinglePlayer"],
+      "applicationCategory": "Game",
       "operatingSystem": "Web Browser",
       "offers": {
         "@type": "Offer",
@@ -74,15 +82,47 @@
         "@type": "Person",
         "name": "Dhananjay Thomble"
       },
-      "genre": ["Strategy", "Board Game", "Multiplayer", "Puzzle"],
-      "gamePlatform": "Web Browser",
-      "numberOfPlayers": {
-        "@type": "QuantitativeValue",
-        "minValue": 2,
-        "maxValue": 4
-      },
-      "playMode": ["MultiPlayer", "SinglePlayer"],
       "screenshot": "%VITE_SITE_URL%/og-image.png"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How to play dots and boxes?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Players take turns drawing lines between dots on a grid. When you complete the fourth side of a box, you claim it and go again. The player with the most boxes when the grid is full wins. Play free at GridLock — no download needed."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I play dots and boxes online with friends?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes! GridLock lets you play real-time multiplayer dots and boxes with 2-4 players. Create a game, share the room code, and your friends can join instantly from any browser."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is GridLock free to play?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GridLock is 100% free with no ads, no downloads, and no account required. Just open your browser and start playing."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What game modes does GridLock offer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "GridLock offers multiplayer (2-4 players), play vs CPU (easy/medium/hard), daily challenges, ranked matches, and tournaments. Choose grid sizes from 3×3 to 6×6."
+          }
+        }
+      ]
     }
     </script>
   </head>

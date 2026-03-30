@@ -8,8 +8,14 @@ const BETA_API = process.env.BETA_API || 'https://beta-api.gridlock.pro';
 
 /**
  * Navigate to the beta lobby and wait for it to be ready.
+ * Bypasses first-time onboarding by pre-setting localStorage.
  */
 async function goToLobby(page) {
+  // Bypass onboarding: set the played key before any navigation so
+  // Lobby.jsx sees isFirstTime() === false and renders the full view.
+  await page.addInitScript(() => {
+    localStorage.setItem('gridlock_has_played', 'true');
+  });
   await page.goto(BETA_URL, { waitUntil: 'networkidle' });
   await expect(page.locator('body')).toContainText('GridLock');
 }
@@ -90,7 +96,8 @@ async function createCpuGame(page, {
   await selectPlayerCount(page, playerCount);
   await selectGridSize(page, gridSize);
 
-  await page.locator('button:has-text("Play vs CPU")').click();
+  // Toggle CPU opponents — button says "Add CPU Opponents" when disabled
+  await page.locator('button:has-text("Add CPU Opponents")').click();
   await page.waitForSelector('button:has-text("Easy")', { timeout: 10000 });
 
   if (cpuDifficulty) {
@@ -284,8 +291,8 @@ async function createGameWithOptions(page, {
   await selectGridSize(page, gridSize);
 
   if (cpuCount > 0) {
-    // Enable CPU toggle
-    await page.locator('button:has-text("Play vs CPU")').click();
+    // Enable CPU toggle — button says "Add CPU Opponents" when disabled
+    await page.locator('button:has-text("Add CPU Opponents")').click();
     await page.waitForSelector('button:has-text("Easy")', { timeout: 10000 });
 
     // Set difficulty — only click if different from default (clicking default may toggle off)

@@ -117,6 +117,13 @@ const RankedProfileSchema = new mongoose.Schema(
             index: true,
             trim: true,
         },
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+            index: true,
+            sparse: true,
+        },
         elo: {
             type: Number,
             default: 1200,

@@ -11,6 +11,7 @@ import {
 } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { GridThemeProvider } from './contexts/GridThemeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Lobby from './components/Lobby';
 import Board from './components/Board';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -18,6 +19,7 @@ import ConnectionOverlay from './components/ConnectionOverlay';
 import BottomNav from './components/BottomNav';
 import PageSeo from './components/PageSeo';
 import ScrollToTop from './components/ScrollToTop';
+import AuthAvatar from './components/AuthAvatar';
 import ToastProvider, { useToast } from './contexts/ToastContext';
 import './App.css';
 
@@ -32,6 +34,8 @@ const DailyChallenge = lazy(() => import('./components/DailyChallenge'));
 const HowToPlay = lazy(() => import('./components/HowToPlay'));
 const Settings = lazy(() => import('./components/Settings'));
 const WaitingRoom = lazy(() => import('./components/WaitingRoom'));
+const ChallengePage = lazy(() => import('./components/ChallengePage'));
+const AuthSetup = lazy(() => import('./components/AuthSetup'));
 
 // Support /beta sub-path deployment via Vite's BASE_URL
 const basePath = import.meta.env.BASE_URL || '/';
@@ -80,12 +84,42 @@ const RouteLoader = () => (
   </div>
 );
 
+/** Redirect authenticated users who haven't set up their username */
+const AuthSetupRedirect = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const shouldRedirect = !loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup';
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      // Preserve the original path so user can be routed back after setup
+      const returnTo = location.pathname + location.search;
+      const safeReturnTo = returnTo !== '/' ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+      navigate(`/auth/setup${safeReturnTo}`, { replace: true });
+    }
+  }, [shouldRedirect, navigate, location.pathname, location.search]);
+
+  // Prevent content flash while redirect is pending
+  if (shouldRedirect) return <RouteLoader />;
+  return null;
+};
+
 const AppLayout = () => {
+  const { user, loading } = useAuth();
   const location = useLocation();
   const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
+  // Block layout rendering while auth setup redirect is pending (#6 Copilot review)
+  const needsSetupRedirect = !loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup';
+  if (needsSetupRedirect) {
+    return <AuthSetupRedirect />;
+  }
+
   return (
     <>
+      <AuthSetupRedirect />
+      {!hideNav && <AuthAvatar />}
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
@@ -119,8 +153,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Lobby />,
                     {
-                      title: 'Play Dots & Boxes Multiplayer',
-                      description: 'Play GridLock, a real-time multiplayer Dots & Boxes game built for competitive online matches.',
+                      title: 'Play Dots & Boxes Online Free | Multiplayer',
+                      description: 'Challenge friends to the classic dots and boxes strategy game. 2-4 players, real-time multiplayer, tournaments, daily challenges. Free, no download.',
                     },
                   )}
                 </ErrorBoundary>
@@ -147,8 +181,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Leaderboard />,
                     {
-                      title: 'Leaderboard',
-                      description: 'See the top GridLock players and track the latest multiplayer Dots & Boxes rankings.',
+                      title: 'Leaderboard — Top Players & Rankings',
+                      description: 'See the top GridLock players ranked by wins and ELO rating.',
                     },
                   )}
                 </ErrorBoundary>
@@ -161,8 +195,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <GameHistory />,
                     {
-                      title: 'Match History',
-                      description: 'Review recent GridLock matches, outcomes, and performance history.',
+                      title: 'Game History',
+                      description: 'Browse your past GridLock games with replays and stats.',
                     },
                   )}
                 </ErrorBoundary>
@@ -175,8 +209,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <DailyChallenge />,
                     {
-                      title: 'Daily Challenge',
-                      description: "Take on today's GridLock daily challenge and compare your score on the leaderboard.",
+                      title: 'Daily GridLock Challenge — Today\'s Puzzle',
+                      description: "Play today's GridLock challenge. Same puzzle for everyone. Compare your score on the daily leaderboard.",
                     },
                   )}
                 </ErrorBoundary>
@@ -239,8 +273,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <ReplayPage />,
                     {
-                      title: 'Match Replay',
-                      description: 'Watch a completed GridLock match replay and study every move.',
+                      title: 'Game Replay',
+                      description: 'Watch a GridLock game replay move by move.',
                     },
                   )}
                 </ErrorBoundary>
@@ -253,8 +287,8 @@ const AppLayout = () => {
                   {withPageSeo(
                     <HowToPlay />,
                     {
-                      title: 'How to Play — Rules, Strategy & Tips',
-                      description: 'Learn how to play GridLock, the online Dots & Boxes game. Master the rules, strategy tips, double-cross technique, and game modes.',
+                      title: 'How to Play GridLock — Rules & Strategy Guide',
+                      description: 'Learn how to play dots and boxes in 2 minutes. Simple rules, deep strategy. Tap lines, complete boxes, outscore your opponent.',
                     },
                   )}
                 </ErrorBoundary>
@@ -268,13 +302,41 @@ const AppLayout = () => {
                     <Settings />,
                     {
                       title: 'Settings',
-                      description: 'Customize your GridLock experience — theme, sound, notifications, and display preferences.',
+                      description: 'Customize your GridLock experience. Themes, sounds, notifications.',
                     },
                   )}
                 </ErrorBoundary>
               )}
             />
             <Route path="/replays" element={<Navigate to="/history" replace />} />
+            <Route
+              path="/play/:username"
+              element={(
+                <ErrorBoundary>
+                  {withPageSeo(
+                    <ChallengePage />,
+                    {
+                      title: 'Challenge — Play GridLock',
+                      description: 'You\'ve been challenged to a GridLock match! Accept and play now.',
+                    },
+                  )}
+                </ErrorBoundary>
+              )}
+            />
+            <Route
+              path="/auth/setup"
+              element={(
+                <ErrorBoundary>
+                  {withPageSeo(
+                    <AuthSetup />,
+                    {
+                      title: 'Choose Username — GridLock',
+                      description: 'Pick your permanent GridLock username.',
+                    },
+                  )}
+                </ErrorBoundary>
+              )}
+            />
             {/* Catch-all: show toast and redirect unknown routes to lobby (#418) */}
             <Route path="*" element={<NotFoundRedirect />} />
           </Routes>
@@ -290,9 +352,11 @@ function App() {
       <GridThemeProvider>
         <ToastProvider>
           <Router basename={basePath}>
-            <ScrollToTop />
-            <ConnectionOverlay />
-            <AppLayout />
+            <AuthProvider>
+              <ScrollToTop />
+              <ConnectionOverlay />
+              <AppLayout />
+            </AuthProvider>
           </Router>
         </ToastProvider>
       </GridThemeProvider>

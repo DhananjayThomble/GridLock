@@ -88,13 +88,14 @@ const ConnectionOverlay = () => {
       <div
         style={{
           textAlign: 'center',
-          padding: '2rem',
+          padding: '1.5rem',
           borderRadius: '1rem',
           backgroundColor: 'var(--bg-surface, #1a1a2e)',
           color: 'var(--text-primary, #fff)',
           maxWidth: '360px',
-          width: '90%',
+          width: 'calc(100% - 2rem)',
           boxShadow: '0 8px 32px var(--overlay-shadow, rgba(0, 0, 0, 0.4))',
+          margin: '0 1rem',
         }}
       >
         {state === 'reconnecting' ? (
@@ -140,6 +141,10 @@ const ConnectionOverlay = () => {
                 fontWeight: '600',
                 cursor: 'pointer',
                 transition: 'background-color 0.2s',
+                minHeight: '44px',
+                minWidth: '44px',
+                width: '100%',
+                maxWidth: '240px',
               }}
               onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'var(--accent-hover, #2563EB)')}
               onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'var(--accent, #3B82F6)')}

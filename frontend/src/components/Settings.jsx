@@ -1,15 +1,18 @@
 // src/components/Settings.jsx
 // Polished iOS-style settings page with grouped sections
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getSoundSettings, saveSoundSettings } from '../utils/sounds';
 import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 import { useGridTheme } from '../contexts/GridThemeContext';
 import { GRID_THEMES, THEME_IDS, UNLOCK_CONDITIONS } from '../themes/gridThemes';
+import axios from 'axios';
 import socket from '../socket';
+import { API_BASE as AUTH_API_BASE } from '../config';
 
 /* ─── Reusable Toggle Switch ─── */
 const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
@@ -22,9 +25,9 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
     aria-label={label}
     tabIndex={disabled ? -1 : 0}
     style={{
-      width: '44px',
-      height: '24px',
-      borderRadius: '12px',
+      width: '48px',
+      height: '28px',
+      borderRadius: '14px',
       backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
       opacity: disabled ? 0.4 : 1,
       cursor: disabled ? 'not-allowed' : 'pointer',
@@ -33,12 +36,14 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
       padding: 0,
       flexShrink: 0,
       transition: 'background-color 200ms ease',
+      minWidth: '48px',
+      minHeight: '28px',
     }}
   >
     <div
       style={{
-        width: '18px',
-        height: '18px',
+        width: '22px',
+        height: '22px',
         borderRadius: '50%',
         backgroundColor: '#ffffff',
         boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
@@ -58,8 +63,8 @@ const SettingsRow = ({ icon, label, subtitle, right, onClick, showDivider = true
     style={{
       display: 'flex',
       alignItems: 'center',
-      padding: '12px 16px',
-      minHeight: '48px',
+      padding: '14px 16px',
+      minHeight: '52px',
       cursor: onClick ? 'pointer' : 'default',
       borderBottom: showDivider ? '1px solid var(--border-color)' : 'none',
       transition: 'background-color 150ms ease',
@@ -67,10 +72,10 @@ const SettingsRow = ({ icon, label, subtitle, right, onClick, showDivider = true
     }}
   >
     <span style={{ fontSize: '18px', width: '24px', textAlign: 'center', flexShrink: 0 }}>{icon}</span>
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
       <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: '20px' }}>{label}</div>
       {subtitle && (
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '16px', marginTop: '1px' }}>{subtitle}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '16px', marginTop: '2px', wordBreak: 'break-word' }}>{subtitle}</div>
       )}
     </div>
     {right}
@@ -124,8 +129,8 @@ const SoundDetails = ({ settings, onUpdate, muted }) => (
         style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '10px 16px 10px 52px',
-          minHeight: '44px',
+          padding: '10px 16px 10px 44px',
+          minHeight: '48px',
           gap: '12px',
           borderBottom: i < SOUND_OPTIONS.length - 1 ? '1px solid var(--border-color)' : 'none',
         }}
@@ -145,7 +150,7 @@ const SoundDetails = ({ settings, onUpdate, muted }) => (
     ))}
 
     {/* Volume slider */}
-    <div style={{ padding: '10px 16px 14px 52px' }}>
+    <div style={{ padding: '10px 16px 14px 44px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>🔉</span>
@@ -269,13 +274,14 @@ const StatsPanel = ({ stats, onReset }) => (
           onClick={() => { if (window.confirm('Reset all session stats? This cannot be undone.')) { onReset(); } }}
           style={{
             width: '100%',
-            padding: '6px',
-            fontSize: '12px',
+            padding: '10px 6px',
+            fontSize: '13px',
             color: 'var(--danger)',
             background: 'none',
             border: 'none',
             cursor: 'pointer',
             opacity: 0.8,
+            minHeight: '44px',
           }}
         >
           Reset Stats
@@ -347,6 +353,7 @@ const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, onClick }) => (
 /* ─── Main Settings Component ─── */
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
+  const { user, login, logout } = useAuth();
   const isDark = theme === 'dark';
 
   const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
@@ -356,6 +363,46 @@ const Settings = () => {
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(getStats);
   const [soundSettings, setSoundSettings] = useState(() => getSoundSettings());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const deleteButtonRef = useRef(null);
+  const cancelButtonRef = useRef(null);
+  const confirmButtonRef = useRef(null);
+
+  // Focus trap: focus cancel button when modal opens
+  useEffect(() => {
+    if (showDeleteConfirm && cancelButtonRef.current) {
+      cancelButtonRef.current.focus();
+    }
+  }, [showDeleteConfirm]);
+
+  // Escape key to close modal + Tab focus trap
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        setShowDeleteConfirm(false);
+        deleteButtonRef.current?.focus();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusable = [cancelButtonRef.current, confirmButtonRef.current].filter(Boolean);
+        if (focusable.length < 2) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [showDeleteConfirm]);
 
 
   const handlePushToggle = async () => {
@@ -438,7 +485,7 @@ const Settings = () => {
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
               Customize how the game board looks. Unlock new themes by playing!
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            <div className="settings-theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
               {THEME_IDS.map((id) => {
                 const theme = GRID_THEMES[id];
                 const isActive = id === activeGridTheme;
@@ -472,7 +519,7 @@ const Settings = () => {
                   <button
                     onClick={handleInstall}
                     style={{
-                      padding: '6px 14px',
+                      padding: '8px 16px',
                       borderRadius: '8px',
                       fontSize: '13px',
                       fontWeight: 600,
@@ -482,6 +529,8 @@ const Settings = () => {
                       cursor: 'pointer',
                       flexShrink: 0,
                       transition: 'opacity 150ms',
+                      minHeight: '44px',
+                      minWidth: '44px',
                     }}
                   >
                     Install
@@ -493,8 +542,196 @@ const Settings = () => {
           </>
         )}
 
-        {/* ─── ACCOUNT ─── */}
+        {/* ─── ACCOUNT (Auth) ─── */}
         <SectionHeader title="Account" />
+        <SectionCard>
+          {!user ? (
+            /* Guest view */
+            <SettingsRow
+              icon="🔑"
+              label="Sign in with Google"
+              subtitle="Save your stats across devices"
+              right={
+                <button
+                  onClick={login}
+                  data-testid="auth-sign-in-button"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    background: 'var(--accent)',
+                    color: 'var(--text-on-accent)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'opacity 150ms',
+                    minHeight: '44px',
+                    minWidth: '44px',
+                  }}
+                >
+                  Sign In
+                </button>
+              }
+              showDivider={false}
+            />
+          ) : (
+            /* Authenticated view */
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    referrerPolicy="no-referrer"
+                    style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                  />
+                ) : (
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, flexShrink: 0 }}>
+                    {user.username?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{user.username}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', wordBreak: 'break-all' }}>{user.email}</div>
+                </div>
+              </div>
+              <SettingsRow
+                icon="🚪"
+                label="Sign Out"
+                subtitle="You'll still be able to play as a guest"
+                right={
+                  <button
+                    onClick={logout}
+                    data-testid="auth-sign-out-button"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      background: 'var(--bg-card-hover)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      minHeight: '44px',
+                      minWidth: '44px',
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                }
+              />
+              <SettingsRow
+                icon="🗑️"
+                label="Delete Account"
+                subtitle="Permanently remove your account and data"
+                right={
+                  <button
+                    onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
+                    ref={deleteButtonRef}
+                    data-testid="auth-delete-button"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      background: 'none',
+                      color: 'var(--danger)',
+                      border: '1px solid var(--danger)',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      minHeight: '44px',
+                      minWidth: '44px',
+                    }}
+                  >
+                    Delete
+                  </button>
+                }
+                showDivider={false}
+              />
+            </>
+          )}
+        </SectionCard>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div
+            data-testid="delete-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-modal-title"
+            style={{
+              position: 'fixed', inset: 0, zIndex: 2000,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: 'var(--overlay-bg)', padding: '16px',
+            }}
+            onClick={() => { setShowDeleteConfirm(false); deleteButtonRef.current?.focus(); }}
+          >
+            <div
+              style={{
+                maxWidth: '360px', width: '100%', padding: '24px',
+                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                borderRadius: '16px', textAlign: 'center',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="delete-modal-title" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>
+                Delete Account?
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px' }}>
+                This will permanently delete your account and disassociate all your game data. This cannot be undone.
+              </p>
+              {deleteError && (
+                <p style={{ fontSize: '13px', color: 'var(--danger)', margin: '0 0 12px', textAlign: 'left' }} role="alert" data-testid="delete-error">
+                  {deleteError}
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  ref={cancelButtonRef}
+                  onClick={() => { setShowDeleteConfirm(false); deleteButtonRef.current?.focus(); }}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)', cursor: 'pointer', minHeight: '44px',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={confirmButtonRef}
+                  onClick={async () => {
+                    setDeleting(true);
+                    setDeleteError('');
+                    try {
+                      await axios.delete(`${AUTH_API_BASE}/api/auth/account`);
+                      setDeleting(false);
+                      setShowDeleteConfirm(false);
+                      logout();
+                    } catch (err) {
+                      setDeleteError(err.response?.data?.error || 'Failed to delete account. Please try again.');
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleting}
+                  data-testid="delete-confirm-button"
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    backgroundColor: 'var(--danger)', color: 'var(--text-on-accent)',
+                    border: 'none', cursor: deleting ? 'not-allowed' : 'pointer',
+                    opacity: deleting ? 0.5 : 1, minHeight: '44px',
+                  }}
+                >
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── SESSION STATS ─── */}
+        <SectionHeader title="Session Stats" />
         <SectionCard>
           <SettingsRow
             icon="📊"

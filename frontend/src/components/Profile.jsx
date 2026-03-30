@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import useThemeColors from '../hooks/useThemeColors';
+import AuthNudge from './AuthNudge';
 import { captureException } from '../lib/sentry';
-
-const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_SOCKET_URL ||
-  ''
-).replace(/\/$/, '');
+import { API_BASE } from '../config';
 
 const apiUrl = (path) => `${API_BASE}${path}`;
 
@@ -229,6 +225,9 @@ const Profile = () => {
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="max-w-2xl mx-auto space-y-6">
+        {/* Auth Nudge */}
+        <AuthNudge message="Sign in to save your stats across devices" />
+
         {/* Back link */}
         <Link to="/leaderboard" className="text-sm inline-flex items-center gap-1 transition-colors hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
           ← Leaderboard

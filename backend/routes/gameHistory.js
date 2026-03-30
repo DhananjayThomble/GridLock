@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const GameHistory = require('../models/GameHistory');
 const { sanitizeUsername } = require('../utils/sanitize');
+const log = require('../utils/logger');
 
 /**
  * GET /api/games/history
@@ -172,7 +173,7 @@ router.get('/', async (req, res) => {
 
         res.json(response);
     } catch (error) {
-        console.error('[GameHistory] GET error:', error.message);
+        log.error('[GameHistory] GET error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch game history' });
     }
 });

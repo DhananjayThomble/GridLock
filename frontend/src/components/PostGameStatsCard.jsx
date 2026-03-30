@@ -51,6 +51,8 @@ const PostGameStatsCard = ({
   gameDuration,
   role,
   winnerData,
+  onShare,
+  shareStatus,
 }) => {
   const totalBoxes = (gridSize || 3) * (gridSize || 3);
   const playerCount = playerIds.length;
@@ -152,7 +154,7 @@ const PostGameStatsCard = ({
 
   return (
     <div
-      className="stats-card-fade-in rounded-xl p-3 mb-4 w-full"
+      className="stats-card-fade-in rounded-xl p-3 sm:p-4 mb-4 w-full max-w-full overflow-hidden"
       data-testid="post-game-stats"
       style={{
         background: 'var(--bg-card)',
@@ -204,12 +206,23 @@ const PostGameStatsCard = ({
       </div>
 
       <div className="flex justify-center gap-3 mt-2 pt-2 border-t" style={{ borderColor: 'var(--border-color)' }}>
+        {onShare && (
+          <button
+            onClick={onShare}
+            className="text-xs font-medium min-h-[44px] flex items-center px-2 hover:opacity-80 transition-opacity"
+            style={{ color: 'var(--accent)' }}
+            aria-label="Share game result"
+            data-testid="stats-share-btn"
+          >
+            {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
+          </button>
+        )}
         {playerIds.map((pid) => {
           const name = gameState?.[`${pid}Name`] || `P${pid.slice(6)}`;
           const isCPU = !!gameState?.[`${pid}IsCPU`];
           if (isCPU) return null;
           return (
-            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline" style={{ color: 'var(--accent)' }} data-testid={`profile-link-${pid}`}>
+            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline min-h-[44px] flex items-center px-2" style={{ color: 'var(--accent)' }} data-testid={`profile-link-${pid}`}>
               👤 {name}
             </Link>
           );

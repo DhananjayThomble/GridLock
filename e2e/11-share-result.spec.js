@@ -60,7 +60,7 @@ test.describe('Share Result', () => {
     // Verify grid dimensions: should have 3 rows of emoji (each row = 3 emoji = 3*2 or 3*1 chars)
     const lines = clipboardText.split('\n');
     // Find grid lines (lines with only emoji characters)
-    const gridLines = lines.filter(l => /^[🟦🟥🟩🟨⬜]+$/.test(l.trim()));
+    const gridLines = lines.filter(l => /^[🟦🟥🟩🟨⬛]+$/.test(l.trim()));
     expect(gridLines.length).toBe(3); // 3×3 grid
 
     } finally {

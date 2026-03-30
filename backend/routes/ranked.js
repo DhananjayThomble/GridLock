@@ -5,6 +5,7 @@ const router = express.Router();
 const RankedProfile = require('../models/RankedProfile');
 const { getTierFromElo, softResetElo } = require('../models/RankedProfile');
 const { sanitizeUsername } = require('../utils/sanitize');
+const log = require('../utils/logger');
 
 /**
  * GET /api/ranked/profile/:username
@@ -54,7 +55,7 @@ router.get('/profile/:username', async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('[Ranked] GET profile error:', error.message);
+        log.error('[Ranked] GET profile error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch ranked profile' });
     }
 });
@@ -99,7 +100,7 @@ router.get('/leaderboard', async (req, res) => {
 
         res.json({ success: true, count: leaderboard.length, leaderboard });
     } catch (error) {
-        console.error('[Ranked] GET leaderboard error:', error.message);
+        log.error('[Ranked] GET leaderboard error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch ranked leaderboard' });
     }
 });
@@ -171,7 +172,7 @@ router.post('/season-reset', async (req, res) => {
             newSeason: newSeasonNumber,
         });
     } catch (error) {
-        console.error('[Ranked] Season reset error:', error.message);
+        log.error('[Ranked] Season reset error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to perform season reset' });
     }
 });
