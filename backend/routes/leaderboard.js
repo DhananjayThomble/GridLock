@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Leaderboard = require('../models/Leaderboard');
 const { sanitizeUsername } = require('../utils/sanitize');
+const log = require('../utils/logger');
 const {
     buildAtomicLeaderboardUpdate,
     updateLeaderboardWithOptimisticElo,
@@ -40,7 +41,7 @@ router.get('/', async (req, res) => {
 
         res.json({ success: true, count: leaderboard.length, leaderboard });
     } catch (error) {
-        console.error('[Leaderboard] GET error:', error.message);
+        log.error('[Leaderboard] GET error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
     }
 });
@@ -89,7 +90,7 @@ router.get('/:username', async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('[Leaderboard] GET /:username error:', error.message);
+        log.error('[Leaderboard] GET /:username error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to fetch player stats' });
     }
 });
@@ -182,7 +183,7 @@ router.post('/', async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('[Leaderboard] POST error:', error.message);
+        log.error('[Leaderboard] POST error:', error.message);
         res.status(500).json({ success: false, error: 'Failed to update player stats' });
     }
 });

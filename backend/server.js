@@ -30,16 +30,8 @@ const healthcheckRoutes = require('./routes/healthcheck');
 const app = express();
 const server = http.createServer(app);
 
-// Logging utility with levels
-const LOG_LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
-const LOG_LEVEL = (process.env.LOG_LEVEL || 'DEBUG').toUpperCase();
-const currentLevel = LOG_LEVELS[LOG_LEVEL] ?? 0;
-const log = {
-    debug: (...args) => currentLevel <= 0 && console.log('[DEBUG]', new Date().toISOString(), ...args),
-    info: (...args) => currentLevel <= 1 && console.log('[INFO]', new Date().toISOString(), ...args),
-    warn: (...args) => currentLevel <= 2 && console.warn('[WARN]', new Date().toISOString(), ...args),
-    error: (...args) => currentLevel <= 3 && console.error('[ERROR]', new Date().toISOString(), ...args)
-};
+// Structured logger (shared module)
+const log = require('./utils/logger');
 
 function isLocalProxyAddress(ip = '') {
     return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
