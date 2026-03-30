@@ -10,6 +10,9 @@
  * NOTE: This config uses absolute paths matching the EC2 directory layout
  * documented in INFRASTRUCTURE.md. If the server layout changes, update
  * both this file and the deploy scripts.
+ *
+ * IMPORTANT: All environment variables are loaded from .env files via dotenv
+ * in each app's server.js. No secrets should be in this file — it's tracked by git.
  */
 module.exports = {
   apps: [
@@ -17,13 +20,8 @@ module.exports = {
       name: 'gridlock-backend',
       script: 'server.js',
       cwd: '/home/ubuntu/projects/GridLock-prod/backend',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 5000,
-        MONGO_URI: 'mongodb://localhost:27017/gridlock',
-        REDIS_URL: 'redis://localhost:6379',
-        SENTRY_DSN: 'https://520dbc2729cd4dd8937236630f1f6599@sentry.gridlock.pro/2',
-      },
+      // All env vars come from .env file (loaded by dotenv in server.js)
+      // No secrets in this file — it's tracked by git
       instances: 1,
       autorestart: true,
       max_memory_restart: '512M',
@@ -35,15 +33,8 @@ module.exports = {
       name: 'gridlock-beta-backend',
       script: 'server.js',
       cwd: '/home/ubuntu/projects/GridLock-beta/backend',
-      env: {
-        // Intentionally 'development' — beta mirrors dev behavior for testing
-        // (verbose logging, detailed errors, no caching). Not a typo.
-        NODE_ENV: 'development',
-        PORT: 5001,
-        MONGO_URI: 'mongodb://localhost:27017/gridlock_beta',
-        REDIS_URL: 'redis://localhost:6379',
-        SENTRY_DSN: 'https://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3',
-      },
+      // All env vars come from .env file (loaded by dotenv in server.js)
+      // Beta uses NODE_ENV=development for verbose logging, detailed errors
       instances: 1,
       autorestart: true,
       max_memory_restart: '512M',
@@ -55,9 +46,6 @@ module.exports = {
       name: 'gh-notify',
       script: 'server.js',
       cwd: '/home/ubuntu/projects/gh-notify',
-      env: {
-        NODE_ENV: 'production',
-      },
       instances: 1,
       autorestart: true,
       max_memory_restart: '256M',

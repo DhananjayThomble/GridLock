@@ -34,9 +34,8 @@ git reset --hard origin/develop
 # ── Backend ──
 cd "$BETA_REPO/backend"
 npm ci --omit=dev
-MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
-  pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
-  MONGO_URI=mongodb://localhost:27017/gridlock_beta PORT=5001 \
+# Env vars are loaded from backend/.env via dotenv in server.js
+pm2 reload gridlock-beta-backend --update-env 2>/dev/null || \
   pm2 start "$BETA_REPO/backend/server.js" --name gridlock-beta-backend
 
 sleep 2

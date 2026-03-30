@@ -35,6 +35,17 @@ const server = http.createServer(app);
 // Structured logger (shared module)
 const log = require('./utils/logger');
 
+// ── Environment validation ──────────────────────────────────────
+// Fail fast in production if critical env vars are missing.
+const REQUIRED_PROD_VARS = ['MONGO_URI', 'JWT_SECRET', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'FRONTEND_URL'];
+if (process.env.NODE_ENV === 'production') {
+  const missing = REQUIRED_PROD_VARS.filter(v => !process.env[v]);
+  if (missing.length) {
+    log.error('Missing required environment variables:', missing.join(', '));
+    process.exit(1);
+  }
+}
+
 function isLocalProxyAddress(ip = '') {
     return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
 }
