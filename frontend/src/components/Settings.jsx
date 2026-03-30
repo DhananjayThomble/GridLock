@@ -671,8 +671,9 @@ const Settings = () => {
             <div
               style={{
                 maxWidth: '360px', width: '100%', padding: '24px',
-                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color-strong)',
                 borderRadius: '16px', textAlign: 'center',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
               }}
               onClick={(e) => e.stopPropagation()}
             >
