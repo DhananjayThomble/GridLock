@@ -35,6 +35,7 @@ const WaitingRoom = () => {
   const [autoStartAt, setAutoStartAt] = useState(null);
   const [autoStartCountdown, setAutoStartCountdown] = useState(null);
   const [disconnectTimers, setDisconnectTimers] = useState({});
+  const [sessionConflictMessage, setSessionConflictMessage] = useState(null);
 
   // Prevent double-navigate
   const navigatedRef = useRef(false);
@@ -110,6 +111,13 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
+    const onSessionConflict = () => {
+      socket.io.opts.reconnection = false;
+      socket.disconnect();
+      setSessionConflictMessage('This game is open in another tab. Redirecting to lobby…');
+      setTimeout(() => navigate('/'), 3000);
+    };
+
     socket.on('lobby_state', onLobbyState);
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_disconnected', onPlayerDisconnected);
@@ -117,6 +125,7 @@ const WaitingRoom = () => {
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
     socket.on('room_full', onRoomFull);
+    socket.on('session_conflict', onSessionConflict);
 
     return () => {
       socket.off('lobby_state', onLobbyState);
@@ -126,6 +135,7 @@ const WaitingRoom = () => {
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
       socket.off('room_full', onRoomFull);
+      socket.off('session_conflict', onSessionConflict);
 
       // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
       if (!navigatedRef.current) {
@@ -236,6 +246,20 @@ const WaitingRoom = () => {
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
       <div className="w-full max-w-md">
+
+        {/* Session conflict banner */}
+        {sessionConflictMessage && (
+          <div
+            className="mb-4 rounded-xl p-4 text-center text-sm font-semibold"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--danger) 15%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)',
+              color: 'var(--danger)',
+            }}
+          >
+            ⚠️ {sessionConflictMessage}
+          </div>
+        )}
 
         {/* Header */}
         <div className="text-center mb-6">
