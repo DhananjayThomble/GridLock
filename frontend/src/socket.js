@@ -18,9 +18,9 @@ const socket = io(socketUrl, {
   transports: ['websocket', 'polling'],
   // Reconnection settings
   reconnection: true,
-  reconnectionAttempts: 10,        // Try up to 10 times
-  reconnectionDelay: 1000,         // Start at 1s
-  reconnectionDelayMax: 5000,      // Cap at 5s
+  reconnectionAttempts: 20,        // Give more chances on flaky mobile networks
+  reconnectionDelay: 500,          // Start faster (500ms)
+  reconnectionDelayMax: 10000,     // Allow longer backoff on really bad networks
   timeout: 20000,                  // Connection timeout
 });
 
@@ -102,5 +102,25 @@ socket.on('idle_timeout', ({ reason, timeoutMs }) => {
     }));
   }
 });
+
+// ── Mobile reconnection helpers ───────────────────────────────────────────────
+// When the user switches away (e.g. sharing a link on WhatsApp) and comes back,
+// the socket may have silently disconnected. Force a reconnect on visibility
+// change and network recovery so players don't appear as "disconnected".
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !socket.connected) {
+      console.log('[GridLock] Tab visible, reconnecting socket...');
+      socket.connect();
+    }
+  });
+
+  window.addEventListener('online', () => {
+    if (!socket.connected) {
+      console.log('[GridLock] Network back online, reconnecting socket...');
+      socket.connect();
+    }
+  });
+}
 
 export default socket;

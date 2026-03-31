@@ -35,7 +35,7 @@ try { promMetrics = require('../../lib/metrics').metrics; } catch (err) {
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 30_000;
+const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 45_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 const CLEANUP_DELAY_MS = 60_000;
 const HOST_START_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
