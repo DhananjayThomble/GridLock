@@ -290,7 +290,7 @@ function register(io, socket, log, rateLimited, validate) {
                     const existingSocketId = player.id;
                     const existingSocket = existingSocketId ? io.sockets.sockets.get(existingSocketId) : null;
 
-                    if (existingSocket && existingSocket.connected) {
+                    if (existingSocket && existingSocket.connected && existingSocketId !== socket.id) {
                         // Notify old tab
                         existingSocket.emit('session_conflict', {
                             reason: 'Another tab or window connected with your session',
