@@ -24,10 +24,16 @@ const socket = io(socketUrl, {
   timeout: 20000,                  // Connection timeout
 });
 
+// ── Lifecycle reconnection constants ──────────────────────────────────────────
+const LIVENESS_TIMEOUT_MS = 5000;     // Max wait for app_ping response
+const FREEZE_THRESHOLD_MS = 30000;    // Force reconnect after frozen >30s
+const STALE_THRESHOLD_MS = 60000;     // Consider connection stale after 60s without activity
+const LIVENESS_DELAY_MS = 2000;       // Delay before liveness check after reconnect
+
 // ── Connection liveness tracking ──────────────────────────────────────────────
 // Track the last time we confirmed the connection is alive. Used by Page
 // Lifecycle handlers to detect stale connections after freeze/resume/BFCache.
-// Updated in connect/disconnect handlers and on app_ping callbacks.
+// Updated on connect and app_ping callbacks only (positive confirmation).
 let lastAliveAt = Date.now();
 
 // ── Sentry socket tracking ────────────────────────────────────────────────────
@@ -46,8 +52,6 @@ socket.on('connect', () => {
 });
 
 socket.on('disconnect', (reason) => {
-  lastAliveAt = Date.now();
-
   addBreadcrumb({
     category: 'socket',
     message: `Socket disconnected: ${reason}`,
@@ -112,22 +116,41 @@ socket.on('idle_timeout', ({ reason, timeoutMs }) => {
   }
 });
 
+// ── Force reconnect helper ────────────────────────────────────────────────────
+// Cleanly disconnects and reconnects the socket, then dispatches a window event
+// so components (Board.jsx) can re-emit join_game. We can't rely on Socket.IO's
+// Manager 'reconnect' event because disconnect()+connect() creates a fresh
+// connection, not a reconnection.
+function forceReconnect(reason) {
+  addBreadcrumb({ category: 'socket', message: `Force reconnect: ${reason}`, level: 'warning' });
+  socket.disconnect();
+  socket.connect();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('gridlock:force_reconnect', { detail: { reason } }));
+  }
+}
+
 // ── Liveness check ────────────────────────────────────────────────────────────
 // After a freeze/resume or BFCache restore, socket.connected may return true
 // even though the underlying connection is dead. This function verifies via a
 // round-trip app_ping to the server.
+let livenessCheckActive = false;
+
 function checkLiveness() {
   if (!socket.connected || !socket.active) return;
+  if (livenessCheckActive) return; // Already checking
+  livenessCheckActive = true;
 
   const timeoutId = setTimeout(() => {
+    livenessCheckActive = false;
     console.warn('[GridLock] Liveness check failed — forcing reconnect');
     addBreadcrumb({ category: 'socket', message: 'Liveness check timeout', level: 'error' });
-    socket.disconnect();
-    socket.connect();
-  }, 5000);
+    forceReconnect('liveness check timeout');
+  }, LIVENESS_TIMEOUT_MS);
 
   socket.emit('app_ping', () => {
     clearTimeout(timeoutId);
+    livenessCheckActive = false;
     lastAliveAt = Date.now();
   });
 }
@@ -161,7 +184,7 @@ if (typeof document !== 'undefined') {
     if (!socket.connected) {
       console.log('[GridLock] Tab visible, socket disconnected, reconnecting...');
       socket.connect();
-    } else if (elapsed > 60000) {
+    } else if (elapsed > STALE_THRESHOLD_MS) {
       // Connected but haven't heard from server in >60s — likely stale after freeze
       console.log(`[GridLock] Tab visible, ${Math.round(elapsed / 1000)}s since last activity — checking liveness`);
       checkLiveness();
@@ -184,13 +207,12 @@ if (typeof document !== 'undefined') {
 
     if (!socket.active) return; // Intentionally disconnected (idle_timeout)
 
-    if (elapsed > 30000) {
+    if (elapsed > FREEZE_THRESHOLD_MS) {
       // Frozen for >30s — socket is almost certainly dead even if socket.connected says true
       console.log('[GridLock] Long freeze detected, forcing reconnect...');
-      socket.disconnect();
-      socket.connect();
+      forceReconnect('long freeze');
       // Verify the reconnection is actually alive after a short delay
-      setTimeout(() => checkLiveness(), 2000);
+      setTimeout(() => checkLiveness(), LIVENESS_DELAY_MS);
     } else if (!socket.connected) {
       socket.connect();
     }
@@ -207,10 +229,9 @@ if (typeof document !== 'undefined') {
       addBreadcrumb({ category: 'socket', message: `BFCache restore, ${elapsed}ms elapsed`, level: 'info' });
       if (socket.active) {
         // Force close stale connection and reconnect
-        socket.disconnect();
-        socket.connect();
+        forceReconnect('BFCache restore');
         // Verify the reconnection is actually alive after a short delay
-        setTimeout(() => checkLiveness(), 2000);
+        setTimeout(() => checkLiveness(), LIVENESS_DELAY_MS);
       }
     }
   });
