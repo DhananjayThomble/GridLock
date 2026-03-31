@@ -26,6 +26,7 @@ import { useGridTheme } from '../contexts/GridThemeContext';
 import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
 import useGridSizes from '../hooks/useGridSizes';
 import { markPlayed } from '../utils/onboarding';
+import { initTabSync, cleanup as cleanupTabSync } from '../utils/tabSync';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -478,6 +479,12 @@ const Board = () => {
       setTimeout(() => setError(null), 6000);
     };
 
+    const onSessionConflict = () => {
+      socket.io.opts.reconnection = false;
+      socket.disconnect();
+      setError('This game is open in another tab or window. Close this tab to continue playing there.');
+    };
+
     socket.on('game_started',       onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',        onGameUpdate);
@@ -489,6 +496,14 @@ const Board = () => {
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
     socket.on('player_left',         onPlayerLeft);
+    socket.on('session_conflict',    onSessionConflict);
+
+    // BroadcastChannel tab coordination (defense-in-depth)
+    initTabSync(gameId, username, () => {
+      socket.io.opts.reconnection = false;
+      socket.disconnect();
+      setError('This game is open in another tab. Close this tab to continue playing there.');
+    });
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -541,8 +556,10 @@ const Board = () => {
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
       socket.off('player_left',         onPlayerLeft);
+      socket.off('session_conflict',    onSessionConflict);
       socket.io.off('reconnect',        onReconnect);
       window.removeEventListener('gridlock:force_reconnect', onForceReconnect);
+      cleanupTabSync();
       if (pendingForceReconnect) {
         socket.off('connect', pendingForceReconnect);
         pendingForceReconnect = null;
