@@ -22,6 +22,15 @@ export function initSentry() {
       : undefined,
     enabled: isProd,
 
+    beforeSend(event) {
+      // Drop events from local dev/test environments
+      if (typeof window !== 'undefined' &&
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return null;
+      }
+      return event;
+    },
+
     // Performance: light sampling in prod
     tracesSampleRate: 0.1,
 
