@@ -29,12 +29,14 @@ const LIVENESS_TIMEOUT_MS = 5000;     // Max wait for app_ping response
 const FREEZE_THRESHOLD_MS = 30000;    // Force reconnect after frozen >30s
 const STALE_THRESHOLD_MS = 60000;     // Consider connection stale after 60s without activity
 const LIVENESS_DELAY_MS = 2000;       // Delay before liveness check after reconnect
+const FORCE_RECONNECT_DEDUP_MS = 1000; // Ignore duplicate forceReconnect within 1s
 
 // ── Connection liveness tracking ──────────────────────────────────────────────
 // Track the last time we confirmed the connection is alive. Used by Page
 // Lifecycle handlers to detect stale connections after freeze/resume/BFCache.
-// Updated on connect and app_ping callbacks only (positive confirmation).
+// Updated on connect, app_ping callbacks, and freeze handler (positive confirmation / snapshot).
 let lastAliveAt = Date.now();
+let lastForceReconnectAt = 0;
 
 // ── Sentry socket tracking ────────────────────────────────────────────────────
 
@@ -122,7 +124,15 @@ socket.on('idle_timeout', ({ reason, timeoutMs }) => {
 // Manager 'reconnect' event because disconnect()+connect() creates a fresh
 // connection, not a reconnection.
 function forceReconnect(reason) {
+  const now = Date.now();
+  if (now - lastForceReconnectAt < FORCE_RECONNECT_DEDUP_MS) {
+    console.log(`[GridLock] Skipping duplicate forceReconnect (${reason})`);
+    return;
+  }
+  lastForceReconnectAt = now;
+
   addBreadcrumb({ category: 'socket', message: `Force reconnect: ${reason}`, level: 'warning' });
+  console.log(`[GridLock] Force reconnecting: ${reason}`);
   socket.disconnect();
   socket.connect();
   if (typeof window !== 'undefined') {
