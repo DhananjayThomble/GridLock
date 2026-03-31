@@ -447,101 +447,6 @@ const Settings = () => {
           </h1>
         </div>
 
-        {/* ─── PREFERENCES ─── */}
-        <SectionHeader title="Preferences" />
-        <SectionCard>
-          <SettingsRow
-            icon={isDark ? '🌙' : '☀️'}
-            label={isDark ? 'Dark Mode' : 'Light Mode'}
-            subtitle={`Tap to switch to ${isDark ? 'light' : 'dark'} theme`}
-            right={<ToggleSwitch checked={isDark} onChange={toggleTheme} label="Theme toggle" />}
-          />
-          <SettingsRow
-            icon={isMuted ? '🔇' : '🔊'}
-            label={isMuted ? 'Sounds Off' : 'Sounds On'}
-            subtitle={isMuted ? 'All sounds are off' : 'Game sounds & haptics'}
-            right={<ToggleSwitch checked={!isMuted} onChange={() => updateSound('masterMute', !isMuted)} label="Master Sound" />}
-            onClick={() => setShowSoundDetails((o) => !o)}
-            expandable
-            expanded={showSoundDetails}
-            showDivider={!showSoundDetails}
-          />
-          {showSoundDetails && (
-            <SoundDetails settings={soundSettings} onUpdate={updateSound} muted={isMuted} />
-          )}
-          <SettingsRow
-            icon="🔔"
-            label="Push Notifications"
-            subtitle={hasUsername ? "Get notified when it's your turn" : 'Set a username in the lobby first'}
-            right={<ToggleSwitch checked={pushEnabled} onChange={handlePushToggle} disabled={!hasUsername} label="Push notifications" />}
-            showDivider={false}
-          />
-        </SectionCard>
-
-        {/* ─── GRID THEME ─── */}
-        <SectionHeader title="Grid Theme" />
-        <SectionCard>
-          <div style={{ padding: '12px 16px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              Customize how the game board looks. Unlock new themes by playing!
-            </div>
-            <div className="settings-theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-              {THEME_IDS.map((id) => {
-                const theme = GRID_THEMES[id];
-                const isActive = id === activeGridTheme;
-                const isLocked = !unlockedThemes.includes(id);
-                const condition = UNLOCK_CONDITIONS[id];
-                return (
-                  <ThemePreview
-                    key={id}
-                    theme={theme}
-                    isActive={isActive}
-                    isLocked={isLocked}
-                    unlockLabel={condition?.label || ''}
-                    onClick={() => !isLocked && setGridTheme(id)}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </SectionCard>
-
-        {/* ─── APP ─── */}
-        {canInstall && (
-          <>
-            <SectionHeader title="App" />
-            <SectionCard>
-              <SettingsRow
-                icon="📲"
-                label="Install App"
-                subtitle="Add GridLock to your home screen"
-                right={
-                  <button
-                    onClick={handleInstall}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      background: 'var(--accent)',
-                      color: 'var(--text-on-accent)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                      transition: 'opacity 150ms',
-                      minHeight: '44px',
-                      minWidth: '44px',
-                    }}
-                  >
-                    Install
-                  </button>
-                }
-                showDivider={false}
-              />
-            </SectionCard>
-          </>
-        )}
-
         {/* ─── ACCOUNT (Auth) ─── */}
         <SectionHeader title="Account" />
         <SectionCard>
@@ -654,6 +559,101 @@ const Settings = () => {
           )}
         </SectionCard>
 
+        {/* ─── PREFERENCES ─── */}
+        <SectionHeader title="Preferences" />
+        <SectionCard>
+          <SettingsRow
+            icon={isDark ? '🌙' : '☀️'}
+            label={isDark ? 'Dark Mode' : 'Light Mode'}
+            subtitle={`Tap to switch to ${isDark ? 'light' : 'dark'} theme`}
+            right={<ToggleSwitch checked={isDark} onChange={toggleTheme} label="Theme toggle" />}
+          />
+          <SettingsRow
+            icon={isMuted ? '🔇' : '🔊'}
+            label={isMuted ? 'Sounds Off' : 'Sounds On'}
+            subtitle={isMuted ? 'All sounds are off' : 'Game sounds & haptics'}
+            right={<ToggleSwitch checked={!isMuted} onChange={() => updateSound('masterMute', !isMuted)} label="Master Sound" />}
+            onClick={() => setShowSoundDetails((o) => !o)}
+            expandable
+            expanded={showSoundDetails}
+            showDivider={!showSoundDetails}
+          />
+          {showSoundDetails && (
+            <SoundDetails settings={soundSettings} onUpdate={updateSound} muted={isMuted} />
+          )}
+          <SettingsRow
+            icon="🔔"
+            label="Push Notifications"
+            subtitle={hasUsername ? "Get notified when it's your turn" : 'Set a username in the lobby first'}
+            right={<ToggleSwitch checked={pushEnabled} onChange={handlePushToggle} disabled={!hasUsername} label="Push notifications" />}
+            showDivider={false}
+          />
+        </SectionCard>
+
+        {/* ─── GRID THEME ─── */}
+        <SectionHeader title="Grid Theme" />
+        <SectionCard>
+          <div style={{ padding: '12px 16px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              Customize how the game board looks. Unlock new themes by playing!
+            </div>
+            <div className="settings-theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+              {THEME_IDS.map((id) => {
+                const theme = GRID_THEMES[id];
+                const isActive = id === activeGridTheme;
+                const isLocked = !unlockedThemes.includes(id);
+                const condition = UNLOCK_CONDITIONS[id];
+                return (
+                  <ThemePreview
+                    key={id}
+                    theme={theme}
+                    isActive={isActive}
+                    isLocked={isLocked}
+                    unlockLabel={condition?.label || ''}
+                    onClick={() => !isLocked && setGridTheme(id)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ─── APP ─── */}
+        {canInstall && (
+          <>
+            <SectionHeader title="App" />
+            <SectionCard>
+              <SettingsRow
+                icon="📲"
+                label="Install App"
+                subtitle="Add GridLock to your home screen"
+                right={
+                  <button
+                    onClick={handleInstall}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      background: 'var(--accent)',
+                      color: 'var(--text-on-accent)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'opacity 150ms',
+                      minHeight: '44px',
+                      minWidth: '44px',
+                    }}
+                  >
+                    Install
+                  </button>
+                }
+                showDivider={false}
+              />
+            </SectionCard>
+          </>
+        )}
+
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div
@@ -671,8 +671,9 @@ const Settings = () => {
             <div
               style={{
                 maxWidth: '360px', width: '100%', padding: '24px',
-                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color-strong)',
                 borderRadius: '16px', textAlign: 'center',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -680,7 +681,7 @@ const Settings = () => {
                 Delete Account?
               </h3>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 20px' }}>
-                This will permanently delete your account and disassociate all your game data. This cannot be undone.
+                This will permanently delete your account, disassociate all your game data, and revoke GridLock's access to your Google account. This cannot be undone.
               </p>
               {deleteError && (
                 <p style={{ fontSize: '13px', color: 'var(--danger)', margin: '0 0 12px', textAlign: 'left' }} role="alert" data-testid="delete-error">

@@ -180,10 +180,14 @@ export default function GameDemo() {
           <span style={{ color: p1.lineColor, fontWeight: 700 }}>🏆 You win!</span>
         ) : (
           <span>
-            <span style={{ color: pColor(currentPlayer), fontWeight: 700 }}>
-              {currentPlayer === 1 ? youName : alexName}
-            </span>
-            {`'s turn`}
+            {currentPlayer === 1 ? (
+              <span style={{ color: pColor(1), fontWeight: 700 }}>Your turn</span>
+            ) : (
+              <span>
+                <span style={{ color: pColor(2), fontWeight: 700 }}>{alexName}</span>
+                {"'s turn"}
+              </span>
+            )}
           </span>
         )}
       </div>

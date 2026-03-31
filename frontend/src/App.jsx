@@ -119,7 +119,6 @@ const AppLayout = () => {
   return (
     <>
       <AuthSetupRedirect />
-      {!hideNav && <AuthAvatar />}
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
@@ -138,7 +137,18 @@ const AppLayout = () => {
           <NavLink to="/settings" className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`} aria-label="Settings">
             ⚙️
           </NavLink>
+          <div className="app-nav-avatar top-nav-hide-mobile">
+            <AuthAvatar />
+          </div>
         </nav>
+      )}
+      {!hideNav && (
+        <div className="mobile-header">
+          <span className="mobile-header-title">GridLock</span>
+          <div className="mobile-header-actions">
+            <AuthAvatar isMobileHeader />
+          </div>
+        </div>
       )}
 
       {!hideNav && <BottomNav />}

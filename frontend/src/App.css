@@ -18,6 +18,7 @@
   right: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 0.25rem;
   padding: 0.6rem 0.5rem;
   background: var(--nav-bg);
@@ -30,6 +31,17 @@
   scrollbar-width: none;
 }
 
+/* Avatar wrapper inside desktop nav — pushed to the right */
+.app-nav-avatar {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Mobile-only header bar — visible only ≤640px */
+.mobile-header {
+  display: none;
+}
+
 .app-nav::-webkit-scrollbar {
   display: none;
 }
@@ -38,6 +50,33 @@
 @media (max-width: 640px) {
   .app-nav {
     display: none;
+  }
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(48px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 12px 0 12px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1000;
+  }
+
+  .mobile-header-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 }
 
@@ -110,14 +149,15 @@
 @media (max-width: 640px) {
   .app-content-with-nav {
     /* No top nav on mobile — all nav is in bottom bar */
-    padding-top: 0;
+    /* Top padding clears fixed mobile header + safe area (notch/status bar) */
+    padding-top: calc(52px + env(safe-area-inset-top, 0px));
     /* Clear bottom nav bar (#261) */
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (max-width: 430px) {
   .app-content-with-nav {
-    padding-top: 0;
+    padding-top: calc(52px + env(safe-area-inset-top, 0px));
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }

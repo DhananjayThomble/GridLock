@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const AuthAvatar = () => {
+const AuthAvatar = ({ isMobileHeader = false }) => {
   const { user, loading, login, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState(-1);
@@ -131,7 +131,11 @@ const AuthAvatar = () => {
       </button>
 
       {open && (
-        <div style={styles.dropdown} data-testid="auth-dropdown" role="menu">
+        <div
+          style={isMobileHeader ? styles.dropdownMobile : styles.dropdown}
+          data-testid="auth-dropdown"
+          role="menu"
+        >
           {items.map((item, i) => (
             <button
               key={i}
@@ -157,9 +161,7 @@ const AuthAvatar = () => {
 
 const styles = {
   container: {
-    position: 'fixed',
-    top: '12px',
-    right: '12px',
+    position: 'relative',
     zIndex: 1000,
   },
   guestButton: {
@@ -209,20 +211,32 @@ const styles = {
   },
   dropdown: {
     position: 'absolute',
-    top: '44px',
+    top: 'calc(100% + 6px)',
     right: 0,
-    minWidth: '160px',
-    backgroundColor: 'var(--bg-card)',
-    border: '1px solid var(--border-color)',
+    minWidth: '180px',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color-strong)',
     borderRadius: '12px',
-    boxShadow: '0 4px 16px var(--shadow-color)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
     overflow: 'hidden',
-    zIndex: 1001,
+    zIndex: 10000,
+  },
+  dropdownMobile: {
+    position: 'fixed',
+    top: 'calc(54px + env(safe-area-inset-top, 0px))',
+    right: '12px',
+    minWidth: '180px',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-color-strong)',
+    borderRadius: '12px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    overflow: 'hidden',
+    zIndex: 10000,
   },
   dropdownItem: {
     width: '100%',
     padding: '12px 16px',
-    fontSize: '14px',
+    fontSize: '15px',
     fontWeight: 500,
     color: 'var(--text-primary)',
     backgroundColor: 'transparent',
@@ -231,6 +245,7 @@ const styles = {
     textAlign: 'left',
     display: 'block',
     transition: 'background-color 150ms',
+    minHeight: '44px',
   },
 };
 
