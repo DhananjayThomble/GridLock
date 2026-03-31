@@ -108,6 +108,10 @@ const io = new Server(server, {
         methods: ["GET", "POST"],
         credentials: true,
     },
+    // Mobile-friendly ping settings: default 25s/20s is too aggressive for
+    // mobile networks where backgrounding or network switches cause brief delays.
+    pingInterval: 40000,
+    pingTimeout: 30000,
 });
 
 // Expose io to Express routes (used by push subscribe for socket verification)
