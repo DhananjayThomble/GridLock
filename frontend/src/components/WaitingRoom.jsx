@@ -39,6 +39,7 @@ const WaitingRoom = () => {
 
   // Prevent double-navigate
   const navigatedRef = useRef(false);
+  const conflictRedirectRef = useRef(null);
 
   const shareUrl = `https://gridlock.pro/join/${gameId}`;
 
@@ -115,7 +116,7 @@ const WaitingRoom = () => {
       socket.io.opts.reconnection = false;
       socket.disconnect();
       setSessionConflictMessage('This game is open in another tab. Redirecting to lobby…');
-      setTimeout(() => navigate('/'), 3000);
+      conflictRedirectRef.current = setTimeout(() => navigate('/'), 3000);
     };
 
     socket.on('lobby_state', onLobbyState);
@@ -141,6 +142,7 @@ const WaitingRoom = () => {
       if (!navigatedRef.current) {
         socket.emit('leave_waiting_room', { gameId });
       }
+      if (conflictRedirectRef.current) clearTimeout(conflictRedirectRef.current);
     };
   }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
 

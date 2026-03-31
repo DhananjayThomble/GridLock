@@ -7,6 +7,7 @@ let channel = null;
 let currentGameId = null;
 let currentUsername = null;
 let onConflict = null;
+let tabTimestamp = null;
 
 export function initTabSync(gameId, username, conflictCallback) {
     if (typeof BroadcastChannel === 'undefined') return;
@@ -17,13 +18,18 @@ export function initTabSync(gameId, username, conflictCallback) {
     onConflict = conflictCallback;
     channel = new BroadcastChannel(CHANNEL_NAME);
 
-    channel.postMessage({ type: 'game_join', gameId, username, timestamp: Date.now() });
+    tabTimestamp = Date.now();
+    channel.postMessage({ type: 'game_join', gameId, username, timestamp: tabTimestamp });
 
     channel.onmessage = (event) => {
-        const { type, gameId: otherGameId, username: otherUsername } = event.data;
+        const { type, gameId: otherGameId, username: otherUsername, timestamp: otherTimestamp } = event.data;
         // Only conflict if SAME game AND SAME username
         if (type === 'game_join' && otherGameId === currentGameId && otherUsername === currentUsername) {
-            if (onConflict) onConflict('Another tab opened this game');
+            // Newer tab wins — older tab yields
+            // If timestamps equal (unlikely), higher random breaks tie
+            if (otherTimestamp >= tabTimestamp) {
+                if (onConflict) onConflict('Another tab opened this game');
+            }
         }
     };
 }

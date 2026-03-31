@@ -560,7 +560,6 @@ const Board = () => {
       socket.io.off('reconnect',        onReconnect);
       window.removeEventListener('gridlock:force_reconnect', onForceReconnect);
       cleanupTabSync();
-      window.removeEventListener('gridlock:force_reconnect', onForceReconnect);
       if (pendingForceReconnect) {
         socket.off('connect', pendingForceReconnect);
         pendingForceReconnect = null;
