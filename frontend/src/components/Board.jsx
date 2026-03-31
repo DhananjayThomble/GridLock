@@ -511,6 +511,24 @@ const Board = () => {
     };
     socket.io.on('reconnect', onReconnect);
 
+    // Handle forced lifecycle reconnects (BFCache, freeze, liveness failure).
+    // socket.disconnect()+connect() fires 'connect', NOT Socket.IO Manager
+    // 'reconnect', so we listen for our custom window event instead.
+    let pendingForceReconnect = null; // Track pending once('connect') listener
+
+    const onForceReconnect = () => {
+      if (socket.connected) {
+        socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
+      } else {
+        // Track this so we can clean it up on unmount
+        pendingForceReconnect = () => {
+          socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
+        };
+        socket.once('connect', pendingForceReconnect);
+      }
+    };
+    window.addEventListener('gridlock:force_reconnect', onForceReconnect);
+
     return () => {
       socket.off('game_started',        onGameStarted);
       socket.off('all_players_joined',  onAllJoined);
@@ -524,6 +542,11 @@ const Board = () => {
       socket.off('player_forfeited',    onPlayerForfeited);
       socket.off('player_left',         onPlayerLeft);
       socket.io.off('reconnect',        onReconnect);
+      window.removeEventListener('gridlock:force_reconnect', onForceReconnect);
+      if (pendingForceReconnect) {
+        socket.off('connect', pendingForceReconnect);
+        pendingForceReconnect = null;
+      }
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
