@@ -1,12 +1,13 @@
 // src/components/AuthNudge.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { safeStorage } from '../utils/safeStorage';
 
 const DISMISS_KEY = 'gridlock_auth_nudge_dismissed';
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isDismissed() {
-  const stored = localStorage.getItem(DISMISS_KEY);
+  const stored = safeStorage.getItem(DISMISS_KEY);
   if (!stored) return false;
   const timestamp = parseInt(stored, 10);
   if (isNaN(timestamp)) return false;
@@ -32,7 +33,7 @@ const AuthNudge = ({ message }) => {
   if (loading || user || dismissed) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    safeStorage.setItem(DISMISS_KEY, String(Date.now()));
     setDismissed(true);
   };
 

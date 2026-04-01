@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { getGridTheme, THEME_IDS, checkUnlockCondition, GRID_THEMES } from '../themes/gridThemes';
 import { getStats } from '../utils/sessionStats';
+import { safeStorage } from '../utils/safeStorage';
 
 const THEME_KEY = 'gridlock_grid_theme';
 const UNLOCKED_KEY = 'gridlock_unlocked_themes';
@@ -25,7 +26,7 @@ export const useGridTheme = () => {
 
 function loadUnlocked() {
   try {
-    const raw = localStorage.getItem(UNLOCKED_KEY);
+    const raw = safeStorage.getItem(UNLOCKED_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const merged = new Set([...DEFAULT_UNLOCKED, ...parsed]);
@@ -37,7 +38,7 @@ function loadUnlocked() {
 
 function loadThemeId() {
   try {
-    const id = localStorage.getItem(THEME_KEY);
+    const id = safeStorage.getItem(THEME_KEY);
     if (id && GRID_THEMES[id]) return id;
   } catch { /* ignore */ }
   return 'clean';
@@ -50,7 +51,7 @@ export const GridThemeProvider = ({ children }) => {
     const base = loadUnlocked();
     const stats = getStats();
     try {
-      stats.tournamentWins = parseInt(localStorage.getItem('gridlock_tournament_wins') || '0', 10);
+      stats.tournamentWins = parseInt(safeStorage.getItem('gridlock_tournament_wins') || '0', 10);
     } catch { stats.tournamentWins = 0; }
     const updated = [...base];
     for (const id of THEME_IDS) {
@@ -59,7 +60,7 @@ export const GridThemeProvider = ({ children }) => {
       }
     }
     if (updated.length !== base.length) {
-      try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      try { safeStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
     }
     return updated;
   });
@@ -73,7 +74,7 @@ export const GridThemeProvider = ({ children }) => {
     if (!GRID_THEMES[id]) return;
     if (!unlockedRef.current.includes(id)) return;
     setThemeId(id);
-    try { localStorage.setItem(THEME_KEY, id); } catch { /* ignore */ }
+    try { safeStorage.setItem(THEME_KEY, id); } catch { /* ignore */ }
   }, []);
 
   // Check and unlock themes based on current stats.
@@ -94,7 +95,7 @@ export const GridThemeProvider = ({ children }) => {
       const updated = [...new Set([...current, ...newlyUnlocked])];
       unlockedRef.current = updated;
       setUnlockedThemes(updated);
-      try { localStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+      try { safeStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
     }
 
     return newlyUnlocked;

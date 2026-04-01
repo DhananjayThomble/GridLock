@@ -1,6 +1,8 @@
 // src/utils/recentOpponentsStore.js
 // Manages recent opponents list in localStorage — last 10 unique players
 
+import { safeStorage } from './safeStorage';
+
 const STORAGE_KEY = 'gridlock_recent_opponents';
 const MAX_OPPONENTS = 10;
 
@@ -19,7 +21,7 @@ const MAX_OPPONENTS = 10;
 /** Safely read opponents from localStorage */
 export const getRecentOpponents = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     // Guard: valid JSON that isn't an array would crash consumers
@@ -32,7 +34,7 @@ export const getRecentOpponents = () => {
 /** Safely persist opponents to localStorage */
 const saveOpponents = (opponents) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(opponents));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(opponents));
   } catch {
     // quota exceeded / private browsing — silently fail
   }

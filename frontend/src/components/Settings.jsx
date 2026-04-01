@@ -13,6 +13,7 @@ import { GRID_THEMES, THEME_IDS, UNLOCK_CONDITIONS } from '../themes/gridThemes'
 import axios from 'axios';
 import socket from '../socket';
 import { API_BASE as AUTH_API_BASE } from '../config';
+import { safeStorage } from '../utils/safeStorage';
 
 /* ─── Reusable Toggle Switch ─── */
 const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
@@ -356,7 +357,7 @@ const Settings = () => {
   const { user, login, logout } = useAuth();
   const isDark = theme === 'dark';
 
-  const [pushEnabled, setPushEnabled] = useState(() => localStorage.getItem('gridlock_push') === 'true');
+  const [pushEnabled, setPushEnabled] = useState(() => safeStorage.getItem('gridlock_push') === 'true');
   const { canInstall, install: handleInstall } = usePwaInstall();
   const { themeId: activeGridTheme, setTheme: setGridTheme, unlockedThemes } = useGridTheme();
   const [showSoundDetails, setShowSoundDetails] = useState(false);
@@ -407,16 +408,16 @@ const Settings = () => {
 
   const handlePushToggle = async () => {
     if (!pushEnabled) {
-      const username = localStorage.getItem('gridlock_username') || '';
+      const username = safeStorage.getItem('gridlock_username') || '';
       if (!username.trim()) return;
       try {
         const sub = await subscribeToPush(username.trim(), socket.id);
-        if (sub) { setPushEnabled(true); localStorage.setItem('gridlock_push', 'true'); }
+        if (sub) { setPushEnabled(true); safeStorage.setItem('gridlock_push', 'true'); }
       } catch { /* push subscribe failed */ }
     } else {
       try { await unsubscribeFromPush(); } catch { /* ignore */ }
       setPushEnabled(false);
-      localStorage.removeItem('gridlock_push');
+      safeStorage.removeItem('gridlock_push');
     }
   };
 
@@ -429,7 +430,7 @@ const Settings = () => {
   }, []);
 
   const isMuted = soundSettings.masterMute;
-  const hasUsername = !!localStorage.getItem('gridlock_username');
+  const hasUsername = !!safeStorage.getItem('gridlock_username');
 
   return (
     <div

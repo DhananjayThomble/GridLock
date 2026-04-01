@@ -1,6 +1,8 @@
 // src/utils/sessionStats.js
 // Manages session game stats in localStorage — no backend needed
 
+import { safeStorage } from './safeStorage';
+
 const STORAGE_KEY = 'gridlock_session_stats';
 
 const DEFAULT_STATS = {
@@ -17,7 +19,7 @@ const DEFAULT_STATS = {
 
 export const getStats = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorage.getItem(STORAGE_KEY);
     return raw ? { ...DEFAULT_STATS, ...JSON.parse(raw) } : { ...DEFAULT_STATS };
   } catch {
     return { ...DEFAULT_STATS };
@@ -26,7 +28,7 @@ export const getStats = () => {
 
 const saveStats = (stats) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
   } catch {
     // localStorage unavailable — silently fail
   }
