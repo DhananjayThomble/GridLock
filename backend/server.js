@@ -190,7 +190,7 @@ setTimeout(() => {
 // Start periodic game cleanup / GC (#365 Bug #14)
 const { startGameCleanup } = require('./services/gameCleanup');
 const GameModel = require('./models/Game');
-startGameCleanup(gameStore, log, GameModel);
+startGameCleanup(gameStore, log, GameModel, io);
 
 // Leaderboard API routes
 app.use('/api/leaderboard', leaderboardRoutes);

@@ -34,8 +34,10 @@ afterEach(async () => {
 const Game = require('../models/Game');
 const {
     isFullyAbandoned,
+    isZombieGame,
     sweepMongoZombies,
     MONGO_STALE_TTL_MS,
+    ZOMBIE_GAME_TTL_MS,
 } = require('../services/gameCleanup');
 
 const mockLog = { info: jest.fn(), error: jest.fn(), warn: jest.fn() };
@@ -252,5 +254,92 @@ describe('isFullyAbandoned - disconnectedAt undefined fallback', () => {
         };
         const result = isFullyAbandoned(game);
         expect(result.abandoned).toBe(true);
+    });
+});
+
+// --- #484: isZombieGame tests ---
+
+describe('isZombieGame - zombie lobby detection (#484)', () => {
+    test('returns true for waiting game older than ZOMBIE_GAME_TTL_MS', () => {
+        const now = Date.now();
+        const game = {
+            status: 'waiting',
+            started: false,
+            createdAt: new Date(now - ZOMBIE_GAME_TTL_MS - 1000),
+            gameState: {},
+        };
+        expect(isZombieGame(game, now)).toBe(true);
+    });
+
+    test('returns false for waiting game younger than ZOMBIE_GAME_TTL_MS', () => {
+        const now = Date.now();
+        const game = {
+            status: 'waiting',
+            started: false,
+            createdAt: new Date(now - 5 * 60 * 1000), // 5 min old
+            gameState: {},
+        };
+        expect(isZombieGame(game, now)).toBe(false);
+    });
+
+    test('returns false for started/playing game even if old', () => {
+        const now = Date.now();
+        const game = {
+            status: 'playing',
+            started: true,
+            createdAt: new Date(now - ZOMBIE_GAME_TTL_MS - 60000),
+            gameState: { currentPlayer: 'player1' },
+        };
+        expect(isZombieGame(game, now)).toBe(false);
+    });
+
+    test('returns false for finished game', () => {
+        const now = Date.now();
+        const game = {
+            status: 'finished',
+            createdAt: new Date(now - ZOMBIE_GAME_TTL_MS - 60000),
+            gameState: { winner: 'player1' },
+        };
+        expect(isZombieGame(game, now)).toBe(false);
+    });
+
+    test('returns true for game with started===false and no gameState activity', () => {
+        const now = Date.now();
+        const game = {
+            started: false,
+            createdAt: new Date(now - ZOMBIE_GAME_TTL_MS - 1000),
+            gameState: {},
+        };
+        expect(isZombieGame(game, now)).toBe(true);
+    });
+
+    test('returns false when createdAt is missing', () => {
+        const now = Date.now();
+        const game = {
+            status: 'waiting',
+            started: false,
+            gameState: {},
+        };
+        expect(isZombieGame(game, now)).toBe(false);
+    });
+
+    test('returns true at exact boundary (createdAt === now - ZOMBIE_GAME_TTL_MS - 1)', () => {
+        const now = Date.now();
+        const game = {
+            status: 'waiting',
+            createdAt: new Date(now - ZOMBIE_GAME_TTL_MS - 1),
+            gameState: {},
+        };
+        expect(isZombieGame(game, now)).toBe(true);
+    });
+
+    test('returns false at exact boundary (createdAt === now - ZOMBIE_GAME_TTL_MS)', () => {
+        const now = Date.now();
+        const game = {
+            status: 'waiting',
+            createdAt: new Date(now - ZOMBIE_GAME_TTL_MS),
+            gameState: {},
+        };
+        expect(isZombieGame(game, now)).toBe(false);
     });
 });
