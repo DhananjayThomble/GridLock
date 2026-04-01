@@ -62,6 +62,10 @@ export const safeStorage = {
   },
 
   setItem(key, value) {
+    // `stored` tracks whether any persistent store succeeded.
+    // If localStorage throws (e.g., Safari private QuotaExceededError),
+    // we fall through to sessionStorage. Memory fallback is only used
+    // when BOTH persistent stores fail, preventing redundant writes.
     let stored = false;
 
     try {

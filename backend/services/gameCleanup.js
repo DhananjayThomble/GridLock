@@ -124,9 +124,7 @@ async function sweepMongoZombies(Game, log) {
  */
 function isZombieGame(game, now) {
     // Must be in waiting state (not started)
-    var isWaiting = game.status === 'waiting' ||
-        (game.started === false) ||
-        (!game.gameState?.currentPlayer && !game.gameState?.winner);
+    const isWaiting = game.started === false || game.status === 'waiting';
 
     if (!isWaiting) return false;
 
@@ -182,6 +180,10 @@ function startGameCleanup(gameStore, log, Game, io) {
                 if (isZombieGame(game, now)) {
                     // Notify any connected sockets before cleanup
                     if (io) {
+                        const roomSize = io?.sockets?.adapter?.rooms?.get(gameId)?.size || 0;
+                        if (roomSize > 0) {
+                            log.info('Zombie cleanup: evicting players from idle lobby', { gameId, roomSize });
+                        }
                         io.to(gameId).emit('room_closed', {
                             reason: 'Game expired — lobby was idle too long',
                             gameId: gameId,

@@ -257,6 +257,72 @@ describe('isFullyAbandoned - disconnectedAt undefined fallback', () => {
     });
 });
 
+// --- startGameCleanup: io.emit on zombie cleanup ---
+
+describe('startGameCleanup - room_closed emission (#484)', () => {
+    test('emits room_closed to zombie game room during cleanup cycle', async () => {
+        const { startGameCleanup, ZOMBIE_GAME_TTL_MS } = require('../services/gameCleanup');
+
+        const gameId = 'zombie-emit-test';
+        const zombieGame = {
+            gameId,
+            status: 'waiting',
+            started: false,
+            createdAt: new Date(Date.now() - ZOMBIE_GAME_TTL_MS - 60000),
+            playerCount: 1,
+            players: { player1: { id: 'sock1', disconnectedAt: null } },
+            gameState: {},
+        };
+
+        // Mock gameStore
+        const mockGameStore = {
+            getAllActiveGames: jest.fn().mockResolvedValue(new Map([[gameId, zombieGame]])),
+            deleteGame: jest.fn().mockResolvedValue(true),
+            deleteSpectatorCount: jest.fn().mockResolvedValue(true),
+        };
+
+        // Mock io with a room containing 1 socket
+        const mockEmit = jest.fn();
+        const mockIo = {
+            sockets: {
+                adapter: {
+                    rooms: new Map([[gameId, new Set(['sock1'])]]),
+                },
+            },
+            to: jest.fn().mockReturnValue({ emit: mockEmit }),
+        };
+
+        // Start cleanup with a very short interval so it fires quickly
+        const originalSetInterval = global.setInterval;
+        let capturedCallback;
+        global.setInterval = (fn, _ms) => {
+            capturedCallback = fn;
+            return { unref: jest.fn() };
+        };
+
+        const testLog = { info: jest.fn(), error: jest.fn(), warn: jest.fn() };
+        startGameCleanup(mockGameStore, testLog, null, mockIo);
+
+        global.setInterval = originalSetInterval;
+
+        // Invoke the captured GC callback directly
+        await capturedCallback();
+
+        expect(mockIo.to).toHaveBeenCalledWith(gameId);
+        expect(mockEmit).toHaveBeenCalledWith('room_closed', {
+            reason: 'Game expired \u2014 lobby was idle too long',
+            gameId,
+        });
+        expect(mockGameStore.deleteGame).toHaveBeenCalledWith(gameId);
+
+        // Verify the log message for evicting players
+        expect(testLog.info).toHaveBeenCalledWith(
+            'Zombie cleanup: evicting players from idle lobby',
+            { gameId, roomSize: 1 }
+        );
+    });
+});
+
 // --- #484: isZombieGame tests ---
 
 describe('isZombieGame - zombie lobby detection (#484)', () => {
