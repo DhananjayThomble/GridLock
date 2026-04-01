@@ -324,7 +324,7 @@ describe('#480 — validate_rejoin handler', () => {
     });
 
     test('returns { valid: true } when game exists and token matches a player', async () => {
-        const game = makeGame({ state: 'waiting' });
+        const game = makeGame({ started: false, gameState: { currentPlayer: 'player1', players: ['player1'], scores: { player1: 0 }, winner: null } });
         mockGameStore.getGame.mockResolvedValue(game);
 
         const callback = jest.fn();
@@ -349,7 +349,7 @@ describe('#480 — validate_rejoin handler', () => {
     });
 
     test('returns { valid: false } when token does not match any player', async () => {
-        const game = makeGame({ state: 'playing' });
+        const game = makeGame({ started: true, gameState: { currentPlayer: 'player1', players: ['player1'], scores: { player1: 0 }, winner: null } });
         mockGameStore.getGame.mockResolvedValue(game);
 
         const callback = jest.fn();
@@ -397,7 +397,7 @@ describe('#480 — validate_rejoin handler', () => {
     });
 
     test('returns { valid: false } when game state is not rejoinable (finished)', async () => {
-        const game = makeGame({ state: 'finished' });
+        const game = makeGame({ started: true, gameState: { currentPlayer: 'player1', players: ['player1'], scores: { player1: 0 }, winner: 'player1' } });
         mockGameStore.getGame.mockResolvedValue(game);
 
         const callback = jest.fn();

@@ -779,14 +779,15 @@ function register(io, socket, log, rateLimited, validate) {
             }
 
             const gidResult = sanitizeGameId(gameId);
-            if (!gidResult.valid) return callback({ valid: false, reason: 'game_not_found' });
+            if (!gidResult.valid) return callback({ valid: false, reason: 'session_expired' });
             const cleanGameId = gidResult.value;
 
             const game = await gameStore.getGame(cleanGameId);
-            if (!game) return callback({ valid: false, reason: 'game_not_found' });
+            if (!game) return callback({ valid: false, reason: 'session_expired' });
 
-            // Game must be in a rejoinable state
-            if (game.state !== 'waiting' && game.state !== 'playing') {
+            // Game must be in a rejoinable state (no winner yet)
+            const hasWinner = game.gameState && game.gameState.winner;
+            if (hasWinner) {
                 return callback({ valid: false, reason: 'session_expired' });
             }
 
