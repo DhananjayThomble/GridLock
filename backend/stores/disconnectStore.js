@@ -31,7 +31,7 @@ async function setDisconnect(gameId, playerId, socketId, timeoutMs) {
         console.error('[disconnectStore] Redis setDisconnect failed, using in-memory fallback:', error.message);
     }
 
-    disconnects.set(key, { socketId, timestamp });
+    disconnects.set(key, { socketId, timestamp, gameId: gameKey, playerId: playerKey });
 }
 
 async function clearDisconnect(gameId, playerId) {
@@ -95,7 +95,7 @@ async function storeCount() {
                 const result = await redis.scan(String(cursor), { MATCH: `${DISCONNECT_KEY_PREFIX}*`, COUNT: 100 });
                 cursor = result.cursor;
                 total += result.keys.length;
-            } while (cursor !== '0');
+            } while (String(cursor) !== '0');
             return total;
         }
     } catch (error) {
@@ -105,4 +105,47 @@ async function storeCount() {
     return disconnects.size;
 }
 
-module.exports = { setDisconnect, clearDisconnect, isDisconnected, getDisconnectInfo, storeCount };
+/**
+ * Return all active disconnect entries.
+ * Used by recoverDisconnectTimers on server restart (#481).
+ * @returns {Promise<Array<{ gameId: string, playerId: string, socketId: string, timestamp: number }>>}
+ */
+async function getAllDisconnects() {
+    const results = [];
+
+    try {
+        const redis = await getRedisClient();
+        if (redis) {
+            let cursor = '0';
+            do {
+                const result = await redis.scan(String(cursor), { MATCH: `${DISCONNECT_KEY_PREFIX}*`, COUNT: 100 });
+                cursor = result.cursor;
+                for (const key of result.keys) {
+                    try {
+                        const raw = await redis.get(key);
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            results.push({
+                                gameId: parsed.gameId,
+                                playerId: parsed.playerId,
+                                socketId: parsed.socketId,
+                                timestamp: parsed.timestamp,
+                            });
+                        }
+                    } catch (_) { /* skip malformed entries */ }
+                }
+            } while (String(cursor) !== '0');
+            return results;
+        }
+    } catch (error) {
+        console.error('[disconnectStore] Redis getAllDisconnects failed, using in-memory fallback:', error.message);
+    }
+
+    // In-memory fallback
+    for (const [, value] of disconnects.entries()) {
+        results.push({ gameId: value.gameId, playerId: value.playerId, socketId: value.socketId, timestamp: value.timestamp });
+    }
+    return results;
+}
+
+module.exports = { setDisconnect, clearDisconnect, isDisconnected, getDisconnectInfo, storeCount, getAllDisconnects };
