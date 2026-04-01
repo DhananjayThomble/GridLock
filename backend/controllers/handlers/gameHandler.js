@@ -286,16 +286,43 @@ function register(io, socket, log, rateLimited, validate) {
                         return;
                     }
 
+                    // Check if existing socket is still alive (duplicate tab, not a reconnect)
+                    const existingSocketId = player.id;
+                    const existingSocket = existingSocketId ? io.sockets.sockets.get(existingSocketId) : null;
+
+                    if (existingSocket && existingSocket.connected && existingSocketId !== socket.id) {
+                        // Notify old tab
+                        existingSocket.emit('session_conflict', {
+                            reason: 'Another tab or window connected with your session',
+                            gameId: cleanGameId,
+                            playerId,
+                        });
+                        existingSocket.leave(cleanGameId);
+                        existingSocket.data.gameId = undefined;
+                        existingSocket.data.playerId = undefined;
+
+                        // Force disconnect after short delay to ensure event is delivered
+                        setTimeout(() => {
+                            if (existingSocket.connected) existingSocket.disconnect(true);
+                        }, 100);
+
+                        log.info('Session conflict: old tab superseded', {
+                            gameId: cleanGameId, playerId, oldSocketId: existingSocketId, newSocketId: socket.id
+                        });
+                    }
+
+                    // Reassign IMMEDIATELY (synchronous, before any await)
+                    player.id = socket.id;
+                    player.avatar = cleanAvatar || player.avatar;
+                    player.disconnectedAt = null;
+
+                    // Then async operations
                     const timerKey = `${cleanGameId}:${playerId}`;
                     if (localTimers.has(timerKey)) {
                         clearTimeout(localTimers.get(timerKey).timer);
                         localTimers.delete(timerKey);
                     }
                     await disconnectStore.clearDisconnect(cleanGameId, playerId);
-
-                    player.id = socket.id;
-                    player.avatar = cleanAvatar || player.avatar;
-                    player.disconnectedAt = null;
                     await gameStore.setGame(cleanGameId, game);
                     socket.join(cleanGameId);
                     socket.data.gameId = cleanGameId;

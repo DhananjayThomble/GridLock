@@ -88,6 +88,15 @@ function attachSocketHandlers(io, log) {
             return result.value;
         };
 
+        // ── App-level liveness ping (#476, #477) ─────────────────────────────
+        // Lightweight acknowledgment-based ping so clients can verify the
+        // connection is actually alive after freeze/resume or BFCache restore.
+        // Registered after rateLimited so it's subject to rate limiting.
+        socket.on('app_ping', (callback) => {
+            if (rateLimited('app_ping')) return;
+            if (typeof callback === 'function') callback();
+        });
+
         // Register all handler modules
         tournamentHandler.register(io, socket, log, rateLimited, validate);
         gameHandler.register(io, socket, log, rateLimited, validate);

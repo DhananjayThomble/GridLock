@@ -26,6 +26,7 @@ import { useGridTheme } from '../contexts/GridThemeContext';
 import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
 import useGridSizes from '../hooks/useGridSizes';
 import { markPlayed } from '../utils/onboarding';
+import { initTabSync, cleanup as cleanupTabSync } from '../utils/tabSync';
 
 // ─── Player config (uses CSS variables for theme-aware colors) ────────────────
 const PLAYER_CONFIG = {
@@ -478,6 +479,12 @@ const Board = () => {
       setTimeout(() => setError(null), 6000);
     };
 
+    const onSessionConflict = () => {
+      socket.io.opts.reconnection = false;
+      socket.disconnect();
+      setError('This game is open in another tab or window. Close this tab to continue playing there.');
+    };
+
     socket.on('game_started',       onGameStarted);
     socket.on('all_players_joined', onAllJoined);
     socket.on('game_update',        onGameUpdate);
@@ -489,6 +496,14 @@ const Board = () => {
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
     socket.on('player_left',         onPlayerLeft);
+    socket.on('session_conflict',    onSessionConflict);
+
+    // BroadcastChannel tab coordination (defense-in-depth)
+    initTabSync(gameId, username, () => {
+      socket.io.opts.reconnection = false;
+      socket.disconnect();
+      setError('This game is open in another tab. Close this tab to continue playing there.');
+    });
 
     // Join / re-join room (session token still sent for secure reconnect)
     // Guard emit by room+username so token/role state changes don't re-send join_game.
@@ -511,6 +526,31 @@ const Board = () => {
     };
     socket.io.on('reconnect', onReconnect);
 
+    // Handle forced lifecycle reconnects (BFCache, freeze, liveness failure).
+    // socket.disconnect()+connect() fires 'connect', NOT Socket.IO Manager
+    // 'reconnect', so we listen for our custom window event instead.
+    let pendingForceReconnect = null; // Track pending once('connect') listener
+
+    const onForceReconnect = () => {
+      // Remove any previously pending listener before registering a new one
+      // to prevent zombie listeners when multiple force_reconnect events fire while disconnected
+      if (pendingForceReconnect) {
+        socket.off('connect', pendingForceReconnect);
+      }
+
+      if (socket.connected) {
+        pendingForceReconnect = null;
+        socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
+      } else {
+        // Track this so we can clean it up on unmount
+        pendingForceReconnect = () => {
+          socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
+        };
+        socket.once('connect', pendingForceReconnect);
+      }
+    };
+    window.addEventListener('gridlock:force_reconnect', onForceReconnect);
+
     return () => {
       socket.off('game_started',        onGameStarted);
       socket.off('all_players_joined',  onAllJoined);
@@ -523,7 +563,14 @@ const Board = () => {
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
       socket.off('player_left',         onPlayerLeft);
+      socket.off('session_conflict',    onSessionConflict);
       socket.io.off('reconnect',        onReconnect);
+      window.removeEventListener('gridlock:force_reconnect', onForceReconnect);
+      cleanupTabSync();
+      if (pendingForceReconnect) {
+        socket.off('connect', pendingForceReconnect);
+        pendingForceReconnect = null;
+      }
       if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     };
   }, [gameId, username, navigate, role, avatar, sessionToken, getStatusFromState, joinMode]);
