@@ -379,11 +379,35 @@ describe('#490 — executeForfeit', () => {
         expect(log.info).toHaveBeenCalledWith('Forfeit executed for disconnected player',
             expect.objectContaining({ remaining: 2 }));
     });
+
+    test('handles all players disconnected (remaining === 0)', async () => {
+        const game = makeGame();
+        game.players.player1.disconnectedAt = Date.now() - 50000;
+        game.players.player2.disconnectedAt = Date.now() - 50000;
+
+        mockDisconnectStore.isDisconnected.mockResolvedValue(true);
+        mockGameStore.getGame.mockResolvedValue(game);
+
+        const io = makeMockIo();
+        const log = makeMockLog();
+
+        // Forfeit player1 when player2 is already disconnected
+        await executeForfeit(io, log, 'game1', 'player1');
+
+        const gameOverEmit = io._emitted.find(c => c[0] === 'game_over');
+        expect(gameOverEmit).toBeTruthy();
+        expect(gameOverEmit[1]).toEqual(expect.objectContaining({
+            winner: 'draw',
+            reason: 'all_disconnected',
+        }));
+        expect(game.gameState.winner).toBe('draw');
+    });
 });
 
 // ═══════════════════════════════════════════════════════════════════
 // #489 — disconnectStore.getAllDisconnects
 // ═══════════════════════════════════════════════════════════════════
+// Real implementation tests are in disconnectStoreReal.test.js
 describe('#489 — disconnectStore.getAllDisconnects', () => {
     test('getAllDisconnects is exported and callable', () => {
         expect(typeof mockDisconnectStore.getAllDisconnects).toBe('function');

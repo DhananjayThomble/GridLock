@@ -178,10 +178,13 @@ setupRedisAdapter();
 const { gameStore, rematchStore, disconnectStore, localTimers } = socketHandlers(io, log);
 
 // #481: Recover disconnect forfeit timers lost during PM2 restart
+// #9: Delay recovery to allow Redis adapter to be ready
 const { recoverDisconnectTimers } = require('./controllers/handlers/disconnectHandler');
-recoverDisconnectTimers(io, log).catch(err =>
-    log.error('Failed to recover disconnect timers on startup', { error: err.message })
-);
+setTimeout(() => {
+    recoverDisconnectTimers(io, log).catch(err =>
+        log.error('Failed to recover disconnect timers on startup', { error: err.message })
+    );
+}, 2000);
 
 // Start periodic game cleanup / GC (#365 Bug #14)
 const { startGameCleanup } = require('./services/gameCleanup');

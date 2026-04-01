@@ -250,6 +250,11 @@ function register(io, socket, log, rateLimited, validate) {
                         for (const sid of room) {
                             const s = io.sockets.sockets.get(sid);
                             if (s) {
+                                // #8: Handle spectators in lobby cleanup
+                                if (s.data.isSpectator) {
+                                    s.data.isSpectator = undefined;
+                                    s.data.spectatorUsername = undefined;
+                                }
                                 s.leave(gameId);
                                 s.data.gameId = undefined;
                                 s.data.playerId = undefined;
@@ -307,76 +312,7 @@ function register(io, socket, log, rateLimited, validate) {
                 const hostForfeitTimer = setTimeout(async () => {
                     try {
                         localTimers.delete(timerKey);
-                        const stillDisconnected = await disconnectStore.isDisconnected(gameId, playerId);
-                        if (!stillDisconnected) return;
-                        const currentGame = await gameStore.getGame(gameId);
-                        if (!currentGame) return;
-                        if (currentGame.gameState?.winner) return;
-                        const currentPlayer = currentGame.players[playerId];
-                        if (!currentPlayer || !currentPlayer.disconnectedAt) return;
-                        currentPlayer.voluntaryLeave = false;
-                        const remaining = [];
-                        for (let i = 1; i <= currentGame.playerCount; i++) {
-                            const pid = `player${i}`;
-                            const p = currentGame.players[pid];
-                            if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
-                        }
-                        io.to(gameId).emit('player_left', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
-                        await disconnectStore.clearDisconnect(gameId, playerId);
-                        io.to(gameId).emit('disconnect_timeout_resolved', { playerId, username: currentPlayer.username, gameId });
-                        if (remaining.length === 1) {
-                            const winner = remaining[0];
-                            currentGame.gameState.winner = winner;
-                            await gameStore.setGame(gameId, currentGame);
-                            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
-                            io.to(gameId).emit('player_forfeited', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
-                            io.to(gameId).emit('game_over', { winner, scores: currentGame.gameState.scores, reason: 'opponent_disconnected' });
-                            for (let pi = 1; pi <= currentGame.playerCount; pi++) {
-                                const pid2 = `player${pi}`;
-                                const p2 = currentGame.players[pid2];
-                                if (p2 && !p2.isCPU && !p2.disconnectedAt && pid2 !== playerId) {
-                                    const pSock = io.sockets.sockets.get(p2.id);
-                                    if (pSock) startPostgameTimer(pSock);
-                                }
-                            }
-                            if (promMetrics) {
-                                promMetrics.gamesCompletedTotal.inc();
-                                if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
-                            }
-                            updateLeaderboard(currentGame, winner, log);
-                            recordGameHistory(currentGame, winner, log);
-                            if (handleTournamentGameCompletion) {
-                                await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
-                            }
-                            if (rankedGameMap.has(gameId) && handleRankedDisconnect) {
-                                handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
-                                    log.error('Ranked disconnect handler failed', { gameId, error: err.message })
-                                );
-                            }
-                            await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
-                            setTimeout(async () => {
-                                await gameStore.deleteGame(gameId);
-                                await gameStore.deleteSpectatorCount(gameId);
-                                await rematchStore.clearVotes(gameId);
-                            }, CLEANUP_DELAY_MS);
-                        } else if (remaining.length === 0) {
-                            currentGame.gameState.winner = 'draw';
-                            await gameStore.setGame(gameId, currentGame);
-                            await persistGame(currentGame, 'finished', { reason: 'all_disconnected' });
-                            setTimeout(async () => {
-                                await gameStore.deleteGame(gameId);
-                                await gameStore.deleteSpectatorCount(gameId);
-                                await rematchStore.clearVotes(gameId);
-                            }, 10_000);
-                        } else {
-                            if (currentGame.gameState.currentPlayer === playerId) {
-                                const activePlayers = remaining;
-                                const nextPlayer = getNextActivePlayer(playerId, currentGame.gameState.players, activePlayers);
-                                if (nextPlayer) currentGame.gameState.currentPlayer = nextPlayer;
-                            }
-                            await gameStore.setGame(gameId, currentGame);
-                            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
-                        }
+                        await executeForfeit(io, log, gameId, playerId);
                     } catch (err) {
                         log.error('Host forfeit timer error', { gameId, playerId, error: err.message });
                     }
@@ -419,124 +355,7 @@ function register(io, socket, log, rateLimited, validate) {
             const timer = setTimeout(async () => {
                 try {
                     localTimers.delete(timerKey);
-
-                    const stillDisconnected = await disconnectStore.isDisconnected(gameId, playerId);
-                    if (!stillDisconnected) return;
-
-                    const currentGame = await gameStore.getGame(gameId);
-                    if (!currentGame) return;
-
-                    if (currentGame.gameState?.winner) return;
-
-                    const currentPlayer = currentGame.players[playerId];
-                    if (!currentPlayer || !currentPlayer.disconnectedAt) return;
-
-                    currentPlayer.voluntaryLeave = false;
-
-                    const remaining = [];
-                    for (let i = 1; i <= currentGame.playerCount; i++) {
-                        const pid = `player${i}`;
-                        const p = currentGame.players[pid];
-                        if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
-                    }
-
-                    // #490: Clear disconnect state and notify UI to dismiss banner
-                    await disconnectStore.clearDisconnect(gameId, playerId);
-                    io.to(gameId).emit('player_left', {
-                        playerId,
-                        username: currentPlayer.username,
-                        reason: 'disconnect_timeout',
-                    });
-                    io.to(gameId).emit('disconnect_timeout_resolved', {
-                        playerId,
-                        username: currentPlayer.username,
-                        gameId,
-                    });
-
-
-                    if (remaining.length >= 2) {
-                        io.to(gameId).emit('player_forfeited', {
-                            playerId,
-                            username: currentPlayer.username,
-                            reason: 'disconnect_timeout',
-                        });
-
-                        if (currentGame.gameState.currentPlayer === playerId) {
-                            const nextPlayer = getNextActivePlayer(playerId, currentGame.gameState.players, remaining);
-                            if (nextPlayer) {
-                                currentGame.gameState.currentPlayer = nextPlayer;
-                            }
-                        }
-
-                        await gameStore.setGame(gameId, currentGame);
-                        io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
-
-                        const nextPlayerId = currentGame.gameState.currentPlayer;
-                        const nextPlayerObj = currentGame.players[nextPlayerId];
-                        if (nextPlayerObj && nextPlayerObj.isCPU) {
-                            const difficulty = currentGame.cpuDifficulty || 'medium';
-                            const delay = CPU_DELAYS[difficulty] || 1200;
-                            scheduleCPUMove(io, log, gameId, delay);
-                        }
-
-                        if (rankedGameMap.has(gameId) && handleRankedDisconnect) {
-                            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
-                                log.error('Ranked disconnect handler failed', { gameId, error: err.message })
-                            );
-                        }
-                    } else {
-                        const scores = currentGame.gameState?.scores || {};
-                        const winner = pickForfeitWinner(remaining, scores);
-                        currentGame.gameState.winner = winner;
-
-                        await gameStore.setGame(gameId, currentGame);
-                        io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
-                        io.to(gameId).emit('player_forfeited', {
-                            playerId,
-                            username: currentPlayer.username,
-                            reason: 'disconnect_timeout',
-                        });
-                        io.to(gameId).emit('game_over', {
-                            winner,
-                            scores: currentGame.gameState.scores,
-                            reason: 'opponent_disconnected',
-                        });
-                        for (let pi = 1; pi <= currentGame.playerCount; pi++) {
-                            const pid2 = `player${pi}`;
-                            const p2 = currentGame.players[pid2];
-                            if (p2 && !p2.isCPU && !p2.disconnectedAt && pid2 !== playerId) {
-                                const pSock = io.sockets.sockets.get(p2.id);
-                                if (pSock) startPostgameTimer(pSock);
-                            }
-                        }
-                        if (promMetrics) {
-                            promMetrics.gamesCompletedTotal.inc();
-                            if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
-                        }
-                        updateLeaderboard(currentGame, winner, log);
-                        recordGameHistory(currentGame, winner, log);
-                        if (handleTournamentGameCompletion) {
-                            await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
-                        }
-
-                        if (rankedGameMap.has(gameId) && handleRankedDisconnect) {
-                            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
-                                log.error('Ranked disconnect handler failed', { gameId, error: err.message })
-                            );
-                        }
-
-                        await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
-
-                        if (rematchTimers.has(gameId)) {
-                            clearTimeout(rematchTimers.get(gameId));
-                            rematchTimers.delete(gameId);
-                        }
-                        setTimeout(async () => {
-                            await gameStore.deleteGame(gameId);
-                            await gameStore.deleteSpectatorCount(gameId);
-                            await rematchStore.clearVotes(gameId);
-                        }, CLEANUP_DELAY_MS);
-                    }
+                    await executeForfeit(io, log, gameId, playerId);
                 } catch (err) {
                     log.error('Disconnect timeout handler failed', { gameId, playerId, error: err.message });
                 }
@@ -752,6 +571,37 @@ async function executeForfeit(io, log, gameId, playerId) {
 
         await gameStore.setGame(gameId, currentGame);
         io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+
+        // #3: Schedule CPU move if next active player is CPU
+        const nextPlayerId = currentGame.gameState.currentPlayer;
+        const nextPlayerObj = currentGame.players[nextPlayerId];
+        if (nextPlayerObj && nextPlayerObj.isCPU && scheduleCPUMove) {
+            const difficulty = currentGame.cpuDifficulty || 'medium';
+            const delay = CPU_DELAYS[difficulty] || 1200;
+            scheduleCPUMove(io, log, gameId, delay);
+        }
+
+        // #2: Ranked disconnect handling for 3+ player removal
+        if (rankedGameMap.has(gameId) && handleRankedDisconnect) {
+            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+            );
+        }
+    } else if (remaining.length === 0) {
+        // #4: All players disconnected — declare draw
+        currentGame.gameState.winner = 'draw';
+        await gameStore.setGame(gameId, currentGame);
+        io.to(gameId).emit('game_over', {
+            winner: 'draw',
+            scores: currentGame.gameState.scores,
+            reason: 'all_disconnected',
+        });
+        await persistGame(currentGame, 'finished', { reason: 'all_disconnected' });
+        setTimeout(async () => {
+            await gameStore.deleteGame(gameId);
+            await gameStore.deleteSpectatorCount(gameId);
+            await rematchStore.clearVotes(gameId);
+        }, 10_000);
     } else {
         // 2-player game or last opponent: declare winner
         const scores = currentGame.gameState?.scores || {};
@@ -785,6 +635,18 @@ async function executeForfeit(io, log, gameId, playerId) {
         }
         updateLeaderboard(currentGame, winner, log);
         recordGameHistory(currentGame, winner, log);
+
+        // #1: Tournament completion handling
+        if (handleTournamentGameCompletion) {
+            await handleTournamentGameCompletion(io, log, gameId, currentGame, winner);
+        }
+
+        // #2: Ranked disconnect handling
+        if (rankedGameMap.has(gameId) && handleRankedDisconnect) {
+            handleRankedDisconnect(io, gameId, playerId, currentGame, log).catch(err =>
+                log.error('Ranked disconnect handler failed', { gameId, error: err.message })
+            );
+        }
 
         await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
 

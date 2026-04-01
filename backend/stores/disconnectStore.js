@@ -31,7 +31,7 @@ async function setDisconnect(gameId, playerId, socketId, timeoutMs) {
         console.error('[disconnectStore] Redis setDisconnect failed, using in-memory fallback:', error.message);
     }
 
-    disconnects.set(key, { socketId, timestamp });
+    disconnects.set(key, { socketId, timestamp, gameId: gameKey, playerId: playerKey });
 }
 
 async function clearDisconnect(gameId, playerId) {
@@ -95,7 +95,7 @@ async function storeCount() {
                 const result = await redis.scan(String(cursor), { MATCH: `${DISCONNECT_KEY_PREFIX}*`, COUNT: 100 });
                 cursor = result.cursor;
                 total += result.keys.length;
-            } while (cursor !== '0');
+            } while (String(cursor) !== '0');
             return total;
         }
     } catch (error) {
@@ -134,7 +134,7 @@ async function getAllDisconnects() {
                         }
                     } catch (_) { /* skip malformed entries */ }
                 }
-            } while (cursor !== '0');
+            } while (String(cursor) !== '0');
             return results;
         }
     } catch (error) {
@@ -142,9 +142,8 @@ async function getAllDisconnects() {
     }
 
     // In-memory fallback
-    for (const [key, value] of disconnects.entries()) {
-        const [gameId, playerId] = key.split(':');
-        results.push({ gameId, playerId, socketId: value.socketId, timestamp: value.timestamp });
+    for (const [, value] of disconnects.entries()) {
+        results.push({ gameId: value.gameId, playerId: value.playerId, socketId: value.socketId, timestamp: value.timestamp });
     }
     return results;
 }
