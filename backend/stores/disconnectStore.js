@@ -105,4 +105,48 @@ async function storeCount() {
     return disconnects.size;
 }
 
-module.exports = { setDisconnect, clearDisconnect, isDisconnected, getDisconnectInfo, storeCount };
+/**
+ * Return all active disconnect entries.
+ * Used by recoverDisconnectTimers on server restart (#481).
+ * @returns {Promise<Array<{ gameId: string, playerId: string, socketId: string, timestamp: number }>>}
+ */
+async function getAllDisconnects() {
+    const results = [];
+
+    try {
+        const redis = await getRedisClient();
+        if (redis) {
+            let cursor = '0';
+            do {
+                const result = await redis.scan(String(cursor), { MATCH: `${DISCONNECT_KEY_PREFIX}*`, COUNT: 100 });
+                cursor = result.cursor;
+                for (const key of result.keys) {
+                    try {
+                        const raw = await redis.get(key);
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            results.push({
+                                gameId: parsed.gameId,
+                                playerId: parsed.playerId,
+                                socketId: parsed.socketId,
+                                timestamp: parsed.timestamp,
+                            });
+                        }
+                    } catch (_) { /* skip malformed entries */ }
+                }
+            } while (cursor !== '0');
+            return results;
+        }
+    } catch (error) {
+        console.error('[disconnectStore] Redis getAllDisconnects failed, using in-memory fallback:', error.message);
+    }
+
+    // In-memory fallback
+    for (const [key, value] of disconnects.entries()) {
+        const [gameId, playerId] = key.split(':');
+        results.push({ gameId, playerId, socketId: value.socketId, timestamp: value.timestamp });
+    }
+    return results;
+}
+
+module.exports = { setDisconnect, clearDisconnect, isDisconnected, getDisconnectInfo, storeCount, getAllDisconnects };

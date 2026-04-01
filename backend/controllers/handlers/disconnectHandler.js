@@ -1,6 +1,7 @@
 /**
  * Disconnect/reconnect, leave game, and cleanup handlers.
  * Handles: leave_game, disconnect
+ * Also exports recoverDisconnectTimers for PM2 restart recovery (#481).
  */
 const {
     gameStore,
@@ -8,6 +9,7 @@ const {
     disconnectStore,
     matchmaking,
     sanitizeGameId,
+    gameStatusFromPlayers,
     findPlayerBySocket,
     countFilledPlayers,
     countCPUPlayers,
@@ -232,6 +234,55 @@ function register(io, socket, log, rateLimited, validate) {
 
             if (player.disconnectedAt) return;
 
+            // ── #489: Creator disconnect in lobby — clean up waiting room ────
+            const gameStatus = gameStatusFromPlayers(game);
+            if (gameStatus === 'waiting') {
+                if (playerId === 'player1') {
+                    // Host/creator left the lobby — destroy room, notify everyone
+                    log.info('Host disconnected from waiting room, closing room', { gameId, playerId });
+                    io.to(gameId).emit('room_closed', {
+                        reason: 'Host disconnected',
+                        gameId,
+                    });
+                    // Remove all players from socket room
+                    const room = io.sockets.adapter.rooms?.get(gameId);
+                    if (room) {
+                        for (const sid of room) {
+                            const s = io.sockets.sockets.get(sid);
+                            if (s) {
+                                s.leave(gameId);
+                                s.data.gameId = undefined;
+                                s.data.playerId = undefined;
+                                startLobbyTimer(s);
+                            }
+                        }
+                    }
+                    if (hostStartTimers.has(gameId)) {
+                        clearTimeout(hostStartTimers.get(gameId));
+                        hostStartTimers.delete(gameId);
+                    }
+                    await gameStore.deleteGame(gameId);
+                    await gameStore.deleteSpectatorCount(gameId);
+                    await markGameFinished(gameId, 'host_left_lobby');
+                } else {
+                    // Non-host player left the lobby — just remove them
+                    log.info('Player disconnected from waiting room', { gameId, playerId, username: player.username });
+                    delete game.players[playerId];
+                    await gameStore.setGame(gameId, game);
+                    io.to(gameId).emit('player_left', {
+                        playerId,
+                        username: player.username,
+                        reason: 'disconnect_lobby',
+                    });
+                    io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+                }
+                socket.leave(gameId);
+                socket.data.gameId = undefined;
+                socket.data.playerId = undefined;
+                startLobbyTimer(socket);
+                return;
+            }
+
             // BLOCKER #2: Host disconnect while room is full but game not started
             if (playerId === 'player1' && hostStartTimers.has(gameId)) {
                 clearTimeout(hostStartTimers.get(gameId));
@@ -271,6 +322,8 @@ function register(io, socket, log, rateLimited, validate) {
                             if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
                         }
                         io.to(gameId).emit('player_left', { playerId, username: currentPlayer.username, reason: 'disconnect_timeout' });
+                        await disconnectStore.clearDisconnect(gameId, playerId);
+                        io.to(gameId).emit('disconnect_timeout_resolved', { playerId, username: currentPlayer.username, gameId });
                         if (remaining.length === 1) {
                             const winner = remaining[0];
                             currentGame.gameState.winner = winner;
@@ -387,10 +440,17 @@ function register(io, socket, log, rateLimited, validate) {
                         if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
                     }
 
+                    // #490: Clear disconnect state and notify UI to dismiss banner
+                    await disconnectStore.clearDisconnect(gameId, playerId);
                     io.to(gameId).emit('player_left', {
                         playerId,
                         username: currentPlayer.username,
                         reason: 'disconnect_timeout',
+                    });
+                    io.to(gameId).emit('disconnect_timeout_resolved', {
+                        playerId,
+                        username: currentPlayer.username,
+                        gameId,
                     });
 
 
@@ -545,4 +605,199 @@ module.exports = {
     setHandleTournamentGameCompletion,
     setHandleRankedDisconnect,
     setRemoveFromRankedQueue,
+    recoverDisconnectTimers,
+    executeForfeit,
 };
+
+/**
+ * Recover disconnect forfeit timers after PM2 restart (#481).
+ * Scans disconnectStore for active disconnects and recreates timers
+ * with remaining duration. Called once on server startup after io init.
+ *
+ * @param {import('socket.io').Server} io
+ * @param {object} log - Logger instance
+ */
+async function recoverDisconnectTimers(io, log) {
+    try {
+        const allDisconnects = await disconnectStore.getAllDisconnects();
+        if (!allDisconnects.length) return;
+
+        log.info('Recovering disconnect timers after restart', { count: allDisconnects.length });
+        let recovered = 0;
+        let expired = 0;
+        let skipped = 0;
+
+        for (const { gameId, playerId, socketId, timestamp } of allDisconnects) {
+            const timerKey = `${gameId}:${playerId}`;
+
+            // Skip if timer already exists (shouldn't happen on fresh start, but be safe)
+            if (localTimers.has(timerKey)) {
+                skipped++;
+                continue;
+            }
+
+            const game = await gameStore.getGame(gameId);
+            if (!game) {
+                // Game no longer exists — clean up stale disconnect
+                await disconnectStore.clearDisconnect(gameId, playerId);
+                skipped++;
+                continue;
+            }
+
+            // Skip if game already finished
+            if (game.gameState?.winner) {
+                await disconnectStore.clearDisconnect(gameId, playerId);
+                skipped++;
+                continue;
+            }
+
+            const player = game.players[playerId];
+            if (!player || !player.disconnectedAt) {
+                // Player already reconnected or doesn't exist
+                await disconnectStore.clearDisconnect(gameId, playerId);
+                skipped++;
+                continue;
+            }
+
+            // Check if player already reconnected (has a socket in the room)
+            const room = io.sockets.adapter.rooms?.get(gameId);
+            if (room && player.id && room.has(player.id)) {
+                await disconnectStore.clearDisconnect(gameId, playerId);
+                skipped++;
+                continue;
+            }
+
+            const elapsed = Date.now() - timestamp;
+            const remaining = DISCONNECT_TIMEOUT_MS - elapsed;
+
+            if (remaining <= 0) {
+                // Timer already expired — execute forfeit immediately
+                expired++;
+                await executeForfeit(io, log, gameId, playerId);
+            } else {
+                // Recreate timer with remaining duration
+                recovered++;
+                const timer = setTimeout(async () => {
+                    try {
+                        localTimers.delete(timerKey);
+                        await executeForfeit(io, log, gameId, playerId);
+                    } catch (err) {
+                        log.error('Recovered forfeit timer error', { gameId, playerId, error: err.message });
+                    }
+                }, remaining);
+                localTimers.set(timerKey, { timer, socketId });
+            }
+        }
+
+        log.info('Disconnect timer recovery complete', { recovered, expired, skipped });
+    } catch (err) {
+        log.error('Failed to recover disconnect timers', { error: err.message });
+    }
+}
+
+/**
+ * Execute forfeit for a disconnected player (#481, #490).
+ * Shared by timer callbacks and recovery logic.
+ *
+ * @param {import('socket.io').Server} io
+ * @param {object} log
+ * @param {string} gameId
+ * @param {string} playerId
+ */
+async function executeForfeit(io, log, gameId, playerId) {
+    const stillDisconnected = await disconnectStore.isDisconnected(gameId, playerId);
+    if (!stillDisconnected) return;
+
+    const currentGame = await gameStore.getGame(gameId);
+    if (!currentGame) return;
+    if (currentGame.gameState?.winner) return;
+
+    const currentPlayer = currentGame.players[playerId];
+    if (!currentPlayer || !currentPlayer.disconnectedAt) return;
+
+    currentPlayer.voluntaryLeave = false;
+
+    const remaining = [];
+    for (let i = 1; i <= currentGame.playerCount; i++) {
+        const pid = `player${i}`;
+        const p = currentGame.players[pid];
+        if (p && pid !== playerId && !p.disconnectedAt) remaining.push(pid);
+    }
+
+    // Clear disconnect state and notify UI
+    await disconnectStore.clearDisconnect(gameId, playerId);
+    io.to(gameId).emit('player_left', {
+        playerId,
+        username: currentPlayer.username,
+        reason: 'disconnect_timeout',
+    });
+    io.to(gameId).emit('disconnect_timeout_resolved', {
+        playerId,
+        username: currentPlayer.username,
+        gameId,
+    });
+
+    if (remaining.length >= 2) {
+        // 3+ player game: remove player, continue game
+        io.to(gameId).emit('player_forfeited', {
+            playerId,
+            username: currentPlayer.username,
+            reason: 'disconnect_timeout',
+        });
+
+        if (currentGame.gameState.currentPlayer === playerId) {
+            const nextPlayer = getNextActivePlayer(playerId, currentGame.gameState.players, remaining);
+            if (nextPlayer) currentGame.gameState.currentPlayer = nextPlayer;
+        }
+
+        await gameStore.setGame(gameId, currentGame);
+        io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+    } else {
+        // 2-player game or last opponent: declare winner
+        const scores = currentGame.gameState?.scores || {};
+        const winner = pickForfeitWinner(remaining, scores);
+        currentGame.gameState.winner = winner;
+
+        await gameStore.setGame(gameId, currentGame);
+        io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(currentGame) });
+        io.to(gameId).emit('player_forfeited', {
+            playerId,
+            username: currentPlayer.username,
+            reason: 'disconnect_timeout',
+        });
+        io.to(gameId).emit('game_over', {
+            winner,
+            scores: currentGame.gameState.scores,
+            reason: 'opponent_disconnected',
+        });
+
+        for (let pi = 1; pi <= currentGame.playerCount; pi++) {
+            const pid2 = `player${pi}`;
+            const p2 = currentGame.players[pid2];
+            if (p2 && !p2.isCPU && !p2.disconnectedAt && pid2 !== playerId) {
+                const pSock = io.sockets.sockets.get(p2.id);
+                if (pSock) startPostgameTimer(pSock);
+            }
+        }
+        if (promMetrics) {
+            promMetrics.gamesCompletedTotal.inc();
+            if (currentGame.createdAt) promMetrics.gameDurationSeconds.observe((Date.now() - currentGame.createdAt) / 1000);
+        }
+        updateLeaderboard(currentGame, winner, log);
+        recordGameHistory(currentGame, winner, log);
+
+        await persistGame(currentGame, 'finished', { reason: 'disconnect_forfeit' });
+
+        if (rematchTimers.has(gameId)) {
+            clearTimeout(rematchTimers.get(gameId));
+            rematchTimers.delete(gameId);
+        }
+        setTimeout(async () => {
+            await gameStore.deleteGame(gameId);
+            await gameStore.deleteSpectatorCount(gameId);
+            await rematchStore.clearVotes(gameId);
+        }, CLEANUP_DELAY_MS);
+    }
+
+    log.info('Forfeit executed for disconnected player', { gameId, playerId, remaining: remaining.length });
+}
