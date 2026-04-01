@@ -124,6 +124,25 @@ const Lobby = () => {
   // Ref to track which action is in progress — used by onError to route errors (#211)
   const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
 
+  // ── Validate rejoin banner against server (#480) ──────────────────────────
+  // On mount, if we have an active game in localStorage, ask the server
+  // whether the game still exists. If not, clear the banner immediately.
+  useEffect(() => {
+    if (!activeGame) return;
+    const { gameId, sessionToken } = activeGame;
+    if (!gameId || !sessionToken) {
+      try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+      setActiveGame(null);
+      return;
+    }
+    socket.emit('validate_rejoin', { gameId, sessionToken }, (response) => {
+      if (!response || !response.valid) {
+        try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+        setActiveGame(null);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
     const onCreated = ({ gameId: gid, playerId, sessionToken }) => {
