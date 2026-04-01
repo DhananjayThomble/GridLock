@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { initAudio } from '../utils/sounds';
+import { safeStorage } from '../utils/safeStorage';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -15,7 +16,7 @@ const isValidRoomCode = (code) => ROOM_CODE_REGEX.test((code || '').toUpperCase(
 const JoinGame = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
-  const [username, setUsername] = useState(() => localStorage.getItem('gridlock_username') || '');
+  const [username, setUsername] = useState(() => safeStorage.getItem('gridlock_username') || '');
   const [selectedAvatar, setSelectedAvatar] = useState('👦');
   // #420: Validate room code format on mount
   const invalidCode = gameId ? !isValidRoomCode(gameId) : false;
@@ -52,7 +53,7 @@ const JoinGame = () => {
   useEffect(() => {
     const onGameStarted = (data) => {
       setJoining(false);
-      localStorage.setItem('gridlock_username', username.trim());
+      safeStorage.setItem('gridlock_username', username.trim());
 
       // Check if joined as spectator (#365)
       if (data.role === 'spectator' || data.playerId === 'spectator') {
@@ -114,7 +115,7 @@ const JoinGame = () => {
         setPermanentError(true);
         setIsGameFull(false);
         // Clear active game from localStorage if game no longer exists (#374 review)
-        try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+        try { safeStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
       } else if (message.includes('Game is full')) {
         // Transient: auto-retry after 5 seconds
         setPermanentError(false);
@@ -140,10 +141,10 @@ const JoinGame = () => {
     setError('');
     setJoining(true);
     initAudio();
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     if (!socket.connected) socket.connect();
     // Include existing session token for rejoin scenarios
-    const existingToken = localStorage.getItem(`gridlock:session:${gameId.toUpperCase()}:${name}`);
+    const existingToken = safeStorage.getItem(`gridlock:session:${gameId.toUpperCase()}:${name}`);
     socket.emit('join_game', {
       gameId: gameId.toUpperCase(),
       username: name,
@@ -167,7 +168,7 @@ const JoinGame = () => {
     setIsGameFull(false);
     setJoining(true);
     initAudio();
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     if (!socket.connected) socket.connect();
     socket.emit('join_game', {
       gameId: gameId.toUpperCase(),

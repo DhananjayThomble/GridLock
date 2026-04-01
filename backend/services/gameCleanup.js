@@ -11,6 +11,7 @@
 
 const ABANDONED_GAME_TTL_MS = 5 * 60 * 1000;    // 5 minutes - fully abandoned games
 const WAITING_GAME_TTL_MS  = 30 * 60 * 1000;    // 30 minutes - idle waiting games
+const ZOMBIE_GAME_TTL_MS   = 15 * 60 * 1000;    // 15 minutes - created but never started (#484)
 const MONGO_STALE_TTL_MS   = 60 * 60 * 1000;    // 1 hour - MongoDB zombie threshold
 const GC_INTERVAL_MS       = 5 * 60 * 1000;     // Run every 5 minutes
 
@@ -113,13 +114,35 @@ async function sweepMongoZombies(Game, log) {
 }
 
 /**
+ * Identify zombie games — created but never started, sitting idle in lobby (#484).
+ * These are games where `started === false` (or status === 'waiting' with no gameState
+ * activity) and createdAt is older than ZOMBIE_GAME_TTL_MS.
+ *
+ * @param {Object} game
+ * @param {number} now - Current timestamp
+ * @returns {boolean}
+ */
+function isZombieGame(game, now) {
+    // Must be in waiting state (not started)
+    const isWaiting = game.started === false || game.status === 'waiting';
+
+    if (!isWaiting) return false;
+
+    var createdAt = game.createdAt ? new Date(game.createdAt).getTime() : 0;
+    if (createdAt <= 0) return false;
+
+    return (now - createdAt) > ZOMBIE_GAME_TTL_MS;
+}
+
+/**
  * Start the periodic game cleanup interval.
  * @param {Object} gameStore - The game store module
  * @param {Object} log - Logger instance
  * @param {Object} [Game] - Mongoose Game model (optional, for MongoDB sweep)
+ * @param {Object} [io] - Socket.IO server instance (optional, for emitting room_closed)
  * @returns {NodeJS.Timeout} The interval handle (call .unref() if needed)
  */
-function startGameCleanup(gameStore, log, Game) {
+function startGameCleanup(gameStore, log, Game, io) {
     var interval = setInterval(async function() {
         try {
             // --- Pass 1: In-memory/Redis sweep (existing logic) ---
@@ -127,6 +150,7 @@ function startGameCleanup(gameStore, log, Game) {
             var now = Date.now();
             var zombieCount = 0;
             var waitingCount = 0;
+            var zombieLobbyCount = 0;
 
             // Build a set of active game IDs for the fallback check
             var activeGameIds = new Set();
@@ -148,6 +172,27 @@ function startGameCleanup(gameStore, log, Game) {
                         zombieCount++;
                         continue;
                     }
+                }
+
+                // --- #484: Check for zombie games (created but never started) ---
+                // These get cleaned up faster than generic stale waiting games,
+                // and we emit room_closed to any connected sockets.
+                if (isZombieGame(game, now)) {
+                    // Notify any connected sockets before cleanup
+                    if (io) {
+                        const roomSize = io?.sockets?.adapter?.rooms?.get(gameId)?.size || 0;
+                        if (roomSize > 0) {
+                            log.info('Zombie cleanup: evicting players from idle lobby', { gameId, roomSize });
+                        }
+                        io.to(gameId).emit('room_closed', {
+                            reason: 'Game expired — lobby was idle too long',
+                            gameId: gameId,
+                        });
+                    }
+                    await gameStore.deleteGame(gameId);
+                    await gameStore.deleteSpectatorCount(gameId);
+                    zombieLobbyCount++;
+                    continue;
                 }
 
                 // Check for stale waiting games
@@ -175,9 +220,9 @@ function startGameCleanup(gameStore, log, Game) {
                 }
             }
 
-            var inMemoryTotal = zombieCount + waitingCount;
+            var inMemoryTotal = zombieCount + waitingCount + zombieLobbyCount;
             if (inMemoryTotal > 0) {
-                log.info('Game GC: cleaned up ' + inMemoryTotal + ' in-memory games', { zombie: zombieCount, staleWaiting: waitingCount });
+                log.info('Game GC: cleaned up ' + inMemoryTotal + ' in-memory games', { zombie: zombieCount, staleWaiting: waitingCount, zombieLobby: zombieLobbyCount });
             }
 
             // --- Pass 2: MongoDB sweep for zombie games ---
@@ -202,9 +247,11 @@ function startGameCleanup(gameStore, log, Game) {
 module.exports = {
     startGameCleanup: startGameCleanup,
     isFullyAbandoned: isFullyAbandoned,
+    isZombieGame: isZombieGame,
     sweepMongoZombies: sweepMongoZombies,
     ABANDONED_GAME_TTL_MS: ABANDONED_GAME_TTL_MS,
     WAITING_GAME_TTL_MS: WAITING_GAME_TTL_MS,
+    ZOMBIE_GAME_TTL_MS: ZOMBIE_GAME_TTL_MS,
     MONGO_STALE_TTL_MS: MONGO_STALE_TTL_MS,
     GC_INTERVAL_MS: GC_INTERVAL_MS,
 };

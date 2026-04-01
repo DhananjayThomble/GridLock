@@ -1,6 +1,8 @@
 // sounds.js - Web Audio API sound effects for GridLock
 // No external libraries, no audio files — pure oscillator-based sounds
 
+import { safeStorage } from './safeStorage';
+
 const SETTINGS_KEY = 'gridlock_sound_settings';
 const OLD_MUTE_KEY = 'gridlock_muted';
 
@@ -47,17 +49,17 @@ export const getSoundSettings = () => {
   if (_cachedSettings) return _cachedSettings;
 
   // Migrate old mute key on first load
-  const oldMute = localStorage.getItem(OLD_MUTE_KEY);
+  const oldMute = safeStorage.getItem(OLD_MUTE_KEY);
   if (oldMute !== null) {
     const migrated = { ...DEFAULT_SETTINGS, masterMute: oldMute === 'true' };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
-    localStorage.removeItem(OLD_MUTE_KEY);
+    safeStorage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
+    safeStorage.removeItem(OLD_MUTE_KEY);
     _cachedSettings = migrated;
     return migrated;
   }
 
   try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
+    const stored = safeStorage.getItem(SETTINGS_KEY);
     if (stored) {
       const result = { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
       _cachedSettings = result;
@@ -75,7 +77,7 @@ export const getSoundSettings = () => {
  * Save settings to localStorage
  */
 export const saveSoundSettings = (settings) => {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  safeStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   _cachedSettings = settings;
 };
 

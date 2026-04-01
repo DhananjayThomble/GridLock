@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import socket from '../socket';
 import { initAudio } from '../utils/sounds';
+import { safeStorage } from '../utils/safeStorage';
 
 const AVATARS = ['👦','👧','🧑','👩','🤖','🐱','🐶','🦊','🐻','🐼','🦁','🐯','🚀','⚽','🎮','🦄'];
 
@@ -22,9 +23,9 @@ const validateUsername = (raw) => {
 const ChallengePage = () => {
   const { username: challengerUsername } = useParams();
   const navigate = useNavigate();
-  const [myName, setMyName] = useState(() => localStorage.getItem('gridlock_username') || '');
+  const [myName, setMyName] = useState(() => safeStorage.getItem('gridlock_username') || '');
   const [selectedAvatar, setSelectedAvatar] = useState(() => {
-    const saved = localStorage.getItem('gridlock-avatar');
+    const saved = safeStorage.getItem('gridlock-avatar');
     return saved && AVATARS.includes(saved) ? saved : '👦';
   });
   const [joining, setJoining] = useState(false);
@@ -38,7 +39,7 @@ const ChallengePage = () => {
       if (joinedRef.current) return;
       joinedRef.current = true;
       setJoining(false);
-      localStorage.setItem('gridlock_username', myName.trim());
+      safeStorage.setItem('gridlock_username', myName.trim());
 
       navigate('/game', {
         state: {
@@ -86,7 +87,7 @@ const ChallengePage = () => {
         if (joinedRef.current) return;
         joinedRef.current = true;
         setJoining(false);
-        localStorage.setItem('gridlock_username', name);
+        safeStorage.setItem('gridlock_username', name);
 
         navigate(res.playerId ? '/game' : `/waiting/${res.gameId}`, {
           state: {

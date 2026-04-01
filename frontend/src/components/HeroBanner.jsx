@@ -3,6 +3,7 @@
 // Persists dismissal to localStorage so returning users skip it.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { safeStorage } from '../utils/safeStorage';
 
 const STORAGE_KEY = 'gridlock_hero_dismissed';
 
@@ -19,12 +20,12 @@ const FEATURES = [
 
 /** Safely read localStorage (handles private browsing / SSR). */
 const isHeroDismissed = () => {
-  try { return localStorage.getItem(STORAGE_KEY) === 'true'; } catch { return false; }
+  try { return safeStorage.getItem(STORAGE_KEY) === 'true'; } catch { return false; }
 };
 
 /** Safely write localStorage. */
 const persistDismissal = () => {
-  try { localStorage.setItem(STORAGE_KEY, 'true'); } catch { /* quota / private */ }
+  try { safeStorage.setItem(STORAGE_KEY, 'true'); } catch { /* quota / private */ }
 };
 
 const HeroBanner = ({ onPlayNow }) => {

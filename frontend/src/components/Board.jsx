@@ -17,6 +17,7 @@ import ChatButton from './chat/ChatButton';
 import ChatPanel from './chat/ChatPanel';
 import ChatOverlay from './chat/ChatOverlay';
 import { RATE_LIMIT_MS } from './chat/chatConstants';
+import { safeStorage } from '../utils/safeStorage';
 
 import { countLines } from '../utils/postGameUtils';
 import { capture } from '../lib/posthog';
@@ -68,7 +69,7 @@ const Board = () => {
   const [sessionToken, setSessionToken] = useState(() => {
     if (initialSessionToken) return initialSessionToken;
     if (!gameId || !username) return null;
-    return localStorage.getItem(`gridlock:session:${gameId}:${username}`) || null;
+    return safeStorage.getItem(`gridlock:session:${gameId}:${username}`) || null;
   });
 
   const [gameState,      setGameState]      = useState(null);
@@ -211,14 +212,14 @@ const Board = () => {
       if (data.sessionToken) {
         setSessionToken(data.sessionToken);
         if (gameId && username) {
-          localStorage.setItem(`gridlock:session:${gameId}:${username}`, data.sessionToken);
+          safeStorage.setItem(`gridlock:session:${gameId}:${username}`, data.sessionToken);
         }
       }
 
       // Track active game for rejoin banner on Lobby (#365)
       if (gameId && username && data.playerId !== 'spectator') {
         try {
-          localStorage.setItem('gridlock_active_game', JSON.stringify({
+          safeStorage.setItem('gridlock_active_game', JSON.stringify({
             gameId,
             username,
             avatar,
@@ -327,7 +328,7 @@ const Board = () => {
 
       if (gs.gameOver || gs.winner) {
         // Clear active game tracking — game is over (#365)
-        try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+        safeStorage.removeItem('gridlock_active_game');
 
         // Mark first game as played (for onboarding flow — #455)
         markPlayed();
@@ -349,13 +350,13 @@ const Board = () => {
           if (tournamentId && winner === role) {
             try {
               const twKey = 'gridlock_tournament_wins';
-              const tw = parseInt(localStorage.getItem(twKey) || '0', 10) + 1;
-              localStorage.setItem(twKey, String(tw));
+              const tw = parseInt(safeStorage.getItem(twKey) || '0', 10) + 1;
+              safeStorage.setItem(twKey, String(tw));
               updatedStats.tournamentWins = tw;
             } catch { /* ignore */ }
           } else {
             try {
-              updatedStats.tournamentWins = parseInt(localStorage.getItem('gridlock_tournament_wins') || '0', 10);
+              updatedStats.tournamentWins = parseInt(safeStorage.getItem('gridlock_tournament_wins') || '0', 10);
             } catch { updatedStats.tournamentWins = 0; }
           }
           const newUnlocked = checkAndUnlockThemes(updatedStats);
@@ -699,7 +700,7 @@ const Board = () => {
   const doLeaveGame = () => {
     setShowLeaveConfirm(false);
     // Clear active game tracking — player voluntarily left (#365)
-    try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+    safeStorage.removeItem('gridlock_active_game');
     // Emit leave_game so the server knows we're leaving voluntarily (#365)
     if (gameId) {
       socket.emit('leave_game', { gameId });
