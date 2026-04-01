@@ -108,10 +108,11 @@ const io = new Server(server, {
         methods: ["GET", "POST"],
         credentials: true,
     },
-    // Mobile-friendly ping settings: default 25s/20s is too aggressive for
-    // mobile networks where backgrounding or network switches cause brief delays.
-    pingInterval: 35000,   // 35s (default 25s — mobile-friendly)
-    pingTimeout: 25000,    // 25s (default 20s — mobile networks need more grace)
+    // Cloudflare free/pro enforces 100s idle timeout — keep pings well under that
+    // ping round-trip = pingInterval + pingTimeout = 20s + 15s = 35s, well under 100s.
+    // See: https://developers.cloudflare.com/network/websockets/#idle-timeout
+    pingInterval: 20000,   // 20s — send ping every 20s (#482)
+    pingTimeout: 15000,    // 15s — wait up to 15s for pong (#482)
 });
 
 // Expose io to Express routes (used by push subscribe for socket verification)
