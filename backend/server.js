@@ -110,8 +110,8 @@ const io = new Server(server, {
     },
     // Mobile-friendly ping settings: default 25s/20s is too aggressive for
     // mobile networks where backgrounding or network switches cause brief delays.
-    pingInterval: 40000,
-    pingTimeout: 30000,
+    pingInterval: 35000,   // 35s (default 25s — mobile-friendly)
+    pingTimeout: 25000,    // 25s (default 20s — mobile networks need more grace)
 });
 
 // Expose io to Express routes (used by push subscribe for socket verification)

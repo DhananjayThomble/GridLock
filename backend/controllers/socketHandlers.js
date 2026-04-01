@@ -46,14 +46,6 @@ function attachSocketHandlers(io, log) {
     io.on('connection', (socket) => {
         log.info('New client connected:', socket.id);
 
-        // ── App-level liveness ping (#476, #477) ─────────────────────────────
-        // Lightweight acknowledgment-based ping so clients can verify the
-        // connection is actually alive after freeze/resume or BFCache restore.
-        // Uses Socket.IO's built-in callback mechanism — no separate event needed.
-        socket.on('app_ping', (callback) => {
-            if (typeof callback === 'function') callback();
-        });
-
         // Use the raw transport address - NOT x-forwarded-for, which clients can spoof.
         // Socket.IO doesn't inherit Express's trust-proxy settings, so XFF is unvalidated.
         // If deployed behind a known reverse proxy, configure TRUSTED_PROXY_IPS env var
@@ -95,6 +87,15 @@ function attachSocketHandlers(io, log) {
             }
             return result.value;
         };
+
+        // ── App-level liveness ping (#476, #477) ─────────────────────────────
+        // Lightweight acknowledgment-based ping so clients can verify the
+        // connection is actually alive after freeze/resume or BFCache restore.
+        // Registered after rateLimited so it's subject to rate limiting.
+        socket.on('app_ping', (callback) => {
+            if (rateLimited('app_ping')) return;
+            if (typeof callback === 'function') callback();
+        });
 
         // Register all handler modules
         tournamentHandler.register(io, socket, log, rateLimited, validate);

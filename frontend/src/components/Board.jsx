@@ -532,7 +532,14 @@ const Board = () => {
     let pendingForceReconnect = null; // Track pending once('connect') listener
 
     const onForceReconnect = () => {
+      // Remove any previously pending listener before registering a new one
+      // to prevent zombie listeners when multiple force_reconnect events fire while disconnected
+      if (pendingForceReconnect) {
+        socket.off('connect', pendingForceReconnect);
+      }
+
       if (socket.connected) {
+        pendingForceReconnect = null;
         socket.emit('join_game', { gameId, username, avatar, sessionToken, joinMode });
       } else {
         // Track this so we can clean it up on unmount
