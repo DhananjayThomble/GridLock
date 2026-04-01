@@ -304,7 +304,7 @@ describe('Session Conflict Detection (#478)', () => {
         });
 
         // Should emit error, not game_started
-        expect(newSocket.emit).toHaveBeenCalledWith('error', 'Invalid session token for this username');
+        expect(newSocket.emit).toHaveBeenCalledWith('error', 'This username is already in use.');
         expect(newSocket.join).not.toHaveBeenCalled();
     });
 
