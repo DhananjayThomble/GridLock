@@ -5,6 +5,7 @@ const { goToLobby } = require('./helpers');
 
 /** Fill the visible name input (handles mobile/desktop duplicate inputs). */
 async function fillVisibleNameInput(page, username) {
+  // Main lobby uses NameInput with placeholder "Enter your name…" (ellipsis)
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
 }
 
@@ -61,9 +62,15 @@ async function createGameV(page, { username = 'Alice', playerCount = 2, gridSize
 async function joinGameV(page, { username = 'Bob', roomCode, baseUrl, joinMode = 'player' } = {}) {
   const { BASE_URL } = require('./helpers');
   await goToLobby(page, baseUrl || BASE_URL);
-  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
-  await page.waitForTimeout(200);
+
+  // Fill name in the profile section first (visible on desktop)
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
+
+  // Open the Join tab
+  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
+  await page.waitForTimeout(300);
+
+  // Fill game ID and select mode
   await page.fill('input[placeholder*="e.g"]', roomCode);
   if (joinMode === 'spectator') {
     await page.click('button:has-text("Join as Spectator")');
@@ -75,16 +82,20 @@ async function joinGameV(page, { username = 'Bob', roomCode, baseUrl, joinMode =
   } else {
     await page.getByRole('button', { name: /Join Game/i }).last().click();
   }
-  await page.waitForURL(/\/game/, { timeout: 15_000 });
+  await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
 }
 
 /** Join a game using visible locators — waits for /waiting/ not /game (for use in waiting room tests). */
 async function joinToWaitingRoom(page, { username = 'Bob', roomCode, baseUrl } = {}) {
   const { BASE_URL } = require('./helpers');
   await goToLobby(page, baseUrl || BASE_URL);
-  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
-  await page.waitForTimeout(200);
+
+  // Fill name in the profile section first
   await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
+
+  // Open Join tab, fill game ID, submit
+  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
+  await page.waitForTimeout(300);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   await page.click('button:has-text("Join as Player")');
   await page.getByRole('button', { name: /Join Game/i }).last().click();
