@@ -130,13 +130,14 @@ const Lobby = () => {
   // whether the game still exists. If not, clear the banner immediately.
   useEffect(() => {
     if (!activeGame) return;
-    let cancelled = false;
     const { gameId, sessionToken } = activeGame;
     if (!gameId || !sessionToken) {
       safeStorage.removeItem('gridlock_active_game');
-      setActiveGame(null);
+      // Defer state update to avoid sync setState in effect body
+      queueMicrotask(() => setActiveGame(null));
       return;
     }
+    let cancelled = false;
     socket.emit('validate_rejoin', { gameId, sessionToken }, (response) => {
       if (cancelled) return;
       if (!response || !response.valid) {
@@ -145,7 +146,7 @@ const Lobby = () => {
       }
     });
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — validate once on mount only
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
