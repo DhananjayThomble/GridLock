@@ -133,7 +133,7 @@ test.describe('Chaos: Socket Stability', () => {
 
             // P2 joins the waiting room
             await goToLobby(p2);
-            await p2.locator('input[placeholder="Enter your name"]:visible').first().fill('LobbyP2');
+            await p2.locator('input[placeholder="Enter your name…"]:visible').first().fill('LobbyP2');
 
             // Navigate to join flow
             const joinBtn = p2.locator('button:has-text("Join"), a:has-text("Join")').first();

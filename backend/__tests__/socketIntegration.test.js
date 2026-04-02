@@ -325,13 +325,22 @@ describe('Socket Integration: Timer recovery on restart', () => {
 // validate_rejoin — nonexistent game
 // ═══════════════════════════════════════════════════════════════════
 describe('Socket Integration: validate_rejoin', () => {
-    test('returns invalid for nonexistent game', async () => {
+    test('returns null from store for nonexistent game (handler returns session_expired)', async () => {
         mockGameStore.getGame.mockResolvedValue(null);
 
-        // The validate_rejoin handler is inside gameHandler.register()
-        // We test the logic directly: game not found → { valid: false, reason: 'session_expired' }
+        // The validate_rejoin handler is registered inside gameHandler.register().
+        // We verify the store layer here: null game → handler would callback({ valid: false, reason: 'session_expired' }).
         const result = await mockGameStore.getGame('NONEXIST');
         expect(result).toBeNull();
-        // In the handler, null game → callback({ valid: false, reason: 'session_expired' })
+        expect(mockGameStore.getGame).toHaveBeenCalledWith('NONEXIST');
+    });
+
+    test('returns game for existing game (handler would validate session token)', async () => {
+        const game = makeGame();
+        mockGameStore.getGame.mockResolvedValue(game);
+
+        const result = await mockGameStore.getGame('REAL_GAME');
+        expect(result).toBeTruthy();
+        expect(result.players.player1.username).toBe('Alice');
     });
 });

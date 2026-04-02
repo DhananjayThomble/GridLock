@@ -63,7 +63,7 @@ test.describe('Socket Stability', () => {
 
       // Game should continue for remaining players
       const remainingPages = [p1, p2, p4];
-      const gameFinished = await playToCompletion(remainingPages, 80);
+      await playToCompletion(remainingPages, 80);
 
       // Verify game ends with a winner or game over
       let winnerDeclared = false;
