@@ -56,7 +56,7 @@ async function selectGridSize(page, gridSize) {
  */
 async function createGame(page, { username = 'NightlyAlice', playerCount = 2, gridSize = '3×3' } = {}) {
   await goToLobby(page);
-  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
+  await page.locator('input[placeholder="Enter your name"]:visible').first().fill(username);
   await selectPlayerCount(page, playerCount);
   await selectGridSize(page, gridSize);
   await page.click('button:has-text("🚀 Create Game")');
@@ -92,7 +92,7 @@ async function createCpuGame(page, {
   cpuDifficulty,
 } = {}) {
   await goToLobby(page);
-  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
+  await page.locator('input[placeholder="Enter your name"]:visible').first().fill(username);
   await selectPlayerCount(page, playerCount);
   await selectGridSize(page, gridSize);
 
@@ -122,7 +122,7 @@ async function joinGame(page, { username = 'NightlyBob', roomCode, joinMode = 'p
   const joinBtn = page.locator('button:has-text("Join Game"):visible, button:has-text("🔗 Join"):visible');
   await joinBtn.first().click();
   await page.waitForTimeout(300);
-  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
+  await page.locator('input[placeholder="Enter your name"]:visible').first().fill(username);
   await page.fill('input[placeholder*="e.g"]', roomCode);
   if (joinMode === 'spectator') {
     await page.click('button:has-text("Join as Spectator")');
@@ -286,7 +286,7 @@ async function createGameWithOptions(page, {
   cpuDifficulty = 'medium',
 } = {}) {
   await goToLobby(page);
-  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
+  await page.locator('input[placeholder="Enter your name"]:visible').first().fill(username);
   await selectPlayerCount(page, playerCount);
   await selectGridSize(page, gridSize);
 
