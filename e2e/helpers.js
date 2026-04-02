@@ -29,9 +29,20 @@ const getSocketUrl = () => {
 
 /**
  * Navigate to the lobby and wait for it to be ready.
+ * Bypasses the first-time onboarding overlay by setting localStorage before load.
+ * Also waits for any "Reconnecting…" connection overlay to clear.
  */
 async function goToLobby(page, baseUrl = BASE_URL) {
+  // Inject localStorage flag before page scripts run to skip onboarding overlay
+  await page.addInitScript(() => {
+    localStorage.setItem('gridlock_has_played', 'true');
+  });
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
+
+  // Wait for reconnecting overlay to disappear (if backend is still connecting)
+  await page.locator('[role="dialog"]:has-text("Reconnecting")').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
+
+  // Verify we reached the main lobby (not stuck on onboarding)
   await expect(page.locator('body')).toContainText('GridLock');
 }
 
@@ -74,21 +85,33 @@ async function createGame(page, { username = 'Alice', playerCount = 2, gridSize 
  */
 async function joinGame(page, { username = 'Bob', roomCode, baseUrl = BASE_URL, joinMode = 'player' } = {}) {
   await goToLobby(page, baseUrl);
-  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
-  await page.waitForTimeout(200);
+
+  // Fill the name input in the profile section first (visible on desktop)
   await page.fill('input[placeholder="Enter your name…"]:visible', username);
+
+  // Open the Join tab
+  await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
+  await page.waitForTimeout(300);
+
+  // Fill game ID
   await page.fill('input[placeholder*="e.g"]', roomCode);
+
+  // Select join mode
   if (joinMode === 'spectator') {
     await page.click('button:has-text("Join as Spectator")');
   } else {
     await page.click('button:has-text("Join as Player")');
   }
+
+  // Click the submit button
   if (joinMode === 'spectator') {
     await page.getByRole('button', { name: /Spectate Game/i }).click();
   } else {
     await page.getByRole('button', { name: /Join Game/i }).last().click();
   }
-  await page.waitForURL(/\/game/, { timeout: 15_000 });
+
+  // Wait for navigation to game or waiting room
+  await page.waitForURL(/\/(game|waiting)/, { timeout: 15_000 });
 }
 
 /**
