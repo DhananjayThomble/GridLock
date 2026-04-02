@@ -15,7 +15,14 @@ const socketUrl = import.meta.env.VITE_SOCKET_URL ||
 // not transport-driven.
 const socket = io(socketUrl, {
   path: '/socket.io/',
-  transports: ['websocket', 'polling'],
+  // Start with polling, then upgrade to WebSocket. This is the Socket.IO
+  // recommended order: polling always succeeds (plain HTTP), and the client
+  // automatically upgrades to WebSocket once the handshake completes.
+  // Previous order ['websocket', 'polling'] meant a failed WS attempt fell
+  // back to polling with no upgrade path. (#479)
+  transports: ['polling', 'websocket'],
+  upgrade: true,           // Explicitly enable transport upgrade (#479)
+  rememberUpgrade: true,   // Cache successful WS upgrade for session (#479)
   // Reconnection settings
   reconnection: true,
   reconnectionAttempts: 20,        // Give more chances on flaky mobile networks

@@ -280,9 +280,17 @@ function register(io, socket, log, rateLimited, validate) {
                 const playerId = `player${i}`;
                 const player = game.players[playerId];
                 if (player && player.username === cleanUsername) {
+                    // (#483) Only allow rejoin when BOTH username AND session token match.
+                    // If tokens don't match, give a clear error explaining why.
                     if (!sessionToken || sessionToken !== player.token) {
-                        log.warn('Rejected reconnect due to invalid token', { gameId: cleanGameId, playerId, username: cleanUsername });
-                        socket.emit('error', 'Invalid session token for this username');
+                        const isDisconnected = !!player.disconnectedAt;
+                        if (isDisconnected) {
+                            log.warn('Username collision with disconnected player', { gameId: cleanGameId, playerId, username: cleanUsername });
+                            socket.emit('error', 'This username belongs to a disconnected player. Please choose a different name or wait for them to rejoin.');
+                        } else {
+                            log.warn('Username collision with active player', { gameId: cleanGameId, playerId, username: cleanUsername });
+                            socket.emit('error', 'This username is already in use.');
+                        }
                         return;
                     }
 
@@ -753,6 +761,50 @@ function register(io, socket, log, rateLimited, validate) {
         } catch (error) {
             log.error('Error starting game', { error: error.message });
             socket.emit('error', 'Failed to start game');
+        }
+    });
+
+    // ── validate_rejoin (#480) ────────────────────────────────────────────────
+    // Client sends { gameId, sessionToken } to check if a previously active game
+    // is still valid before showing the "rejoin" banner in the lobby.
+    socket.on('validate_rejoin', async (rawPayload, callback) => {
+        try {
+            if (typeof callback !== 'function') return;
+            if (!rawPayload || typeof rawPayload !== 'object') {
+                return callback({ valid: false, reason: 'invalid_request' });
+            }
+            const { gameId, sessionToken, username } = rawPayload;
+            if (!gameId || !sessionToken) {
+                return callback({ valid: false, reason: 'invalid_request' });
+            }
+
+            const gidResult = sanitizeGameId(gameId);
+            if (!gidResult.valid) return callback({ valid: false, reason: 'session_expired' });
+            const cleanGameId = gidResult.value;
+
+            const game = await gameStore.getGame(cleanGameId);
+            if (!game) return callback({ valid: false, reason: 'session_expired' });
+
+            // Game must be in a rejoinable state (no winner yet)
+            const hasWinner = game.gameState && game.gameState.winner;
+            if (hasWinner) {
+                return callback({ valid: false, reason: 'session_expired' });
+            }
+
+            // Check if session token matches any player slot
+            for (let i = 1; i <= game.playerCount; i++) {
+                const player = game.players[`player${i}`];
+                if (player && player.token === sessionToken) {
+                    // If username provided, verify it matches too
+                    if (username && player.username !== username) continue;
+                    return callback({ valid: true });
+                }
+            }
+
+            return callback({ valid: false, reason: 'session_expired' });
+        } catch (error) {
+            log.error('Error validating rejoin', { error: error.message });
+            if (typeof callback === 'function') callback({ valid: false });
         }
     });
 }

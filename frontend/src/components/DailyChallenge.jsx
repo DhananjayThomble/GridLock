@@ -8,10 +8,11 @@ import { initAudio } from '../utils/sounds';
 import { apiUrl, formatCountdown } from '../utils/daily';
 import DailyResult from './DailyResult';
 import DailyLeaderboard from './DailyLeaderboard';
+import { safeStorage } from '../utils/safeStorage';
 
 const DailyChallenge = () => {
-  const [username] = useState(() => localStorage.getItem('gridlock_username') || '');
-  const [avatar] = useState(() => localStorage.getItem('gridlock-avatar') || '👦');
+  const [username] = useState(() => safeStorage.getItem('gridlock_username') || '');
+  const [avatar] = useState(() => safeStorage.getItem('gridlock-avatar') || '👦');
   const [challenge, setChallenge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

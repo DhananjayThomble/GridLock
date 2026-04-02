@@ -12,10 +12,11 @@ import RankedQueue from './RankedQueue';
 import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby';
 import { isFirstTime } from '../utils/onboarding';
 import GameDemo from './GameDemo';
+import { safeStorage } from '../utils/safeStorage';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
-  try { localStorage.setItem(key, value); } catch { /* quota exceeded / private browsing */ }
+  safeStorage.setItem(key, value);
 };
 
 const DIFFICULTY_OPTIONS = [
@@ -41,17 +42,17 @@ const validateUsername = (raw) => {
 };
 
 const Lobby = () => {
-  const [username,      setUsername]      = useState(() => localStorage.getItem('gridlock_username') || '');
+  const [username,      setUsername]      = useState(() => safeStorage.getItem('gridlock_username') || '');
   const [gridSize,      setGridSize]      = useState(() => {
-    const saved = parseInt(localStorage.getItem('gridlock-gridSize'), 10);
+    const saved = parseInt(safeStorage.getItem('gridlock-gridSize'), 10);
     return saved >= 3 && saved <= 6 ? saved : 3;
   });
   const [playerCount,   setPlayerCount]   = useState(() => {
-    const saved = parseInt(localStorage.getItem('gridlock-playerCount'), 10);
+    const saved = parseInt(safeStorage.getItem('gridlock-playerCount'), 10);
     return saved >= 2 && saved <= 4 ? saved : 2;
   });
   const [selectedAvatar, setSelectedAvatar] = useState(() => {
-    const saved = localStorage.getItem('gridlock-avatar');
+    const saved = safeStorage.getItem('gridlock-avatar');
     return saved && AVATARS.includes(saved) ? saved : '👦';
   });
   const [gameId,        setGameId]        = useState('');
@@ -59,23 +60,23 @@ const Lobby = () => {
   const [joining,       setJoining]       = useState(false);
   const [joinMode,      setJoinMode]      = useState('player'); // 'player' | 'spectator'
   const [tab,           setTab]           = useState(''); // 'create' | 'join' | 'tournament'
-  const [cpuEnabled,    setCpuEnabled]    = useState(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
+  const [cpuEnabled,    setCpuEnabled]    = useState(() => safeStorage.getItem('gridlock-cpuEnabled') === 'true');
   const [cpuCount,      setCpuCount]      = useState(() => {
-    const saved = parseInt(localStorage.getItem('gridlock-cpuCount'), 10);
+    const saved = parseInt(safeStorage.getItem('gridlock-cpuCount'), 10);
     const validSaved = saved >= 1 && saved <= 3 ? saved : 1;
-    const savedPlayerCount = parseInt(localStorage.getItem('gridlock-playerCount'), 10) || 2;
+    const savedPlayerCount = parseInt(safeStorage.getItem('gridlock-playerCount'), 10) || 2;
     return Math.min(validSaved, savedPlayerCount - 1);
   });
   const [cpuDifficulty, setCpuDifficulty] = useState(() => {
-    const saved = localStorage.getItem('gridlock-cpuDifficulty');
+    const saved = safeStorage.getItem('gridlock-cpuDifficulty');
     return ['easy', 'medium', 'hard'].includes(saved) ? saved : 'medium';
   });
   const [tournamentSize, setTournamentSize] = useState(() => {
-    const saved = parseInt(localStorage.getItem('gridlock-tournamentSize'), 10);
+    const saved = parseInt(safeStorage.getItem('gridlock-tournamentSize'), 10);
     return [4, 8].includes(saved) ? saved : 4;
   });
   const [tournamentGridSize, setTournamentGridSize] = useState(() => {
-    const saved = parseInt(localStorage.getItem('gridlock-tournamentGridSize'), 10);
+    const saved = parseInt(safeStorage.getItem('gridlock-tournamentGridSize'), 10);
     return saved >= 3 && saved <= 6 ? saved : 4;
   });
   const [tournamentId, setTournamentId]   = useState('');
@@ -100,17 +101,17 @@ const Lobby = () => {
   const [rankedProfile, setRankedProfile] = useState(null);
   const [, setRankedProfileLoading] = useState(false);
   const [profileExpanded, setProfileExpanded] = useState(false);
-  const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => localStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
+  const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => safeStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
   const [firstTime] = useState(() => isFirstTime());
   // Active game banner state (#365)
   const [activeGame, setActiveGame] = useState(() => {
     try {
-      const raw = localStorage.getItem('gridlock_active_game');
+      const raw = safeStorage.getItem('gridlock_active_game');
       if (!raw) return null;
       const data = JSON.parse(raw);
       // Expire after 15 minutes to reduce staleness window (#374 review)
       if (Date.now() - data.timestamp > 15 * 60 * 1000) {
-        localStorage.removeItem('gridlock_active_game');
+        safeStorage.removeItem('gridlock_active_game');
         return null;
       }
       return data;
@@ -123,6 +124,28 @@ const Lobby = () => {
 
   // Ref to track which action is in progress — used by onError to route errors (#211)
   const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
+
+  // ── Validate rejoin banner against server (#480) ──────────────────────────
+  // On mount, if we have an active game in localStorage, ask the server
+  // whether the game still exists. If not, clear the banner immediately.
+  useEffect(() => {
+    if (!activeGame) return;
+    let cancelled = false;
+    const { gameId, sessionToken } = activeGame;
+    if (!gameId || !sessionToken) {
+      safeStorage.removeItem('gridlock_active_game');
+      setActiveGame(null);
+      return;
+    }
+    socket.emit('validate_rejoin', { gameId, sessionToken }, (response) => {
+      if (cancelled) return;
+      if (!response || !response.valid) {
+        safeStorage.removeItem('gridlock_active_game');
+        setActiveGame(null);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — validate once on mount only
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
@@ -376,7 +399,7 @@ const Lobby = () => {
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     setQuickPlaying(true);
     setQueueSize(1);
     socket.emit('queue_join', { username: name, avatar: selectedAvatar, gridSize, playerCount });
@@ -394,7 +417,7 @@ const Lobby = () => {
     const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     // Use already-fetched profile data — no duplicate fetch (#374 review)
     setRankedPlaying(true);
     setRankedQueueSize(1);
@@ -415,7 +438,7 @@ const Lobby = () => {
     if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     activeActionRef.current = 'challenge';
     setChallengeCreating(true);
 
@@ -493,7 +516,7 @@ const Lobby = () => {
     if (nameErr) { setUsernameError(nameErr); return; }
     setUsernameError('');
     if (!socket.connected) socket.connect();
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     activeActionRef.current = 'create';
     setCreating(true);
     socket.emit('create_game', {
@@ -541,12 +564,12 @@ const Lobby = () => {
     if (!socket.connected) socket.connect();
     activeActionRef.current = 'create';
     setCreating(true);
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     // Auto-prompt push subscription on first game action
-    if (!localStorage.getItem('gridlock_push_prompted')) {
-      localStorage.setItem('gridlock_push_prompted', 'true');
+    if (!safeStorage.getItem('gridlock_push_prompted')) {
+      safeStorage.setItem('gridlock_push_prompted', 'true');
       subscribeToPush(name, socket.id).then((sub) => {
-        if (sub) { localStorage.setItem('gridlock_push', 'true'); }
+        if (sub) { safeStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
     const cpuPlayers = cpuEnabled ? cpuCount : 0;
@@ -591,16 +614,16 @@ const Lobby = () => {
     setGameIdError('');
 
     const tokenKey = `gridlock:session:${id}:${name}`;
-    const existingToken = localStorage.getItem(tokenKey) || null;
+    const existingToken = safeStorage.getItem(tokenKey) || null;
 
     activeActionRef.current = 'join';
     setJoining(true);
-    localStorage.setItem('gridlock_username', name);
+    safeStorage.setItem('gridlock_username', name);
     // Auto-prompt push subscription on first game action
-    if (!localStorage.getItem('gridlock_push_prompted')) {
-      localStorage.setItem('gridlock_push_prompted', 'true');
+    if (!safeStorage.getItem('gridlock_push_prompted')) {
+      safeStorage.setItem('gridlock_push_prompted', 'true');
       subscribeToPush(name, socket.id).then((sub) => {
-        if (sub) { localStorage.setItem('gridlock_push', 'true'); }
+        if (sub) { safeStorage.setItem('gridlock_push', 'true'); }
       }).catch(() => {});
     }
     if (!socket.connected) {
@@ -648,7 +671,7 @@ const Lobby = () => {
               </button>
               <button
                 onClick={() => {
-                  try { localStorage.removeItem('gridlock_active_game'); } catch { /* ignore */ }
+                  safeStorage.removeItem('gridlock_active_game');
                   setActiveGame(null);
                 }}
                 className="p-1.5 rounded-lg text-xs transition-all active:scale-95 min-w-[32px] min-h-[32px] flex items-center justify-center"
@@ -674,7 +697,7 @@ const Lobby = () => {
               </Link>
               <button
                 onClick={() => {
-                  localStorage.setItem('gridlock_how_to_play_dismissed', 'true');
+                  safeStorage.setItem('gridlock_how_to_play_dismissed', 'true');
                   setHowToPlayDismissed(true);
                 }}
                 className="bg-transparent border-none cursor-pointer p-2 px-3 text-base min-w-[44px] min-h-[44px] flex items-center justify-center"

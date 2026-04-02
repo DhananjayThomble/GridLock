@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useLayoutEffect, useCallback } from 'react';
+import { safeStorage } from '../utils/safeStorage';
 
 const ThemeContext = createContext();
 
@@ -7,14 +8,14 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    const stored = localStorage.getItem('gridlock_theme');
+    const stored = safeStorage.getItem('gridlock_theme');
     if (stored === 'dark' || stored === 'light') return stored;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   useLayoutEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('gridlock_theme', theme);
+    safeStorage.setItem('gridlock_theme', theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

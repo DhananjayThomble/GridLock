@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import socket from '../socket';
+import { safeStorage } from '../utils/safeStorage';
 
 // Timeout thresholds (seconds) — Must match backend QUEUE_TIMEOUT_MS in services/matchmaking.js
 const QUEUE_TIMEOUT_SEC = 30;
@@ -14,7 +15,7 @@ const PLAYER_OPTIONS = [2, 3, 4];
 const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initialQueueSize, username, avatar, onCancel, onPlayCPU }) => {
   const [selectedPlayerCount, setSelectedPlayerCount] = useState(() => {
     // Persist last Quick Play selection across modal open/close (#213)
-    const saved = parseInt(localStorage.getItem('gridlock-quickplay-playerCount'), 10);
+    const saved = parseInt(safeStorage.getItem('gridlock-quickplay-playerCount'), 10);
     return saved >= 2 && saved <= 4 ? saved : (initialPlayerCount || 2);
   });
   const [elapsed, setElapsed] = useState(0);
@@ -77,7 +78,7 @@ const QuickPlay = ({ gridSize, playerCount: initialPlayerCount, queueSize: initi
     setSelectedPlayerCount(newCount);
 
     // Persist selection so it survives modal close/reopen (#213)
-    try { localStorage.setItem('gridlock-quickplay-playerCount', String(newCount)); } catch { /* ignore */ }
+    try { safeStorage.setItem('gridlock-quickplay-playerCount', String(newCount)); } catch { /* ignore */ }
 
     // Re-queue: leave current queue, rejoin with new player count
     socket.emit('queue_leave');
