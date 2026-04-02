@@ -159,11 +159,14 @@ test.describe('Socket Stability', () => {
       await p1.waitForFunction(() => /turn/i.test(document.body.innerText), { timeout: 15_000 });
 
       // Read P2's session token from localStorage before disconnecting
-      const sessionData = await p2.evaluate(() => ({
-        sessionToken: localStorage.getItem('gridlock_session_token'),
-        activeGame: localStorage.getItem('gridlock_active_game'),
-        username: localStorage.getItem('gridlock_username'),
-      }));
+      const sessionData = await p2.evaluate(() => {
+        const gameId = localStorage.getItem('gridlock_active_game');
+        const username = localStorage.getItem('gridlock_username');
+        const sessionToken = gameId && username
+          ? localStorage.getItem(`gridlock:session:${gameId}:${username}`)
+          : null;
+        return { sessionToken, activeGame: gameId, username };
+      });
 
       // P2 disconnects
       await p2.close();
@@ -185,9 +188,11 @@ test.describe('Socket Stability', () => {
       if (sessionData.sessionToken && sessionData.activeGame) {
         // Navigate and attempt rejoin via the game URL directly
         await p2.addInitScript((data) => {
-          localStorage.setItem('gridlock_session_token', data.sessionToken);
           localStorage.setItem('gridlock_active_game', data.activeGame);
           if (data.username) localStorage.setItem('gridlock_username', data.username);
+          if (data.sessionToken && data.activeGame && data.username) {
+            localStorage.setItem(`gridlock:session:${data.activeGame}:${data.username}`, data.sessionToken);
+          }
         }, sessionData);
       }
 

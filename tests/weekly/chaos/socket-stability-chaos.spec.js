@@ -9,7 +9,6 @@ const {
     joinGame,
     waitForGameStart,
     makeMove,
-    BETA_URL,
 } = require('../../fixtures/test-helpers');
 
 test.describe('Chaos: Socket Stability', () => {

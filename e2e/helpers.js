@@ -50,7 +50,7 @@ async function goToLobby(page, baseUrl = BASE_URL) {
  * Fill lobby form and create a game. Returns the room code.
  */
 async function createGame(page, { username = 'Alice', playerCount = 2, gridSize = '3×3' } = {}) {
-  await page.fill('input[placeholder="Enter your name…"]:visible', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.locator(`button:has-text("${playerCount} Players"):visible`).click();
   await page.locator(`button:has-text("${gridSize}"):visible`).first().click();
   await page.locator('button:has-text("🚀 Create Game"):visible').click();
@@ -87,7 +87,7 @@ async function joinGame(page, { username = 'Bob', roomCode, baseUrl = BASE_URL, 
   await goToLobby(page, baseUrl);
 
   // Fill the name input in the profile section first (visible on desktop)
-  await page.fill('input[placeholder="Enter your name…"]:visible', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
 
   // Open the Join tab
   await page.locator('button:has-text("🔗 Join Game"):visible').first().click();
@@ -183,7 +183,7 @@ async function createCpuGame(page, {
   // Default cpuCount: fill all non-human slots with CPU
   const effectiveCpuCount = cpuCount ?? (playerCount - 1);
   await goToLobby(page);
-  await page.fill('input[placeholder="Enter your name…"]:visible', username);
+  await page.locator('input[placeholder="Enter your name…"]:visible').first().fill(username);
   await page.locator(`button:has-text("${playerCount} Players"):visible`).click();
   await page.locator(`button:has-text("${gridSize}"):visible`).first().click({ timeout: 3000 }).catch(() => {});
 
