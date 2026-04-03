@@ -99,6 +99,7 @@ const Lobby = () => {
   // Ranked mode state
   const [rankedPlaying, setRankedPlaying] = useState(false);
   const [shakeTarget, setShakeTarget] = useState(null);
+  const [toast, setToast] = useState(null); // { message, type: 'error'|'warning' }
   const [rankedElo, setRankedElo] = useState(1200);
   const [rankedTier, setRankedTier] = useState('Bronze');
   const [rankedTierIcon, setRankedTierIcon] = useState('🥉');
@@ -387,13 +388,23 @@ const Lobby = () => {
     setTimeout(() => setShakeTarget(null), 500);
   };
 
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const highlightInput = (ref) => {
     if (ref?.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       ref.current.focus();
-      ref.current.classList.add('ring-2', 'ring-red-500');
+      // Use inline styles instead of Tailwind classes (Tailwind purges dynamic classList)
+      ref.current.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.5)';
+      ref.current.style.borderColor = '#ef4444';
       setTimeout(() => {
-        ref.current?.classList.remove('ring-2', 'ring-red-500');
+        if (ref.current) {
+          ref.current.style.boxShadow = '';
+          ref.current.style.borderColor = '';
+        }
       }, 2000);
     }
   };
@@ -407,6 +418,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('createTournament');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -426,6 +438,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('joinTournament');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -434,6 +447,7 @@ const Lobby = () => {
       setTimeout(() => setTournamentIdError(''), 3000);
       triggerShake('joinTournament');
       highlightInput(tournamentIdInputRef);
+      showToast('Please enter a Tournament ID');
       return;
     }
     setTournamentIdError('');
@@ -453,6 +467,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('quickplay');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -478,6 +493,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('ranked');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -505,6 +521,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('challenge');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -553,6 +570,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('quickplaycpu');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     if (!socket.connected) socket.connect();
@@ -596,6 +614,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('onboarding');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -649,6 +668,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('create');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -705,6 +725,7 @@ const Lobby = () => {
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('join');
       highlightInput(usernameInputRef);
+      showToast(nameErr);
       return;
     }
     setUsernameError('');
@@ -713,6 +734,7 @@ const Lobby = () => {
       setTimeout(() => setGameIdError(''), 3000);
       triggerShake('join');
       highlightInput(gameIdInputRef);
+      showToast('Please enter a Game ID');
       return;
     }
     setGameIdError('');
@@ -1419,6 +1441,22 @@ const Lobby = () => {
           onCancel={handleRankedCancel}
           profile={rankedProfile}
         />
+      )}
+
+      {/* Floating toast notification */}
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 animate-slide-up"
+          style={{
+            background: toast.type === 'error' ? 'var(--danger)' : 'var(--warning)',
+            color: '#fff',
+            maxWidth: '90vw',
+          }}
+          role="alert"
+        >
+          <span>{toast.type === 'error' ? '⚠️' : 'ℹ️'}</span>
+          <span>{toast.message}</span>
+        </div>
       )}
     </div>
   );

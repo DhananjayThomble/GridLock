@@ -31,7 +31,7 @@ const NameInput = ({ inputRef, username, usernameError, onChange, onKeyDown, pla
     />
     <div className="flex justify-between mt-1">
       {usernameError ? (
-        <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
+        <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>⚠️ {usernameError}</p>
       ) : !username.trim() ? (
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Enter a name to start playing</p>
       ) : <span />}
