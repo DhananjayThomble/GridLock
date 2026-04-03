@@ -104,8 +104,10 @@ const Lobby = () => {
   const [, setRankedProfileLoading] = useState(false);
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => safeStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
-  // Skip onboarding for logged-in users — they already have an account, show full lobby
-  const [firstTime] = useState(() => user ? false : isFirstTime());
+  const [firstTime] = useState(() => isFirstTime());
+  // Skip onboarding for logged-in users — user is fetched async so we
+  // can't rely on it inside the useState initialiser. Check at render time.
+  const showOnboarding = firstTime && !user;
   // Active game banner state (#365)
   const [activeGame, setActiveGame] = useState(() => {
     try {
@@ -744,7 +746,7 @@ const Lobby = () => {
           </div>
 
           {/* ── First-Time Onboarding View ── */}
-          {firstTime && (
+          {showOnboarding && (
             <div data-testid="onboarding-view" className="p-6 sm:p-8 text-center space-y-5">
               <div>
                 <p className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
@@ -805,7 +807,7 @@ const Lobby = () => {
           )}
 
           {/* ── Full Lobby (returning users only) ── */}
-          {!firstTime && (<>
+          {!showOnboarding && (<>
           {/* ── Username + Avatar (unified profile card) ── */}
           <div className="p-4 sm:p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* ── Mobile: tappable profile row ── */}

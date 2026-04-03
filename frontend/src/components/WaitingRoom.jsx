@@ -357,16 +357,7 @@ const WaitingRoom = () => {
                     fgColor="#0F172A"
                     level="M"
                     includeMargin={true}
-                    className="sm:hidden"
-                  />
-                  <QRCodeSVG
-                    value={shareUrl}
-                    size={220}
-                    bgColor="#ffffff"
-                    fgColor="#0F172A"
-                    level="M"
-                    includeMargin={true}
-                    className="hidden sm:block"
+                    className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px]"
                   />
                 </div>
                 <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
