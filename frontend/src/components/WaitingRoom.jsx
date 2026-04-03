@@ -2,6 +2,7 @@
 // Real-time waiting room — shows player slots, share link, admin controls
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import socket from '../socket';
 
@@ -36,6 +37,7 @@ const WaitingRoom = () => {
   const [autoStartCountdown, setAutoStartCountdown] = useState(null);
   const [disconnectTimers, setDisconnectTimers] = useState({});
   const [sessionConflictMessage, setSessionConflictMessage] = useState(null);
+  const [showQR, setShowQR] = useState(false);
 
   // Prevent double-navigate
   const navigatedRef = useRef(false);
@@ -329,6 +331,49 @@ const WaitingRoom = () => {
             >
               {copied ? '✅' : '📋'}
             </button>
+          </div>
+
+          {/* QR Code Section */}
+          <div className="p-4 text-center" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => setShowQR((v) => !v)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+              style={{
+                background: showQR ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--bg-card)',
+                border: `1px solid ${showQR ? 'var(--accent)' : 'var(--border-color-strong)'}`,
+                color: showQR ? 'var(--accent)' : 'var(--text-secondary)',
+              }}
+            >
+              {showQR ? '✕ Hide QR Code' : '📱 Show QR Code'}
+            </button>
+
+            {showQR && (
+              <div className="mt-3 flex flex-col items-center">
+                <div className="bg-white rounded-2xl p-4 shadow-lg inline-block">
+                  <QRCodeSVG
+                    value={shareUrl}
+                    size={180}
+                    bgColor="#ffffff"
+                    fgColor="#0F172A"
+                    level="M"
+                    includeMargin={true}
+                    className="sm:hidden"
+                  />
+                  <QRCodeSVG
+                    value={shareUrl}
+                    size={220}
+                    bgColor="#ffffff"
+                    fgColor="#0F172A"
+                    level="M"
+                    includeMargin={true}
+                    className="hidden sm:block"
+                  />
+                </div>
+                <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Scan to join · <span className="font-mono" style={{ color: 'var(--accent)' }}>{gameId}</span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Player Slots */}
