@@ -13,6 +13,7 @@ import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, 
 import { isFirstTime } from '../utils/onboarding';
 import GameDemo from './GameDemo';
 import { safeStorage } from '../utils/safeStorage';
+import { useAuth } from '../contexts/AuthContext';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -42,6 +43,7 @@ const validateUsername = (raw) => {
 };
 
 const Lobby = () => {
+  const { user } = useAuth();
   const [username,      setUsername]      = useState(() => safeStorage.getItem('gridlock_username') || '');
   const [gridSize,      setGridSize]      = useState(() => {
     const saved = parseInt(safeStorage.getItem('gridlock-gridSize'), 10);
@@ -102,7 +104,8 @@ const Lobby = () => {
   const [, setRankedProfileLoading] = useState(false);
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => safeStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
-  const [firstTime] = useState(() => isFirstTime());
+  // Skip onboarding for logged-in users — they already have an account, show full lobby
+  const [firstTime] = useState(() => user ? false : isFirstTime());
   // Active game banner state (#365)
   const [activeGame, setActiveGame] = useState(() => {
     try {
