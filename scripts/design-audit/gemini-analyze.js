@@ -15,7 +15,7 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`;
 
 const ANALYSIS_PROMPT = `You are a UI/UX design auditor performing pixel-level analysis of a web app screenshot.
 
@@ -199,7 +199,7 @@ async function main() {
   const outputPath = path.join(REPORTS_DIR, 'gemini-analysis.json');
   fs.writeFileSync(outputPath, JSON.stringify({
     generatedAt: new Date().toISOString(),
-    model: 'gemini-2.0-flash',
+    model: 'gemini-3-flash-preview',
     totalScreenshots: screenshots.length,
     successfulAnalyses: screenshots.length - errorCount,
     errors: errorCount,
