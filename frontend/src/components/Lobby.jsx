@@ -1444,7 +1444,7 @@ const Lobby = () => {
       {/* Floating toast notification */}
       {toast && (
         <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 animate-slide-up"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 animate-slide-up"
           style={{
             background: toast.type === 'error' ? 'var(--danger)' : 'var(--warning)',
             color: '#fff',
