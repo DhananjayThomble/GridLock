@@ -61,3 +61,7 @@ frontend/.env
 
 # QA screenshot output (generated, large binaries)
 qa-screenshots/**/mobile-audit-*/
+
+# Design audit outputs (generated, large binaries)
+frontend/tests/design-audit/screenshots/
+frontend/tests/design-audit/reports/
