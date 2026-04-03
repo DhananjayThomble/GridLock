@@ -100,6 +100,7 @@ const Lobby = () => {
   const [rankedPlaying, setRankedPlaying] = useState(false);
   const [shakeTarget, setShakeTarget] = useState(null);
   const [toast, setToast] = useState(null); // { message, type: 'error'|'warning' }
+  const [highlightedField, setHighlightedField] = useState(null); // 'username' | 'gameId' | 'tournamentId' | null
   const [rankedElo, setRankedElo] = useState(1200);
   const [rankedTier, setRankedTier] = useState('Bronze');
   const [rankedTierIcon, setRankedTierIcon] = useState('🥉');
@@ -393,20 +394,14 @@ const Lobby = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const highlightInput = (ref) => {
+    const highlightInput = (ref, fieldName) => {
     if (ref?.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       ref.current.focus();
-      // Use inline styles instead of Tailwind classes (Tailwind purges dynamic classList)
-      ref.current.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.5)';
-      ref.current.style.borderColor = '#ef4444';
-      setTimeout(() => {
-        if (ref.current) {
-          ref.current.style.boxShadow = '';
-          ref.current.style.borderColor = '';
-        }
-      }, 2000);
     }
+    // Use React state for highlight — imperative style is overwritten by re-render
+    setHighlightedField(fieldName);
+    setTimeout(() => setHighlightedField(null), 2500);
   };
 
   // ── Create Tournament ───────────────────────────────────────────────────────
@@ -417,7 +412,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('createTournament');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -437,7 +432,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('joinTournament');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -446,7 +441,7 @@ const Lobby = () => {
       setTournamentIdError('Please enter a Tournament ID');
       setTimeout(() => setTournamentIdError(''), 3000);
       triggerShake('joinTournament');
-      highlightInput(tournamentIdInputRef);
+      highlightInput(tournamentIdInputRef, 'tournamentId');
       showToast('Please enter a Tournament ID');
       return;
     }
@@ -466,7 +461,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('quickplay');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -492,7 +487,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('ranked');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -520,7 +515,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('challenge');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -569,7 +564,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('quickplaycpu');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -613,7 +608,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('onboarding');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -667,7 +662,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('create');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -724,7 +719,7 @@ const Lobby = () => {
       setUsernameError(nameErr);
       setTimeout(() => setUsernameError(''), 3000);
       triggerShake('join');
-      highlightInput(usernameInputRef);
+      highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
       return;
     }
@@ -733,7 +728,7 @@ const Lobby = () => {
       setGameIdError('Please enter a Game ID');
       setTimeout(() => setGameIdError(''), 3000);
       triggerShake('join');
-      highlightInput(gameIdInputRef);
+      highlightInput(gameIdInputRef, 'gameId');
       showToast('Please enter a Game ID');
       return;
     }
@@ -974,6 +969,7 @@ const Lobby = () => {
                     inputRef={usernameInputRef}
                     username={username}
                     usernameError={usernameError}
+                    highlighted={highlightedField === 'username'}
                     onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
                     onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
                   />
@@ -998,6 +994,7 @@ const Lobby = () => {
                 inputRef={usernameInputRef}
                 username={username}
                 usernameError={usernameError}
+                    highlighted={highlightedField === 'username'}
                 onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
                 onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
               />
@@ -1234,7 +1231,8 @@ const Lobby = () => {
                   className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                   style={{
                     background: 'var(--input-bg)',
-                    border: gameIdError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    border: (gameIdError || highlightedField === 'gameId') ? '2px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    boxShadow: highlightedField === 'gameId' ? '0 0 0 3px rgba(239, 68, 68, 0.35)' : 'none',
                     color: 'var(--text-primary)',
                   }}
                 />
