@@ -13,6 +13,7 @@ import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, 
 import { isFirstTime } from '../utils/onboarding';
 import GameDemo from './GameDemo';
 import { safeStorage } from '../utils/safeStorage';
+import { useAuth } from '../contexts/AuthContext';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -42,6 +43,7 @@ const validateUsername = (raw) => {
 };
 
 const Lobby = () => {
+  const { user } = useAuth();
   const [username,      setUsername]      = useState(() => safeStorage.getItem('gridlock_username') || '');
   const [gridSize,      setGridSize]      = useState(() => {
     const saved = parseInt(safeStorage.getItem('gridlock-gridSize'), 10);
@@ -103,6 +105,9 @@ const Lobby = () => {
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => safeStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
   const [firstTime] = useState(() => isFirstTime());
+  // Skip onboarding for logged-in users — user is fetched async so we
+  // can't rely on it inside the useState initialiser. Check at render time.
+  const showOnboarding = firstTime && !user;
   // Active game banner state (#365)
   const [activeGame, setActiveGame] = useState(() => {
     try {
@@ -741,7 +746,7 @@ const Lobby = () => {
           </div>
 
           {/* ── First-Time Onboarding View ── */}
-          {firstTime && (
+          {showOnboarding && (
             <div data-testid="onboarding-view" className="p-6 sm:p-8 text-center space-y-5">
               <div>
                 <p className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
@@ -802,7 +807,7 @@ const Lobby = () => {
           )}
 
           {/* ── Full Lobby (returning users only) ── */}
-          {!firstTime && (<>
+          {!showOnboarding && (<>
           {/* ── Username + Avatar (unified profile card) ── */}
           <div className="p-4 sm:p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* ── Mobile: tappable profile row ── */}
