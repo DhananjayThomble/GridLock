@@ -44,7 +44,12 @@ const validateUsername = (raw) => {
 
 const Lobby = () => {
   const { user } = useAuth();
-  const [username,      setUsername]      = useState(() => safeStorage.getItem('gridlock_username') || '');
+  const [username,      setUsername]      = useState(() => {
+    const saved = safeStorage.getItem('gridlock_username');
+    if (saved) return saved;
+    // Pre-fill from auth profile if logged in
+    return user?.username || user?.displayName || '';
+  });
   const [gridSize,      setGridSize]      = useState(() => {
     const saved = parseInt(safeStorage.getItem('gridlock-gridSize'), 10);
     return saved >= 3 && saved <= 6 ? saved : 3;

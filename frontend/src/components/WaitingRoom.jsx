@@ -6,6 +6,40 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import socket from '../socket';
 
+const QrIcon = ({ size = 18, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="5" height="5" x="3" y="3" rx="1"/>
+    <rect width="5" height="5" x="16" y="3" rx="1"/>
+    <rect width="5" height="5" x="3" y="16" rx="1"/>
+    <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+    <path d="M21 21v.01"/>
+    <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+    <path d="M3 12h.01"/>
+    <path d="M12 3h.01"/>
+    <path d="M12 16v.01"/>
+    <path d="M16 12h1"/>
+    <path d="M21 12v.01"/>
+    <path d="M12 21v-1"/>
+  </svg>
+);
+
+const ShareIcon = ({ size = 18, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="18" cy="5" r="3"/>
+    <circle cx="6" cy="12" r="3"/>
+    <circle cx="18" cy="19" r="3"/>
+    <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/>
+    <line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
+  </svg>
+);
+
+const ClipboardIcon = ({ size = 18, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+  </svg>
+);
+
 const DIFFICULTY_OPTIONS = [
   { value: 'easy', label: 'Easy', icon: '😊' },
   { value: 'medium', label: 'Medium', icon: '🧐' },
@@ -304,7 +338,7 @@ const WaitingRoom = () => {
                 color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
               }}
             >
-              {copied ? '✅ Copied!' : '📋 Copy Code'}
+              {copied ? '✅ Copied!' : (<><ClipboardIcon size={14} /> Copy Code</>)}
             </button>
           </div>
 
@@ -318,7 +352,7 @@ const WaitingRoom = () => {
                 color: 'var(--text-on-accent)',
               }}
             >
-              {shared ? '✅ Shared!' : (<><span className="hidden sm:inline">📤 Share Invite Link</span><span className="sm:hidden">📤 Share</span></>)}
+              {shared ? '✅ Shared!' : (<><ShareIcon size={16} /><span className="hidden sm:inline">Share Invite Link</span><span className="sm:hidden">Share</span></>)}
             </button>
             <button
               onClick={handleCopyCode}
@@ -329,7 +363,7 @@ const WaitingRoom = () => {
                 color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
               }}
             >
-              {copied ? '✅' : '📋'}
+              {copied ? '✅' : <ClipboardIcon size={16} />}
             </button>
           </div>
 
@@ -346,7 +380,7 @@ const WaitingRoom = () => {
                 color: showQR ? 'var(--accent)' : 'var(--text-secondary)',
               }}
             >
-              {showQR ? '✕ Hide QR Code' : '📱 Show QR Code'}
+              {showQR ? '✕ Hide QR' : (<><QrIcon size={18} /> Show QR Code</>)}
             </button>
 
             {showQR && (
