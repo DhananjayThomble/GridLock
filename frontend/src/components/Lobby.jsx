@@ -803,6 +803,11 @@ const Lobby = () => {
                     '▶ Play Now'
                   )}
                 </button>
+                {!username.trim() && !creating && (
+                  <p className="text-xs text-center mt-1" style={{ color: 'var(--warning)' }}>
+                    ↑ Enter your name above to get started
+                  </p>
+                )}
               </div>
 
               {usernameError && (
@@ -1071,6 +1076,12 @@ const Lobby = () => {
                 </span>
               ) : '🔗 Challenge a Friend'}
             </button>
+
+            {!username.trim() && !creating && (
+              <p className="text-xs text-center mt-1" style={{ color: 'var(--warning)' }}>
+                ↑ Enter your name above to get started
+              </p>
+            )}
           </div>
 
           {/* ── Secondary actions — shared mobile chips + desktop buttons ── */}
@@ -1154,6 +1165,14 @@ const Lobby = () => {
                 ) : (joinMode === 'spectator' ? '👀 Spectate Game' : '🔗 Join Game')}
               </button>
 
+              {(!username.trim() || !gameId.trim()) && !joining && (
+                <p className="text-xs text-center mt-1" style={{ color: 'var(--warning)' }}>
+                  {!username.trim() && !gameId.trim() ? 'Enter your name and room code' :
+                   !username.trim() ? 'Enter your name above' :
+                   'Enter the room code'}
+                </p>
+              )}
+
               <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
                 Ask the game creator for their room code
               </p>
@@ -1203,6 +1222,12 @@ const Lobby = () => {
                   '🏆 Create Tournament'
                 )}
               </button>
+
+              {!username.trim() && !creatingTournament && (
+                <p className="text-xs text-center mt-1" style={{ color: 'var(--warning)' }}>
+                  ↑ Enter your name above to get started
+                </p>
+              )}
 
               {/* Divider */}
               <div className="flex items-center gap-3">
@@ -1255,6 +1280,14 @@ const Lobby = () => {
                   '🔗 Join Tournament'
                 )}
               </button>
+
+              {(!username.trim() || !tournamentId.trim()) && !joiningTournament && (
+                <p className="text-xs text-center mt-1" style={{ color: 'var(--warning)' }}>
+                  {!username.trim() && !tournamentId.trim() ? 'Enter your name and tournament code' :
+                   !username.trim() ? 'Enter your name above' :
+                   'Enter the tournament code'}
+                </p>
+              )}
 
               <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
                 Single-elimination bracket · Winner takes all 🏆
