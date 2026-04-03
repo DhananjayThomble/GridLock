@@ -333,10 +333,12 @@ const WaitingRoom = () => {
             </button>
           </div>
 
-          {/* QR Code Section */}
+          {/* QR Code Section — only render when gameId is available */}
+          {gameId && (
           <div className="p-4 text-center" style={{ borderBottom: '1px solid var(--border-color)' }}>
             <button
               onClick={() => setShowQR((v) => !v)}
+              aria-label={showQR ? 'Hide QR code' : 'Show QR code'}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
               style={{
                 background: showQR ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--bg-card)',
@@ -349,15 +351,21 @@ const WaitingRoom = () => {
 
             {showQR && (
               <div className="mt-3 flex flex-col items-center">
-                <div className="bg-white rounded-2xl p-4 shadow-lg inline-block">
+                <div
+                  className="bg-white rounded-2xl p-4 shadow-lg inline-block"
+                  role="img"
+                  aria-label={`QR code to join game ${gameId}`}
+                >
+                  {/* fgColor is hardcoded because SVG props cannot accept CSS variables.
+                      #0F172A (slate-900) ensures high contrast against the white background. */}
                   <QRCodeSVG
                     value={shareUrl}
-                    size={180}
+                    size={220}
                     bgColor="#ffffff"
                     fgColor="#0F172A"
                     level="M"
                     includeMargin={true}
-                    className="w-[180px] h-[180px] sm:w-[220px] sm:h-[220px]"
+                    style={{ width: '100%', maxWidth: '220px', height: 'auto' }}
                   />
                 </div>
                 <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
@@ -366,6 +374,7 @@ const WaitingRoom = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* Player Slots */}
           <div className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
