@@ -37,7 +37,7 @@
   flex-shrink: 0;
 }
 
-/* Mobile-only header bar — visible only ≤640px */
+/* Mobile-only header bar — visible only ≤768px */
 .mobile-header {
   display: none;
 }
@@ -46,8 +46,8 @@
   display: none;
 }
 
-/* Mobile: don't center — start from left so first item isn't clipped */
-@media (max-width: 640px) {
+/* Mobile: hide top nav, show mobile header + bottom nav */
+@media (max-width: 768px) {
   .app-nav {
     display: none;
   }
@@ -93,7 +93,7 @@
 }
 
 /* Tighter links on small mobile to fit all items without scrolling */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .app-nav-link {
     font-size: 0.75rem;
     padding: 0.35rem 0.55rem;
@@ -103,12 +103,12 @@
 /* Responsive nav labels: full on desktop, short on mobile */
 .app-nav-link .nav-label-short { display: none; }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .app-nav-link .nav-label-full { display: none; }
   .app-nav-link .nav-label-short { display: inline; }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .app-nav {
     padding: 0.75rem 2rem;
   }
@@ -146,7 +146,7 @@
   padding-bottom: 1rem;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .app-content-with-nav {
     /* No top nav on mobile — all nav is in bottom bar */
     /* Top padding clears fixed mobile header + safe area (notch/status bar) */
@@ -190,7 +190,7 @@
   display: none; /* hidden on desktop/tablet */
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .bottom-nav {
     display: flex;
     position: fixed;

@@ -1,5 +1,5 @@
 // src/components/BottomNav.jsx
-// Mobile bottom tab bar (#261) — shown only on ≤640px via CSS
+// Mobile bottom tab bar (#261, #506) — shown only on ≤768px via CSS
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
