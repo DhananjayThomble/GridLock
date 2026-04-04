@@ -165,8 +165,8 @@ const styles = {
     zIndex: 1000,
   },
   guestButton: {
-    width: '36px',
-    height: '36px',
+    width: '44px',
+    height: '44px',
     borderRadius: '50%',
     border: '1px solid var(--border-color)',
     backgroundColor: 'var(--bg-card)',
@@ -179,8 +179,8 @@ const styles = {
     transition: 'opacity 150ms',
   },
   avatarButton: {
-    width: '36px',
-    height: '36px',
+    width: '44px',
+    height: '44px',
     borderRadius: '50%',
     border: '2px solid var(--border-color)',
     backgroundColor: 'var(--bg-card)',
