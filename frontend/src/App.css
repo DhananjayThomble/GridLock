@@ -96,7 +96,10 @@
 @media (max-width: 640px) {
   .app-nav-link {
     font-size: 0.75rem;
-    padding: 0.35rem 0.55rem;
+    padding: 0.5rem 0.65rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }
 

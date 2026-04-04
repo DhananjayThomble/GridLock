@@ -208,8 +208,8 @@ const Leaderboard = () => {
                 onClick={() => setActiveTab(key)}
                 className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
                 style={activeTab === key
-                  ? { background: 'var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)' }
-                  : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}
+                  ? { background: 'var(--accent)', color: 'var(--text-on-accent)', boxShadow: '0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent)', minHeight: '44px' }
+                  : { background: 'var(--bg-card)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)', minHeight: '44px' }}
               >
                 {label}
               </button>

@@ -98,7 +98,7 @@ const HeroBanner = ({ onPlayNow }) => {
         <button
           onClick={handleDismiss}
           aria-label="Dismiss welcome banner"
-          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90"
+          className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90"
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
