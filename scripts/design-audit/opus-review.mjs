@@ -1,6 +1,6 @@
 // scripts/design-audit/opus-review.js
 // Layer 3: Opus strategic UX review using Gemini analysis + accessibility data
-import fs from 'fs';
+import fs, { mkdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
@@ -8,6 +8,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const REPORTS_DIR = path.join(PROJECT_ROOT, 'frontend/tests/design-audit/reports');
+mkdirSync(REPORTS_DIR, { recursive: true });
 
 const client = new BedrockRuntimeClient({ region: 'ap-south-1' });
 const MODEL_ID = 'anthropic.claude-opus-4-6-v1:0';
@@ -183,9 +184,9 @@ async function main() {
     accessibilityReport = [];
   }
 
-  if (!geminiAnalysis && accessibilityReport.length === 0) {
-    console.error('❌ No input data available. Run Layer 1 and/or Layer 2 first.');
-    process.exit(1);
+  if ((!geminiAnalysis || geminiAnalysis.skipped) && (!accessibilityReport || accessibilityReport.length === 0)) {
+    console.log('No input data found. Run Layer 1 and/or Layer 2 first.');
+    process.exit(0);
   }
 
   console.log('\n  🤖 Calling Opus for strategic review...');

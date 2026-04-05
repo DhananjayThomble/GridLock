@@ -22,7 +22,7 @@ const NameInput = ({ inputRef, username, usernameError, highlighted, onChange, o
       spellCheck={false}
       inputMode="text"
       enterKeyHint="done"
-      className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none transition"
+      className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] transition"
       style={{
         background: 'var(--input-bg)',
         border: (usernameError || highlighted) ? '2px solid var(--danger)' : '1px solid var(--border-color-strong)',

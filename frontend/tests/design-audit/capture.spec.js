@@ -4,6 +4,11 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 const REPORTS_DIR = path.join(__dirname, 'reports');

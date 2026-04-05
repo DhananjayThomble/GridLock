@@ -136,9 +136,30 @@ const Lobby = () => {
   const usernameInputRef = useRef(null);
   const gameIdInputRef = useRef(null);
   const tournamentIdInputRef = useRef(null);
+  const shakeTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const highlightTimerRef = useRef(null);
+  const errorTimerRef = useRef(null);
 
   // Ref to track which action is in progress — used by onError to route errors (#211)
   const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
+
+  // Pre-fill username from auth when user loads asynchronously
+  useEffect(() => {
+    if (user?.username && !username) {
+      setUsername(user.username);
+    }
+  }, [user]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(shakeTimerRef.current);
+      clearTimeout(toastTimerRef.current);
+      clearTimeout(highlightTimerRef.current);
+      clearTimeout(errorTimerRef.current);
+    };
+  }, []);
 
   // ── Validate rejoin banner against server (#480) ──────────────────────────
   // On mount, if we have an active game in localStorage, ask the server
@@ -386,22 +407,25 @@ const Lobby = () => {
   // ── Validation helper: shake button + scroll/pulse input ─────────────────
   const triggerShake = (target) => {
     setShakeTarget(target);
-    setTimeout(() => setShakeTarget(null), 500);
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+    shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 500);
   };
 
   const showToast = (message, type = 'error') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
   };
 
-    const highlightInput = (ref, fieldName) => {
+  const highlightInput = (ref, fieldName) => {
     if (ref?.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       ref.current.focus();
     }
     // Use React state for highlight — imperative style is overwritten by re-render
     setHighlightedField(fieldName);
-    setTimeout(() => setHighlightedField(null), 2500);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightedField(null), 2500);
   };
 
   // ── Create Tournament ───────────────────────────────────────────────────────
@@ -410,7 +434,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('createTournament');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -430,7 +455,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('joinTournament');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -439,7 +465,8 @@ const Lobby = () => {
     setUsernameError('');
     if (!id) {
       setTournamentIdError('Please enter a Tournament ID');
-      setTimeout(() => setTournamentIdError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setTournamentIdError(''), 3000);
       triggerShake('joinTournament');
       highlightInput(tournamentIdInputRef, 'tournamentId');
       showToast('Please enter a Tournament ID');
@@ -459,7 +486,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('quickplay');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -485,7 +513,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('ranked');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -513,7 +542,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('challenge');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -562,7 +592,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('quickplaycpu');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -606,7 +637,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('onboarding');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -660,7 +692,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('create');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -717,7 +750,8 @@ const Lobby = () => {
     const nameErr = validateUsername(username);
     if (nameErr) {
       setUsernameError(nameErr);
-      setTimeout(() => setUsernameError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
       triggerShake('join');
       highlightInput(usernameInputRef, 'username');
       showToast(nameErr);
@@ -726,7 +760,8 @@ const Lobby = () => {
     setUsernameError('');
     if (!id) {
       setGameIdError('Please enter a Game ID');
-      setTimeout(() => setGameIdError(''), 3000);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setGameIdError(''), 3000);
       triggerShake('join');
       highlightInput(gameIdInputRef, 'gameId');
       showToast('Please enter a Game ID');

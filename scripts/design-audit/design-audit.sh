@@ -24,7 +24,7 @@ cd "$PROJECT_ROOT"
 echo ""
 if [ -n "$GEMINI_API_KEY" ]; then
   echo "🔬 Layer 2: Gemini pixel analysis..."
-  node scripts/design-audit/gemini-analyze.js
+  node scripts/design-audit/gemini-analyze.mjs
 else
   echo "⚠️  Layer 2 skipped: GEMINI_API_KEY not set"
 fi
@@ -32,13 +32,18 @@ fi
 # Layer 3: Opus strategic review
 echo ""
 echo "🧠 Layer 3: Opus UX review..."
-node scripts/design-audit/opus-review.js
+node scripts/design-audit/opus-review.mjs
 
 # Layer 4: Regression check (optional, run with --regression flag)
 if [ "$1" = "--regression" ]; then
   echo ""
   echo "📊 Layer 4: Visual regression..."
-  cd frontend && npx playwright test tests/design-audit/regression.spec.js --reporter=list --update-snapshots
+  cd frontend && npx playwright test tests/design-audit/regression.spec.js --reporter=list
+  cd "$PROJECT_ROOT"
+elif [ "$1" = "--update-baselines" ]; then
+  echo ""
+  echo "📸 Layer 4: Updating baselines..."
+  cd frontend && npx playwright test tests/design-audit/regression.spec.js --update-snapshots --reporter=list
   cd "$PROJECT_ROOT"
 fi
 

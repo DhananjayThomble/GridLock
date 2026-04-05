@@ -76,7 +76,11 @@ log "✅ Build succeeded ($(du -sh "$REPO_DIR/frontend/dist" | cut -f1) total)"
 # Auto-bump service worker cache version with build timestamp
 BUILD_TS=$(date +%s)
 sed -i "s/const CACHE_NAME = 'gridlock-[^']*'/const CACHE_NAME = 'gridlock-${BUILD_TS}'/" "$REPO_DIR/frontend/dist/sw.js"
-log "✅ SW cache version bumped to gridlock-${BUILD_TS}"
+if grep -q "gridlock-${BUILD_TS}" "$REPO_DIR/frontend/dist/sw.js"; then
+  log "✅ SW cache version bumped to gridlock-${BUILD_TS}"
+else
+  log "⚠️ SW cache bump failed — check sw.js format"
+fi
 
 # --- Upload source maps to Sentry ---------------------------------------------
 log "Uploading source maps to Sentry..."

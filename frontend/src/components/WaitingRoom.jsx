@@ -356,6 +356,7 @@ const WaitingRoom = () => {
             </button>
             <button
               onClick={handleCopyCode}
+              aria-label="Copy room code"
               className="py-3 px-4 rounded-xl font-bold text-sm transition-all active:scale-95"
               style={{
                 background: copied ? 'var(--success)' : 'var(--bg-card)',
