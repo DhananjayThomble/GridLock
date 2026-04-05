@@ -73,6 +73,11 @@ if [ ! -d "$REPO_DIR/frontend/dist" ]; then
 fi
 log "✅ Build succeeded ($(du -sh "$REPO_DIR/frontend/dist" | cut -f1) total)"
 
+# Auto-bump service worker cache version with build timestamp
+BUILD_TS=$(date +%s)
+sed -i "s/const CACHE_NAME = 'gridlock-[^']*'/const CACHE_NAME = 'gridlock-${BUILD_TS}'/" "$REPO_DIR/frontend/dist/sw.js"
+log "✅ SW cache version bumped to gridlock-${BUILD_TS}"
+
 # --- Upload source maps to Sentry ---------------------------------------------
 log "Uploading source maps to Sentry..."
 cd "$REPO_DIR"

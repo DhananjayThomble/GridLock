@@ -1,5 +1,5 @@
 // GridLock Service Worker — cache-first for assets, network-first for HTML
-const CACHE_NAME = 'gridlock-v3';
+const CACHE_NAME = 'gridlock-BUILD_HASH';
 
 // Derive base path from SW scope to support sub-path deployments (e.g. /beta)
 const BASE_PATH = new URL('./', self.registration?.scope || self.location.href).pathname;
