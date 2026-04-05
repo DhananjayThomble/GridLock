@@ -1,7 +1,7 @@
 {
   "name": "gridlock",
-  "version": "1.4.1",
-  "description": "GridLock \u2014 multiplayer territory game",
+  "version": "2.0.0",
+  "description": "GridLock — multiplayer territory game",
   "private": true,
   "scripts": {
     "test:e2e": "TEST_BASE_URL=http://localhost/beta npx playwright test --config=playwright.config.js",
