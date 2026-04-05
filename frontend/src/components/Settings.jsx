@@ -34,11 +34,12 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
       cursor: disabled ? 'not-allowed' : 'pointer',
       position: 'relative',
       border: 'none',
-      padding: 0,
+      padding: '8px 0',
+      boxSizing: 'content-box',
       flexShrink: 0,
       transition: 'background-color 200ms ease',
       minWidth: '48px',
-      minHeight: '28px',
+      minHeight: '44px',
     }}
   >
     <div

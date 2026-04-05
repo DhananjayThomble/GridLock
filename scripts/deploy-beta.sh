@@ -81,6 +81,15 @@ cd "$BETA_REPO"
 bash scripts/upload-sourcemaps.sh gridlock-beta sentry
 cd "$BETA_REPO/frontend"
 
+# Auto-bump service worker cache version with build timestamp
+BUILD_TS=$(date +%s)
+sed -i "s/const CACHE_NAME = 'gridlock-[^']*'/const CACHE_NAME = 'gridlock-${BUILD_TS}'/" dist/sw.js
+if grep -q "gridlock-${BUILD_TS}" dist/sw.js; then
+  echo "✅ SW cache version bumped to gridlock-${BUILD_TS}"
+else
+  echo "⚠️ SW cache bump failed — check sw.js format"
+fi
+
 sudo rm -rf "$BETA_WEB"/*
 sudo cp -r dist/. "$BETA_WEB/"
 sudo chown -R www-data:www-data "$BETA_WEB/"

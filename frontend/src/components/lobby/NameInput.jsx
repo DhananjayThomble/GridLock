@@ -2,7 +2,7 @@
 // Shared name input field used in both mobile and desktop Lobby layouts.
 import React from 'react';
 
-const NameInput = ({ inputRef, username, usernameError, onChange, onKeyDown, placeholder = 'Enter your name…' }) => (
+const NameInput = ({ inputRef, username, usernameError, highlighted, onChange, onKeyDown, placeholder = 'Enter your name…' }) => (
   <div>
     <label htmlFor="lobby-name-input" className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
     <input
@@ -22,16 +22,17 @@ const NameInput = ({ inputRef, username, usernameError, onChange, onKeyDown, pla
       spellCheck={false}
       inputMode="text"
       enterKeyHint="done"
-      className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
+      className="w-full rounded-xl px-4 py-3 text-base placeholder:text-[var(--text-muted)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] transition"
       style={{
         background: 'var(--input-bg)',
-        border: usernameError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+        border: (usernameError || highlighted) ? '2px solid var(--danger)' : '1px solid var(--border-color-strong)',
+        boxShadow: highlighted ? '0 0 0 3px rgba(239, 68, 68, 0.35)' : 'none',
         color: 'var(--text-primary)',
       }}
     />
     <div className="flex justify-between mt-1">
       {usernameError ? (
-        <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>
+        <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>⚠️ {usernameError}</p>
       ) : !username.trim() ? (
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Enter a name to start playing</p>
       ) : <span />}

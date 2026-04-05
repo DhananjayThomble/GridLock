@@ -1,7 +1,7 @@
 {
   "name": "gridlock",
-  "version": "1.4.1",
-  "description": "GridLock \u2014 multiplayer territory game",
+  "version": "2.0.0",
+  "description": "GridLock — multiplayer territory game",
   "private": true,
   "scripts": {
     "test:e2e": "TEST_BASE_URL=http://localhost/beta npx playwright test --config=playwright.config.js",
@@ -19,6 +19,7 @@
     "visual-qa": "npx playwright test e2e/visual-qa.spec.js --config=playwright.config.js --timeout 3600000"
   },
   "devDependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1024.0",
     "@playwright/test": "^1.40.0",
     "husky": "^9.1.7",
     "mongodb": "^7.1.0",

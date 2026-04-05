@@ -20,16 +20,17 @@ body {
   --text-primary:     #e6edf3;
   --text-secondary:   #8b949e;
   --text-muted:       #848d97;
-  --text-subtle:      rgba(230,237,243,0.15);
+  /* --text-subtle: opaque for WCAG AA — 5.12:1 on #0d1117, 4.12:1 on #21262d */
+  --text-subtle:      #7d868f;
 
   --border-color:     rgba(240,246,252,0.1);
   --border-color-strong: rgba(240,246,252,0.2);
 
-  /* --accent: WCAG 1.4.11 compliant — ≥3:1 vs white text (3.43:1) and vs dark bg #141a22 (5.09:1) */
-  --accent:           #4d8fcc;
-  /* --accent-hover: darkened from #5da0dd (2.79:1) to achieve ≥3:1 vs white (3.69:1) */
-  --accent-hover:     #4b8abf;
-  --accent-secondary: #5da0dd;
+  /* --accent: WCAG AA compliant — 5.41:1 vs white text, 3.50:1 vs dark bg #0d1117 */
+  --accent:           #2a6fa0;
+  /* --accent-hover: 6.94:1 vs white text */
+  --accent-hover:     #245e87;
+  --accent-secondary: #4d8fcc;
   --label-color:      #8b949e;
   --success:          #3fb950;
   --danger:           #f85149;
@@ -43,7 +44,8 @@ body {
 
   --nav-bg:           rgba(13,17,23,0.9);
   --input-bg:         #21262d;
-  --input-placeholder: rgba(230,237,243,0.3);
+  /* --input-placeholder: 4.91:1 on input-bg #21262d */
+  --input-placeholder: rgba(230,237,243,0.55);
 
   --shadow-color:     rgba(0,0,0,0.3);
   --glow-accent:      rgba(88,166,255,0.15);
@@ -94,7 +96,8 @@ body {
   --text-primary:     #1f2328;
   --text-secondary:   #656d76;
   --text-muted:       #57606a;
-  --text-subtle:      rgba(31,35,40,0.15);
+  /* --text-subtle: opaque for WCAG AA — 4.59:1 on white */
+  --text-subtle:      #6e7681;
 
   --border-color:     rgba(31,35,40,0.15);
   --border-color-strong: rgba(31,35,40,0.25);
@@ -114,7 +117,8 @@ body {
 
   --nav-bg:           rgba(255,255,255,0.9);
   --input-bg:         #ffffff;
-  --input-placeholder: rgba(31,35,40,0.4);
+  /* --input-placeholder: effective ~#6d7073, 4.98:1 on white */
+  --input-placeholder: rgba(31,35,40,0.65);
 
   --shadow-color:     rgba(31,35,40,0.12);
   --glow-accent:      rgba(9,105,218,0.1);
@@ -544,7 +548,7 @@ a {
   .leaderboard-mobile-cards {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.625rem;
   }
 
   .leaderboard-desktop-table {
@@ -555,10 +559,11 @@ a {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.875rem 1rem;
     border-radius: 1rem;
     background: var(--bg-card-hover);
     border: 1px solid var(--border-color);
+    min-height: 52px;
   }
 
   .leaderboard-mobile-card-rank {
@@ -586,6 +591,9 @@ a {
   .leaderboard-mobile-card-name a {
     color: var(--accent);
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
   }
 
   .leaderboard-mobile-card-stats {
@@ -893,4 +901,20 @@ button:active:not(:disabled) {
   .settings-theme-grid {
     grid-template-columns: repeat(3, 1fr) !important;
   }
+}
+
+/* ── Shake animation for validation feedback ─────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+/* ── Slide-up animation for toast notifications ──────────────────────────── */
+@keyframes slide-up {
+  from { transform: translate(-50%, 20px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }

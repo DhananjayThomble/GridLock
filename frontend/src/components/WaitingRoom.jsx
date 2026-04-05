@@ -2,8 +2,43 @@
 // Real-time waiting room — shows player slots, share link, admin controls
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import socket from '../socket';
+
+const QrIcon = ({ size = 18, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="5" height="5" x="3" y="3" rx="1"/>
+    <rect width="5" height="5" x="16" y="3" rx="1"/>
+    <rect width="5" height="5" x="3" y="16" rx="1"/>
+    <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+    <path d="M21 21v.01"/>
+    <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+    <path d="M3 12h.01"/>
+    <path d="M12 3h.01"/>
+    <path d="M12 16v.01"/>
+    <path d="M16 12h1"/>
+    <path d="M21 12v.01"/>
+    <path d="M12 21v-1"/>
+  </svg>
+);
+
+const ShareIcon = ({ size = 18, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="18" cy="5" r="3"/>
+    <circle cx="6" cy="12" r="3"/>
+    <circle cx="18" cy="19" r="3"/>
+    <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/>
+    <line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>
+  </svg>
+);
+
+const ClipboardIcon = ({ size = 18, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+  </svg>
+);
 
 const DIFFICULTY_OPTIONS = [
   { value: 'easy', label: 'Easy', icon: '😊' },
@@ -36,6 +71,7 @@ const WaitingRoom = () => {
   const [autoStartCountdown, setAutoStartCountdown] = useState(null);
   const [disconnectTimers, setDisconnectTimers] = useState({});
   const [sessionConflictMessage, setSessionConflictMessage] = useState(null);
+  const [showQR, setShowQR] = useState(false);
 
   // Prevent double-navigate
   const navigatedRef = useRef(false);
@@ -302,7 +338,7 @@ const WaitingRoom = () => {
                 color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
               }}
             >
-              {copied ? '✅ Copied!' : '📋 Copy Code'}
+              {copied ? '✅ Copied!' : (<><ClipboardIcon size={14} /> Copy Code</>)}
             </button>
           </div>
 
@@ -316,10 +352,11 @@ const WaitingRoom = () => {
                 color: 'var(--text-on-accent)',
               }}
             >
-              {shared ? '✅ Shared!' : (<><span className="hidden sm:inline">📤 Share Invite Link</span><span className="sm:hidden">📤 Share</span></>)}
+              {shared ? '✅ Shared!' : (<><ShareIcon size={16} /><span className="hidden sm:inline">Share Invite Link</span><span className="sm:hidden">Share</span></>)}
             </button>
             <button
               onClick={handleCopyCode}
+              aria-label="Copy room code"
               className="py-3 px-4 rounded-xl font-bold text-sm transition-all active:scale-95"
               style={{
                 background: copied ? 'var(--success)' : 'var(--bg-card)',
@@ -327,9 +364,52 @@ const WaitingRoom = () => {
                 color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
               }}
             >
-              {copied ? '✅' : '📋'}
+              {copied ? '✅' : <ClipboardIcon size={16} />}
             </button>
           </div>
+
+          {/* QR Code Section — only render when gameId is available */}
+          {gameId && (
+          <div className="p-4 text-center" style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <button
+              onClick={() => setShowQR((v) => !v)}
+              aria-label={showQR ? 'Hide QR code' : 'Show QR code'}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+              style={{
+                background: showQR ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--bg-card)',
+                border: `1px solid ${showQR ? 'var(--accent)' : 'var(--border-color-strong)'}`,
+                color: showQR ? 'var(--accent)' : 'var(--text-secondary)',
+              }}
+            >
+              {showQR ? '✕ Hide QR' : (<><QrIcon size={18} /> Show QR Code</>)}
+            </button>
+
+            {showQR && (
+              <div className="mt-3 flex flex-col items-center">
+                <div
+                  className="bg-white rounded-2xl p-4 shadow-lg inline-block"
+                  role="img"
+                  aria-label={`QR code to join game ${gameId}`}
+                >
+                  {/* fgColor is hardcoded because SVG props cannot accept CSS variables.
+                      #0F172A (slate-900) ensures high contrast against the white background. */}
+                  <QRCodeSVG
+                    value={shareUrl}
+                    size={220}
+                    bgColor="#ffffff"
+                    fgColor="#0F172A"
+                    level="M"
+                    includeMargin={true}
+                    style={{ width: '100%', maxWidth: '220px', height: 'auto' }}
+                  />
+                </div>
+                <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Scan to join · <span className="font-mono" style={{ color: 'var(--accent)' }}>{gameId}</span>
+                </p>
+              </div>
+            )}
+          </div>
+          )}
 
           {/* Player Slots */}
           <div className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--border-color)' }}>

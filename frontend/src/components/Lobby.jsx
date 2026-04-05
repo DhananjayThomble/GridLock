@@ -13,6 +13,7 @@ import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, 
 import { isFirstTime } from '../utils/onboarding';
 import GameDemo from './GameDemo';
 import { safeStorage } from '../utils/safeStorage';
+import { useAuth } from '../contexts/AuthContext';
 
 /** Safely persist to localStorage — swallows quota/private-browsing errors. */
 const safePersist = (key, value) => {
@@ -42,7 +43,13 @@ const validateUsername = (raw) => {
 };
 
 const Lobby = () => {
-  const [username,      setUsername]      = useState(() => safeStorage.getItem('gridlock_username') || '');
+  const { user } = useAuth();
+  const [username,      setUsername]      = useState(() => {
+    const saved = safeStorage.getItem('gridlock_username');
+    if (saved) return saved;
+    // Pre-fill from auth profile if logged in
+    return user?.username || user?.displayName || '';
+  });
   const [gridSize,      setGridSize]      = useState(() => {
     const saved = parseInt(safeStorage.getItem('gridlock-gridSize'), 10);
     return saved >= 3 && saved <= 6 ? saved : 3;
@@ -91,6 +98,9 @@ const Lobby = () => {
   const [tournamentIdError, setTournamentIdError] = useState('');
   // Ranked mode state
   const [rankedPlaying, setRankedPlaying] = useState(false);
+  const [shakeTarget, setShakeTarget] = useState(null);
+  const [toast, setToast] = useState(null); // { message, type: 'error'|'warning' }
+  const [highlightedField, setHighlightedField] = useState(null); // 'username' | 'gameId' | 'tournamentId' | null
   const [rankedElo, setRankedElo] = useState(1200);
   const [rankedTier, setRankedTier] = useState('Bronze');
   const [rankedTierIcon, setRankedTierIcon] = useState('🥉');
@@ -103,6 +113,9 @@ const Lobby = () => {
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [howToPlayDismissed, setHowToPlayDismissed] = useState(() => safeStorage.getItem('gridlock_how_to_play_dismissed') === 'true');
   const [firstTime] = useState(() => isFirstTime());
+  // Skip onboarding for logged-in users — user is fetched async so we
+  // can't rely on it inside the useState initialiser. Check at render time.
+  const showOnboarding = firstTime && !user;
   // Active game banner state (#365)
   const [activeGame, setActiveGame] = useState(() => {
     try {
@@ -121,22 +134,46 @@ const Lobby = () => {
   });
   const navigate = useNavigate();
   const usernameInputRef = useRef(null);
+  const gameIdInputRef = useRef(null);
+  const tournamentIdInputRef = useRef(null);
+  const shakeTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const highlightTimerRef = useRef(null);
+  const errorTimerRef = useRef(null);
 
   // Ref to track which action is in progress — used by onError to route errors (#211)
   const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
+
+  // Pre-fill username from auth when user loads asynchronously
+  useEffect(() => {
+    if (user?.username && !username) {
+      setUsername(user.username);
+    }
+  }, [user]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(shakeTimerRef.current);
+      clearTimeout(toastTimerRef.current);
+      clearTimeout(highlightTimerRef.current);
+      clearTimeout(errorTimerRef.current);
+    };
+  }, []);
 
   // ── Validate rejoin banner against server (#480) ──────────────────────────
   // On mount, if we have an active game in localStorage, ask the server
   // whether the game still exists. If not, clear the banner immediately.
   useEffect(() => {
     if (!activeGame) return;
-    let cancelled = false;
     const { gameId, sessionToken } = activeGame;
     if (!gameId || !sessionToken) {
       safeStorage.removeItem('gridlock_active_game');
-      setActiveGame(null);
+      // Defer state update to avoid sync setState in effect body
+      queueMicrotask(() => setActiveGame(null));
       return;
     }
+    let cancelled = false;
     socket.emit('validate_rejoin', { gameId, sessionToken }, (response) => {
       if (cancelled) return;
       if (!response || !response.valid) {
@@ -145,7 +182,7 @@ const Lobby = () => {
       }
     });
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — validate once on mount only
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
@@ -367,10 +404,43 @@ const Lobby = () => {
   // cpuCount is clamped to playerCount-1 in the playerCount button handler below.
   // The lazy initializer also cross-validates against stored playerCount.
 
+  // ── Validation helper: shake button + scroll/pulse input ─────────────────
+  const triggerShake = (target) => {
+    setShakeTarget(target);
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+    shakeTimerRef.current = setTimeout(() => setShakeTarget(null), 500);
+  };
+
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+  };
+
+  const highlightInput = (ref, fieldName) => {
+    if (ref?.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      ref.current.focus();
+    }
+    // Use React state for highlight — imperative style is overwritten by re-render
+    setHighlightedField(fieldName);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightedField(null), 2500);
+  };
+
   // ── Create Tournament ───────────────────────────────────────────────────────
   const handleCreateTournament = () => {
     const name = username.trim();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('createTournament');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     activeActionRef.current = 'createTournament';
@@ -382,9 +452,26 @@ const Lobby = () => {
   const handleJoinTournament = () => {
     const name = username.trim();
     const id = tournamentId.trim().toUpperCase();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('joinTournament');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
-    if (!id) { setTournamentIdError('Please enter a Tournament ID'); return; }
+    if (!id) {
+      setTournamentIdError('Please enter a Tournament ID');
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setTournamentIdError(''), 3000);
+      triggerShake('joinTournament');
+      highlightInput(tournamentIdInputRef, 'tournamentId');
+      showToast('Please enter a Tournament ID');
+      return;
+    }
     setTournamentIdError('');
     if (!socket.connected) socket.connect();
     activeActionRef.current = 'joinTournament';
@@ -396,7 +483,16 @@ const Lobby = () => {
   const handleQuickPlay = () => {
     initAudio();
     const name = username.trim();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('quickplay');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     safeStorage.setItem('gridlock_username', name);
@@ -414,7 +510,16 @@ const Lobby = () => {
   const handleRankedPlay = () => {
     initAudio();
     const name = username.trim();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('ranked');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     safeStorage.setItem('gridlock_username', name);
@@ -435,7 +540,15 @@ const Lobby = () => {
     initAudio();
     const name = username.trim();
     const nameErr = validateUsername(username);
-    if (nameErr) { setUsernameError(nameErr); return; }
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('challenge');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     safeStorage.setItem('gridlock_username', name);
@@ -476,7 +589,16 @@ const Lobby = () => {
     setQuickPlaying(false);
     // Create a CPU game with selected player count from Quick Play modal
     const name = username.trim();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('quickplaycpu');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     if (!socket.connected) socket.connect();
     activeActionRef.current = 'create';
     setCreating(true);
@@ -513,7 +635,15 @@ const Lobby = () => {
     initAudio();
     const name = username.trim();
     const nameErr = validateUsername(username);
-    if (nameErr) { setUsernameError(nameErr); return; }
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('onboarding');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     safeStorage.setItem('gridlock_username', name);
@@ -559,7 +689,16 @@ const Lobby = () => {
   const handleCreate = () => {
     initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('create');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
     if (!socket.connected) socket.connect();
     activeActionRef.current = 'create';
@@ -608,9 +747,26 @@ const Lobby = () => {
     initAudio(); // Unlock AudioContext from user gesture (before gameplay)
     const name = username.trim();
     const id   = gameId.trim().toUpperCase();
-    const nameErr = validateUsername(username); if (nameErr) { setUsernameError(nameErr); return; }
+    const nameErr = validateUsername(username);
+    if (nameErr) {
+      setUsernameError(nameErr);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setUsernameError(''), 3000);
+      triggerShake('join');
+      highlightInput(usernameInputRef, 'username');
+      showToast(nameErr);
+      return;
+    }
     setUsernameError('');
-    if (!id) { setGameIdError('Please enter a Game ID'); return; }
+    if (!id) {
+      setGameIdError('Please enter a Game ID');
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setGameIdError(''), 3000);
+      triggerShake('join');
+      highlightInput(gameIdInputRef, 'gameId');
+      showToast('Please enter a Game ID');
+      return;
+    }
     setGameIdError('');
 
     const tokenKey = `gridlock:session:${id}:${name}`;
@@ -740,7 +896,7 @@ const Lobby = () => {
           </div>
 
           {/* ── First-Time Onboarding View ── */}
-          {firstTime && (
+          {showOnboarding && (
             <div data-testid="onboarding-view" className="p-6 sm:p-8 text-center space-y-5">
               <div>
                 <p className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
@@ -775,12 +931,14 @@ const Lobby = () => {
                 <button
                   data-testid="onboarding-play-now"
                   onClick={handleOnboardingPlayNow}
-                  disabled={creating || !username.trim()}
-                  className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-lg transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+                  disabled={creating}
+                  className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                   style={{
                     background: creating ? 'var(--bg-surface)' : 'var(--accent)',
                     color: creating ? 'var(--text-muted)' : 'var(--text-on-accent)',
                     boxShadow: creating ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
+                    opacity: !username.trim() && !creating ? 0.7 : 1,
+                    animation: shakeTarget === 'onboarding' ? 'shake 0.4s ease-in-out' : 'none',
                   }}
                 >
                   {creating ? (
@@ -801,7 +959,7 @@ const Lobby = () => {
           )}
 
           {/* ── Full Lobby (returning users only) ── */}
-          {!firstTime && (<>
+          {!showOnboarding && (<>
           {/* ── Username + Avatar (unified profile card) ── */}
           <div className="p-4 sm:p-5" style={{ borderBottom: '1px solid var(--border-color)' }}>
             {/* ── Mobile: tappable profile row ── */}
@@ -846,6 +1004,7 @@ const Lobby = () => {
                     inputRef={usernameInputRef}
                     username={username}
                     usernameError={usernameError}
+                    highlighted={highlightedField === 'username'}
                     onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
                     onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
                   />
@@ -870,6 +1029,7 @@ const Lobby = () => {
                 inputRef={usernameInputRef}
                 username={username}
                 usernameError={usernameError}
+                    highlighted={highlightedField === 'username'}
                 onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
                 onKeyDown={(e) => e.key === 'Enter' && (tab === 'join' ? handleJoin() : handleCreate())}
               />
@@ -1015,13 +1175,15 @@ const Lobby = () => {
             {/* Create Game — PRIMARY action (top, bold accent) */}
             <button
               onClick={handleCreate}
-              disabled={creating || !username.trim()}
+              disabled={creating}
               aria-label="Create Game — start a new game room"
-              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl font-bold text-[var(--text-on-accent)] text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
               style={{
                 background: creating ? 'var(--bg-surface)' : 'var(--accent)',
                 boxShadow: creating ? 'none' : '0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent)',
                 ...(creating && { color: 'var(--text-muted)' }),
+                opacity: !username.trim() && !creating ? 0.7 : 1,
+                animation: shakeTarget === 'create' ? 'shake 0.4s ease-in-out' : 'none',
               }}
             >
               {creating ? (
@@ -1037,10 +1199,14 @@ const Lobby = () => {
             {/* Quick Play — SECONDARY action */}
             <button
               onClick={handleQuickPlay}
-              disabled={quickPlaying || creating || !username.trim()}
+              disabled={quickPlaying || creating}
               aria-label="Quick Play — instant match with random opponents"
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={primaryStyle(quickPlaying || creating)}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+              style={{
+                ...primaryStyle(quickPlaying || creating),
+                opacity: !username.trim() && !quickPlaying && !creating ? 0.7 : 1,
+                animation: shakeTarget === 'quickplay' ? 'shake 0.4s ease-in-out' : 'none',
+              }}
             >
               {quickPlaying ? '⏳ Searching…' : '⚡ Quick Play'}
             </button>
@@ -1048,10 +1214,14 @@ const Lobby = () => {
             {/* Challenge a Friend (#455) */}
             <button
               onClick={handleCreateChallenge}
-              disabled={challengeCreating || creating || !username.trim()}
+              disabled={challengeCreating || creating}
               aria-label="Challenge a Friend — generate a shareable invite link"
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-              style={secondaryStyle(challengeCreating || creating)}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+              style={{
+                ...secondaryStyle(challengeCreating || creating),
+                opacity: !username.trim() && !challengeCreating && !creating ? 0.7 : 1,
+                animation: shakeTarget === 'challenge' ? 'shake 0.4s ease-in-out' : 'none',
+              }}
             >
               {challengeCreating ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1082,11 +1252,11 @@ const Lobby = () => {
                 <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Game ID</label>
                 <input
                   type="text"
+                  ref={gameIdInputRef}
                   value={gameId}
                   onChange={(e) => { setGameId(e.target.value.toUpperCase()); setGameIdError(''); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                  placeholder="e.g. AB3XYZ"
-                  maxLength={8}
+                  placeholder="e.g. AB3XYZ"                  maxLength={8}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="characters"
@@ -1096,7 +1266,8 @@ const Lobby = () => {
                   className="w-full rounded-xl px-4 py-3 text-base font-mono uppercase placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition"
                   style={{
                     background: 'var(--input-bg)',
-                    border: gameIdError ? '1px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    border: (gameIdError || highlightedField === 'gameId') ? '2px solid var(--danger)' : '1px solid var(--border-color-strong)',
+                    boxShadow: highlightedField === 'gameId' ? '0 0 0 3px rgba(239, 68, 68, 0.35)' : 'none',
                     color: 'var(--text-primary)',
                   }}
                 />
@@ -1131,9 +1302,13 @@ const Lobby = () => {
               {/* Join — TERTIARY action */}
               <button
                 onClick={handleJoin}
-                disabled={joining || !username.trim() || !gameId.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={joining ? disabledOverlay : tertiaryStyle()}
+                disabled={joining}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+                style={{
+                  ...(joining ? disabledOverlay : tertiaryStyle()),
+                  opacity: (!username.trim() || !gameId.trim()) && !joining ? 0.7 : 1,
+                  animation: shakeTarget === 'join' ? 'shake 0.4s ease-in-out' : 'none',
+                }}
               >
                 {joining ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1179,9 +1354,13 @@ const Lobby = () => {
               {/* Create Tournament — SECONDARY action */}
               <button
                 onClick={handleCreateTournament}
-                disabled={creatingTournament || !username.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={primaryStyle(creatingTournament)}
+                disabled={creatingTournament}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+                style={{
+                  ...primaryStyle(creatingTournament),
+                  opacity: !username.trim() && !creatingTournament ? 0.7 : 1,
+                  animation: shakeTarget === 'createTournament' ? 'shake 0.4s ease-in-out' : 'none',
+                }}
               >
                 {creatingTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1205,6 +1384,7 @@ const Lobby = () => {
                 <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Tournament ID</label>
                 <input
                   type="text"
+                  ref={tournamentIdInputRef}
                   value={tournamentId}
                   onChange={(e) => { setTournamentId(e.target.value.toUpperCase()); setTournamentIdError(''); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinTournament()}
@@ -1231,9 +1411,13 @@ const Lobby = () => {
               {/* Join Tournament — TERTIARY action */}
               <button
                 onClick={handleJoinTournament}
-                disabled={joiningTournament || !username.trim() || !tournamentId.trim()}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95 disabled:opacity-60"
-                style={joiningTournament ? disabledOverlay : tertiaryStyle()}
+                disabled={joiningTournament}
+                className="w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-95"
+                style={{
+                  ...(joiningTournament ? disabledOverlay : tertiaryStyle()),
+                  opacity: (!username.trim() || !tournamentId.trim()) && !joiningTournament ? 0.7 : 1,
+                  animation: shakeTarget === 'joinTournament' ? 'shake 0.4s ease-in-out' : 'none',
+                }}
               >
                 {joiningTournament ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1290,6 +1474,22 @@ const Lobby = () => {
           onCancel={handleRankedCancel}
           profile={rankedProfile}
         />
+      )}
+
+      {/* Floating toast notification */}
+      {toast && (
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 animate-slide-up"
+          style={{
+            background: toast.type === 'error' ? 'var(--danger)' : 'var(--warning)',
+            color: '#fff',
+            maxWidth: '90vw',
+          }}
+          role="alert"
+        >
+          <span>{toast.type === 'error' ? '⚠️' : 'ℹ️'}</span>
+          <span>{toast.message}</span>
+        </div>
       )}
     </div>
   );
