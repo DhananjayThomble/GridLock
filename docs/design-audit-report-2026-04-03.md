@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-03  
 **Auditor:** Kartik (automated + AI-assisted)  
-**Scope:** All 6 pages × 3 viewports × 2 themes (48 screenshots)  
+**Scope:** All 5 pages × 3 viewports × 2 themes (48 screenshots)  
 **Tools:** Playwright + axe-core (accessibility), Gemini 3 Flash Preview (vision analysis)
 
 ---
