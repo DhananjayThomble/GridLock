@@ -17,53 +17,57 @@ import { safeStorage } from '../utils/safeStorage';
 
 /* ─── Reusable Toggle Switch ─── */
 const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
-  <div
+  <button
+    onClick={() => !disabled && onChange()}
+    className="settings-toggle"
+    role="switch"
+    aria-checked={checked}
+    aria-disabled={disabled}
+    aria-label={label}
+    tabIndex={disabled ? -1 : 0}
     style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minWidth: '48px',
-      minHeight: '44px',
+      width: '48px',
+      height: '44px',
+      background: 'transparent',
+      border: 'none',
+      padding: 0,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      position: 'relative',
       flexShrink: 0,
+      minWidth: '48px',
     }}
   >
-    <button
-      onClick={() => !disabled && onChange()}
-      className="settings-toggle"
-      role="switch"
-      aria-checked={checked}
-      aria-disabled={disabled}
-      aria-label={label}
-      tabIndex={disabled ? -1 : 0}
+    {/* Visual pill track */}
+    <div
       style={{
         width: '48px',
         height: '28px',
         borderRadius: '14px',
         backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
         opacity: disabled ? 0.4 : 1,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        position: 'relative',
-        border: 'none',
-        padding: 0,
-        boxSizing: 'border-box',
+        position: 'absolute',
+        top: '50%',
+        left: 0,
+        transform: 'translateY(-50%)',
         transition: 'background-color 200ms ease',
       }}
-    >
-      <div
-        style={{
-          width: '22px',
-          height: '22px',
-          borderRadius: '50%',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-          position: 'absolute',
-          top: '3px',
-          left: checked ? '23px' : '3px',
-          transition: 'left 200ms ease',
-        }}
-      />
-    </button>
-  </div>
+    />
+    {/* Knob */}
+    <div
+      style={{
+        width: '22px',
+        height: '22px',
+        borderRadius: '50%',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        left: checked ? '23px' : '3px',
+        transition: 'left 200ms ease',
+      }}
+    />
+  </button>
 );
 
 /* ─── Settings Row ─── */

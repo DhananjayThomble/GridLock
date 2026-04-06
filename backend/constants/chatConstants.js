@@ -7,7 +7,7 @@ const ALLOWED_QUICK_MESSAGES = [
     'Nice Move! 👍', 'Oops! 😬', 'Wow! 😮', 'No Way! 😲',
     'Too Easy 😎', 'Better Luck Next Time!', "You're Trapped! 🕸️",
     'Well Played! 👏', 'Good Game!', 'Close One! 😅',
-    'Thinking… 🤔', 'Hurry Up! ⏰', 'One More! 🔄',
+    'Thinking… 🤔', 'Thinking... 🤔', 'Hurry Up! ⏰', 'One More! 🔄',
 ];
 
 const ALLOWED_EMOJIS = [
