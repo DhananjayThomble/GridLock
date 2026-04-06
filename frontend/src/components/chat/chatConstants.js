@@ -24,7 +24,7 @@ export const QUICK_MESSAGES = [
   { label: 'Better Luck Next Time!', value: 'Better Luck Next Time!' },
   { label: 'Close One! 😅', value: 'Close One! 😅' },
   // Misc
-  { label: 'Thinking... 🤔', value: 'Thinking... 🤔' },
+  { label: 'Thinking… 🤔', value: 'Thinking… 🤔' },
   { label: 'Hurry Up! ⏰', value: 'Hurry Up! ⏰' },
   { label: 'One More! 🔄', value: 'One More! 🔄' },
 ];
