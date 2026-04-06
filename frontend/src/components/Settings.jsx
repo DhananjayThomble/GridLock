@@ -17,45 +17,53 @@ import { safeStorage } from '../utils/safeStorage';
 
 /* ─── Reusable Toggle Switch ─── */
 const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
-  <button
-    onClick={() => !disabled && onChange()}
-    className="settings-toggle"
-    role="switch"
-    aria-checked={checked}
-    aria-disabled={disabled}
-    aria-label={label}
-    tabIndex={disabled ? -1 : 0}
+  <div
     style={{
-      width: '48px',
-      height: '28px',
-      borderRadius: '14px',
-      backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
-      opacity: disabled ? 0.4 : 1,
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      position: 'relative',
-      border: 'none',
-      padding: '8px 0',
-      boxSizing: 'content-box',
-      flexShrink: 0,
-      transition: 'background-color 200ms ease',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       minWidth: '48px',
       minHeight: '44px',
+      flexShrink: 0,
     }}
   >
-    <div
+    <button
+      onClick={() => !disabled && onChange()}
+      className="settings-toggle"
+      role="switch"
+      aria-checked={checked}
+      aria-disabled={disabled}
+      aria-label={label}
+      tabIndex={disabled ? -1 : 0}
       style={{
-        width: '22px',
-        height: '22px',
-        borderRadius: '50%',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-        position: 'absolute',
-        top: '3px',
-        left: checked ? '23px' : '3px',
-        transition: 'left 200ms ease',
+        width: '48px',
+        height: '28px',
+        borderRadius: '14px',
+        backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
+        opacity: disabled ? 0.4 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        position: 'relative',
+        border: 'none',
+        padding: 0,
+        boxSizing: 'border-box',
+        transition: 'background-color 200ms ease',
       }}
-    />
-  </button>
+    >
+      <div
+        style={{
+          width: '22px',
+          height: '22px',
+          borderRadius: '50%',
+          backgroundColor: '#ffffff',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+          position: 'absolute',
+          top: '3px',
+          left: checked ? '23px' : '3px',
+          transition: 'left 200ms ease',
+        }}
+      />
+    </button>
+  </div>
 );
 
 /* ─── Settings Row ─── */
