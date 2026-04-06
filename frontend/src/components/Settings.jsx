@@ -27,21 +27,32 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
     tabIndex={disabled ? -1 : 0}
     style={{
       width: '48px',
-      height: '28px',
-      borderRadius: '14px',
-      backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
-      opacity: disabled ? 0.4 : 1,
+      height: '44px',
+      background: 'transparent',
+      border: 'none',
+      padding: 0,
       cursor: disabled ? 'not-allowed' : 'pointer',
       position: 'relative',
-      border: 'none',
-      padding: '8px 0',
-      boxSizing: 'content-box',
       flexShrink: 0,
-      transition: 'background-color 200ms ease',
       minWidth: '48px',
-      minHeight: '44px',
     }}
   >
+    {/* Visual pill track */}
+    <div
+      style={{
+        width: '48px',
+        height: '28px',
+        borderRadius: '14px',
+        backgroundColor: checked ? 'var(--accent)' : 'var(--text-muted)',
+        opacity: disabled ? 0.4 : 1,
+        position: 'absolute',
+        top: '50%',
+        left: 0,
+        transform: 'translateY(-50%)',
+        transition: 'background-color 200ms ease',
+      }}
+    />
+    {/* Knob */}
     <div
       style={{
         width: '22px',
@@ -50,7 +61,8 @@ const ToggleSwitch = ({ checked, onChange, disabled = false, label }) => (
         backgroundColor: '#ffffff',
         boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
         position: 'absolute',
-        top: '3px',
+        top: '50%',
+        transform: 'translateY(-50%)',
         left: checked ? '23px' : '3px',
         transition: 'left 200ms ease',
       }}
