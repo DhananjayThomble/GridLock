@@ -2,6 +2,7 @@
 // Singleton socket instance shared across all components
 import io from 'socket.io-client';
 import { addBreadcrumb, captureException, setTag } from './lib/sentry';
+import log from './lib/logger';
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL ||
   (typeof window !== 'undefined' ? window.location.origin : '');
@@ -112,7 +113,7 @@ socket.on('idle_timeout', ({ reason, timeoutMs }) => {
     level: 'warning',
     data: { reason, timeoutMs },
   });
-  console.warn(`[GridLock] Disconnected: idle timeout (${reason})`);
+  log.warn('idle_timeout', { reason, timeoutMs });
 
   // Disconnect from client side — voluntary client disconnect prevents auto-reconnect
   socket.disconnect();
@@ -133,13 +134,13 @@ socket.on('idle_timeout', ({ reason, timeoutMs }) => {
 function forceReconnect(reason) {
   const now = Date.now();
   if (now - lastForceReconnectAt < FORCE_RECONNECT_DEDUP_MS) {
-    console.log(`[GridLock] Skipping duplicate forceReconnect (${reason})`);
+    log.debug('forceReconnect:dedup', { reason });
     return;
   }
   lastForceReconnectAt = now;
 
   addBreadcrumb({ category: 'socket', message: `Force reconnect: ${reason}`, level: 'warning' });
-  console.log(`[GridLock] Force reconnecting: ${reason}`);
+  log.info('forceReconnect', { reason });
   socket.disconnect();
   socket.connect();
   if (typeof window !== 'undefined') {
@@ -160,7 +161,7 @@ function checkLiveness() {
 
   const timeoutId = setTimeout(() => {
     livenessCheckActive = false;
-    console.warn('[GridLock] Liveness check failed — forcing reconnect');
+    log.warn('liveness:timeout', { timeoutMs: LIVENESS_TIMEOUT_MS });
     addBreadcrumb({ category: 'socket', message: 'Liveness check timeout', level: 'error' });
     forceReconnect('liveness check timeout');
   }, LIVENESS_TIMEOUT_MS);
@@ -186,7 +187,7 @@ function checkLiveness() {
 if (typeof document !== 'undefined') {
   // ── document.wasDiscarded — page was discarded and reloaded ─────────────
   if (document.wasDiscarded) {
-    console.log('[GridLock] Page was previously discarded by browser');
+    log.info('page:discarded');
     addBreadcrumb({ category: 'socket', message: 'Page was discarded', level: 'warning' });
     // Socket will auto-connect on page load; Board reads sessionToken from localStorage
   }
@@ -199,11 +200,11 @@ if (typeof document !== 'undefined') {
     const elapsed = Date.now() - lastAliveAt;
 
     if (!socket.connected) {
-      console.log('[GridLock] Tab visible, socket disconnected, reconnecting...');
+      log.info('visibility:reconnecting');
       socket.connect();
     } else if (elapsed > STALE_THRESHOLD_MS) {
       // Connected but haven't heard from server in >60s — likely stale after freeze
-      console.log(`[GridLock] Tab visible, ${Math.round(elapsed / 1000)}s since last activity — checking liveness`);
+      log.info('visibility:stale', { elapsedSec: Math.round(elapsed / 1000) });
       checkLiveness();
     }
   });
@@ -214,19 +215,19 @@ if (typeof document !== 'undefined') {
   document.addEventListener('freeze', () => {
     lastAliveAt = Date.now(); // Record when we were frozen
     addBreadcrumb({ category: 'socket', message: 'Page frozen (tab freeze)', level: 'warning' });
-    console.log('[GridLock] Page frozen by browser');
+    log.info('page:frozen');
   });
 
   document.addEventListener('resume', () => {
     const elapsed = Date.now() - lastAliveAt;
-    console.log(`[GridLock] Page resumed after ${Math.round(elapsed / 1000)}s`);
+    log.info('page:resumed', { elapsedSec: Math.round(elapsed / 1000) });
     addBreadcrumb({ category: 'socket', message: `Page resumed, ${elapsed}ms elapsed`, level: 'info' });
 
     if (!socket.active) return; // Intentionally disconnected (idle_timeout)
 
     if (elapsed > FREEZE_THRESHOLD_MS) {
       // Frozen for >30s — socket is almost certainly dead even if socket.connected says true
-      console.log('[GridLock] Long freeze detected, forcing reconnect...');
+      log.info('freeze:longReconnect', { elapsedMs: elapsed });
       forceReconnect('long freeze');
       // Verify the reconnection is actually alive after a short delay
       setTimeout(() => checkLiveness(), LIVENESS_DELAY_MS);
@@ -242,7 +243,7 @@ if (typeof document !== 'undefined') {
     if (event.persisted) {
       // Page was restored from BFCache — WebSocket is definitely dead
       const elapsed = Date.now() - lastAliveAt;
-      console.log(`[GridLock] Page restored from BFCache (${Math.round(elapsed / 1000)}s elapsed)`);
+      log.info('bfcache:restored', { elapsedSec: Math.round(elapsed / 1000) });
       addBreadcrumb({ category: 'socket', message: `BFCache restore, ${elapsed}ms elapsed`, level: 'info' });
       if (socket.active) {
         // Force close stale connection and reconnect
@@ -257,7 +258,7 @@ if (typeof document !== 'undefined') {
   window.addEventListener('online', () => {
     if (!socket.active) return; // Intentionally disconnected (idle_timeout)
     if (!socket.connected) {
-      console.log('[GridLock] Network back online, reconnecting socket...');
+      log.info('network:online:reconnecting');
       socket.connect();
     }
   });
