@@ -10,6 +10,7 @@ import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sess
 import { usePwaInstall } from '../hooks/usePwaInstall';
 import { useGridTheme } from '../contexts/GridThemeContext';
 import { GRID_THEMES, THEME_IDS, UNLOCK_CONDITIONS } from '../themes/gridThemes';
+import { getStats as getSessionStats } from '../utils/sessionStats';
 import axios from 'axios';
 import socket from '../socket';
 import { API_BASE as AUTH_API_BASE } from '../config';
@@ -306,7 +307,7 @@ const StatsPanel = ({ stats, onReset }) => (
 );
 
 /* ─── Grid Theme Picker ─── */
-const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, onClick }) => (
+const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, unlockProgress, onClick }) => (
   <button
     onClick={onClick}
     disabled={isLocked}
@@ -361,6 +362,23 @@ const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, onClick }) => (
     <div style={{ fontSize: '10px', color: isActive ? 'var(--accent)' : 'var(--text-muted)', textAlign: 'center' }}>
       {isActive ? '✓ Active' : isLocked ? unlockLabel : 'Tap to apply'}
     </div>
+    {/* Unlock progress indicator (#518) */}
+    {isLocked && unlockProgress && (
+      <div style={{ width: '100%', marginTop: '4px' }}>
+        <div style={{ width: '100%', height: '4px', borderRadius: '2px', backgroundColor: 'var(--bg-surface, var(--border-color))' }}>
+          <div style={{
+            width: `${Math.min(unlockProgress.pct, 100)}%`,
+            height: '100%',
+            borderRadius: '2px',
+            backgroundColor: 'var(--accent)',
+            transition: 'width 300ms ease',
+          }} />
+        </div>
+        <div style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2px' }}>
+          {unlockProgress.label}
+        </div>
+      </div>
+    )}
   </button>
 );
 
@@ -602,6 +620,20 @@ const Settings = () => {
             right={<ToggleSwitch checked={pushEnabled} onChange={handlePushToggle} disabled={!hasUsername} label="Push notifications" />}
             showDivider={false}
           />
+          {/* Push notification explanation (#518) */}
+          <div style={{ padding: '0 16px 12px 52px', fontSize: '12px', lineHeight: '16px', color: 'var(--text-muted)' }}>
+            Enable browser notifications for game invites and turn reminders. Requires browser permission.
+            {!hasUsername && (
+              <span style={{ display: 'block', marginTop: '4px', color: 'var(--warning)' }}>
+                ⚠️ Sign in or set a username in the lobby to enable notifications.
+              </span>
+            )}
+            {hasUsername && !pushEnabled && typeof Notification !== 'undefined' && Notification.permission === 'denied' && (
+              <span style={{ display: 'block', marginTop: '4px', color: 'var(--danger)' }}>
+                Browser notification permission was denied. Please allow notifications in your browser settings.
+              </span>
+            )}
+          </div>
         </SectionCard>
 
         {/* ─── GRID THEME ─── */}
@@ -613,17 +645,32 @@ const Settings = () => {
             </div>
             <div className="settings-theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
               {THEME_IDS.map((id) => {
-                const theme = GRID_THEMES[id];
+                const thm = GRID_THEMES[id];
                 const isActive = id === activeGridTheme;
                 const isLocked = !unlockedThemes.includes(id);
                 const condition = UNLOCK_CONDITIONS[id];
+                // Compute unlock progress for locked themes (#518)
+                let unlockProgress = null;
+                if (isLocked && condition) {
+                  const sessionStats = getSessionStats();
+                  // TODO: Backend should expose lifetime win count via user profile API.
+                  // Currently using session stats as best-effort approximation.
+                  if (condition.winsRequired) {
+                    const current = sessionStats.wins || 0;
+                    const pct = (current / condition.winsRequired) * 100;
+                    unlockProgress = { pct, label: `${current}/${condition.winsRequired} wins` };
+                  } else if (condition.tournamentWin) {
+                    unlockProgress = { pct: 0, label: '0 tournament wins' };
+                  }
+                }
                 return (
                   <ThemePreview
                     key={id}
-                    theme={theme}
+                    theme={thm}
                     isActive={isActive}
                     isLocked={isLocked}
                     unlockLabel={condition?.label || ''}
+                    unlockProgress={unlockProgress}
                     onClick={() => !isLocked && setGridTheme(id)}
                   />
                 );
