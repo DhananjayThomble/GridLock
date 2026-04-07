@@ -1,12 +1,12 @@
 // src/components/HowToPlay.jsx
 // SEO-rich "How to Play" page — targets 'how to play dots and boxes' queries
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import './HowToPlay.css';
 
-const Section = ({ emoji, title, children }) => (
-  <section className="htp-section">
+const Section = ({ emoji, title, children, id }) => (
+  <section className="htp-section" id={id}>
     <h2 className="htp-section-title">
       {emoji && <span className="htp-emoji">{emoji}</span>}
       {title}
@@ -23,9 +23,48 @@ const Card = ({ emoji, title, desc }) => (
   </div>
 );
 
+/* ─── Table of Contents ─── */
+const TOC_ITEMS = [
+  { id: 'rules', label: 'Rules', emoji: '📏' },
+  { id: 'game-modes', label: 'Game Modes', emoji: '🎮' },
+  { id: 'strategy', label: 'Strategy Tips', emoji: '🧠' },
+  { id: 'grid-sizes', label: 'Grid Sizes', emoji: '📐' },
+  { id: 'features', label: 'Features', emoji: '✨' },
+];
+
 const HowToPlay = () => {
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    setScrollProgress(Math.min(progress, 100));
+    setShowBackToTop(scrollTop > 400);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
   <div className="htp-container">
+    {/* Scroll Progress Bar (#518) */}
+    <div
+      className="htp-scroll-progress"
+      style={{ width: `${scrollProgress}%` }}
+      role="progressbar"
+      aria-valuenow={Math.round(scrollProgress)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Reading progress"
+    />
     {/* Hero */}
     <header className="htp-hero">
       <h1 className="htp-hero-title">
@@ -38,8 +77,23 @@ const HowToPlay = () => {
       </p>
     </header>
 
+    {/* Table of Contents (#518) */}
+    <nav className="htp-toc" aria-label="Table of contents">
+      <h2 className="htp-toc-title">Contents</h2>
+      <ul className="htp-toc-list">
+        {TOC_ITEMS.map(({ id, label, emoji }) => (
+          <li key={id}>
+            <a href={`#${id}`} className="htp-toc-link">
+              <span className="htp-toc-emoji">{emoji}</span>
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
     {/* Basic Rules */}
-    <Section emoji="📏" title="GridLock Rules — How Dots & Boxes Works">
+    <Section emoji="📏" title="GridLock Rules — How Dots & Boxes Works" id="rules">
       <ol className="htp-rules-list" role="list">
         <li>
           <strong>Draw a line.</strong> Players take turns drawing a single line
@@ -62,7 +116,7 @@ const HowToPlay = () => {
     </Section>
 
     {/* Game Modes */}
-    <Section emoji="🎮" title="Game Modes">
+    <Section emoji="🎮" title="Game Modes" id="game-modes">
       <div className="htp-card-grid">
         <Card
           emoji="🌐"
@@ -98,7 +152,7 @@ const HowToPlay = () => {
     </Section>
 
     {/* Strategy Tips */}
-    <Section emoji="🧠" title="GridLock Strategy Tips">
+    <Section emoji="🧠" title="GridLock Strategy Tips" id="strategy">
       <div className="htp-tips">
         <div className="htp-tip">
           <span className="htp-tip-number">1</span>
@@ -144,7 +198,7 @@ const HowToPlay = () => {
     </Section>
 
     {/* Grid Sizes */}
-    <Section emoji="📐" title="Grid Sizes">
+    <Section emoji="📐" title="Grid Sizes" id="grid-sizes">
       <div className="htp-grid-sizes">
         {[
           { size: '3×3', label: 'Quick', desc: '9 boxes — fast games, great for learning dots and boxes' },
@@ -162,7 +216,7 @@ const HowToPlay = () => {
     </Section>
 
     {/* Features */}
-    <Section emoji="✨" title="Features">
+    <Section emoji="✨" title="Features" id="features">
       <ul className="htp-features-list">
         <li>👀 <strong>Spectator Mode</strong> — Watch live games without interfering</li>
         <li>🔁 <strong>Game Replay</strong> — Review any completed game move-by-move</li>
@@ -184,6 +238,18 @@ const HowToPlay = () => {
         Start a Game Now 🎯
       </Link>
     </section>
+
+    {/* Back to Top (#518) */}
+    {showBackToTop && (
+      <button
+        className="htp-back-to-top"
+        onClick={scrollToTop}
+        aria-label="Back to top"
+        title="Back to top"
+      >
+        ↑
+      </button>
+    )}
   </div>
   );
 };
