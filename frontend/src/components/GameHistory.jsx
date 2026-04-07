@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { captureException } from '../lib/sentry';
+import { safeStorage } from '../utils/safeStorage';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -88,6 +89,13 @@ const GameHistory = () => {
     if (player) {
       setUsername(player);
       setUsernameInput(player);
+    } else {
+      // Auto-load recent games for the current user (#518)
+      const savedUsername = safeStorage.getItem('gridlock_username');
+      if (savedUsername && savedUsername.trim()) {
+        setUsername(savedUsername.trim());
+        setUsernameInput(savedUsername.trim());
+      }
     }
 
     initializedRef.current = true;
