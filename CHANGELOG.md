@@ -3,6 +3,65 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.1.0] — 2026-04-07
+
+### Added
+- Google OAuth — full login/signup with guest data migration (#468, #469)
+- QR code sharing in WaitingRoom for easy in-person invites (#498)
+- First-time onboarding flow with animated GameDemo (#455, #459)
+- Challenge Links — shareable 'Play With Me' URLs (#456)
+- Wordle-style share result card (#457)
+- SEO meta tags + structured data (#458)
+- GameDemo animated component showing realistic gameplay
+- Daily challenge leaderboard with player count and personal result (#435)
+- Grid Theme System — 5 themes with unlockable rewards (#439, #440)
+- Visual QA pipeline — 210 automated UI checks (#443)
+- Theme unlock progress indicators and push notification tooltip (#518)
+- Search loading spinners, skeletons, and no-results states (#518)
+- Auto-load recent games on History page for logged-in users (#518)
+- TOC, back-to-top button, and scroll progress on Rules page (#518)
+- 4-layer UI/UX design audit system
+- Opponent move sound — distinct lower-pitch audio (#451)
+- Developer credit footer + meta author tag
+- Component test coverage for 11 critical components (#515)
+- Comprehensive socket stability test suite (#496)
+- Full game matrix tests — all player/grid/CPU permutations (#398)
+- Nightly & weekly automated test suite for beta (#397)
+
+### Fixed
+- Socket stability wave 1-3: timer recovery, forfeit, lobby cleanup, transport upgrade, ping tuning, username collision, zombie game cleanup, Safari localStorage fallback (#492-#494)
+- Multi-tab session conflict detection and handling (#478, #488)
+- Page Lifecycle API handlers for robust socket reconnection (#476, #477, #486)
+- Mobile responsiveness audit — Settings, HowToPlay, ConnectionOverlay fixes (#454)
+- WCAG AA contrast compliance for dots, lines, and UI elements (#441, #509)
+- 44px minimum tap targets across mobile views (#504, #507, #510)
+- Bottom navigation breakpoint extended to 768px for mobile UX (#511)
+- React hooks lint errors in Lobby.jsx (set-state-in-effect, exhaustive-deps)
+- Validation UX v2 — floating toast, inline highlights, shake + scroll (#501, #502)
+- Pre-fill username from auth context (#499)
+- Grammar fixes: "Your turn" corrected, ellipsis normalized (#516)
+- Pill-shaped toggle switches restored on Settings page
+- Opaque dropdown/modal backgrounds — bg-secondary (#506)
+- Safe-area-inset-top for mobile header notch/status bar
+- All secrets moved to .env files, zero hardcoded credentials (#470)
+- Service worker cache auto-bump on deploy (#447)
+- path-to-regexp HIGH vulnerability patched (#461, #465)
+- Sentry noise reduction from expected errors (#407-#410)
+- Replace console.log with structured logger in socket.js (#514)
+
+### Changed
+- React.lazy code splitting + E2E tests for ranked, daily, chat (#400)
+- Wave 3 socketHandlers.js decomposition + Lobby extraction (#401)
+- Structured logging throughout backend
+- CPU toggle made more prominent and discoverable (#434)
+- 3-tier button hierarchy in lobby (#430)
+
+### Infrastructure
+- Merge-gate.sh with version validation for release PRs
+- bump-version.sh for consistent version management
+- Pre-push hooks with full lint + build + test pipeline
+- Deploy scripts with service worker cache busting
+
 ## [1.4.1] — 2026-03-29
 
 ### Added
