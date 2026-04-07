@@ -144,12 +144,16 @@ const Lobby = () => {
   // Ref to track which action is in progress — used by onError to route errors (#211)
   const activeActionRef = useRef(null); // 'create' | 'join' | 'createTournament' | 'joinTournament' | null
 
-  // Pre-fill username from auth when user loads asynchronously
-  useEffect(() => {
+  // Pre-fill username from auth when user loads asynchronously.
+  // Uses "adjusting state during rendering" pattern (no effect needed).
+  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevUser, setPrevUser] = useState(user);
+  if (user !== prevUser) {
+    setPrevUser(user);
     if (user?.username && !username) {
       setUsername(user.username);
     }
-  }, [user]);
+  }
 
   // Cleanup timers on unmount
   useEffect(() => {

@@ -53,6 +53,8 @@ const Leaderboard = () => {
   const [playerLoading, setPlayerLoading] = useState(false);
   const [playerError, setPlayerError] = useState('');
 
+  const [playerSearched, setPlayerSearched] = useState(false);
+
   const lookupAbortRef = useRef(null);
 
   useEffect(() => {
@@ -158,6 +160,7 @@ const Leaderboard = () => {
     const controller = new AbortController();
     lookupAbortRef.current = controller;
 
+    setPlayerSearched(true);
     setPlayerLoading(true);
     setPlayerError('');
     setPlayer(null);
@@ -237,11 +240,31 @@ const Leaderboard = () => {
               style={{ backgroundColor: 'var(--accent)', color: 'var(--text-on-accent)' }}
               disabled={playerLoading}
             >
-              {playerLoading ? 'Searching…' : 'Search'}
+              {playerLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 rounded-full animate-spin inline-block" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                  Searching…
+                </span>
+              ) : 'Search'}
             </button>
           </form>
 
-          {playerError && <p className="mt-2 text-left text-sm" style={{ color: 'var(--danger)' }}>{playerError}</p>}
+          {/* Search loading skeleton (#518) */}
+          {playerLoading && (
+            <div className="mt-3 rounded-xl p-3 animate-pulse" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 5%, transparent)', border: '1px solid var(--border-color)' }}>
+              <div className="h-4 rounded" style={{ backgroundColor: 'var(--border-color)', width: '40%', marginBottom: '8px' }} />
+              <div className="h-3 rounded" style={{ backgroundColor: 'var(--border-color)', width: '70%' }} />
+            </div>
+          )}
+
+          {!playerLoading && playerError && <p className="mt-2 text-left text-sm" style={{ color: 'var(--danger)' }}>{playerError}</p>}
+
+          {/* No results message (#518) */}
+          {!playerLoading && !playerError && !player && playerSearched && query.trim() && (
+            <p className="mt-2 text-left text-sm" style={{ color: 'var(--text-secondary)' }}>
+              🔍 No player found matching “{query.trim()}”. Check the spelling and try again.
+            </p>
+          )}
 
           {player && (
             <div className="mt-3 rounded-xl p-3 text-left text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)', color: 'var(--text-primary)' }}>
@@ -261,7 +284,10 @@ const Leaderboard = () => {
         {activeTab === 'casual' && (
           <>
             {loading && (
-              <div className="card-surface rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading leaderboard…</div>
+              <div className="card-surface rounded-2xl p-8 flex flex-col items-center gap-3" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }} role="status" aria-label="Loading leaderboard">
+                <span className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                Loading leaderboard…
+              </div>
             )}
 
             {!loading && error && (
@@ -359,7 +385,10 @@ const Leaderboard = () => {
         {activeTab === 'ranked' && (
           <>
             {rankedLoading && (
-              <div className="card-surface rounded-2xl p-8" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }}>Loading ranked leaderboard…</div>
+              <div className="card-surface rounded-2xl p-8 flex flex-col items-center gap-3" style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)', color: 'var(--text-secondary)' }} role="status" aria-label="Loading ranked leaderboard">
+                <span className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'currentColor' }} />
+                Loading ranked leaderboard…
+              </div>
             )}
 
             {!rankedLoading && rankedError && (
