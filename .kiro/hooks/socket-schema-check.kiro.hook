@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Socket Schema Validation Reminder",
+  "description": "When socket handler files are edited, reminds the agent to check that any new or modified socket events have corresponding Joi validation schemas.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend/controllers/handlers/**/*.js"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A socket handler file was just modified. If any new socket events were added or event payloads changed, verify that corresponding Joi validation schemas exist in backend/middleware/socketSchemas.js. Also check that the frontend socket.js emits the correct event names and payload shapes."
+  }
+}

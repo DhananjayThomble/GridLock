@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "New File Convention Check",
+  "description": "When a new file is created in the project, reminds the agent to follow project conventions (CommonJS for backend, ES modules for frontend, no TypeScript).",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "backend/**/*.js",
+      "frontend/src/**/*.js",
+      "frontend/src/**/*.jsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new file was just created. Verify it follows GridLock conventions: Backend files must use CommonJS (require/module.exports). Frontend files must use ES modules (import/export). No TypeScript (.ts/.tsx) files allowed. Backend handlers go in backend/controllers/handlers/. React components use PascalCase filenames. Check the file and fix any convention violations."
+  }
+}

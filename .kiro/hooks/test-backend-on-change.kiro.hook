@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "name": "Backend Tests on Change",
+  "description": "Runs Jest backend tests when backend source files are edited to catch regressions early.",
+  "version": "2",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend/controllers/**/*.js",
+      "backend/utils/**/*.js",
+      "backend/services/**/*.js",
+      "backend/models/**/*.js",
+      "backend/middleware/**/*.js",
+      "backend/stores/**/*.js"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "cd backend && npx jest --runInBand --silent",
+    "timeout": 120
+  }
+}
