@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage --forceExit",
     "test:legacy": "node test-4player-logic.js && node test-5x5-grid.js && node test-game-flow.js",
     "test:all": "jest --runInBand && node test-4player-logic.js && node test-5x5-grid.js && node test-game-flow.js && node test-avatars.js && node test-e2e-flow.js"
   },
