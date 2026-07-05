@@ -1,192 +1,119 @@
 # GridLock Development Guide
 
-## 🏗️ Architecture
+This is the human-facing quick-start for working on GridLock. It intentionally stays short and
+points to the authoritative sources rather than duplicating them (duplicated docs drift and go stale).
 
-### Stack
-- **Frontend**: React (Vite) + Tailwind CSS + Socket.IO Client
-- **Backend**: Node.js + Express + Socket.IO Server
-- **Database**: MongoDB (configured, currently using in-memory for MVP)
-- **Deployment**: 
-  - Frontend: Nginx (port 80)
-  - Backend: PM2 cluster mode (port 5000, 1 instance for in-memory state)
+**Source of truth for architecture and conventions:** the steering docs in `.kiro/steering/`.
 
-### Key Design Decisions
-- **In-memory game state**: Using Map object for fast MVP iteration
-- **Backend authoritative**: All game logic runs on server
-- **Real-time sync**: Socket.IO for instant updates
-- **Shared socket instance**: Prevents duplicate connections
+- `project-overview.md` — stack, architecture, key directories, database
+- `coding-standards.md` — language/module rules, naming, testing, git workflow, security
+- `backend-guide.md` — backend entry point, handlers, stores, models, routes
+- `frontend-guide.md` — frontend entry point, socket layer, components, contexts, hooks
+- `socket-events.md` — socket event catalogue (load on demand)
+- `deployment-ops.md` — deployment and ops runbook (load on demand)
+- `push-policy.md` / `autonomy.md` — what agents may do unattended vs. what needs approval
 
----
-
-## 📋 Code Standards
-
-### JavaScript/React
-- Use functional components with hooks
-- PropTypes or TypeScript for type safety (TODO)
-- Consistent naming: camelCase for variables, PascalCase for components
-- Keep components under 300 lines
-
-### CSS/Tailwind
-- Mobile-first responsive design
-- Reusable utility classes
-- Avoid inline styles unless dynamic
-
-### Backend
-- Structured logging with levels (DEBUG, INFO, WARN, ERROR)
-- Input validation on all endpoints
-- Error handling with try-catch
-- Never trust client input
+For infrastructure and deploy specifics, see `INFRASTRUCTURE.md`.
 
 ---
 
-## 🔄 Development Workflow
+## Stack (summary)
 
-### 1. Feature Development
-```bash
-# Always start with a feature branch
-git checkout -b feature/feature-name
-
-# Make changes, test locally
-cd frontend && npm run build
-pm2 restart gridlock-backend
-
-# Commit with descriptive messages
-git add -A
-git commit -m "Feature: Description of change
-
-- Bullet point 1
-- Bullet point 2"
-
-git push origin feature/feature-name
-```
-
-### 2. Testing Before Deploy
-- Run automated tests: `node backend/test-game-flow.js`
-- Manual testing on actual devices
-- Check PM2 logs: `pm2 logs gridlock-backend --lines 50`
-
-### 3. Pull Request & Review
-- Create PR with clear description
-- Review changes on GitHub
-- Merge to main only after testing
+- **Frontend**: React 19 + Vite 7 + Tailwind CSS 3 + Socket.IO client
+- **Backend**: Node.js + Express 5 + Socket.IO 4 + MongoDB (Mongoose 9) + optional Redis
+- **State**: MongoDB for persistence; an in-memory `Map` holds *active* game state (single instance)
+- **Auth**: Google OAuth 2.0 → JWT in httpOnly cookies (guest mode supported)
+- **Deploy**: PM2 (backend), Cloudflare Pages via Wrangler (frontend), self-hosted CI on EC2
 
 ---
 
-## 🧪 Quality Checklist
+## Prerequisites
 
-Before marking any feature as "done":
+- Node.js (version per your environment), npm
+- A MongoDB instance (local or remote) — set `MONGO_URI`
+- Copy `.env.example` and fill in values. Redis is optional (falls back to in-memory).
 
-- [ ] Code follows standards above
-- [ ] Works on mobile (test on actual device)
-- [ ] No console errors in browser/server
-- [ ] Automated tests pass
-- [ ] UI is responsive (all screen sizes)
-- [ ] Error states handled gracefully
-- [ ] Loading states implemented
-- [ ] Backend logs properly
-- [ ] Git commit messages are clear
-- [ ] Branch pushed to GitHub
+Install dependencies per package (no workspace manager yet — install in each):
 
----
-
-## 🚀 Deployment Process
-
-### Frontend
 ```bash
-cd ~/GridLock/frontend
-npm run build
-# Nginx serves from dist/
-```
-
-### Backend
-```bash
-pm2 restart gridlock-backend
-pm2 logs gridlock-backend --lines 50
-```
-
-### Quick Health Check
-```bash
-# Backend running?
-pm2 status
-
-# Frontend served?
-curl http://13.205.40.30
-
-# Check logs
-pm2 logs gridlock-backend --lines 20
+cd backend && npm install
+cd ../frontend && npm install
+npm install            # root — Playwright / husky tooling
 ```
 
 ---
 
-## 🎨 UI/UX Guidelines
+## Running locally
 
-- **Mobile-first**: Design for phones, scale up
-- **Animations**: Subtle, not distracting
-- **Feedback**: Every action needs visual response
-- **Colors**: Consistent with game theme
-- **Accessibility**: Good contrast, readable fonts
+```bash
+# Backend (Express + Socket.IO on :5000) — no dev script; run the server directly
+node backend/server.js
 
----
-
-## 🐛 Debugging
-
-### Frontend Issues
-1. Check browser console (F12)
-2. Verify socket connection: look for "Board using shared socket connection"
-3. Check network tab for failed requests
-
-### Backend Issues
-1. Check PM2 logs: `pm2 logs gridlock-backend --lines 100`
-2. Verify game state in logs (DEBUG level)
-3. Check MongoDB connection if using DB
-
-### Common Issues
-- **Socket disconnects**: Check Nginx WebSocket proxy config
-- **State desync**: Ensure PM2 runs 1 instance (not cluster)
-- **Build errors**: Clear cache, reinstall dependencies
+# Frontend (Vite dev server on :5173, proxies /api and /socket.io to :5000)
+cd frontend && npm run dev
+```
 
 ---
 
-## 📈 Future Improvements
+## Common commands
 
-### Phase 1 (MVP) ✅
-- [x] Basic 2-player gameplay
-- [x] Avatar selection
-- [x] Winner celebration
-- [x] Mobile-responsive UI
-
-### Phase 2 (Next)
-- [ ] User authentication
-- [ ] Persistent game history (MongoDB)
-- [ ] 4-player support
-- [ ] Matchmaking system
-
-### Phase 3 (Advanced)
-- [ ] Redis for multi-instance support
-- [ ] Leaderboards
-- [ ] Tournaments
-- [ ] AI opponents
+| Task | Command |
+|------|---------|
+| Frontend dev server | `cd frontend && npm run dev` |
+| Frontend build | `cd frontend && npm run build` |
+| Frontend lint | `cd frontend && npx eslint .` |
+| Frontend unit tests | `cd frontend && npm run test` (Vitest) |
+| Backend tests | `cd backend && npm test` (Jest, `--runInBand`) |
+| E2E (local) | `npm run test:e2e:local` (from root) |
+| Full local CI | `bash scripts/ci-test.sh` (add `--skip-e2e` for a quick pass) |
+| Version bump (keep all 3 package.json in sync) | `bash scripts/bump-version.sh <version>` |
 
 ---
 
-## 🤖 Working with OpenClaw
+## Development workflow
 
-### Best Practices
-1. **Be specific**: "Fix the winner popup to show player name" > "Fix the game"
-2. **Provide context**: Share screenshots, error logs
-3. **Iterate**: Build features incrementally
-4. **Test immediately**: Don't stack untested changes
-5. **Document decisions**: Update this file with learnings
-
-### Model Selection
-- **GPT-4o** (current): Balanced, good for general development
-- **Claude Opus 4.6**: Complex architecture decisions
-- **Claude Sonnet 4.6**: Fast iterations, bug fixes
+1. **Branch from `develop`** (never from `main`). Name it `feature/…`, `fix/…`, or `chore/…`.
+2. Make changes and keep them scoped. Follow `coding-standards.md`.
+3. Verify before marking work done: `bash scripts/ci-test.sh` (backend tests + frontend lint + build + E2E).
+   The pre-commit hook also lints staged frontend files and runs backend tests when backend files change.
+4. Open a PR into `develop` using the PR template.
+5. **Merging is gated.** The only merge path is `bash scripts/merge-gate.sh <PR_NUMBER>`, which enforces
+   review cycles, local CI, version/CHANGELOG checks for release PRs, and the `phone-tested` label for
+   touch/gesture changes. Do not call `gh pr merge` directly.
 
 ---
 
-## 📝 Notes
+## Definition of done
 
-- Keep this file updated as the project evolves
-- Document all major decisions and their rationale
-- Track technical debt for future cleanup
+- Code follows the standards in `.kiro/steering/coding-standards.md`
+- `bash scripts/ci-test.sh` passes (tests, lint, build, E2E)
+- No new console errors in browser or server; error and loading states handled
+- Responsive on mobile (touch/gesture changes require real-device testing)
+- Backend logs via the structured logger; no sensitive data logged
+- Commit messages are clear; branch pushed for review (never straight to `develop`/`main`)
+
+---
+
+## Debugging
+
+**Frontend**
+- Browser console (F12); confirm the shared socket connects (components import the single socket instance)
+- Network tab for failed `/api` requests or socket upgrade issues
+
+**Backend**
+- Check logs (PM2 in deployed environments: `pm2 logs gridlock-backend`)
+- Game state lives in the in-memory store (`backend/stores/gameStore.js`); enable DEBUG logging to trace it
+- Verify MongoDB connectivity via `/health/deep`
+
+**Common issues**
+- Socket disconnects → check the WebSocket proxy config in front of the backend
+- State desync → the backend runs a single instance for in-memory game state (do not scale to a cluster without Redis)
+- Build errors → clear caches and reinstall dependencies
+
+---
+
+## Notes
+
+- Keep this guide short. When architecture changes, update the relevant steering doc in `.kiro/steering/`
+  first — that is what both humans and the AI agent read as the source of truth.
+- Track larger refactors as specs under `.kiro/specs/` (requirements → design → tasks).
