@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint Frontend on Save",
+      "description": "Runs ESLint on frontend .js/.jsx files after they are edited to catch lint errors immediately.",
+      "trigger": "PostFileSave",
+      "matcher": "(frontend/src/.*[^/]*\\.js$|frontend/src/.*[^/]*\\.jsx$)",
+      "action": {
+        "type": "command",
+        "command": "cd frontend && npx eslint --quiet --no-warn-ignored ../\"${file}\""
+      },
+      "timeout": 30,
+      "enabled": true
+    }
+  ]
+}
