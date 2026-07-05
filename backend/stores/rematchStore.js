@@ -1,15 +1,40 @@
+// @ts-check
 const { getRedisClient } = require('./redisClient');
 
 const REMATCH_TTL_SECONDS = 5 * 60;
 const REMATCH_KEY_PREFIX = 'gridlock:rematch:';
 
-// In-memory fallback: Map<gameId, Set<playerId>>
-const rematchVotes = new Map();
+/**
+ * Result of adding a rematch vote.
+ * @typedef {Object} AddVoteResult
+ * @property {number} count - Total distinct players who have voted for a rematch
+ * @property {boolean} isNew - True if this call recorded a new vote (not a duplicate)
+ */
 
+/**
+ * Result of removing a rematch vote.
+ * @typedef {Object} RemoveVoteResult
+ * @property {number} count - Remaining distinct players who have voted
+ * @property {boolean} wasRemoved - True if a vote was actually removed
+ */
+
+// In-memory fallback: Map<gameId, Set<playerId>>
+const rematchVotes = /** @type {Map<string, Set<string>>} */ (new Map());
+
+/**
+ * @param {string} gameId
+ * @returns {string}
+ */
 function getKey(gameId) {
     return `${REMATCH_KEY_PREFIX}${gameId}`;
 }
 
+/**
+ * Add a player's rematch vote for a game.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {Promise<AddVoteResult>}
+ */
 async function addVote(gameId, playerId) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);
@@ -34,6 +59,11 @@ async function addVote(gameId, playerId) {
     return { count: votes.size, isNew: votes.size > before };
 }
 
+/**
+ * Get the number of distinct rematch votes for a game.
+ * @param {string} gameId
+ * @returns {Promise<number>}
+ */
 async function getVoteCount(gameId) {
     const gameKey = String(gameId);
 
@@ -48,6 +78,11 @@ async function getVoteCount(gameId) {
     return votes ? votes.size : 0;
 }
 
+/**
+ * Clear all rematch votes for a game.
+ * @param {string} gameId
+ * @returns {Promise<void>}
+ */
 async function clearVotes(gameId) {
     const gameKey = String(gameId);
 
@@ -61,6 +96,10 @@ async function clearVotes(gameId) {
     rematchVotes.delete(gameKey);
 }
 
+/**
+ * Count of games that currently have at least one rematch vote.
+ * @returns {Promise<number>}
+ */
 async function storeCount() {
     try {
         const redis = await getRedisClient();
@@ -81,6 +120,12 @@ async function storeCount() {
     return rematchVotes.size;
 }
 
+/**
+ * Remove a player's rematch vote for a game.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {Promise<RemoveVoteResult>}
+ */
 async function removeVote(gameId, playerId) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);
@@ -104,6 +149,12 @@ async function removeVote(gameId, playerId) {
     return { count: votes.size, wasRemoved: had };
 }
 
+/**
+ * Whether a player has voted for a rematch.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {Promise<boolean>}
+ */
 async function hasVoted(gameId, playerId) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);

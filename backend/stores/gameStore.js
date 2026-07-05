@@ -1,14 +1,32 @@
+// @ts-check
 const { getRedisClient } = require('./redisClient');
 
-const localGames = new Map();
+/**
+ * A full game state object. This store treats games opaquely — it stores,
+ * serializes, caches, and returns them without inspecting their shape. The
+ * canonical game shape is owned by the socket handlers and utils/gameLogic.js.
+ * @typedef {Object<string, any>} StoredGame
+ */
+
+// Hot in-memory cache / single-instance fallback: Map<gameId, StoredGame>
+const localGames = /** @type {Map<string, StoredGame>} */ (new Map());
 
 const REDIS_KEY_PREFIX = 'gridlock:game:';
 const REDIS_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
+/**
+ * @param {string} gameId
+ * @returns {string}
+ */
 function getRedisKey(gameId) {
     return `${REDIS_KEY_PREFIX}${gameId}`;
 }
 
+/**
+ * Get the shared Redis client, or null if it is unavailable / not configured.
+ * Typed as `any` because the client is optional and only accessed dynamically.
+ * @returns {Promise<any>}
+ */
 async function getRedisIfAvailable() {
     try {
         return await getRedisClient(); // getRedisClient() returns null if REDIS_URL not set or connect fails
@@ -18,6 +36,11 @@ async function getRedisIfAvailable() {
     }
 }
 
+/**
+ * Fetch a game by ID (Redis first, then in-memory hot cache).
+ * @param {string} gameId
+ * @returns {Promise<StoredGame|null>}
+ */
 async function getGame(gameId) {
     const redis = await getRedisIfAvailable();
 
@@ -37,6 +60,12 @@ async function getGame(gameId) {
     return localGames.get(gameId) || null;
 }
 
+/**
+ * Store/update a game, writing through to Redis when available.
+ * @param {string} gameId
+ * @param {StoredGame} game
+ * @returns {Promise<void>}
+ */
 async function setGame(gameId, game) {
     localGames.set(gameId, game);
 
@@ -52,6 +81,11 @@ async function setGame(gameId, game) {
     }
 }
 
+/**
+ * Delete a game from both the hot cache and Redis.
+ * @param {string} gameId
+ * @returns {Promise<void>}
+ */
 async function deleteGame(gameId) {
     localGames.delete(gameId);
 
@@ -65,6 +99,10 @@ async function deleteGame(gameId) {
     }
 }
 
+/**
+ * Return all active games as a Map keyed by gameId.
+ * @returns {Promise<Map<string, StoredGame>>}
+ */
 async function getAllActiveGames() {
     const redis = await getRedisIfAvailable();
     if (!redis) {
@@ -74,14 +112,14 @@ async function getAllActiveGames() {
     try {
         // Use SCAN instead of KEYS to avoid blocking Redis in production
         let cursor = '0';
-        const allKeys = [];
+        const allKeys = /** @type {string[]} */ ([]);
         do {
             const result = await redis.scan(cursor, { MATCH: `${REDIS_KEY_PREFIX}*`, COUNT: 100 });
             cursor = String(result.cursor);
             allKeys.push(...result.keys);
         } while (cursor !== '0');
 
-        const games = new Map();
+        const games = /** @type {Map<string, StoredGame>} */ (new Map());
 
         for (const key of allKeys) {
             try {
@@ -105,6 +143,10 @@ async function getAllActiveGames() {
     }
 }
 
+/**
+ * Count of active games in the backing store.
+ * @returns {Promise<number>}
+ */
 async function gameCount() {
     const redis = await getRedisIfAvailable();
     if (!redis) {
@@ -132,8 +174,13 @@ async function gameCount() {
 // (INCRBY / DECRBY). Falls back to a local Map when Redis is unavailable.
 
 const SPECTATOR_KEY_PREFIX = 'gridlock:spectators:';
-const localSpectatorCounts = new Map();
+// In-memory fallback: Map<gameId, spectatorCount>
+const localSpectatorCounts = /** @type {Map<string, number>} */ (new Map());
 
+/**
+ * @param {string} gameId
+ * @returns {string}
+ */
 function spectatorKey(gameId) {
     return `${SPECTATOR_KEY_PREFIX}${gameId}`;
 }
@@ -194,6 +241,7 @@ async function getSpectatorCount(gameId) {
 /**
  * Delete spectator count key when a game is cleaned up.
  * @param {string} gameId
+ * @returns {Promise<void>}
  */
 async function deleteSpectatorCount(gameId) {
     localSpectatorCounts.delete(gameId);

@@ -11,5 +11,10 @@
     "noImplicitAny": false,
     "skipLibCheck": true
   },
-  "include": ["utils/gameLogic.js"]
+  "include": [
+    "utils/gameLogic.js",
+    "stores/gameStore.js",
+    "stores/disconnectStore.js",
+    "stores/rematchStore.js"
+  ]
 }

@@ -1,18 +1,49 @@
+// @ts-check
 const { getRedisClient } = require('./redisClient');
 
 const DISCONNECT_KEY_PREFIX = 'gridlock:disconnect:';
 
-// In-memory fallback: Map<timerKey, { socketId, timestamp }>
-const disconnects = new Map();
+/**
+ * A tracked player disconnect. Stored in Redis (JSON-encoded, with a TTL) or in
+ * the in-memory fallback Map, keyed by `${gameId}:${playerId}`.
+ * @typedef {Object} DisconnectEntry
+ * @property {string} socketId - Socket ID the player was connected with
+ * @property {number} timestamp - Epoch ms when the disconnect was recorded
+ * @property {string} gameId - Game the player disconnected from
+ * @property {string} playerId - Player who disconnected
+ */
 
+// In-memory fallback: Map<`${gameId}:${playerId}`, DisconnectEntry>
+const disconnects = /** @type {Map<string, DisconnectEntry>} */ (new Map());
+
+/**
+ * Build the in-memory Map key for a game/player pair.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {string}
+ */
 function makeTimerKey(gameId, playerId) {
     return `${gameId}:${playerId}`;
 }
 
+/**
+ * Build the Redis key for a game/player pair.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {string}
+ */
 function getRedisKey(gameId, playerId) {
     return `${DISCONNECT_KEY_PREFIX}${gameId}:${playerId}`;
 }
 
+/**
+ * Record a player disconnect with a reconnection-window TTL.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @param {string} socketId - Socket ID the player was connected with
+ * @param {number} timeoutMs - Reconnection window in milliseconds
+ * @returns {Promise<void>}
+ */
 async function setDisconnect(gameId, playerId, socketId, timeoutMs) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);
@@ -34,6 +65,12 @@ async function setDisconnect(gameId, playerId, socketId, timeoutMs) {
     disconnects.set(key, { socketId, timestamp, gameId: gameKey, playerId: playerKey });
 }
 
+/**
+ * Clear a recorded disconnect (player reconnected or game ended).
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {Promise<void>}
+ */
 async function clearDisconnect(gameId, playerId) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);
@@ -48,6 +85,12 @@ async function clearDisconnect(gameId, playerId) {
     disconnects.delete(makeTimerKey(gameKey, playerKey));
 }
 
+/**
+ * Whether a player is currently within their disconnect window.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {Promise<boolean>}
+ */
 async function isDisconnected(gameId, playerId) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);
@@ -65,6 +108,12 @@ async function isDisconnected(gameId, playerId) {
     return disconnects.has(makeTimerKey(gameKey, playerKey));
 }
 
+/**
+ * Get the socket ID and timestamp for a tracked disconnect, if any.
+ * @param {string} gameId
+ * @param {string} playerId
+ * @returns {Promise<{ socketId: string, timestamp: number }|null>}
+ */
 async function getDisconnectInfo(gameId, playerId) {
     const gameKey = String(gameId);
     const playerKey = String(playerId);
@@ -85,6 +134,10 @@ async function getDisconnectInfo(gameId, playerId) {
     return info ? { socketId: info.socketId, timestamp: info.timestamp } : null;
 }
 
+/**
+ * Count of active disconnect entries across the backing store.
+ * @returns {Promise<number>}
+ */
 async function storeCount() {
     try {
         const redis = await getRedisClient();
@@ -108,10 +161,10 @@ async function storeCount() {
 /**
  * Return all active disconnect entries.
  * Used by recoverDisconnectTimers on server restart (#481).
- * @returns {Promise<Array<{ gameId: string, playerId: string, socketId: string, timestamp: number }>>}
+ * @returns {Promise<DisconnectEntry[]>}
  */
 async function getAllDisconnects() {
-    const results = [];
+    const results = /** @type {DisconnectEntry[]} */ ([]);
 
     try {
         const redis = await getRedisClient();
