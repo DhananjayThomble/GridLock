@@ -2,7 +2,7 @@
   "enabled": true,
   "name": "New File Convention Check",
   "description": "When a new file is created in the project, reminds the agent to follow project conventions (CommonJS for backend, ES modules for frontend, no TypeScript).",
-  "version": "1",
+  "version": "2",
   "when": {
     "type": "fileCreated",
     "patterns": [

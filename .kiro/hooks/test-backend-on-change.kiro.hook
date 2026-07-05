@@ -1,18 +1,10 @@
 {
   "enabled": true,
-  "name": "Backend Tests on Change",
-  "description": "Runs Jest backend tests when backend source files are edited to catch regressions early.",
+  "name": "Backend Tests (Manual)",
+  "description": "Runs the full Jest backend test suite on demand. Triggered manually to avoid running the entire suite on every backend file save; husky already runs backend tests at commit time.",
   "version": "2",
   "when": {
-    "type": "fileEdited",
-    "patterns": [
-      "backend/controllers/**/*.js",
-      "backend/utils/**/*.js",
-      "backend/services/**/*.js",
-      "backend/models/**/*.js",
-      "backend/middleware/**/*.js",
-      "backend/stores/**/*.js"
-    ]
+    "type": "userTriggered"
   },
   "then": {
     "type": "runCommand",
