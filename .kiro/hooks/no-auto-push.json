@@ -3,13 +3,14 @@
   "hooks": [
     {
       "name": "No Auto Push — Review First",
-      "description": "Intercepts GitHub MCP tool calls (PR creation, issue mutations) to ensure the agent summarizes changes and gets user approval before modifying the remote repository.",
+      "description": "Intercepts remote-mutating tool calls (PR creation, issue creation, merges) to ensure the agent summarizes changes and gets explicit user approval before modifying the remote repository.",
       "trigger": "PreToolUse",
+      "matcher": "create_pr|create_issue|create_pull|merge",
       "action": {
         "type": "agent",
-        "prompt": "STOP. Before creating a PR, issue, or merging anything on GitHub, you MUST: 1) Summarize ALL changes with file paths and descriptions, 2) Provide an unbiased review noting strengths and concerns, 3) List test results, 4) Ask the user for explicit permission. Do NOT proceed without user approval."
+        "prompt": "STOP. Before creating a PR, issue, or merging anything on the remote, you MUST: 1) Summarize ALL changes with file paths and descriptions, 2) Provide an unbiased review noting strengths and concerns, 3) List test results, 4) Ask the user for explicit permission. Do NOT proceed without user approval."
       },
-      "enabled": false
+      "enabled": true
     }
   ]
 }

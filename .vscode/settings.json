@@ -1,0 +1,53 @@
+{
+  // Kiro Agent — auto-approved terminal commands (workspace level).
+  //
+  // Matching is PREFIX-based, so every entry below is deliberately specific:
+  // no entry is also a prefix of a destructive command. Routine, reversible
+  // commands (tests, lint, build, read-only git, safe scripts) run without a
+  // prompt; anything not listed here still requires explicit approval.
+  //
+  // Intentionally NOT trusted (must always prompt): git push/commit/checkout,
+  // npm install, deploy/rollback/merge-gate scripts, wrangler deploy, rm, and
+  // "*". See .kiro/steering/autonomy.md for the full policy.
+  "kiroAgent.trustedCommands": [
+    // Backend tests (Jest)
+    "cd backend && npm test",
+    "cd backend && npm run test",
+    "npm run test:backend",
+    "jest",
+    "npx jest",
+
+    // Frontend unit tests, lint, build, dev (Vite / Vitest / ESLint)
+    "cd frontend && npm test",
+    "cd frontend && npm run test",
+    "cd frontend && npm run build",
+    "cd frontend && npm run dev",
+    "cd frontend && npm run lint",
+    "cd frontend && npx eslint",
+    "npx eslint",
+    "vitest",
+    "npx vitest",
+    "npx vite build",
+
+    // E2E (Playwright test only — not install/codegen)
+    "npm run test:e2e:local",
+    "npx playwright test",
+
+    // Local verification scripts (safe, read-only / test-only)
+    "bash scripts/ci-test.sh",
+    "bash scripts/test-e2e-local.sh",
+    "bash scripts/test-local.sh",
+    "npm run smoke",
+    "node scripts/smoke-test.js",
+
+    // Read-only git inspection
+    "git status",
+    "git diff",
+    "git log",
+    "git show",
+    "git fetch",
+    "git branch",
+    "git rev-parse",
+    "git remote -v"
+  ]
+}

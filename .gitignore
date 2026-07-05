@@ -31,7 +31,10 @@ pids/
 *.tgz
 
 # Editor
-.vscode/
+# Ignore local editor state, but track shared workspace settings
+# (.vscode/settings.json holds Kiro agent config that should reach the whole team).
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

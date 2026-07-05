@@ -2,7 +2,7 @@
   "enabled": true,
   "name": "Socket Schema Validation Reminder",
   "description": "When socket handler files are edited, reminds the agent to check that any new or modified socket events have corresponding Joi validation schemas.",
-  "version": "1",
+  "version": "2",
   "when": {
     "type": "fileEdited",
     "patterns": [
