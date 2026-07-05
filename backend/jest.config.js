@@ -6,11 +6,10 @@
  * Coverage collection and the thresholds below apply only when Jest runs with
  * `--coverage`, i.e. via `npm run test:coverage`.
  *
- * NOTE: the thresholds are a deliberately conservative INITIAL FLOOR. They were not
- * calibrated against a real coverage run in the authoring environment (the
- * mongodb-memory-server MongoDB binary was not available there). After running
- * `npm run test:coverage` on a machine where the suite runs, raise these to just below
- * the measured values so coverage ratchets up over time.
+ * NOTE: thresholds are calibrated to sit just below the current measured coverage
+ * (statements ~49.5%, branches ~41.9%, functions ~60.1%, lines ~51.8% across 714 passing
+ * tests) so they act as a regression ratchet without breaking on minor variation. Raise
+ * them over time as coverage improves.
  */
 module.exports = {
   testEnvironment: 'node',
@@ -30,10 +29,10 @@ module.exports = {
   coverageReporters: ['text', 'text-summary', 'lcov'],
   coverageThreshold: {
     global: {
-      statements: 40,
+      statements: 48,
       branches: 40,
-      functions: 40,
-      lines: 40,
+      functions: 58,
+      lines: 50,
     },
   },
 };
