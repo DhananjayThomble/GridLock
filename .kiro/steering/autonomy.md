@@ -48,6 +48,15 @@ the contract for what the agent may do unattended versus what requires explicit 
 - Changing git config, or skipping hooks with `--no-verify`.
 - Sending repository code or data to third-party endpoints not already used by the project.
 
+## Enforcement note
+
+The client-side guards in this repo — the `no-auto-push` hook and the `kiroAgent.trustedCommands`
+allowlist — are **best-effort reminders, not guarantees**. The hook matches known MCP mutation tool
+names (PR/issue/merge) and will not catch a `git push`/`gh` command run through the shell or a raw API
+call. The durable enforcement of "nothing unreviewed reaches `develop`/`main`" is **server-side GitHub
+branch protection** (require a PR + review; `scripts/merge-gate.sh` is the only merge path). Treat
+branch protection as the real gate and these local guards as convenience.
+
 ## After completing any coding task (always)
 
 Follow `push-policy.md`:

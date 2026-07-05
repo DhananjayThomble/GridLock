@@ -3,7 +3,7 @@
   "hooks": [
     {
       "name": "No Auto Push — Review First",
-      "description": "Intercepts remote-mutating tool calls (PR creation, issue creation, merges) to ensure the agent summarizes changes and gets explicit user approval before modifying the remote repository.",
+      "description": "Best-effort reminder that intercepts common remote-mutating MCP tool calls (PR/issue creation, merges) so the agent summarizes changes and gets explicit approval first. NOTE: matches MCP tool names only — it does NOT catch `git push`/`gh` run via the shell or raw `gh_rest_api` calls. Durable enforcement is server-side GitHub branch protection on develop/main; see .kiro/steering/autonomy.md.",
       "trigger": "PreToolUse",
       "matcher": "create_pr|create_issue|create_pull|merge",
       "action": {
