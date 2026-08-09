@@ -20,10 +20,9 @@ add items as they surface, and move them to **Done** with a PR link when merged.
 ## Backlog (identified, needs a spec)
 | Item | Intent | Size | Source |
 |------|--------|------|--------|
-| Editor-level type safety (no TypeScript) | Add `jsconfig.json` with `checkJs` + JSDoc type annotations on core modules (`backend/utils/gameLogic.js`, stores, frontend contexts) so the agent gets type feedback without introducing `.ts` files. | M | Tier 3 recommendation; `DEVELOPMENT.md` legacy TODO |
-| Jest coverage thresholds | Add coverage thresholds to the backend Jest config (advisory first, then enforced) so under-tested changes are caught. | S | Tier 3 recommendation |
+| Tests for 0%-coverage backend routes | Add tests for `routes/leaderboard.js`, `routes/push.js`, `routes/ranked.js` (0% covered per the #526 run) and ratchet the Jest coverage thresholds up. | M | Coverage run in #526 |
+| Expand type-safety coverage | Annotate more modules (`stores/*`, remaining `utils/*`, frontend contexts) with JSDoc + `//@ts-check` and grow the jsconfig `include`. | M | Follow-up to #527 |
 | MCP servers for structured access | Configure a MongoDB MCP (DB inspection) and the GitHub MCP (PR/review loop) in Kiro MCP config so the agent uses structured tools instead of shelling out. | M | Tier 4 recommendation |
-| Harden remote-mutation guarding | Rely on server-side GitHub branch protection on `develop`/`main` as the true gate; document this in `autonomy.md` and optionally broaden the `no-auto-push` hook (the tool-name matcher misses `gh_rest_api`/shell paths). | S | Found during PR #524 flow |
 
 ## Done
 | Item | PR |
@@ -32,4 +31,7 @@ add items as they surface, and move them to **Done** with a PR link when merged.
 | Autonomy/permission-boundary steering + `kiroAgent.trustedCommands` allowlist | #524 |
 | `DEVELOPMENT.md` refreshed to defer to steering | #524 |
 | `repo-structure-cleanup` spec completed with `tasks.md` | #524 |
-| First-class `reviewer` custom agent + "Run Local CI" hook + this backlog | (pending — current branch) |
+| First-class `reviewer` custom agent + "Run Local CI" hook + spec backlog | #525 |
+| Backend Jest coverage config + calibrated thresholds | #526 |
+| Type-safety foundation (jsconfig + JSDoc on `gameLogic.js`) | #527 |
+| Harden remote-mutation guarding — documented server-side branch protection as the real gate | (this branch) |
