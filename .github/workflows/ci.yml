@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run full suite (with E2E)
+        if: github.event_name == 'pull_request'
+        run: bash scripts/ci-test.sh
+
+      - name: Run suite (skip E2E)
+        if: github.event_name == 'push'
+        run: bash scripts/ci-test.sh --skip-e2e

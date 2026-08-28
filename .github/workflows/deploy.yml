@@ -1,0 +1,24 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs the full test suite, then deploy-backend.sh + deploy-frontend.sh
+      # + smoke-test.sh. deploy-backend.sh/deploy-frontend.sh operate on their
+      # own absolute paths (GridLock-prod, /var/www/gridlock) — see
+      # INFRASTRUCTURE.md — regardless of where this checkout landed.
+      - name: Test and deploy to production
+        run: bash scripts/ci-deploy.sh prod
