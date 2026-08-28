@@ -9,7 +9,7 @@ import { subscribeToPush } from '../utils/pushManager';
 import QuickPlay from './QuickPlay';
 import RecentOpponents from './RecentOpponents';
 import RankedQueue from './RankedQueue';
-import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby';
+import { AvatarGrid, AVATARS, NameInput, PlayerCountSelector, GridSizeSelector, GRID_OPTIONS, GameModeButtons, primaryStyle, secondaryStyle, tertiaryStyle, inactiveOptionStyle, disabledOverlay } from './lobby/index.js';
 import { isFirstTime } from '../utils/onboarding';
 import GameDemo from './GameDemo';
 import { safeStorage } from '../utils/safeStorage';
