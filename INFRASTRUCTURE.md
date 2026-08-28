@@ -36,13 +36,11 @@ data contamination. The `MONGO_URI` is set via PM2's `ecosystem.config.js`.
 
 ## Why Separate Directories?
 
-The dev worktree (`GridLock/`) is used for branch switching, builds, CI checks,
-and GitHub Pages deployments. Switching to `gh-pages` deletes `node_modules`
-and backend files, which **breaks production** if PM2 is running from the same
-directory.
-
-The fix: production runs from a **dedicated clone** (`GridLock-prod/`) that
-never switches branches. Dev work happens in `GridLock/` without risk.
+The dev worktree (`GridLock/`) is used for branch switching, builds, and CI
+checks. Production (backend + frontend) both run from a **dedicated clone**
+(`GridLock-prod/`) that never switches branches, so dev-side branch switches
+or in-progress builds can never affect what's live. Dev work happens in
+`GridLock/` without risk.
 
 ## PM2 Processes
 
@@ -85,13 +83,17 @@ The deploy script:
 ./scripts/deploy-beta.sh
 ```
 
-### Frontend (GitHub Pages)
+### Frontend (EC2, served by Nginx)
+
+The frontend is a static Vite/React build served directly by Nginx from
+`/var/www/gridlock` on the same EC2 instance as the backend — same origin as
+the API, no separate hosting provider involved.
 
 ```bash
-# Deploy to production (builds + pushes to gh-pages)
+# Build + deploy to /var/www/gridlock (rsync, with a smoke check at the end)
 ./scripts/deploy-frontend.sh
 
-# Preview build without pushing (validates everything works)
+# Build only, skip the deploy step (validates the build works)
 ./scripts/deploy-frontend.sh --dry-run
 ```
 
@@ -103,21 +105,22 @@ VITE_SOCKET_URL=http://localhost:5000 \
 ```
 
 The deploy script:
-1. Builds the frontend in the dev worktree (`frontend/`)
-2. Creates a **git worktree** at `/tmp/gh-pages-deploy` for the `gh-pages` branch
-3. Cleans old files and copies the fresh `dist/` output
-4. Adds `CNAME` (`gridlock.pro`) and `404.html` (SPA routing)
-5. Commits with deploy message (commit hash + timestamp)
-6. Pushes to `gh-pages`
-7. Removes the worktree
+1. Builds the frontend (with SEO prerendering) in the dev worktree (`frontend/`)
+2. Uploads source maps to Sentry, if configured (skipped silently otherwise)
+3. Copies the fresh `dist/` output to a temp dir, `chown`s it to `www-data`
+4. `rsync --delete`s it into `/var/www/gridlock` (atomic-ish — old files are
+   only removed as new ones land)
+5. Runs a smoke check against `https://gridlock.pro/`
 
-**Safety:** The script **never** checks out `gh-pages` in the main worktree.
-This prevents the `node_modules` deletion that broke production on 2026-03-11.
-A trap handler cleans up the worktree on any failure or interruption.
+Nginx (`/etc/nginx/sites-available/gridlock.pro.conf`) serves the static
+files directly, proxies `/api/`, `/socket.io/`, and `/health` to the backend
+on `:5000`, and falls back unmatched routes to `index.html` for client-side
+routing (`try_files $uri /index.html`) — no GitHub Pages, no separate SPA
+404-redirect trick needed.
 
-**CI/CD:** The GitHub Actions workflow (`.github/workflows/deploy-pages.yml`)
-uses GitHub's deploy-pages action for automated deployments on push to `main`.
-For manual deploys from the server, use the script above.
+TLS is terminated with a Cloudflare Origin Certificate at
+`/etc/nginx/ssl/cf-origin.{pem,key}` (Cloudflare's proxy sits in front,
+mode should be **Full (strict)**).
 
 ## Safety Rules
 
@@ -283,13 +286,17 @@ sudo systemctl restart actions.runner.DhananjayThomble-GridLock.gridlock-ec2
 
 ## CI/CD
 
-All CI/CD workflows run on the self-hosted runner (`runs-on: self-hosted`).
+All CI/CD workflows run on the self-hosted runner (`runs-on: [self-hosted, Linux, X64]`),
+which lives on the same EC2 instance as production — no SSH step needed, the
+job runs directly on the box.
 
-The GitHub Actions workflow (`.github/workflows/deploy-backend.yml`) SSHes into
-the server and runs `./scripts/deploy-backend.sh` for automated deployments on
-push to `main`.
+| Workflow | File | Trigger | What it does |
+|----------|------|---------|---------------|
+| CI | `.github/workflows/ci.yml` | Push to any branch except `main`; PRs targeting `main` | `scripts/ci-test.sh` — backend tests + frontend lint/build, `--skip-e2e` on plain pushes, full E2E on PRs into `main` |
+| Deploy | `.github/workflows/deploy.yml` | Push to `main` | `scripts/ci-deploy.sh prod` — reruns the full test suite, then `deploy-backend.sh` + `deploy-frontend.sh` + `smoke-test.sh` |
 
-**Note:** The workflow hardcodes paths (`~/projects/GridLock` and
-`~/projects/GridLock-prod`) that assume the EC2 directory structure documented
-above. If the server layout changes, update both the workflow and the deploy
-script's `PROD_DIR` variable.
+Both workflows just `actions/checkout` and call the existing `scripts/*.sh` —
+`deploy-backend.sh` and `deploy-frontend.sh` use their own absolute paths
+(`PROD_DIR`, `/var/www/gridlock`) regardless of where the workflow checked
+out, so there's nothing path-specific to keep in sync inside the workflow
+files themselves. If the server layout changes, only the scripts need updating.
