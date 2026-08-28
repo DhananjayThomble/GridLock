@@ -134,6 +134,7 @@ const Lobby = () => {
     const { gameId, sessionToken } = activeGame;
     if (!gameId || !sessionToken) {
       safeStorage.removeItem('gridlock_active_game');
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing stale local state synchronously is intentional here
       setActiveGame(null);
       return;
     }
@@ -145,7 +146,7 @@ const Lobby = () => {
       }
     });
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — validate once on mount only
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- validate once on mount only
 
   // ── Socket: game_created ack ────────────────────────────────────────────────
   useEffect(() => {
