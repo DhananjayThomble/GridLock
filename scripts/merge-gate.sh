@@ -130,7 +130,18 @@ if [ "$PR_BASE" = "main" ]; then
   echo -e "   CHANGELOG entry: ${GREEN}OK${NC}"
 fi
 
-# 3. Run CI locally (GitHub Actions quota exhausted — all checks run here)
+# 3. CI must pass on GitHub (.github/workflows/ci.yml, GitHub-hosted runners)
+echo "   Waiting for GitHub CI checks on PR #${PR_NUMBER}..."
+if ! gh pr checks "$PR_NUMBER" --repo "$REPO" --watch --fail-fast; then
+  echo -e "${RED}❌ BLOCKED: GitHub CI checks failed or are missing.${NC}"
+  exit 1
+fi
+echo -e "   GitHub CI: ${GREEN}PASSED${NC}"
+
+# Optional local re-run — heavy, never do this on the 1GB production server
+if [ "${MERGE_GATE_LOCAL_CI:-0}" != "1" ]; then
+  echo "   Skipping local CI (set MERGE_GATE_LOCAL_CI=1 to run it)"
+else
 echo "   Running local CI on branch ${PR_BRANCH}..."
 
 # Frontend build + lint
@@ -155,6 +166,7 @@ fi
 echo -e "   → Backend: ${GREEN}OK${NC}"
 
 echo -e "   Local CI: ${GREEN}ALL PASSED${NC}"
+fi
 
 # 4. Check if PR touches touch/gesture files → needs phone-tested label
 CHANGED_FILES=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json files --jq '.files[].path')

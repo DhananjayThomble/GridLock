@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 GridLock is now open source under the MIT License.
 
 ### Added
+- Lightweight deploy pipeline: GitHub Actions builds and tests off-box, then deploys to the server over an SSH key locked to `scripts/server-deploy.sh` — nothing is built on the 1GB server (`.github/workflows/deploy.yml`, `scripts/build-frontend.sh`)
 - MIT `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `SECURITY.md` (#532)
 - GitHub Actions CI on GitHub-hosted runners for pull requests: backend tests with MongoDB, frontend lint and build (#532)
 - Contributor-friendly issue and PR templates; security reports routed to private advisories (#532)
@@ -19,14 +20,19 @@ GridLock is now open source under the MIT License.
 - Kiro IDE steering docs, hooks, reviewer agent and spec backlog (#515, #524, #525, #528)
 
 ### Changed
+- `deploy-frontend.sh` and `deploy-beta.sh` share the build step via `build-frontend.sh`; `merge-gate.sh` waits for GitHub CI instead of running it locally (`MERGE_GATE_LOCAL_CI=1` to opt back in)
+- `gh-notify` webhook deployer removed from `ecosystem.config.js`
 - `backend/.env.example` defaults to `NODE_ENV=development` so local sign-in works (#532)
 - `DEVELOPMENT.md` rewritten to point at the steering docs (#524)
 - Self-hosted CI runner retired; infrastructure docs updated (#532)
 
 ### Fixed
+- `Lobby.jsx` import resolving to the wrong file on case-insensitive filesystems (Windows/macOS)
+- Source map upload no longer fails deploys when Sentry isn't configured
 - 14 frontend ESLint `no-undef` errors in test files (#532)
 
 ### Removed
+- Leftover GitHub Pages files and docs (`404.html` SPA redirect)
 - Production server IP from docs and legacy test scripts (#532)
 - Stale internal planning files and `server.js.backup` (#532)
 

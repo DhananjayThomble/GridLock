@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Auto-deploy develop branch to beta-api.gridlock.pro
-# Called by GitHub webhook on develop push
+# Manually deploy develop branch to beta (backend + frontend, built on this box).
+# Normal path: .github/workflows/deploy.yml on push to develop.
 set -euo pipefail
 trap 'echo "❌ Deploy failed at line $LINENO (exit $?)"' ERR
 
@@ -46,49 +46,10 @@ if [ "$HTTP_CODE" != "200" ]; then
 fi
 
 # ── Frontend ──
+# Build settings live in scripts/build-frontend.sh (shared with GitHub Actions).
+# On the 1GB server prefer the GitHub Actions deploy, which builds off-box.
+bash "$BETA_REPO/scripts/build-frontend.sh" beta
 cd "$BETA_REPO/frontend"
-NODE_ENV=development npm ci --no-optional
-
-# Validate vite + native rollup binary are available.
-# git reset --hard can corrupt node_modules (missing native binaries like @rollup/rollup-linux-x64-gnu).
-# If npm ci didn't restore them, nuke and reinstall from scratch.
-if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ] || ! node -e "require('@rollup/rollup-linux-x64-gnu')" 2>/dev/null; then
-  echo "⚠️  Native deps missing after npm ci — doing clean reinstall..."
-  rm -rf node_modules package-lock.json
-  npm install
-fi
-
-# Final validation
-if [ ! -x "$BETA_REPO/frontend/node_modules/.bin/vite" ]; then
-  echo "❌ vite binary not found after reinstall — frontend deps broken"
-  exit 1
-fi
-
-# Beta frontend env vars (exported so npm run build picks them up)
-export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-phc_yXSobqyjQdjoiE4EZevmn8QmVKelgyjkGTsjDDNGFE9}"
-export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-https://analytics.gridlock.pro}"
-export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-https://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3}"
-export VITE_BASE_PATH=/
-export VITE_SOCKET_URL=https://beta-api.gridlock.pro
-export VITE_API_BASE_URL=https://beta-api.gridlock.pro
-export VITE_SITE_URL=https://beta.gridlock.pro
-export PUPPETEER_SKIP_DOWNLOAD=true
-export SENTRY_SOURCEMAPS=1
-npm run build:seo --silent
-
-# Upload source maps before deploying
-cd "$BETA_REPO"
-bash scripts/upload-sourcemaps.sh gridlock-beta sentry
-cd "$BETA_REPO/frontend"
-
-# Auto-bump service worker cache version with build timestamp
-BUILD_TS=$(date +%s)
-sed -i "s/const CACHE_NAME = 'gridlock-[^']*'/const CACHE_NAME = 'gridlock-${BUILD_TS}'/" dist/sw.js
-if grep -q "gridlock-${BUILD_TS}" dist/sw.js; then
-  echo "✅ SW cache version bumped to gridlock-${BUILD_TS}"
-else
-  echo "⚠️ SW cache bump failed — check sw.js format"
-fi
 
 sudo rm -rf "$BETA_WEB"/*
 sudo cp -r dist/. "$BETA_WEB/"

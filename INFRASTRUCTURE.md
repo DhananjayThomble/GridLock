@@ -36,13 +36,9 @@ data contamination. The `MONGO_URI` is set via PM2's `ecosystem.config.js`.
 
 ## Why Separate Directories?
 
-The dev worktree (`GridLock/`) is used for branch switching, builds, CI checks,
-and GitHub Pages deployments. Switching to `gh-pages` deletes `node_modules`
-and backend files, which **breaks production** if PM2 is running from the same
-directory.
-
-The fix: production runs from a **dedicated clone** (`GridLock-prod/`) that
-never switches branches. Dev work happens in `GridLock/` without risk.
+Production runs from a **dedicated clone** (`GridLock-prod/`) that never
+switches branches, so branch switches or in-progress work elsewhere can never
+affect what's live. Beta runs from its own clone (`GridLock-beta/`) on `develop`.
 
 ## PM2 Processes
 
@@ -50,74 +46,113 @@ never switches branches. Dev work happens in `GridLock/` without risk.
 |------------------------|----------------------|------|-----------|
 | `gridlock-backend`     | `GridLock-prod/backend/` | 5000 | `main`    |
 | `gridlock-beta-backend`| `GridLock-beta/backend/` | 5001 | `develop` |
-| `gh-notify`            | —                    | —    | —         |
 
 ## Deploying
 
-### Backend (Production)
+The server is a small (1GB RAM) instance, so **nothing is built on it**.
 
-```bash
-# Normal deploy — pulls latest main, installs deps, reloads PM2
-./scripts/deploy-backend.sh
-
-# Preview what would change (no log writes, no side effects)
-./scripts/deploy-backend.sh --dry-run
-
-# Rollback to previous release
-./scripts/deploy-backend.sh --rollback
+```
+push to develop/main
+  └─ GitHub Actions (.github/workflows/deploy.yml, GitHub-hosted runner)
+       1. CI: backend tests + frontend lint/build      (ci.yml)
+       2. Build frontend + SEO prerender               (scripts/build-frontend.sh)
+       3. ssh deploy@server "backend <prod|beta>"     → git pull, npm ci --omit=dev,
+                                                         pm2 reload, health check, auto-rollback
+       4. tar dist | ssh deploy@server "frontend <prod|beta>"
+                                                       → rsync into the Nginx web root
 ```
 
-The deploy script:
-1. Acquires a deploy lock (prevents concurrent deploys)
-2. Rotates the deploy log (keeps last 1000 lines)
-3. Fetches `origin/main` in the prod directory
-4. Saves current commit hash for rollback
-5. `git reset --hard origin/main`
-6. `npm ci --omit=dev`
-7. `pm2 reload gridlock-backend`
-8. Health check with retry (5 attempts, 2s apart) on `localhost:5000/health`
-9. Auto-rollback if health check fails
-10. Releases the deploy lock
+| Branch    | Target     | Backend (PM2)           | Frontend web root        |
+|-----------|------------|-------------------------|--------------------------|
+| `main`    | production | `gridlock-backend` :5000 | `/var/www/gridlock`      |
+| `develop` | beta       | `gridlock-beta-backend` :5001 | `/var/www/gridlock-beta` |
 
-### Backend (Beta)
+The SSH key GitHub uses is locked to `scripts/server-deploy.sh` (an SSH
+*forced command*): it can trigger these two deploy actions and nothing else —
+no shell, no port forwarding. Deploys only run on pushes to this repo's
+branches, never on pull requests, so fork PRs can't reach the secrets.
+
+### One-time setup
+
+**On the server** (as `ubuntu`):
 
 ```bash
+# 1. Install the forced-command script (re-run after it changes in the repo)
+cd ~/projects/GridLock-prod && git pull
+sudo install -m 755 scripts/server-deploy.sh /usr/local/bin/gridlock-deploy
+
+# 2. Create a deploy key and lock it to that script
+ssh-keygen -t ed25519 -N '' -C gridlock-deploy -f ~/gridlock-deploy
+echo "command=\"/usr/local/bin/gridlock-deploy\",restrict $(cat ~/gridlock-deploy.pub)" >> ~/.ssh/authorized_keys
+
+# 3. Print the values for GitHub, then delete the private key from the server
+cat ~/gridlock-deploy          # → DEPLOY_SSH_KEY
+ssh-keyscan -t ed25519 localhost | sed "s/^localhost/<your-server-hostname-or-ip>/"   # → DEPLOY_KNOWN_HOSTS
+rm ~/gridlock-deploy ~/gridlock-deploy.pub
+```
+
+`ubuntu` needs passwordless sudo for `chown`, `rsync` and `rm` (already
+required by the old deploy scripts).
+
+**On GitHub** (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|--------|-------|
+| `DEPLOY_HOST` | Server hostname or IP |
+| `DEPLOY_USER` | `ubuntu` |
+| `DEPLOY_SSH_KEY` | Private key from step 3 |
+| `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan` line from step 3 |
+| `SENTRY_AUTH_TOKEN` | *Optional* — uploads source maps (also set variable `SENTRY_URL`, e.g. `https://sentry.gridlock.pro`) |
+
+Optional but recommended: Settings → Environments → `production` → restrict
+deployment branches to `main` (and `beta` to `develop`), and move the secrets
+there.
+
+Until `DEPLOY_HOST` is set, the deploy job is skipped with a warning (CI
+still runs).
+
+**Then retire the old webhook deployer** so the server stops building:
+
+```bash
+pm2 delete gh-notify && pm2 save
+```
+
+and delete the webhook under GitHub → Settings → Webhooks.
+
+### Manual deploys (fallback)
+
+```bash
+# Backend — pulls latest main, installs deps, reloads PM2, auto-rollback
+./scripts/deploy-backend.sh              # also: --dry-run, --rollback
+
+# Re-run the last GitHub deploy without a new commit
+#   GitHub → Actions → Deploy → Run workflow
+
+# Frontend / beta built on the server — heavy on 1GB, avoid if possible
+./scripts/deploy-frontend.sh             # also: --dry-run
 ./scripts/deploy-beta.sh
 ```
 
-### Frontend (GitHub Pages)
+`deploy-backend.sh` steps: lock → rotate log → save rollback commit →
+`git reset --hard origin/main` → `npm ci --omit=dev` → `pm2 reload` →
+health check (5 × 2s) on `localhost:5000/health` → auto-rollback on failure.
 
-```bash
-# Deploy to production (builds + pushes to gh-pages)
-./scripts/deploy-frontend.sh
+### Keeping a 1GB server healthy
 
-# Preview build without pushing (validates everything works)
-./scripts/deploy-frontend.sh --dry-run
-```
-
-**Custom environment (optional):**
-```bash
-VITE_API_BASE_URL=http://localhost:5000 \
-VITE_SOCKET_URL=http://localhost:5000 \
-  ./scripts/deploy-frontend.sh --dry-run
-```
-
-The deploy script:
-1. Builds the frontend in the dev worktree (`frontend/`)
-2. Creates a **git worktree** at `/tmp/gh-pages-deploy` for the `gh-pages` branch
-3. Cleans old files and copies the fresh `dist/` output
-4. Adds `CNAME` (`gridlock.pro`) and `404.html` (SPA routing)
-5. Commits with deploy message (commit hash + timestamp)
-6. Pushes to `gh-pages`
-7. Removes the worktree
-
-**Safety:** The script **never** checks out `gh-pages` in the main worktree.
-This prevents the `node_modules` deletion that broke production on 2026-03-11.
-A trap handler cleans up the worktree on any failure or interruption.
-
-**CI/CD:** The GitHub Actions workflow (`.github/workflows/deploy-pages.yml`)
-uses GitHub's deploy-pages action for automated deployments on push to `main`.
-For manual deploys from the server, use the script above.
+- **Add swap** so a spike doesn't OOM-kill MongoDB:
+  ```bash
+  sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+  sudo mkswap /swapfile && sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  ```
+- **Cap MongoDB's cache** — by default WiredTiger takes ~50% of RAM. In
+  `/etc/mongod.conf`: `storage.wiredTiger.engineConfig.cacheSizeGB: 0.25`,
+  then `sudo systemctl restart mongod`.
+- **Rotate PM2 logs**: `pm2 install pm2-logrotate`.
+- **Consider dropping beta** from this box if memory is tight
+  (`pm2 delete gridlock-beta-backend`); each Node process uses ~80–150 MB.
+- **Don't run builds, tests or E2E here** (`ci-test.sh`, `ci-deploy.sh`,
+  `merge-gate.sh`'s local CI) — GitHub Actions does that now.
 
 ## Safety Rules
 
@@ -214,7 +249,7 @@ process list. After that, PM2 auto-restarts saved processes on boot.
 CI previously ran on a self-hosted GitHub Actions runner (`gridlock-ec2`) on
 this EC2 instance, as the same `ubuntu` user as production. GitHub Actions
 workflows were removed in v3.8. Pull-request checks now run on GitHub-hosted
-runners (`.github/workflows/ci.yml`); deploys run via the gh-notify webhook.
+runners (`.github/workflows/ci.yml`, `deploy.yml`); see **Deploying**.
 
 > ⚠️ **This repository is public. Never register a self-hosted runner on the
 > production host.** Anyone can open a pull request against a public repo, and
@@ -235,11 +270,12 @@ require approval for all outside collaborators.
 
 ## CI/CD
 
-Pull-request checks (backend tests, frontend lint and build) run on
-GitHub-hosted runners via `.github/workflows/ci.yml`. Deploys run on the server
-via the gh-notify webhook listener (PM2 process
-`gh-notify`), which invokes the scripts in `scripts/` (`ci-test.sh`,
-`ci-deploy.sh`, `deploy-backend.sh`). Deploy scripts hardcode paths
-(`~/projects/GridLock` and `~/projects/GridLock-prod`) that assume the EC2
-directory structure documented above. If the server layout changes, update the
-scripts' directory variables.
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `.github/workflows/ci.yml` | Pull requests to `develop`/`main` | Backend tests (with MongoDB), frontend lint + build |
+| `.github/workflows/deploy.yml` | Push to `develop` (beta) or `main` (prod), or manual | Runs CI, builds the frontend, deploys over SSH (see **Deploying**) |
+
+Both run on GitHub-hosted runners (free for public repos). Server paths are
+hardcoded in `scripts/server-deploy.sh`, `deploy-backend.sh` and
+`ecosystem.config.js`; if the server layout changes, update them and
+re-install `server-deploy.sh`.

@@ -42,16 +42,5 @@ module.exports = {
       out_file: '/home/ubuntu/.pm2/logs/gridlock-beta-backend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     },
-    {
-      name: 'gh-notify',
-      script: 'server.js',
-      cwd: '/home/ubuntu/projects/gh-notify',
-      instances: 1,
-      autorestart: true,
-      max_memory_restart: '256M',
-      error_file: '/home/ubuntu/.pm2/logs/gh-notify-error.log',
-      out_file: '/home/ubuntu/.pm2/logs/gh-notify-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    },
   ],
 };

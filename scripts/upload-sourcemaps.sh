@@ -13,19 +13,19 @@ set -euo pipefail
 
 PROJECT="${1:-gridlock-prod}"
 ORG="${2:-sentry}"
-# Default to localhost — deploy scripts run on the same EC2 that hosts Sentry
+# In GitHub Actions set the SENTRY_URL variable (e.g. https://sentry.gridlock.pro)
 SENTRY_URL="${SENTRY_URL:-http://localhost:9000}"
 DIST_DIR="frontend/dist/assets"
 RELEASE="gridlock-frontend@$(jq -r '.version' package.json)"
 
-# Resolve auth token
+# Resolve auth token — Sentry is optional; skip silently if not configured
 if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
   if [ -f "$HOME/.sentry-token" ]; then
     SENTRY_AUTH_TOKEN="$(cat "$HOME/.sentry-token")"
     export SENTRY_AUTH_TOKEN
   else
-    echo "❌ No SENTRY_AUTH_TOKEN set and ~/.sentry-token not found"
-    exit 1
+    echo "⚠️  No SENTRY_AUTH_TOKEN set and ~/.sentry-token not found — skipping source map upload"
+    exit 0
   fi
 fi
 
