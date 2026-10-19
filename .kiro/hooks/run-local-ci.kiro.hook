@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Run Local CI (Definition of Done)",
+  "description": "Runs the local verification suite via scripts/ci-test.sh --skip-e2e: backend Jest tests, frontend ESLint, and frontend build. Trigger this before declaring a task done (see .kiro/steering/autonomy.md). Full E2E runs in the CI pipeline / marathon, not here, because the E2E path needs Unix tooling and a spawned backend.",
+  "version": "2",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "bash scripts/ci-test.sh --skip-e2e",
+    "timeout": 600
+  }
+}

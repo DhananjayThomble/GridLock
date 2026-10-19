@@ -1,14 +1,27 @@
+// @ts-check
 // utils/gameLogic.js
 // Production-ready game logic supporting 2-4 players
 
 /**
+ * @typedef {Object} GameState
+ * @property {(string|null)[][]} horizontalLines - Horizontal line owners, indexed [row][col]
+ * @property {(string|null)[][]} verticalLines - Vertical line owners, indexed [row][col]
+ * @property {(string|null)[][]} boxes - Completed box owners, indexed [row][col]
+ * @property {string} currentPlayer - ID of the player whose turn it is
+ * @property {Object<string, number>} scores - Score per player ID
+ * @property {string|null} winner - Winner player ID, 'draw', or null if unfinished
+ * @property {number} [playerCount] - Number of players (2-4)
+ * @property {string[]} [players] - Ordered player IDs
+ */
+
+/**
  * Calculate next game state after a move
- * @param {Object} gameState - Current game state
+ * @param {GameState} gameState - Current game state
  * @param {number} gridSize - Grid size (rows/cols)
  * @param {number} r - Row coordinate
  * @param {number} c - Column coordinate
- * @param {string} type - 'horizontal' or 'vertical'
- * @returns {Object} New game state or error
+ * @param {'horizontal'|'vertical'} type - Line orientation
+ * @returns {GameState | {error: string}} New game state, or an object with an error message
  */
 const calculateNewState = (gameState, gridSize, r, c, type) => {
     const rows = gridSize;
@@ -118,7 +131,7 @@ const calculateNewState = (gameState, gridSize, r, c, type) => {
 /**
  * Get next player in turn order
  * @param {string} currentPlayer - Current player ID
- * @param {Array} players - Array of player IDs
+ * @param {string[]} players - Array of player IDs
  * @returns {string} Next player ID
  */
 const getNextPlayer = (currentPlayer, players) => {
@@ -131,8 +144,8 @@ const getNextPlayer = (currentPlayer, players) => {
  * Get next ACTIVE player in turn order, skipping disconnected players.
  * Falls back to getNextPlayer if no activePlayers filter is provided.
  * @param {string} currentPlayer - Current player ID
- * @param {Array} players - Array of ALL player IDs (turn order)
- * @param {Set|Array} [activePlayers] - Player IDs that are still connected/active
+ * @param {string[]} players - Array of ALL player IDs (turn order)
+ * @param {Set<string>|string[]} [activePlayers] - Player IDs that are still connected/active
  * @returns {string|null} Next active player ID, or null if no active players remain
  */
 const getNextActivePlayer = (currentPlayer, players, activePlayers) => {
@@ -156,10 +169,10 @@ const getNextActivePlayer = (currentPlayer, players, activePlayers) => {
 
 /**
  * Calculate game winner
- * @param {Object} scores - Player scores
+ * @param {Object<string, number>} scores - Player scores by ID
  * @param {number} rows - Grid rows
  * @param {number} cols - Grid columns
- * @param {Array} players - Array of player IDs
+ * @param {string[]} players - Array of player IDs
  * @returns {string|null} Winner player ID, 'draw', or null
  */
 const calculateWinner = (scores, rows, cols, players) => {
@@ -192,7 +205,7 @@ const calculateWinner = (scores, rows, cols, players) => {
  * Initialize game state for new game
  * @param {number} gridSize - Grid size (rows/cols)
  * @param {number} playerCount - Number of players (2-4)
- * @returns {Object} Initial game state
+ * @returns {GameState} Initial game state
  */
 const initializeGameState = (gridSize, playerCount = 2) => {
     // Validate inputs
@@ -213,7 +226,7 @@ const initializeGameState = (gridSize, playerCount = 2) => {
 
     // Create player list
     const players = [];
-    const scores = {};
+    const scores = /** @type {Object<string, number>} */ ({});
     for (let i = 1; i <= playerCount; i++) {
         const playerId = `player${i}`;
         players.push(playerId);
@@ -235,8 +248,8 @@ const initializeGameState = (gridSize, playerCount = 2) => {
 /**
  * Pick the winner among remaining players by highest score.
  * Returns 'draw' if no remaining players or if top scorers are tied.
- * @param {Array<string>} remaining - Player IDs still in the game
- * @param {Object} scores - {player1: N, player2: M, ...}
+ * @param {string[]} remaining - Player IDs still in the game
+ * @param {Object<string, number>} [scores] - Score per player ID
  * @returns {string} Winner player ID or 'draw'
  */
 const pickForfeitWinner = (remaining, scores = {}) => {

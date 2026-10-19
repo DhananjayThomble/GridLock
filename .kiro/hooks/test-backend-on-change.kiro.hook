@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Backend Tests (Manual)",
+  "description": "Runs the full Jest backend test suite on demand. Triggered manually to avoid running the entire suite on every backend file save; husky already runs backend tests at commit time.",
+  "version": "2",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "cd backend && npx jest --runInBand --silent",
+    "timeout": 120
+  }
+}

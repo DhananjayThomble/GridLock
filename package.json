@@ -1,8 +1,9 @@
 {
   "name": "gridlock",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "GridLock — multiplayer territory game",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "test:e2e": "TEST_BASE_URL=http://localhost/beta npx playwright test --config=playwright.config.js",
     "test:e2e:local": "bash scripts/test-e2e-local.sh",

@@ -4,29 +4,23 @@
 ## Related Issue
 Closes #
 
-## Phase
-- [ ] Phase 0 - Foundation
-- [ ] Phase 1 - Core Engagement
-- [ ] Phase 2 - Retention
-- [ ] Phase 3 - Social/Viral
-- [ ] Phase 4 - Competitive
-
 ## Changes
 <!-- List key changes -->
 - 
 - 
 
 ## Testing
-- [ ] Tested locally
-- [ ] Backend tests pass (`npm test` in `/backend`)
-- [ ] No console errors
-- [ ] Tested on beta at `/beta`
+<!-- How did you verify this? -->
+- [ ] Backend tests pass (`cd backend && npm test`)
+- [ ] Frontend lint and build pass (`cd frontend && npm run lint && npm run build`)
+- [ ] Tested manually in the browser (for UI or gameplay changes)
+- [ ] Added or updated tests where it makes sense
 
 ## Screenshots
 <!-- If UI change, add before/after -->
 
 ## Checklist
-- [ ] Branched from `develop` (NOT `main`)
-- [ ] No breaking changes
+- [ ] Branched from `develop` and targeting `develop` (NOT `main`)
+- [ ] No breaking changes (or described above)
 - [ ] Self-reviewed the diff
-- [ ] Ready for `@copilot please review`
+- [ ] I have read [CONTRIBUTING.md](../CONTRIBUTING.md)

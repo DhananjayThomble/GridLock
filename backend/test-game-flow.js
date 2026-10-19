@@ -2,7 +2,7 @@
 const io = require('socket.io-client');
 
 // Connect through nginx proxy like real clients do
-const SERVER_URL = 'http://13.205.40.30';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:5000';
 let player1Socket, player2Socket;
 let gameId;
 

@@ -1,7 +1,7 @@
 // test-avatars.js - Test avatar feature
 const io = require('socket.io-client');
 
-const SERVER_URL = 'http://13.205.40.30';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:5000';
 let player1Socket, player2Socket;
 
 console.log('\n🎨 Testing Avatar Feature...\n');

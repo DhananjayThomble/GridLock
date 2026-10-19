@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/DhananjayThomble/GridLock/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
+  - name: Play GridLock
+    url: https://gridlock.pro
+    about: Try the live game.
