@@ -1,3 +1,4 @@
-# Pull-request checks run on GitHub-hosted runners (.github/workflows/ci.yml).
-# Deploys run on EC2 via the gh-notify webhook.
-# This repo is public: never add self-hosted runners.
+# Workflows run on GitHub-hosted runners only:
+#   ci.yml      — pull-request checks
+#   deploy.yml  — push to develop/main → test, build, deploy over SSH
+# This repo is public: never add self-hosted runners. See INFRASTRUCTURE.md.

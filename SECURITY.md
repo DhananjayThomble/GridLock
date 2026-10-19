@@ -25,8 +25,9 @@ In scope: the code in this repository and the live deployment at
 Out of scope: denial-of-service or load testing against the live site,
 social engineering, and findings in third-party services.
 
-## Note on Public Keys
+## Note on Client-Side Keys
 
-The PostHog project key and Sentry DSN in `frontend/.env.production` are
-client-side identifiers that ship in the browser bundle by design. They are
-not secrets.
+Sentry and PostHog are optional and off by default. If you enable them, the
+frontend Sentry DSN and PostHog project key are compiled into the browser
+bundle by design — they are client-side identifiers, not secrets. Never put
+`SENTRY_AUTH_TOKEN` or other server credentials in `VITE_*` variables.

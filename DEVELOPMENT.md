@@ -23,7 +23,7 @@ For infrastructure and deploy specifics, see `INFRASTRUCTURE.md`.
 - **Backend**: Node.js + Express 5 + Socket.IO 4 + MongoDB (Mongoose 9) + optional Redis
 - **State**: MongoDB for persistence; an in-memory `Map` holds *active* game state (single instance)
 - **Auth**: Google OAuth 2.0 → JWT in httpOnly cookies (guest mode supported)
-- **Deploy**: PM2 (backend), Cloudflare Pages via Wrangler (frontend), self-hosted CI on EC2
+- **Deploy**: GitHub Actions builds and deploys over SSH to a small server — PM2 (backend), Nginx (frontend). See `INFRASTRUCTURE.md`
 
 ---
 

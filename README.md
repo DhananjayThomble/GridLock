@@ -57,7 +57,7 @@ cp .env.example .env
 After copying `.env.example` to `.env`, open `.env` and review:
 - `VITE_SOCKET_URL` — Backend WebSocket/API URL
   - Local dev: leave empty (proxied by Vite)
-  - Hosted frontend (e.g. GitHub Pages): set to your backend URL
+  - Separate-origin deploy: set to your backend URL
 - `VITE_API_BASE_URL` — REST API base URL (for Leaderboard, etc.)
   - Falls back to `VITE_SOCKET_URL` if unset
 - `VITE_SITE_URL` — Public site URL (for OG/meta tags in production)
