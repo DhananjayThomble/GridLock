@@ -3,6 +3,33 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.2.0] — 2026-10-19
+
+GridLock is now open source under the MIT License.
+
+### Added
+- MIT `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `SECURITY.md` (#532)
+- GitHub Actions CI on GitHub-hosted runners for pull requests: backend tests with MongoDB, frontend lint and build (#532)
+- Contributor-friendly issue and PR templates; security reports routed to private advisories (#532)
+- `.nvmrc` (Node 22) and backend `npm start` script (#532)
+- HTTP tests for leaderboard, push and ranked routes — 52 new tests (#529)
+- Jest coverage config with calibrated thresholds (`npm run test:coverage`) (#526)
+- JSDoc type-safety for `gameLogic` and the store modules, checked via `jsconfig.json` (#527, #530)
+- Component tests for WaitingRoom, RankedQueue, TournamentLobby, Profile and DailyChallenge (#515)
+- Kiro IDE steering docs, hooks, reviewer agent and spec backlog (#515, #524, #525, #528)
+
+### Changed
+- `backend/.env.example` defaults to `NODE_ENV=development` so local sign-in works (#532)
+- `DEVELOPMENT.md` rewritten to point at the steering docs (#524)
+- Self-hosted CI runner retired; infrastructure docs updated (#532)
+
+### Fixed
+- 14 frontend ESLint `no-undef` errors in test files (#532)
+
+### Removed
+- Production server IP from docs and legacy test scripts (#532)
+- Stale internal planning files and `server.js.backup` (#532)
+
 ## [2.1.0] — 2026-04-07
 
 ### Added
