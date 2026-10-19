@@ -213,8 +213,8 @@ process list. After that, PM2 auto-restarts saved processes on boot.
 
 CI previously ran on a self-hosted GitHub Actions runner (`gridlock-ec2`) on
 this EC2 instance, as the same `ubuntu` user as production. GitHub Actions
-workflows were removed in v3.8 and CI now runs locally via the gh-notify
-webhook (see `.github/README.md`).
+workflows were removed in v3.8. Pull-request checks now run on GitHub-hosted
+runners (`.github/workflows/ci.yml`); deploys run via the gh-notify webhook.
 
 > ⚠️ **This repository is public. Never register a self-hosted runner on the
 > production host.** Anyone can open a pull request against a public repo, and
@@ -235,7 +235,9 @@ require approval for all outside collaborators.
 
 ## CI/CD
 
-CI/CD runs on the server via the gh-notify webhook listener (PM2 process
+Pull-request checks (backend tests, frontend lint and build) run on
+GitHub-hosted runners via `.github/workflows/ci.yml`. Deploys run on the server
+via the gh-notify webhook listener (PM2 process
 `gh-notify`), which invokes the scripts in `scripts/` (`ci-test.sh`,
 `ci-deploy.sh`, `deploy-backend.sh`). Deploy scripts hardcode paths
 (`~/projects/GridLock` and `~/projects/GridLock-prod`) that assume the EC2

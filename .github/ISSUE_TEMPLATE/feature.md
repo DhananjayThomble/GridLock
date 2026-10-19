@@ -1,6 +1,6 @@
 ---
 name: Feature
-about: New feature for GridLock
+about: Suggest a new feature or improvement for GridLock
 title: '[FEAT] '
 labels: enhancement
 assignees: ''
@@ -9,25 +9,15 @@ assignees: ''
 ## Summary
 <!-- What does this feature do? One paragraph max. -->
 
-## Phase
-- [ ] Phase 0 - Foundation
-- [ ] Phase 1 - Core Engagement
-- [ ] Phase 2 - Retention
-- [ ] Phase 3 - Social/Viral
-- [ ] Phase 4 - Competitive
+## Motivation
+<!-- What problem does it solve, or who benefits? -->
 
 ## Acceptance Criteria
 - [ ] 
 - [ ] 
-- [ ] 
 
 ## Technical Notes
-<!-- Implementation details, affected files, dependencies -->
+<!-- Optional: implementation ideas, affected files, alternatives considered -->
 
-## Definition of Done
-- [ ] Code implemented and tested locally
-- [ ] Tests written
-- [ ] PR opened to `develop`
-- [ ] GitHub Copilot review completed
-- [ ] All review comments resolved
-- [ ] Merged to `develop` and verified on beta
+## Would you like to work on this?
+- [ ] Yes, I'd like to open a PR for this

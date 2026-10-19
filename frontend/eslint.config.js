@@ -35,4 +35,11 @@ export default defineConfig([
       'react-hooks/preserve-manual-memoization': 'off',
     },
   },
+  // Test files run under Vitest (jsdom + Node) — allow Node globals like `global`
+  {
+    files: ['src/**/__tests__/**/*.{js,jsx}', 'src/**/*.test.{js,jsx}'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ])
