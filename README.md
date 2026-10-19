@@ -100,7 +100,10 @@ location /api/ {
 }
 ```
 
+## 🔒 Security
+
+Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md).
+
 ## 📝 License
 
-This project is private and maintained by Dhananjay Thomble.
-# test
+GridLock is released under the [MIT License](LICENSE).

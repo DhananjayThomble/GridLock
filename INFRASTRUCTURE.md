@@ -209,87 +209,35 @@ pm2 save
 Run it once after initial setup, then `pm2 save` to persist the current
 process list. After that, PM2 auto-restarts saved processes on boot.
 
-## Self-Hosted GitHub Actions Runner
+## GitHub Actions Runner (retired)
 
-GitHub Actions free-tier minutes are exhausted, so CI runs on a self-hosted
-runner installed on this EC2 instance.
+CI previously ran on a self-hosted GitHub Actions runner (`gridlock-ec2`) on
+this EC2 instance, as the same `ubuntu` user as production. GitHub Actions
+workflows were removed in v3.8 and CI now runs locally via the gh-notify
+webhook (see `.github/README.md`).
 
-### Runner Details
+> ⚠️ **This repository is public. Never register a self-hosted runner on the
+> production host.** Anyone can open a pull request against a public repo, and
+> a runner that shares the production user would give that code access to PM2,
+> git credentials, SSH keys and all project directories.
 
-| Setting        | Value                                          |
-|----------------|------------------------------------------------|
-| **Name**       | `gridlock-ec2`                                 |
-| **Labels**     | `self-hosted`, `Linux`, `X64`                  |
-| **Install dir**| `~/actions-runner/`                            |
-| **User**       | `ubuntu`                                       |
-| **Nice level** | 10 (via systemd override)                      |
-
-### Systemd Service
-
-```
-actions.runner.DhananjayThomble-GridLock.gridlock-ec2.service
-```
-
-```bash
-# Check status
-sudo systemctl status actions.runner.DhananjayThomble-GridLock.gridlock-ec2
-
-# Restart
-sudo systemctl restart actions.runner.DhananjayThomble-GridLock.gridlock-ec2
-
-# View logs
-journalctl -u actions.runner.DhananjayThomble-GridLock.gridlock-ec2 -f
-```
-
-### Resource Limits
-
-A systemd override at
-`/etc/systemd/system/actions.runner.DhananjayThomble-GridLock.gridlock-ec2.service.d/override.conf`
-sets `Nice=10` so CI jobs don't starve production workloads.
-
-### Security Considerations
-
-> ⚠️ **The self-hosted runner shares the same `ubuntu` user as production.**
-> It has full access to PM2, git credentials, SSH keys, and all project
-> directories. **Treat repository access as production access.**
-
-**Mandatory rules:**
-
-1. **NEVER enable workflows on fork pull requests.** A malicious fork can
-   execute arbitrary code on this machine via a crafted workflow, compromising
-   production data and credentials.
-2. **NEVER add untrusted collaborators** without reviewing runner security
-   implications. Any collaborator with write access can modify workflows and
-   run code on the production server.
-3. **Keep the repo private.** Public repos allow anyone to open a PR — combined
-   with fork PR workflows, this is a full compromise vector.
-4. **Audit workflow changes carefully.** Any change to `.github/workflows/`
-   runs directly on production infrastructure.
-
-### Re-registering the Runner
-
-If the runner needs to be re-registered (e.g., token expired, repo transferred):
+If the old runner is still installed, remove it:
 
 ```bash
 cd ~/actions-runner
-# Remove old registration
+sudo ./svc.sh stop && sudo ./svc.sh uninstall
 ./config.sh remove --token $(gh api repos/DhananjayThomble/GridLock/actions/runners/registration-token --method POST --jq '.token')
-# Re-register
-./config.sh --url https://github.com/DhananjayThomble/GridLock \
-  --token $(gh api repos/DhananjayThomble/GridLock/actions/runners/registration-token --method POST --jq '.token') \
-  --name gridlock-ec2 --labels self-hosted,Linux,X64 --unattended
-sudo systemctl restart actions.runner.DhananjayThomble-GridLock.gridlock-ec2
 ```
+
+Then confirm no runners are listed under the repo's Settings → Actions →
+Runners, and set "Fork pull request workflows from outside collaborators" to
+require approval for all outside collaborators.
 
 ## CI/CD
 
-All CI/CD workflows run on the self-hosted runner (`runs-on: self-hosted`).
-
-The GitHub Actions workflow (`.github/workflows/deploy-backend.yml`) SSHes into
-the server and runs `./scripts/deploy-backend.sh` for automated deployments on
-push to `main`.
-
-**Note:** The workflow hardcodes paths (`~/projects/GridLock` and
-`~/projects/GridLock-prod`) that assume the EC2 directory structure documented
-above. If the server layout changes, update both the workflow and the deploy
-script's `PROD_DIR` variable.
+CI/CD runs on the server via the gh-notify webhook listener (PM2 process
+`gh-notify`), which invokes the scripts in `scripts/` (`ci-test.sh`,
+`ci-deploy.sh`, `deploy-backend.sh`). Deploy scripts hardcode paths
+(`~/projects/GridLock` and `~/projects/GridLock-prod`) that assume the EC2
+directory structure documented above. If the server layout changes, update the
+scripts' directory variables.
