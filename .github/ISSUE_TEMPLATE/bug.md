@@ -19,9 +19,10 @@ assignees: ''
 - **Actual:** 
 
 ## Environment
-- URL: 
-- Browser: 
-- Players: 
+- Where: <!-- gridlock.pro, or local dev? -->
+- Browser / device: 
+- Game mode: <!-- e.g. 2-player online, vs CPU, 4-player, ranked, tournament -->
+- Grid size: 
 
-## Fix Notes
-<!-- If known -->
+## Screenshots / Logs
+<!-- Optional: screenshots, browser console errors, or server logs -->

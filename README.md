@@ -1,5 +1,11 @@
 # GridLock
 
+[![CI](https://github.com/DhananjayThomble/GridLock/actions/workflows/ci.yml/badge.svg)](https://github.com/DhananjayThomble/GridLock/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**[Play now at gridlock.pro](https://gridlock.pro)**
+
 GridLock is a real-time, web-based multiplayer implementation of the classic "Dots and Boxes" game. Built using the MERN stack (MongoDB, Express, React, Node.js) and Socket.io, it allows players to create rooms and play against each other instantly.
 
 ## 🚀 Features
@@ -20,7 +26,7 @@ GridLock is a real-time, web-based multiplayer implementation of the classic "Do
 ## 📦 Local Setup
 
 ### Prerequisites
-- Node.js (v18+ recommended)
+- Node.js 22 (see `.nvmrc`)
 - MongoDB running locally or a MongoDB Atlas connection string.
 
 ### 1. Clone the repository
@@ -100,7 +106,14 @@ location /api/ {
 }
 ```
 
+## 🤝 Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, workflow and guidelines, and please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## 🔒 Security
+
+Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md).
+
 ## 📝 License
 
-This project is private and maintained by Dhananjay Thomble.
-# test
+GridLock is released under the [MIT License](LICENSE).
