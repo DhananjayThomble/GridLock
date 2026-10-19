@@ -50,7 +50,7 @@ Defined in `ecosystem.config.js`:
 
 ## Monitoring
 
-- Sentry: Error tracking (frontend + backend)
-- PostHog: Product analytics (frontend)
+- Sentry: Error tracking (frontend + backend) — optional, currently off; enabled via `VITE_SENTRY_DSN` / `SENTRY_DSN`
+- PostHog: Product analytics (frontend) — optional, currently off; enabled via `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST`
 - Prometheus: `/metrics` endpoint (internal IP only)
 - PM2 logs: `pm2 logs gridlock-backend --lines 50`

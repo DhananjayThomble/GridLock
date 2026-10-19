@@ -11,8 +11,10 @@ set -euo pipefail
 # Usage:
 #   bash scripts/build-frontend.sh [prod|beta]
 #
-# Optional env:
-#   SENTRY_AUTH_TOKEN, SENTRY_URL  — upload source maps (skipped if unset)
+# Optional env (all off when unset — the app runs fine without them):
+#   VITE_SENTRY_DSN                — frontend error tracking (Sentry)
+#   VITE_POSTHOG_KEY, VITE_POSTHOG_HOST — product analytics (PostHog)
+#   SENTRY_AUTH_TOKEN, SENTRY_URL  — upload source maps to Sentry
 #   PUPPETEER_EXECUTABLE_PATH      — Chromium for SEO prerendering
 ###############################################################################
 
@@ -28,15 +30,11 @@ case "$TARGET" in
     export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.gridlock.pro}"
     export VITE_SITE_URL="${VITE_SITE_URL:-https://gridlock.pro}"
     SENTRY_PROJECT="gridlock-prod"
-    # PostHog / Sentry DSN come from frontend/.env.production
     ;;
   beta)
     export VITE_SOCKET_URL="${VITE_SOCKET_URL:-https://beta-api.gridlock.pro}"
     export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://beta-api.gridlock.pro}"
     export VITE_SITE_URL="${VITE_SITE_URL:-https://beta.gridlock.pro}"
-    export VITE_POSTHOG_KEY="${VITE_POSTHOG_KEY:-phc_yXSobqyjQdjoiE4EZevmn8QmVKelgyjkGTsjDDNGFE9}"
-    export VITE_POSTHOG_HOST="${VITE_POSTHOG_HOST:-https://analytics.gridlock.pro}"
-    export VITE_SENTRY_DSN="${VITE_SENTRY_DSN:-https://0829c2210084373653926c86a662d93c@sentry.gridlock.pro/3}"
     SENTRY_PROJECT="gridlock-beta"
     ;;
   *)
@@ -49,7 +47,12 @@ log "Building frontend for $TARGET (API: $VITE_API_BASE_URL)"
 cd "$REPO_DIR/frontend"
 NODE_ENV=development npm ci --loglevel=warn
 
-export SENTRY_SOURCEMAPS=1
+# Hidden source maps are only useful if we can upload them to Sentry
+if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then
+  export SENTRY_SOURCEMAPS=1
+fi
+onoff() { [ -n "$1" ] && echo on || echo off; }
+log "Sentry: $(onoff "${VITE_SENTRY_DSN:-}") | PostHog: $(onoff "${VITE_POSTHOG_KEY:-}")"
 npm run build:seo
 
 if [ ! -f "$REPO_DIR/frontend/dist/index.html" ]; then

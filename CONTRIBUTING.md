@@ -48,6 +48,11 @@ Open http://localhost:5173 and play as a guest. You don't need Google sign-in
 credentials for gameplay. Fill in the `GOOGLE_*` values in `backend/.env` only
 if you're working on login, profiles or other signed-in features.
 
+Sentry (error tracking) and PostHog (analytics) are optional. Leave their
+variables empty and they stay disabled. If you want them for your own fork,
+fill in `VITE_SENTRY_DSN` / `VITE_POSTHOG_*` in `frontend/.env` and
+`SENTRY_DSN` in `backend/.env`.
+
 To try multiplayer locally, open the game in two browser windows (or one normal
 and one private window).
 

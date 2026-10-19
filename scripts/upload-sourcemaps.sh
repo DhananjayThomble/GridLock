@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Upload source maps to self-hosted Sentry after a frontend build.
+# Upload source maps to Sentry after a frontend build (optional — skipped
+# when SENTRY_AUTH_TOKEN isn't set).
 # Usage: bash scripts/upload-sourcemaps.sh [project] [org]
 #
 # Requires:
@@ -13,7 +14,7 @@ set -euo pipefail
 
 PROJECT="${1:-gridlock-prod}"
 ORG="${2:-sentry}"
-# In GitHub Actions set the SENTRY_URL variable (e.g. https://sentry.gridlock.pro)
+# Point SENTRY_URL at your Sentry instance (GitHub Actions: SENTRY_URL variable)
 SENTRY_URL="${SENTRY_URL:-http://localhost:9000}"
 DIST_DIR="frontend/dist/assets"
 RELEASE="gridlock-frontend@$(jq -r '.version' package.json)"

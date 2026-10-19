@@ -20,6 +20,7 @@ GridLock is now open source under the MIT License.
 - Kiro IDE steering docs, hooks, reviewer agent and spec backlog (#515, #524, #525, #528)
 
 ### Changed
+- Sentry and PostHog are now off by default: hardcoded keys removed from `frontend/.env.production` and the build scripts; enable via `VITE_SENTRY_DSN` / `VITE_POSTHOG_*` (integration code unchanged)
 - `deploy-frontend.sh` and `deploy-beta.sh` share the build step via `build-frontend.sh`; `merge-gate.sh` waits for GitHub CI instead of running it locally (`MERGE_GATE_LOCAL_CI=1` to opt back in)
 - `gh-notify` webhook deployer removed from `ecosystem.config.js`
 - `backend/.env.example` defaults to `NODE_ENV=development` so local sign-in works (#532)

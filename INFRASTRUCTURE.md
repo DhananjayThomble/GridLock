@@ -102,7 +102,18 @@ required by the old deploy scripts).
 | `DEPLOY_USER` | `ubuntu` |
 | `DEPLOY_SSH_KEY` | Private key from step 3 |
 | `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan` line from step 3 |
-| `SENTRY_AUTH_TOKEN` | *Optional* — uploads source maps (also set variable `SENTRY_URL`, e.g. `https://sentry.gridlock.pro`) |
+
+**Optional — error tracking & analytics.** Sentry and PostHog are wired in
+but **off by default** (not currently used). To turn them on, add these as
+Actions *variables* (per environment, so prod and beta can differ) and redeploy:
+
+| Variable / secret | Enables |
+|-------------------|---------|
+| `VITE_SENTRY_DSN` (variable) | Frontend error tracking |
+| `VITE_POSTHOG_KEY` + `VITE_POSTHOG_HOST` (variables) | Product analytics |
+| `SENTRY_AUTH_TOKEN` (secret) + `SENTRY_URL` (variable) | Source map upload |
+
+For backend error tracking, set `SENTRY_DSN` in the server's `backend/.env`.
 
 Optional but recommended: Settings → Environments → `production` → restrict
 deployment branches to `main` (and `beta` to `develop`), and move the secrets

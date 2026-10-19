@@ -60,6 +60,10 @@ jobs:
         if: steps.cfg.outputs.enabled == 'true'
         run: bash scripts/build-frontend.sh "$TARGET"
         env:
+          # Optional — Sentry / PostHog stay off unless these are set
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_URL: ${{ vars.SENTRY_URL }}
 
