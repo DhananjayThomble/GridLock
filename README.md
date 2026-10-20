@@ -1,119 +1,119 @@
+<div align="center">
+
 # GridLock
+
+**Real-time multiplayer Dots & Boxes.** Draw lines, close boxes, steal turns.
+Play 2–4 players, vs. the CPU, or climb the ranked ladder.
 
 [![CI](https://github.com/DhananjayThomble/GridLock/actions/workflows/ci.yml/badge.svg)](https://github.com/DhananjayThomble/GridLock/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**[Play now at gridlock.pro](https://gridlock.pro)**
+### [▶ Play now at gridlock.pro](https://gridlock.pro)
 
-GridLock is a real-time, web-based multiplayer implementation of the classic "Dots and Boxes" game. Built using the MERN stack (MongoDB, Express, React, Node.js) and Socket.io, it allows players to create rooms and play against each other instantly.
+</div>
 
-## 🚀 Features
+---
 
-- **Real-Time Multiplayer:** Play against friends over the internet with zero lag using Socket.io.
-- **Customizable Grids:** Choose from different grid sizes (3x3, 4x4, 5x5) when creating a game room.
-- **Strict Turn-Based Logic:** Backend-authoritative game state prevents cheating and ensures perfect synchronization.
-- **Responsive UI:** Clean, modern interface built with React and Tailwind CSS.
-- **Room Management:** Easy-to-use lobby system for creating and joining private game sessions.
+## What is it?
 
-## 🛠️ Tech Stack
+Dots & Boxes is the classic pen-and-paper game: take turns drawing a line between two dots. Close the fourth side of a box and you claim it **and move again**. Most boxes wins.
 
-- **Frontend:** React, Vite, Tailwind CSS, Socket.io-client, React Router
-- **Backend:** Node.js, Express, Socket.io
-- **Database:** MongoDB, Mongoose
-- **Deployment/Server:** PM2 (Process Management), Nginx (Reverse Proxy)
+GridLock is a fast, installable web version where the server owns the game state, so every client stays in sync and nobody can cheat.
 
-## 📦 Local Setup
+## Features
 
-### Prerequisites
-- Node.js 22 (see `.nvmrc`)
-- MongoDB running locally or a MongoDB Atlas connection string.
+- **Real-time multiplayer:** Socket.IO rooms for 2–4 players, shareable via game ID, QR code or challenge link.
+- **Play your way:** private rooms, quick play, CPU opponents (easy to hard), ranked matchmaking with Elo, tournaments and a daily challenge.
+- **Server-authoritative:** move validation, turn order and scoring all run on the backend.
+- **Accounts or guests:** optional Google sign-in; guest progress carries over when you sign up.
+- **Progression:** leaderboard, profile, game history with replays, unlockable grid themes.
+- **Polished UX:** responsive and touch-friendly, in-game chat, sound, light/dark mode.
+- **PWA:** installable, with optional Web Push turn notifications.
+- **Scales out:** optional Redis adapter for multiple server instances.
 
-### 1. Clone the repository
+## Tech stack
+
+| Layer | Tools |
+|---|---|
+| Frontend | React 19, Vite 7, Tailwind CSS, React Router 7, Socket.IO client |
+| Backend | Node.js 22, Express 5, Socket.IO 4, Mongoose (MongoDB), optional Redis |
+| Auth & push | Google OAuth + JWT cookies, Web Push (VAPID) |
+| Testing | Jest (backend), Vitest (frontend), Playwright (E2E) |
+| Ops | PM2, Nginx, GitHub Actions |
+
+## Quick start
+
+**Prerequisites:** Node.js 22 (`nvm use` reads `.nvmrc`) and a MongoDB instance (local or Atlas). Redis is optional.
+
 ```bash
 git clone https://github.com/DhananjayThomble/GridLock.git
 cd GridLock
-```
 
-### 2. Backend Setup
-```bash
+# Backend (http://localhost:5000)
 cd backend
 npm install
-cp .env.example .env
-```
-Edit `.env` as needed (Mongo is required for persistence; Redis is optional but recommended for scaling).
-
-Start the server:
-```bash
+cp .env.example .env      # set MONGO_URI at minimum
 npm start
-```
 
-### 3. Frontend Setup
-```bash
-cd ../frontend
+# Frontend (http://localhost:5173), in a second terminal
+cd frontend
 npm install
-cp .env.example .env
-```
-After copying `.env.example` to `.env`, open `.env` and review:
-- `VITE_SOCKET_URL` — Backend WebSocket/API URL
-  - Local dev: leave empty (proxied by Vite)
-  - Separate-origin deploy: set to your backend URL
-- `VITE_API_BASE_URL` — REST API base URL (for Leaderboard, etc.)
-  - Falls back to `VITE_SOCKET_URL` if unset
-- `VITE_SITE_URL` — Public site URL (for OG/meta tags in production)
-
-Start the development server:
-```bash
+cp .env.example .env      # the defaults work for local dev
 npm run dev
 ```
 
-## 🎮 How to Play
+Open <http://localhost:5173>, create a game, and join from a second tab to try it out. Vite proxies `/api` and `/socket.io` to the backend, so the frontend `.env` can stay empty locally.
 
-1. Open the application in your browser.
-2. **Player 1** enters their name, selects a grid size, and clicks "Create Game".
-3. **Player 1** shares the generated Game ID with Player 2.
-4. **Player 2** enters their name, pastes the Game ID, and clicks "Join Game".
-5. The game begins! Click on the faint grey lines to draw a solid line.
-6. When you draw the 4th line of a 1x1 square, you capture the box, earn a point, and get a bonus turn.
-7. The game ends when all boxes are claimed. The player with the highest score wins!
+### Configuration
 
-## 🔐 Production Deployment Notes (HTTPS / WSS)
+Everything beyond `MONGO_URI` is optional. Features switch on when their variables are set.
 
-- Terminate TLS at reverse proxy (Nginx/Caddy) and expose only `443` publicly.
-- Proxy Socket.IO traffic over **WSS** to backend (`/socket.io/`).
-- Set `VITE_SOCKET_URL=https://<your-api-domain>` for cross-origin deployments.
-- Set `CORS_ORIGIN` in backend `.env` to allowed origins only (comma-separated).
-- Backend emits security headers via `helmet`, plus a restrictive API CSP header.
+| Variable | Where | Purpose |
+|---|---|---|
+| `MONGO_URI` | backend | MongoDB connection string |
+| `REDIS_URL` | backend | Enable the Redis adapter for multi-instance scaling |
+| `CORS_ORIGIN` | backend | Allowed origins, comma-separated |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `JWT_SECRET` | backend | Google sign-in |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | backend | Push notifications (`npx web-push generate-vapid-keys`) |
+| `VITE_SOCKET_URL` / `VITE_API_BASE_URL` | frontend | Backend URL when it runs on another origin |
+| `VITE_SENTRY_DSN` / `VITE_POSTHOG_KEY` | frontend | Error tracking and analytics, off unless set |
 
-Minimal Nginx sketch:
-```nginx
-location /socket.io/ {
-  proxy_pass http://127.0.0.1:5000/socket.io/;
-  proxy_http_version 1.1;
-  proxy_set_header Upgrade $http_upgrade;
-  proxy_set_header Connection "upgrade";
-  proxy_set_header Host $host;
-  proxy_set_header X-Real-IP $remote_addr;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_read_timeout 3600s;
-}
+See [`backend/.env.example`](backend/.env.example) and [`frontend/.env.example`](frontend/.env.example) for the full lists.
 
-location /api/ {
-  proxy_pass http://127.0.0.1:5000/api/;
-  proxy_set_header Host $host;
-  proxy_set_header X-Real-IP $remote_addr;
-  proxy_set_header X-Forwarded-Proto $scheme;
-}
+## Testing
+
+```bash
+cd backend  && npm test         # Jest, needs MongoDB
+cd frontend && npm test         # Vitest
+cd frontend && npm run lint
+npm run test:e2e:local          # Playwright, from the repo root
 ```
 
-## 🤝 Contributing
+CI runs backend tests, frontend lint and the production build on every pull request.
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, workflow and guidelines, and please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+## Project layout
 
-## 🔒 Security
+```
+backend/    Express + Socket.IO server (routes, controllers, models, services, stores)
+frontend/   React app (components, contexts, hooks, themes)
+e2e/        Playwright end-to-end tests
+scripts/    Build, deploy and release tooling
+docs/       Architecture notes and audits
+```
 
-Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md).
+## Deploying
 
-## 📝 License
+GitHub Actions builds and tests off-box, then ships to a small server over an SSH key locked to a single deploy script. Nothing heavy builds on the server, so a 1 GB VPS is enough. Setup is in [INFRASTRUCTURE.md](INFRASTRUCTURE.md); for HTTPS/WSS and Nginx hardening see [docs/SECURITY-NGINX.md](docs/SECURITY-NGINX.md).
 
-GridLock is released under the [MIT License](LICENSE).
+## Contributing
+
+Contributions are welcome, from typo fixes to new features. Read [CONTRIBUTING.md](CONTRIBUTING.md) first (branch from `develop`, Conventional Commits, tests for new behavior) and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Release history is in [CHANGELOG.md](CHANGELOG.md).
+
+## Security
+
+Found a vulnerability? Please report it privately. See [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Dhananjay Thomble
