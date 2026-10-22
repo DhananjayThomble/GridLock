@@ -104,7 +104,7 @@ docs/       Architecture notes and audits
 
 ## Deploying
 
-GitHub Actions builds and tests off-box, then ships to a small server over an SSH key locked to a single deploy script. Nothing heavy builds on the server, so a 1 GB VPS is enough. Setup is in [INFRASTRUCTURE.md](INFRASTRUCTURE.md); for HTTPS/WSS and Nginx hardening see [docs/SECURITY-NGINX.md](docs/SECURITY-NGINX.md).
+GitHub Actions builds and tests off-box, then ships to a small server over an SSH key locked to a single deploy script. Nothing heavy builds on the server, so a small VPS is enough. Setup is in [INFRASTRUCTURE.md](INFRASTRUCTURE.md); for HTTPS/WSS and Nginx hardening see [docs/SECURITY-NGINX.md](docs/SECURITY-NGINX.md).
 
 ## Contributing
 

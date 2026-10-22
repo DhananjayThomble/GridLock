@@ -7,7 +7,7 @@ const BETA_API = process.env.BETA_API || 'https://beta-api.gridlock.pro';
 module.exports = defineConfig({
   testDir: './nightly',
   timeout: 6_000_000,
-  globalTimeout: 720_000_000, // 200h — intentionally large per DJ's requirement (no timeout)
+  globalTimeout: 720_000_000, // 200h — intentionally large: long visual runs must not time out
   expect: { timeout: 1_500_000 },
   fullyParallel: false,
   retries: 1,

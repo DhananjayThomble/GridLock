@@ -7,7 +7,7 @@
  *   pm2 start ecosystem.config.js --only gridlock-backend  # Start one app
  *   pm2 reload ecosystem.config.js           # Zero-downtime reload all
  *
- * NOTE: This config uses absolute paths matching the EC2 directory layout
+ * NOTE: This config uses absolute paths matching the production server's directory layout
  * documented in INFRASTRUCTURE.md. If the server layout changes, update
  * both this file and the deploy scripts.
  *

@@ -47,7 +47,7 @@ fi
 
 # ── Frontend ──
 # Build settings live in scripts/build-frontend.sh (shared with GitHub Actions).
-# On the 1GB server prefer the GitHub Actions deploy, which builds off-box.
+# On the production server prefer the GitHub Actions deploy, which builds off-box.
 bash "$BETA_REPO/scripts/build-frontend.sh" beta
 cd "$BETA_REPO/frontend"
 

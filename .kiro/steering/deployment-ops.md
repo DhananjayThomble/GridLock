@@ -19,7 +19,7 @@ Use this reference when working on deployment, CI/CD, infrastructure, or monitor
 
 Pushes to `main` (prod) and `develop` (beta) deploy automatically via
 `.github/workflows/deploy.yml` on GitHub-hosted runners: CI → build frontend
-(`build-frontend.sh`) → SSH to the 1GB server, whose deploy key is locked to
+(`build-frontend.sh`) → SSH to the server, whose deploy key is locked to
 `server-deploy.sh`. Never build or run tests on the server. Details:
 `INFRASTRUCTURE.md` → Deploying.
 

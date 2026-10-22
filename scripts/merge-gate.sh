@@ -138,7 +138,7 @@ if ! gh pr checks "$PR_NUMBER" --repo "$REPO" --watch --fail-fast; then
 fi
 echo -e "   GitHub CI: ${GREEN}PASSED${NC}"
 
-# Optional local re-run — heavy, never do this on the 1GB production server
+# Optional local re-run — heavy, never do this on the production server
 if [ "${MERGE_GATE_LOCAL_CI:-0}" != "1" ]; then
   echo "   Skipping local CI (set MERGE_GATE_LOCAL_CI=1 to run it)"
 else
@@ -183,7 +183,7 @@ if [ "$NEEDS_PHONE_TEST" = true ]; then
   LABELS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels --jq '.labels[].name')
   if ! echo "$LABELS" | grep -q "phone-tested"; then
     echo -e "${RED}❌ BLOCKED: PR touches touch/gesture files but missing 'phone-tested' label.${NC}"
-    echo -e "${YELLOW}   DJ must test on phone and add 'phone-tested' label before merge.${NC}"
+    echo -e "${YELLOW}   A maintainer must test on a phone and add 'phone-tested' label before merge.${NC}"
     exit 1
   fi
   echo -e "   Phone test: ${GREEN}Verified${NC}"

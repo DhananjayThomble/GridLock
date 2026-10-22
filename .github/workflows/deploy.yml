@@ -1,7 +1,7 @@
 # Test, build and deploy on every push to main (prod) or develop (beta).
 #
 # Everything heavy (tests, npm ci, Vite build, Chromium prerendering) runs on
-# GitHub-hosted runners. The 1GB server only receives a pre-built frontend
+# GitHub-hosted runners. The server only receives a pre-built frontend
 # tarball and runs `npm ci --omit=dev` + `pm2 reload` for the backend, through
 # an SSH key that is locked to scripts/server-deploy.sh.
 #
