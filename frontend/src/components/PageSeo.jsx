@@ -14,6 +14,7 @@ export default function PageSeo({
   title,
   description = DEFAULT_DESCRIPTION,
   pathname = window.location.pathname,
+  noindex = false,
 }) {
   const canonicalUrl = buildAbsoluteUrl(pathname);
   const imageUrl = buildAbsoluteUrl(DEFAULT_OG_IMAGE);
@@ -36,6 +37,7 @@ export default function PageSeo({
       <title>{pageTitle}</title>
       <link rel="canonical" href={canonicalUrl} />
       <meta name="description" content={description} />
+      {noindex && <meta name="robots" content="noindex, nofollow" />}
       <meta property="og:title" content={pageTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonicalUrl} />

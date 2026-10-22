@@ -177,6 +177,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Board />,
                     {
+                      noindex: true,
                       title: 'Live Match',
                       description: 'Play a live GridLock match with real-time multiplayer Dots & Boxes gameplay.',
                     },
@@ -205,6 +206,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <GameHistory />,
                     {
+                      noindex: true,
                       title: 'Game History',
                       description: 'Browse your past GridLock games with replays and stats.',
                     },
@@ -233,6 +235,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <TournamentLobby />,
                     {
+                      noindex: true,
                       title: 'Tournament',
                       description: 'Enter the GridLock tournament lobby for competitive multiplayer brackets.',
                     },
@@ -247,6 +250,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <JoinGame />,
                     {
+                      noindex: true,
                       title: 'Join Game',
                       description: 'Join a shared GridLock match and jump straight into a multiplayer game.',
                     },
@@ -258,7 +262,14 @@ const AppLayout = () => {
               path="/waiting/:gameId"
               element={(
                 <ErrorBoundary>
-                  <WaitingRoom />
+                  {withPageSeo(
+                    <WaitingRoom />,
+                    {
+                      noindex: true,
+                      title: 'Waiting Room',
+                      description: 'Waiting for players to join your GridLock match.',
+                    },
+                  )}
                 </ErrorBoundary>
               )}
             />
@@ -269,6 +280,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Profile />,
                     {
+                      noindex: true,
                       title: 'Player Profile',
                       description: 'View GridLock player stats, rank, and recent performance.',
                     },
@@ -283,6 +295,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <ReplayPage />,
                     {
+                      noindex: true,
                       title: 'Game Replay',
                       description: 'Watch a GridLock game replay move by move.',
                     },
@@ -311,6 +324,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <Settings />,
                     {
+                      noindex: true,
                       title: 'Settings',
                       description: 'Customize your GridLock experience. Themes, sounds, notifications.',
                     },
@@ -326,6 +340,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <ChallengePage />,
                     {
+                      noindex: true,
                       title: 'Challenge — Play GridLock',
                       description: 'You\'ve been challenged to a GridLock match! Accept and play now.',
                     },
@@ -340,6 +355,7 @@ const AppLayout = () => {
                   {withPageSeo(
                     <AuthSetup />,
                     {
+                      noindex: true,
                       title: 'Choose Username — GridLock',
                       description: 'Pick your permanent GridLock username.',
                     },
