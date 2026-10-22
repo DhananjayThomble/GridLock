@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
         const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 20;
 
         // Build filter query
-        const query = { username };
+        const query = { username: { $eq: username } };
 
         if (result && ['win', 'loss', 'draw'].includes(result)) {
             query.result = result;

@@ -30,6 +30,11 @@ function sanitizeUsername(input) {
     // Strip ALL HTML tags BEFORE escaping — reject script/img/etc. entirely
     cleaned = cleaned.replace(/<[^>]*>/g, '');
 
+    // Nested input such as "<scr<b>ipt>" can leave a tag behind after one pass; reject any leftover angle bracket
+    if (/[<>]/.test(cleaned)) {
+        return { valid: false, value: '', error: 'Username contains invalid characters' };
+    }
+
     // If stripping tags left nothing, the input was purely malicious
     if (cleaned.length === 0) {
         return { valid: false, value: '', error: 'Username contains invalid characters' };
@@ -69,7 +74,10 @@ function sanitizeAvatar(input) {
     
     // Remove any HTML-like content
     cleaned = cleaned.replace(/<[^>]*>/g, '');
-    
+
+    // Nested input can leave a tag behind after one pass; fall back to the default avatar
+    if (/[<>]/.test(cleaned)) return '👦';
+
     if (cleaned.length === 0 || cleaned.length > 8) return '👦';
     return cleaned;
 }

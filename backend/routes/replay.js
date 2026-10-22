@@ -29,10 +29,14 @@ router.get('/:gameId/og', async (req, res) => {
             return res.status(400).send('Invalid game ID');
         }
         const cleanGameId = gameId.trim().toUpperCase();
-        const game = await Game.findOne({ gameId: cleanGameId }).lean();
+        if (!/^[A-Z0-9]{4,12}$/.test(cleanGameId)) {
+            return res.status(400).send('Invalid game ID');
+        }
+        const game = await Game.findOne({ gameId: { $eq: cleanGameId } }).lean();
 
         const siteUrl = process.env.SITE_URL || 'https://gridlock.pro';
         const replayUrl = `${siteUrl}/replay/${cleanGameId}`;
+        const safeReplayUrl = escapeHtml(replayUrl);
 
         if (!game) {
             return res.redirect(302, replayUrl);
@@ -56,7 +60,7 @@ router.get('/:gameId/og', async (req, res) => {
             ? `${winnerName} wins! — GridLock Replay`
             : winner === 'draw'
                 ? `It&#39;s a draw! — GridLock Replay`
-                : `GridLock Replay — ${playerNames || cleanGameId}`;
+                : `GridLock Replay — ${playerNames || escapeHtml(cleanGameId)}`;
 
         const description = `Watch the ${escapeHtml(String(game.gridSize))}×${escapeHtml(String(game.gridSize))} GridLock game replay: ${playerNames}`;
 
@@ -67,16 +71,16 @@ router.get('/:gameId/og', async (req, res) => {
 <title>${title}</title>
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
-<meta property="og:url" content="${replayUrl}">
+<meta property="og:url" content="${safeReplayUrl}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GridLock">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${title}">
 <meta name="twitter:description" content="${description}">
-<meta http-equiv="refresh" content="0;url=${replayUrl}">
+<meta http-equiv="refresh" content="0;url=${safeReplayUrl}">
 </head>
 <body>
-<p>Redirecting to <a href="${replayUrl}">GridLock Replay</a>...</p>
+<p>Redirecting to <a href="${safeReplayUrl}">GridLock Replay</a>...</p>
 </body>
 </html>`;
 

@@ -135,13 +135,9 @@ async function prerender() {
       // Block analytics / tracking to keep prerendered HTML clean
       await page.setRequestInterception(true);
       page.on('request', (req) => {
-        const url = req.url();
-        if (
-          url.includes('posthog') ||
-          url.includes('sentry') ||
-          url.includes('analytics') ||
-          url.includes('socket.io')
-        ) {
+        const { hostname, pathname } = new URL(req.url());
+        const isTracker = ['posthog', 'sentry', 'analytics'].some((name) => hostname.includes(name));
+        if (isTracker || pathname.startsWith('/socket.io')) {
           req.abort();
         } else {
           req.continue();

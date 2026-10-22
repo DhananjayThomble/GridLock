@@ -19,11 +19,12 @@ const pushEndpointLimiter = rateLimit({
 async function handleUnsubscribe(req, res) {
     try {
         const { endpoint } = req.body;
-        if (!endpoint) {
+        if (!endpoint || typeof endpoint !== 'string') {
             return res.status(400).json({ error: 'Missing endpoint' });
         }
 
-        await PushSubscription.deleteOne({ endpoint });
+        // $eq keeps a crafted object (e.g. { $ne: null }) from being read as a query operator
+        await PushSubscription.deleteOne({ endpoint: { $eq: endpoint } });
         res.json({ message: 'Subscription removed' });
     } catch (err) {
         log.error('[PUSH] Unsubscribe error:', err.message);
@@ -48,6 +49,13 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
         if (!username || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
+        if (
+            typeof subscription.endpoint !== 'string' ||
+            typeof subscription.keys.p256dh !== 'string' ||
+            typeof subscription.keys.auth !== 'string'
+        ) {
+            return res.status(400).json({ error: 'Invalid subscription' });
+        }
 
         const san = sanitizeUsername(username);
         if (!san.valid) return res.status(400).json({ error: 'Invalid username' });
@@ -69,7 +77,7 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
         }
 
         await PushSubscription.findOneAndUpdate(
-            { endpoint: subscription.endpoint },
+            { endpoint: { $eq: subscription.endpoint } },
             {
                 username: cleanUsername,
                 endpoint: subscription.endpoint,

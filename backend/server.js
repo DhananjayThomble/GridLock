@@ -54,15 +54,18 @@ function isLocalProxyAddress(ip = '') {
 app.set('trust proxy', 1);
 app.use(helmet({
     // API backend only (frontend served separately). Keep Socket.IO compatible.
-    // Disable Helmet's CSP so the custom middleware below can set a restrictive CSP for API responses.
-    contentSecurityPolicy: false,
+    // Restrictive CSP for API responses; frontend CSP is handled at the reverse proxy / frontend host.
+    contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+            defaultSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+            baseUri: ["'none'"],
+            formAction: ["'none'"],
+        },
+    },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-app.use((req, res, next) => {
-    // Explicit CSP for API responses. Frontend CSP is handled at the reverse proxy / frontend host.
-    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
-    next();
-});
 // ── CORS allowlist (#285) ────────────────────────────────────────────────────
 const { getAllowedOrigins } = require('./config/corsOrigins');
 const ALLOWED_ORIGINS = getAllowedOrigins();

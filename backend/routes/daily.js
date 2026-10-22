@@ -136,12 +136,12 @@ router.get('/today', async (req, res) => {
  */
 router.get('/leaderboard', async (req, res) => {
   try {
-    const dateStr = req.query.date || getTodayDateStr();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const dateStr = req.query.date === undefined ? getTodayDateStr() : req.query.date;
+    if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD' });
     }
 
-    const filter = { date: dateStr };
+    const filter = { date: { $eq: dateStr } };
     const totalPlayers = await DailyResult.countDocuments(filter);
 
     const results = await DailyResult.find(filter)
@@ -163,12 +163,12 @@ router.get('/leaderboard', async (req, res) => {
       const san = sanitizeUsername(req.query.username);
       if (san.valid) {
         const result = await DailyResult.findOne({
-          date: dateStr,
-          username: san.value,
+          date: { $eq: dateStr },
+          username: { $eq: san.value },
         }).lean();
         if (result) {
           const rank = await DailyResult.countDocuments({
-            date: dateStr,
+            date: { $eq: dateStr },
             $or: [
               { score: { $gt: result.score } },
               { score: result.score, moves: { $lt: result.moves } },
