@@ -3,6 +3,22 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.2.1] — 2026-10-22
+
+### Security
+- Updated dependencies to patched versions across the root, backend and frontend lockfiles, clearing all critical and high findings in production backend dependencies (`engine.io`, `socket.io-parser`, `proxy-addr`, `joi`, `express-rate-limit` and others) and the critical finding in the frontend (#564)
+
+### Added
+- Sitemap generated at build time with a current `lastmod`, listing only public pages (#553)
+- `noindex, nofollow` on private and dynamic routes such as game rooms, history, settings and profiles (#553)
+- Dependabot configuration for npm and GitHub Actions updates (#538)
+
+### Changed
+- Prerendering covers the public pages only (`/`, `/how-to-play`, `/leaderboard`, `/daily`) (#553)
+- `dotenv` updated to 18 (#547)
+- `actions/checkout` and `actions/setup-node` updated to v7 (#565)
+- Release documentation rewritten around merge-commit releases (`VERSIONING.md`)
+
 ## [2.2.0] — 2026-10-19
 
 GridLock is now open source under the [MIT License](LICENSE).
