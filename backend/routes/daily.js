@@ -87,8 +87,8 @@ router.get('/today', async (req, res) => {
       const san = sanitizeUsername(req.query.username);
       if (san.valid) {
         existingResult = await DailyResult.findOne({
-          date: challenge.date,
-          username: san.value,
+          date: { $eq: challenge.date },
+          username: { $eq: san.value },
         }).lean();
         alreadyPlayed = !!existingResult;
       }
@@ -141,7 +141,9 @@ router.get('/leaderboard', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid date format. Use YYYY-MM-DD' });
     }
 
-    const filter = { date: dateStr };
+    // $eq wraps the (regex-validated) date so a crafted object can never be
+    // interpreted as a query operator (NoSQL injection defense).
+    const filter = { date: { $eq: dateStr } };
     const totalPlayers = await DailyResult.countDocuments(filter);
 
     const results = await DailyResult.find(filter)
@@ -163,12 +165,12 @@ router.get('/leaderboard', async (req, res) => {
       const san = sanitizeUsername(req.query.username);
       if (san.valid) {
         const result = await DailyResult.findOne({
-          date: dateStr,
-          username: san.value,
+          date: { $eq: dateStr },
+          username: { $eq: san.value },
         }).lean();
         if (result) {
           const rank = await DailyResult.countDocuments({
-            date: dateStr,
+            date: { $eq: dateStr },
             $or: [
               { score: { $gt: result.score } },
               { score: result.score, moves: { $lt: result.moves } },
@@ -220,7 +222,7 @@ router.get('/leaderboard/:date', async (req, res) => {
     const { page, limit, username: searchUser } = query;
     const skip = (page - 1) * limit;
 
-    const filter = { date: dateStr };
+    const filter = { date: { $eq: dateStr } };
     const results = await DailyResult.find(filter)
       .sort({ score: -1, moves: 1, duration: 1 })
       .skip(skip)
@@ -244,12 +246,12 @@ router.get('/leaderboard/:date', async (req, res) => {
       const san = sanitizeUsername(searchUser);
       if (san.valid) {
         const userResult = await DailyResult.findOne({
-          date: dateStr,
-          username: san.value,
+          date: { $eq: dateStr },
+          username: { $eq: san.value },
         }).lean();
         if (userResult) {
           const rank = await DailyResult.countDocuments({
-            date: dateStr,
+            date: { $eq: dateStr },
             $or: [
               { score: { $gt: userResult.score } },
               { score: userResult.score, moves: { $lt: userResult.moves } },
@@ -309,7 +311,7 @@ router.get('/streak/:username', async (req, res) => {
 
     const username = san.value;
     // Issue #9: limit query to 400 results to prevent fetching unbounded data
-    const results = await DailyResult.find({ username })
+    const results = await DailyResult.find({ username: { $eq: username } })
       .sort({ date: -1 })
       .limit(400)
       .select('date')
