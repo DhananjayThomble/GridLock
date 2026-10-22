@@ -5,7 +5,7 @@ set -euo pipefail
 # build-frontend.sh — Build the frontend for prod or beta into frontend/dist
 #
 # Runs anywhere (GitHub Actions or a dev machine). Deliberately NOT run on the
-# 1GB production server: npm ci + Vite + headless Chromium prerendering needs
+# production server: npm ci + Vite + headless Chromium prerendering needs
 # more memory than the box can spare. See INFRASTRUCTURE.md → Deploying.
 #
 # Usage:

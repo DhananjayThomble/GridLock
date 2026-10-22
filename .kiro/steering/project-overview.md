@@ -14,7 +14,7 @@ GridLock is a real-time multiplayer territory control game. Players take turns c
 - **Communication**: Socket.IO (primary, real-time game events) + REST API (auth, leaderboard, profile, history)
 - **Auth**: Google OAuth 2.0 → JWT in httpOnly cookies, guest mode supported
 - **State**: In-memory Map for active games (single-instance), MongoDB for persistence
-- **Deployment**: PM2 (backend), Cloudflare Pages (frontend), self-hosted CI on EC2
+- **Deployment**: PM2 (backend), Nginx (frontend), GitHub Actions (CI/CD)
 
 ## Key Directories
 

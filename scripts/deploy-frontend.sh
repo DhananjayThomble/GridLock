@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ###############################################################################
-# deploy-frontend.sh — Build frontend and deploy to EC2 Nginx (/var/www/gridlock)
+# deploy-frontend.sh — Build frontend and deploy to Nginx (/var/www/gridlock)
 #
 # Prerequisites:
 #   - The deploy user must have passwordless sudo configured for:
@@ -35,7 +35,7 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 log "Starting production frontend deploy (dry_run=$DRY_RUN)"
 
 # --- Build (shared with GitHub Actions) ---------------------------------------
-# Note: on the 1GB production server prefer the GitHub Actions deploy
+# Note: on the production server prefer the GitHub Actions deploy
 # (.github/workflows/deploy.yml). This manual path builds locally.
 bash "$SCRIPT_DIR/build-frontend.sh" prod
 cd "$REPO_DIR/frontend"

@@ -49,7 +49,7 @@ affect what's live. Beta runs from its own clone (`GridLock-beta/`) on `develop`
 
 ## Deploying
 
-The server is a small (1GB RAM) instance, so **nothing is built on it**.
+The production server is deliberately small, so **nothing is built on it**.
 
 ```
 push to develop/main
@@ -139,7 +139,7 @@ and delete the webhook under GitHub → Settings → Webhooks.
 # Re-run the last GitHub deploy without a new commit
 #   GitHub → Actions → Deploy → Run workflow
 
-# Frontend / beta built on the server — heavy on 1GB, avoid if possible
+# Frontend / beta built on the server — heavy on a small server, avoid if possible
 ./scripts/deploy-frontend.sh             # also: --dry-run
 ./scripts/deploy-beta.sh
 ```
@@ -148,7 +148,7 @@ and delete the webhook under GitHub → Settings → Webhooks.
 `git reset --hard origin/main` → `npm ci --omit=dev` → `pm2 reload` →
 health check (5 × 2s) on `localhost:5000/health` → auto-rollback on failure.
 
-### Keeping a 1GB server healthy
+### Keeping a low-memory server healthy
 
 - **Add swap** so a spike doesn't OOM-kill MongoDB:
   ```bash
@@ -258,8 +258,8 @@ process list. After that, PM2 auto-restarts saved processes on boot.
 ## GitHub Actions Runner (retired)
 
 CI previously ran on a self-hosted GitHub Actions runner (`gridlock-ec2`) on
-this EC2 instance, as the same `ubuntu` user as production. GitHub Actions
-workflows were removed in v3.8. Pull-request checks now run on GitHub-hosted
+the production host, as the same `ubuntu` user as production. GitHub Actions
+workflows were removed in v2.2.0. Pull-request checks now run on GitHub-hosted
 runners (`.github/workflows/ci.yml`, `deploy.yml`); see **Deploying**.
 
 > ⚠️ **This repository is public. Never register a self-hosted runner on the
