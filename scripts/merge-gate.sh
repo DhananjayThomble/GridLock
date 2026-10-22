@@ -1,6 +1,7 @@
 #!/bin/bash
 # merge-gate.sh — Enforces minimum review cycles before allowing PR merge.
 # Usage: ./scripts/merge-gate.sh <PR_NUMBER> [--squash|--merge|--rebase]
+# Default merge method: --merge for release PRs into main, --squash otherwise.
 #
 # Rules:
 #   - Minimum 2 review cycle comments matching "## Review Cycle" pattern
@@ -20,7 +21,7 @@ NC='\033[0m'
 REPO="DhananjayThomble/GridLock"
 MIN_REVIEW_CYCLES=2
 REVIEW_PATTERN="## Review"
-MERGE_STRATEGY="${2:---squash}"
+MERGE_STRATEGY="${2:-}"  # default: squash into develop, merge commit into main (see VERSIONING.md)
 TOUCH_FILES=("Board.jsx" "BoardZoomWrapper.jsx")
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -198,6 +199,9 @@ fi
 echo -e "   Mergeable: ${GREEN}OK${NC}"
 
 # All checks passed — merge
+if [ -z "$MERGE_STRATEGY" ]; then
+  if [ "$PR_BASE" = "main" ]; then MERGE_STRATEGY="--merge"; else MERGE_STRATEGY="--squash"; fi
+fi
 echo ""
 echo -e "${GREEN}✅ All gates passed. Merging PR #${PR_NUMBER}...${NC}"
 gh pr merge "$PR_NUMBER" --repo "$REPO" "$MERGE_STRATEGY" --delete-branch
