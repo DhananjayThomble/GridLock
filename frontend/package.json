@@ -11,7 +11,7 @@
     "test": "vitest run",
     "preview": "vite preview",
     "prerender": "node scripts/prerender.mjs",
-    "build:seo": "vite build && node scripts/prerender.mjs",
+    "build:seo": "vite build && node scripts/generate-sitemap.mjs && node scripts/prerender.mjs",
     "smoke": "node ../scripts/smoke-test.js",
     "deploy:check": "npm run build && npm run smoke",
     "deploy": "npm run build && wrangler deploy",
