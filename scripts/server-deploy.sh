@@ -7,7 +7,7 @@ set -euo pipefail
 # The deploy key in ~/.ssh/authorized_keys can run ONLY this script, so a leaked
 # key can redeploy GridLock but cannot open a shell. Nothing is built here: the
 # backend only runs `npm ci --omit=dev`, and the frontend arrives pre-built as a
-# tarball on stdin. That keeps deploys light enough for a 1GB server.
+# tarball on stdin. That keeps deploys light enough for a low-memory server.
 #
 # Install (once, as ubuntu — see INFRASTRUCTURE.md → Deploying):
 #   sudo install -m 755 scripts/server-deploy.sh /usr/local/bin/gridlock-deploy

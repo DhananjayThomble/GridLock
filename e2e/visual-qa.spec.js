@@ -67,7 +67,7 @@ for (const viewport of spec.viewports) {
       const combo = `${viewport.name} | ${mode} | ${theme}`;
 
       test.describe(combo, () => {
-        test.setTimeout(60_000_000); // 16.7h — effectively no timeout per DJ's requirement
+        test.setTimeout(60_000_000); // 16.7h — effectively no timeout for long visual runs
 
         let context;
         let page;

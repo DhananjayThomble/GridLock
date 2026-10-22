@@ -1087,7 +1087,7 @@ Authentication E2E
 ### Environment Variables to Add
 
 ```bash
-# Production (.env on EC2)
+# Production (.env on the production server)
 GOOGLE_CLIENT_ID=<your-google-client-id>
 GOOGLE_CLIENT_SECRET=<your-google-client-secret>
 JWT_SECRET=<generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))">

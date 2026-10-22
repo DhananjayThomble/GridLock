@@ -5,37 +5,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
 ## [2.2.0] — 2026-10-19
 
-GridLock is now open source under the MIT License.
+GridLock is now open source under the [MIT License](LICENSE).
 
 ### Added
-- Lightweight deploy pipeline: GitHub Actions builds and tests off-box, then deploys to the server over an SSH key locked to `scripts/server-deploy.sh` — nothing is built on the 1GB server (`.github/workflows/deploy.yml`, `scripts/build-frontend.sh`)
-- MIT `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `SECURITY.md` (#532)
-- GitHub Actions CI on GitHub-hosted runners for pull requests: backend tests with MongoDB, frontend lint and build (#532)
-- Contributor-friendly issue and PR templates; security reports routed to private advisories (#532)
-- `.nvmrc` (Node 22) and backend `npm start` script (#532)
-- HTTP tests for leaderboard, push and ranked routes — 52 new tests (#529)
-- Jest coverage config with calibrated thresholds (`npm run test:coverage`) (#526)
-- JSDoc type-safety for `gameLogic` and the store modules, checked via `jsconfig.json` (#527, #530)
+- Open-source project files: `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md` with private vulnerability reporting, and contributor-friendly issue and pull request templates (#532)
+- Continuous integration for every pull request: backend tests against MongoDB, frontend lint and production build (#532)
+- Automated deployment pipeline: builds and tests run in GitHub Actions, and deploys use a restricted, single-purpose SSH key (#533)
+- `.nvmrc` pinning Node.js 22 and a backend `npm start` script (#532)
+- 52 HTTP tests covering the leaderboard, push and ranked routes (#529)
+- Backend coverage reporting with regression thresholds (`npm run test:coverage`) (#526)
+- JSDoc type checking for the game logic and store modules (#527, #530)
 - Component tests for WaitingRoom, RankedQueue, TournamentLobby, Profile and DailyChallenge (#515)
-- Kiro IDE steering docs, hooks, reviewer agent and spec backlog (#515, #524, #525, #528)
 
 ### Changed
-- Sentry and PostHog are now off by default: hardcoded keys removed from `frontend/.env.production` and the build scripts; enable via `VITE_SENTRY_DSN` / `VITE_POSTHOG_*` (integration code unchanged)
-- `deploy-frontend.sh` and `deploy-beta.sh` share the build step via `build-frontend.sh`; `merge-gate.sh` waits for GitHub CI instead of running it locally (`MERGE_GATE_LOCAL_CI=1` to opt back in)
-- `gh-notify` webhook deployer removed from `ecosystem.config.js`
-- `backend/.env.example` defaults to `NODE_ENV=development` so local sign-in works (#532)
-- `DEVELOPMENT.md` rewritten to point at the steering docs (#524)
-- Self-hosted CI runner retired; infrastructure docs updated (#532)
+- Sentry and PostHog are opt-in: no keys are bundled, and both stay off unless `VITE_SENTRY_DSN` or `VITE_POSTHOG_KEY` is set (#533)
+- Rewrote the README for new users and contributors (#535)
+- Local development defaults to `NODE_ENV=development` so Google sign-in works on `localhost` (#532)
+- Deployment and development documentation consolidated and updated (#524, #533)
 
 ### Fixed
-- `Lobby.jsx` import resolving to the wrong file on case-insensitive filesystems (Windows/macOS)
-- Source map upload no longer fails deploys when Sentry isn't configured
-- 14 frontend ESLint `no-undef` errors in test files (#532)
+- `Lobby` import resolving to the wrong file on case-insensitive filesystems (Windows, macOS)
+- Source map upload no longer fails a deploy when Sentry is not configured
+- ESLint `no-undef` errors in frontend test files (#532)
 
 ### Removed
-- Leftover GitHub Pages files and docs (`404.html` SPA redirect)
-- Production server IP from docs and legacy test scripts (#532)
-- Stale internal planning files and `server.js.backup` (#532)
+- Obsolete internal planning documents, backup files and GitHub Pages leftovers (#532)
+- The legacy webhook deployer, replaced by the GitHub Actions pipeline (#533)
 
 ## [2.1.0] — 2026-04-07
 
