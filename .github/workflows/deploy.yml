@@ -46,10 +46,10 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.cfg.outputs.enabled == 'true'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.cfg.outputs.enabled == 'true'
         with:
           node-version-file: .nvmrc
