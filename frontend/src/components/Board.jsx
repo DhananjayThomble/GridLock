@@ -481,6 +481,12 @@ const Board = () => {
       setTimeout(() => setError(null), 6000);
     };
 
+    // The server hands the turn on when the player on the move has been away for a few seconds
+    const onTurnSkipped = (data) => {
+      setError(`${data.username || 'A player'} was away, so their turn was skipped.`);
+      setTimeout(() => setError(null), 5000);
+    };
+
     const onPlayerLeft = (data) => {
       setError(`${data.username || 'A player'} left the game.`);
       setTimeout(() => setError(null), 6000);
@@ -503,6 +509,7 @@ const Board = () => {
     socket.on('player_reconnected',  onPlayerReconnected);
     socket.on('player_forfeited',    onPlayerForfeited);
     socket.on('player_left',         onPlayerLeft);
+    socket.on('turn_skipped',        onTurnSkipped);
     socket.on('session_conflict',    onSessionConflict);
 
     // BroadcastChannel tab coordination (defense-in-depth)
@@ -570,6 +577,7 @@ const Board = () => {
       socket.off('player_reconnected',  onPlayerReconnected);
       socket.off('player_forfeited',    onPlayerForfeited);
       socket.off('player_left',         onPlayerLeft);
+      socket.off('turn_skipped',        onTurnSkipped);
       socket.off('session_conflict',    onSessionConflict);
       socket.io.off('reconnect',        onReconnect);
       window.removeEventListener('gridlock:force_reconnect', onForceReconnect);

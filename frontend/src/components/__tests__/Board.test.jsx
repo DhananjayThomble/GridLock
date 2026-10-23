@@ -282,6 +282,14 @@ describe('Board', () => {
       expect(board.className).toMatch(/board-miss/);
     });
 
+    it('tells the player when a dropped player\'s turn was skipped', () => {
+      load(makeState());
+      const onSkipped = mockOn.mock.calls.find((c) => c[0] === 'turn_skipped')?.[1];
+      expect(onSkipped).toBeTypeOf('function');
+      act(() => onSkipped({ playerId: 'player2', username: 'Bbb', nextPlayer: 'player1' }));
+      expect(screen.getByText(/Bbb was away, so their turn was skipped/)).toBeInTheDocument();
+    });
+
     it('shows server errors as an overlay so the board does not move', () => {
       load(makeState());
       const errorHandler = mockOn.mock.calls.find((c) => c[0] === 'error')?.[1];

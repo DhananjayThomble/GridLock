@@ -31,6 +31,8 @@ const {
     activeDailyGames,
     rankedGameMap,
     DISCONNECT_TIMEOUT_MS,
+    TURN_SKIP_MS,
+    advanceTurnIfNeeded,
     CLEANUP_DELAY_MS,
     promMetrics,
     getNextActivePlayer,
@@ -85,6 +87,47 @@ async function closeWaitingRoom(io, log, gameId, reason) {
     await gameStore.deleteGame(gameId);
     await gameStore.deleteSpectatorCount(gameId);
     await markGameFinished(gameId, 'host_left_lobby');
+}
+
+/**
+ * A player dropped while it was their turn. Rather than freezing everyone for the whole
+ * reconnect window, hand the turn to the next connected player after a short wait. The dropped
+ * player keeps their seat and can still rejoin until the reconnect window ends.
+ */
+function scheduleTurnSkip(io, log, gameId, playerId) {
+    setTimeout(async () => {
+        try {
+            const game = await gameStore.getGame(gameId);
+            if (!game || game.gameState?.winner) return;
+            const away = game.players[playerId];
+            if (!away || !away.disconnectedAt) return;              // came back in time
+            if (game.gameState.currentPlayer !== playerId) return;  // turn already moved on
+
+            // Only skip when another *human* is connected to play: if the rest are CPUs, a skip
+            // would let the CPUs play the whole game out before the player can return.
+            let humanLeft = false;
+            for (let i = 1; i <= game.playerCount; i++) {
+                const p = game.players[`player${i}`];
+                if (p && `player${i}` !== playerId && !p.isCPU && !p.disconnectedAt) humanLeft = true;
+            }
+            if (!humanLeft) return;
+
+            advanceTurnIfNeeded(game);
+            const next = game.gameState.currentPlayer;
+            if (next === playerId) return;
+
+            await gameStore.setGame(gameId, game);
+            io.to(gameId).emit('turn_skipped', { playerId, username: away.username, nextPlayer: next });
+            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+            log.info('Skipped the turn of a disconnected player', { gameId, playerId, next });
+
+            if (game.players[next]?.isCPU && scheduleCPUMove) {
+                scheduleCPUMove(io, log, gameId, CPU_DELAYS[game.cpuDifficulty] || 1200);
+            }
+        } catch (err) {
+            log.error('Turn skip error', { gameId, playerId, error: err.message });
+        }
+    }, TURN_SKIP_MS);
 }
 
 /**
@@ -402,6 +445,10 @@ function register(io, socket, log, rateLimited, validate) {
                 username: player.username,
                 reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
             });
+
+            if (!game.gameState?.winner && game.gameState?.currentPlayer === playerId) {
+                scheduleTurnSkip(io, log, gameId, playerId);
+            }
 
             if (game.gameState?.winner) {
                 await rematchStore.removeVote(gameId, playerId);

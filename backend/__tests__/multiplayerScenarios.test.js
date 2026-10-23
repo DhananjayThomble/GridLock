@@ -289,7 +289,7 @@ describe('players leaving and dropping', () => {
         expect(lineCount(watcher.state) - openLines(watcher.state).length).toBe(1);
     });
 
-    test('2 players: dropping on your own turn freezes the board, then forfeits after the reconnect window', async () => {
+    test('2 players: dropping on your own turn holds the board briefly, then the turn passes, then it forfeits after the reconnect window', async () => {
         const { players } = await newRoom(2);
         const dropper = currentMover(players);
         const other = players.find((p) => p !== dropper);
@@ -304,6 +304,60 @@ describe('players leaving and dropping', () => {
         await waitFor(other, 'game_over', () => true, { from: mark, ms: 15000 }); // 8s window in test env
         expect(other.state.winner).toBe(other.playerId);
         expect(eventsSince(other, mark)).toContain('player_forfeited');
+    });
+
+    test('3 players: when the player on the move drops, play moves on after a short wait and the player keeps their seat', async () => {
+        const { players, gameId } = await newRoom(3);
+        const dropper = currentMover(players);
+        const rest = players.filter((p) => p !== dropper);
+        const mark = rest[0].log.length;
+        dropper.close();
+        await waitFor(rest[0], 'player_disconnected', () => true, { from: mark });
+
+        // immediately: still the dropped player's turn, nobody else can move yet
+        move(rest[0], openLines(rest[0].state)[0]);
+        await sleep(300);
+        expect(errorsSince(rest[0], mark)).toContain('Not your turn');
+
+        const skipped = await waitFor(rest[0], 'turn_skipped', () => true, { from: mark, ms: 6000 });
+        expect(skipped.playerId).toBe(dropper.playerId);
+        expect(skipped.nextPlayer).not.toBe(dropper.playerId);
+        await sleep(200);
+        const mover = currentMover(rest);
+        expect(mover).toBeTruthy();
+        move(mover, openLines(rest[0].state)[0]);
+        await sleep(300);
+        expect(lineCount(rest[0].state) - openLines(rest[0].state).length).toBe(1);
+
+        // the dropped player is still in the game and can come back before the window ends
+        const back = await rejoin(gameId, `U${dropper.playerId.replace('player', '')}`, dropper.token);
+        expect(back.playerId).toBe(dropper.playerId);
+        expect(back.state.currentPlayer).not.toBe(dropper.playerId);
+    });
+
+    test('a player who comes back before the wait is over keeps their turn', async () => {
+        const { players, gameId } = await newRoom(3);
+        const dropper = currentMover(players);
+        const watcher = players.find((p) => p !== dropper);
+        const mark = watcher.log.length;
+        dropper.close();
+        await waitFor(watcher, 'player_disconnected', () => true, { from: mark });
+        const back = await rejoin(gameId, `U${dropper.playerId.replace('player', '')}`, dropper.token);
+        await sleep(3500); // longer than the 2s skip wait
+        expect(eventsSince(watcher, mark)).not.toContain('turn_skipped');
+        expect(back.state.currentPlayer).toBe(dropper.playerId);
+    });
+
+    test('against a CPU the turn is not skipped (the CPU would play the whole game alone)', async () => {
+        const human = client('solo'); await connected(human);
+        human.emit('create_game', { username: 'Solo', avatar: '👦', gridSize: 3, playerCount: 2, cpuPlayers: 1, cpuDifficulty: 'easy' });
+        await waitFor(human, 'game_started');
+        const { gameId, token } = human;
+        human.close();
+        await sleep(3500); // longer than the skip wait, shorter than the reconnect window
+        const back = await rejoin(gameId, 'Solo', token);
+        expect(back.state.currentPlayer).toBe('player1');
+        expect(lineCount(back.state) - openLines(back.state).length).toBe(0);
     });
 
     test('4 players: a forfeit removes one player and the other three play on', async () => {
