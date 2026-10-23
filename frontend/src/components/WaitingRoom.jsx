@@ -122,6 +122,11 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
+    // A guest left or dropped: refresh the seats (they used to linger on the host's screen)
+    const onPlayerLeft = () => {
+      socket.emit('lobby_state', { gameId });
+    };
+
     const onPlayerReconnected = () => {
       socket.emit('lobby_state', { gameId });
     };
@@ -212,6 +217,7 @@ const WaitingRoom = () => {
     socket.on('lobby_state', onLobbyState);
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_disconnected', onPlayerDisconnected);
+    socket.on('player_left', onPlayerLeft);
     socket.on('player_reconnected', onPlayerReconnected);
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
@@ -225,6 +231,7 @@ const WaitingRoom = () => {
       socket.off('lobby_state', onLobbyState);
       socket.off('player_joined', onPlayerJoined);
       socket.off('player_disconnected', onPlayerDisconnected);
+      socket.off('player_left', onPlayerLeft);
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);

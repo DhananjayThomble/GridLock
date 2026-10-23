@@ -130,6 +130,13 @@ describe('WaitingRoom', () => {
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/join/ABC123`);
   });
 
+  it('refreshes the seats when a guest leaves, so they do not linger on the host\'s screen', () => {
+    render(<WaitingRoom />);
+    mockEmit.mockClear();
+    socketHandlers.player_left({ playerId: 'player2', username: 'Bbb', reason: 'left_lobby' });
+    expect(mockEmit).toHaveBeenCalledWith('lobby_state', { gameId: 'ABC123' });
+  });
+
   // Leaving is an explicit action: re-renders and remounts must never give up the seat
   it('tells the server it is leaving only when the leave button is pressed', () => {
     const { rerender, unmount } = render(<WaitingRoom />);
