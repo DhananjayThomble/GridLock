@@ -802,8 +802,9 @@ button:active:not(:disabled) {
     padding-top: 0.125rem !important;
     padding-bottom: 3.5rem !important;
     min-height: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    /* The container is as tall as its content, so it never scrolls itself. Leaving it as an
+       auto-overflow box made it a scroll container and stopped the sticky Create button. */
+    overflow: visible !important;
   }
 
   /* Reduce title section bottom margin */

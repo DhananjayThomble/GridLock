@@ -1141,11 +1141,12 @@ const Board = () => {
 
           />
 
-          <div className="flex gap-2">
+          {/* Phones: Rematch gets its own full-width row, Share + Leave share the row below */}
+          <div className="flex flex-wrap gap-2">
             {!isSpectator && (
               <button
                 onClick={handleShareResult}
-                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+                className="flex-1 sm:flex-none min-h-[44px] py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)' }}
                 aria-label="Share result"
               >
@@ -1156,7 +1157,7 @@ const Board = () => {
               <button
                 onClick={handlePlayAgain}
                 disabled={isCPUGame && rematchRequested}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                className={`flex-1 order-first basis-full sm:order-none sm:basis-0 min-h-[44px] py-2.5 rounded-xl font-bold text-sm transition-all ${
                   rematchRequested
                     ? 'active:scale-95'
                     : 'active:scale-95 hover:shadow-lg'
@@ -1200,7 +1201,7 @@ const Board = () => {
             )}
             <button
               onClick={tournamentId ? () => navigate('/tournament', { state: { tournament: tournamentSnapshot, tournamentId, username, avatar } }) : handleLeaveGame}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+              className="flex-1 min-h-[44px] py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
               style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
             >
               {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
@@ -1566,7 +1567,7 @@ const Board = () => {
           <button
             onClick={handleLeaveGame}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
+            style={{ backgroundColor: 'transparent', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 55%, transparent)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>
