@@ -35,6 +35,11 @@ jobs:
         working-directory: backend
       - run: npm test -- --forceExit
         working-directory: backend
+        env:
+          # Point the test suite at the mongo:7 service container above instead
+          # of spawning a per-suite in-memory mongod (which timed out beforeAll
+          # hooks under --runInBand). See backend/__tests__/setup/mongoTestServer.js.
+          MONGO_URI: mongodb://localhost:27017/gridlock-test
 
   frontend:
     name: Frontend lint & build

@@ -58,7 +58,10 @@ router.get('/:gameId/og', async (req, res) => {
                 ? `It&#39;s a draw! — GridLock Replay`
                 : `GridLock Replay — ${playerNames || cleanGameId}`;
 
-        const description = `Watch the ${escapeHtml(String(game.gridSize))}×${escapeHtml(String(game.gridSize))} GridLock game replay: ${playerNames}`;
+        // gridSize is numeric in the schema; coerce to an integer so no
+        // user-influenced string can reach the HTML (reflected-XSS defense).
+        const gridSizeNum = Number.isFinite(Number(game.gridSize)) ? Math.trunc(Number(game.gridSize)) : 0;
+        const description = `Watch the ${gridSizeNum}×${gridSizeNum} GridLock game replay: ${playerNames}`;
 
         const html = `<!DOCTYPE html>
 <html lang="en">

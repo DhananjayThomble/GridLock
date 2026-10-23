@@ -13,6 +13,20 @@
  */
 module.exports = {
   testEnvironment: 'node',
+  // Route MongoMemoryServer.create() to a provided MONGO_URI (e.g. the CI
+  // mongo:7 service) when set; otherwise fall back to a real in-memory server
+  // for local dev. See __tests__/setup/mongoTestServer.js. This removes the
+  // per-suite mongod download/spawn that was timing out beforeAll hooks on CI.
+  moduleNameMapper: {
+    '^mongodb-memory-server$': '<rootDir>/__tests__/setup/mongoTestServer.js',
+  },
+  // Inject the MongoDB driver's `os` runtime adapter so mongoose.connect works
+  // under Jest's VM sandbox (mongoose >= 9.7 / mongodb driver 7.x). See
+  // __tests__/setup/mongoRuntimeAdapter.js for the full explanation.
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setup/mongoRuntimeAdapter.js'],
+  // Only *.test.js files are suites; support helpers like __tests__/setup/*
+  // must not be collected as (empty) test files.
+  testMatch: ['**/__tests__/**/*.test.js'],
   collectCoverageFrom: [
     'controllers/**/*.js',
     'models/**/*.js',

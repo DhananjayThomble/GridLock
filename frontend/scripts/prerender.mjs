@@ -135,13 +135,24 @@ async function prerender() {
       // Block analytics / tracking to keep prerendered HTML clean
       await page.setRequestInterception(true);
       page.on('request', (req) => {
-        const url = req.url();
-        if (
-          url.includes('posthog') ||
-          url.includes('sentry') ||
-          url.includes('analytics') ||
-          url.includes('socket.io')
-        ) {
+        const raw = req.url();
+        let host = '';
+        let path = '';
+        try {
+          const u = new URL(raw);
+          host = u.hostname;
+          path = u.pathname;
+        } catch {
+          // Non-absolute / data: URLs — fall back to the raw string for matching
+          host = raw;
+          path = raw;
+        }
+        // Block analytics / tracking hosts and the Socket.IO endpoint so the
+        // prerendered HTML stays clean. Match host/path segments rather than a
+        // bare substring to avoid matching unrelated URLs.
+        const blockedHost = /(^|\.)(posthog|sentry)\.|analytics/i.test(host);
+        const blockedPath = /\/socket\.io\//.test(path);
+        if (blockedHost || blockedPath) {
           req.abort();
         } else {
           req.continue();
