@@ -359,7 +359,7 @@ const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, unlockProgress, 
     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'center' }}>
       {isLocked && '🔒 '}{theme.name}
     </div>
-    <div style={{ fontSize: '10px', color: isActive ? 'var(--accent)' : 'var(--text-muted)', textAlign: 'center' }}>
+    <div style={{ fontSize: '12px', color: isActive ? 'var(--accent)' : 'var(--text-muted)', textAlign: 'center' }}>
       {isActive ? '✓ Active' : isLocked ? unlockLabel : 'Tap to apply'}
     </div>
     {/* Unlock progress indicator (#518) */}
@@ -374,7 +374,7 @@ const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, unlockProgress, 
             transition: 'width 300ms ease',
           }} />
         </div>
-        <div style={{ fontSize: '9px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2px' }}>
           {unlockProgress.label}
         </div>
       </div>

@@ -133,7 +133,8 @@ const Lobby = () => {
     }
   });
   const navigate = useNavigate();
-  const usernameInputRef = useRef(null);
+  const usernameInputRef = useRef(null);       // desktop name input
+  const mobileUsernameInputRef = useRef(null); // phone name input (inside the collapsible profile panel)
   const gameIdInputRef = useRef(null);
   const tournamentIdInputRef = useRef(null);
   const shakeTimerRef = useRef(null);
@@ -422,6 +423,13 @@ const Lobby = () => {
   };
 
   const highlightInput = (ref, fieldName) => {
+    // On phones the name field lives in the collapsed profile panel: open it and use the
+    // phone input (the desktop one is display:none there, so it cannot take focus).
+    if (ref === usernameInputRef && window.matchMedia?.('(max-width: 639px)').matches) {
+      setProfileExpanded(true);
+      ref = mobileUsernameInputRef;
+      setTimeout(() => ref.current?.focus({ preventScroll: false }), 60); // after the panel is no longer inert
+    }
     if (ref?.current) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       ref.current.focus();
@@ -817,14 +825,14 @@ const Lobby = () => {
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="text-lg flex-shrink-0">⚡</span>
-              <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                You have an unfinished game — rejoin before it expires!
+              <span className="text-sm font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                You have an unfinished game
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => navigate(`/join/${activeGame.gameId}`)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
+                className="px-3 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all active:scale-95"
                 style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
               >
                 Rejoin Game
@@ -834,7 +842,7 @@ const Lobby = () => {
                   safeStorage.removeItem('gridlock_active_game');
                   setActiveGame(null);
                 }}
-                className="p-1.5 rounded-lg text-xs transition-all active:scale-95 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                className="p-1.5 rounded-lg text-xs transition-all active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 style={{ color: 'var(--text-muted)', background: 'color-mix(in srgb, var(--bg-secondary) 50%, transparent)' }}
                 aria-label="Dismiss active game banner"
               >
@@ -845,15 +853,15 @@ const Lobby = () => {
         )}
 
         {/* ── New to GridLock? Banner ── */}
-        {!howToPlayDismissed && (
+        {!howToPlayDismissed && !activeGame && (
           <div
             className="rounded-xl p-3 px-4 mb-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
           >
             <div className="flex justify-between items-center">
-              <Link to="/how-to-play" className="no-underline flex-1">
-                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>New to GridLock?</span>
-                <span className="text-[13px] ml-2" style={{ color: 'var(--text-secondary)' }}>Learn the rules in 2 minutes →</span>
+              <Link to="/how-to-play" className="no-underline flex-1 min-h-[44px] flex flex-col justify-center sm:block sm:min-h-0">
+                <span className="text-sm font-semibold block sm:inline" style={{ color: 'var(--text-primary)' }}>New to GridLock?</span>
+                <span className="text-[13px] sm:ml-2 block sm:inline" style={{ color: 'var(--text-secondary)' }}>Learn the rules in 2 minutes →</span>
               </Link>
               <button
                 onClick={() => {
@@ -883,7 +891,7 @@ const Lobby = () => {
 
         {/* ── Card ── */}
         <div
-          className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"
+          className="backdrop-blur-md rounded-2xl overflow-clip shadow-2xl"
           style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
         >
           {/* ── Compact branding bar (mobile only) ── */}
@@ -1000,12 +1008,14 @@ const Lobby = () => {
               {/* Expanded: name input + avatar grid */}
               <div
                 id="mobile-profile-panel"
+                inert={!profileExpanded}
                 className="overflow-hidden transition-all duration-200 ease-in-out"
                 style={{ maxHeight: profileExpanded ? '500px' : '0px', opacity: profileExpanded ? 1 : 0 }}
               >
                 <div className="pt-3 space-y-3">
                   <NameInput
-                    inputRef={usernameInputRef}
+                    id="lobby-name-input-mobile"
+                    inputRef={mobileUsernameInputRef}
                     username={username}
                     usernameError={usernameError}
                     highlighted={highlightedField === 'username'}
@@ -1176,7 +1186,13 @@ const Lobby = () => {
               </div>
             )}
 
-            {/* Create Game — PRIMARY action (top, bold accent) */}
+            {/* Create Game — PRIMARY action (top, bold accent). On phones it stays pinned above
+                the tab bar while the CPU settings panel is open, so it is never off screen. */}
+            <div
+              className="sticky z-10 -mx-4 px-4 pt-2 pb-2 -my-2 sm:static sm:mx-0 sm:px-0 sm:py-0 sm:my-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
+              data-testid="create-game-cta"
+              style={{ background: 'linear-gradient(to top, var(--bg-card-hover) 65%, transparent)' }}
+            >
             <button
               onClick={handleCreate}
               disabled={creating}
@@ -1199,6 +1215,7 @@ const Lobby = () => {
                 '🚀 Create Game'
               )}
             </button>
+            </div>
 
             {/* Quick Play — SECONDARY action */}
             <button
@@ -1441,7 +1458,7 @@ const Lobby = () => {
           </>)}
         </div>
 
-        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>DJ</a></p>
+        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" className="inline-block px-2 py-3.5 -my-3.5" style={{ color: "var(--accent)", textDecoration: "none" }}>DJ</a></p>
 
         {/* ── Recent Opponents ── */}
         <RecentOpponents

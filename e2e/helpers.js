@@ -187,8 +187,8 @@ async function createCpuGame(page, {
   await page.locator(`button:has-text("${playerCount} Players"):visible`).click();
   await page.locator(`button:has-text("${gridSize}"):visible`).first().click({ timeout: 3000 }).catch(() => {});
 
-  // Enable CPU toggle
-  await page.locator('button:has-text("Play vs CPU"):visible').click();
+  // Enable CPU toggle (a role="switch" button labelled "Add CPU opponents")
+  await page.locator('button[role="switch"][aria-label="Add CPU opponents"]:visible').click();
   await page.locator('button:has-text("Easy"), button:has-text("Medium"), button:has-text("Hard")').filter({ visible: true }).first().waitFor({ state: 'visible', timeout: 5000 });
 
   // Set difficulty if specified
@@ -199,9 +199,7 @@ async function createCpuGame(page, {
 
   // Set CPU count for 3P/4P
   if (effectiveCpuCount > 1) {
-    for (let i = 1; i < effectiveCpuCount; i++) {
-      await page.locator('button:has-text("+"):visible').first().click();
-    }
+    await page.locator(`button:has-text("${effectiveCpuCount} 🤖"):visible`).first().click();
   }
 
   await page.locator('button:has-text("🚀 Create Game"):visible').click();

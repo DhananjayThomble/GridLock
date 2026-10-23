@@ -99,4 +99,26 @@ describe('ConnectionOverlay', () => {
     fireEvent.click(screen.getByText('Retry Connection'));
     expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
   });
+
+  // ── Browser offline/online events (#593: network drop) ─────────────────────
+  it('shows an offline notice as soon as the browser loses the network', () => {
+    render(<ConnectionOverlay />);
+    act(() => { window.dispatchEvent(new Event('offline')); });
+    expect(screen.getByText("You're offline")).toBeInTheDocument();
+  });
+
+  it('reconnects immediately when the network returns', () => {
+    render(<ConnectionOverlay />);
+    act(() => { window.dispatchEvent(new Event('offline')); });
+    act(() => { window.dispatchEvent(new Event('online')); });
+    expect(mockConnect).toHaveBeenCalled();
+    expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
+  });
+
+  it('clears the offline notice once the socket is connected again', () => {
+    render(<ConnectionOverlay />);
+    act(() => { window.dispatchEvent(new Event('offline')); });
+    act(() => { socketHandlers.connect?.(); });
+    expect(screen.queryByText("You're offline")).not.toBeInTheDocument();
+  });
 });

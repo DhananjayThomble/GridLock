@@ -88,6 +88,7 @@ const JoinGame = () => {
             sessionToken: data.sessionToken,
             isHost: false,
           },
+          replace: true, // Back should not return to the join form
         });
       } else {
         navigate('/game', {
@@ -100,6 +101,7 @@ const JoinGame = () => {
             gridSize: data.gridSize,
             sessionToken: data.sessionToken,
           },
+          replace: true, // Back should not return to the join form
         });
       }
     };

@@ -802,8 +802,9 @@ button:active:not(:disabled) {
     padding-top: 0.125rem !important;
     padding-bottom: 3.5rem !important;
     min-height: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    /* The container is as tall as its content, so it never scrolls itself. Leaving it as an
+       auto-overflow box made it a scroll container and stopped the sticky Create button. */
+    overflow: visible !important;
   }
 
   /* Reduce title section bottom margin */
@@ -927,3 +928,23 @@ button:active:not(:disabled) {
 }
 .board-miss { animation: board-miss-shake 0.26s ease-in-out; }
 @media (prefers-reduced-motion: reduce) { .board-miss { animation: none; } }
+
+/* ── Phones in landscape (short and wide) ───────────────────────────────────────
+   Stacking header + score cards + board needs ~320px of height, which leaves the board a
+   sliver on a 340-390px tall screen. Put the board on the left and the game info on the
+   right, and let the fixed top ScoreBar replace the large score cards. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .game-layout .game-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+    grid-template-rows: auto 1fr;
+    column-gap: 12px;
+    align-items: start;
+    padding-top: 76px;
+    padding-bottom: 8px;
+  }
+  .game-layout .game-content > .game-board-wrap { grid-column: 1; grid-row: 1 / span 2; align-self: stretch; }
+  .game-layout .game-content > .game-header { grid-column: 2; grid-row: 1; margin-bottom: 8px; }
+  .game-layout .game-content > .scoreboard-cards { display: none; }
+  .game-layout .game-content > .game-toolbar { grid-column: 2; grid-row: 2; align-self: end; margin-top: 0; max-width: none; }
+}

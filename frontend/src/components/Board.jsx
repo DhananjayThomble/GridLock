@@ -176,11 +176,13 @@ const Board = () => {
     }
   }, [gameState?.currentPlayer, gameState?.gameOver, role, isSpectator]);
   // ── Status helper ────────────────────────────────────────────────────────────
-  const getStatusFromState = useCallback((gs) => {
+  // `forRole` lets a handler pass the role it has just been assigned: React state (and so
+  // `role` in this closure) is still the old value inside the same event.
+  const getStatusFromState = useCallback((gs, forRole = role) => {
     if (!gs) return 'Waiting…';
     const name = gs[`${gs.currentPlayer}Name`] || gs.currentPlayer;
-    if (role === 'spectator') return `👀 Spectating · ${name}'s turn`;
-    return gs.currentPlayer === role ? '⚡ Your turn!' : `⏳ ${name}'s turn`;
+    if (forRole === 'spectator') return `👀 Spectating · ${name}'s turn`;
+    return gs.currentPlayer === forRole ? '⚡ Your turn!' : `⏳ ${name}'s turn`;
   }, [role]);
 
   // ── Socket events ─────────────────────────────────────────────────────────────
@@ -254,7 +256,7 @@ const Board = () => {
         if (gs[`player${i}Name`] && !gs[`player${i}Name`].startsWith('Waiting')) filled++;
       }
       setWaitingCount(count - filled);
-      setStatus(filled < count ? `⏳ Waiting for ${count - filled} more player(s)…` : getStatusFromState(gs));
+      setStatus(filled < count ? `⏳ Waiting for ${count - filled} more player(s)…` : getStatusFromState(gs, data.playerId || roleRef.current));
     };
 
     const onAllJoined = () => {
@@ -680,7 +682,11 @@ const Board = () => {
 
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
-    if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
+    if (!gameState || isSpectator) return;
+    if (gameState.currentPlayer !== role) {
+      if (!gameState.gameOver) signalMiss(); // not your turn: say so instead of looking frozen
+      return;
+    }
     const takenBy = type === 'horizontal' ? gameState.horizontalLines[r]?.[c] : gameState.verticalLines[r]?.[c];
     if (takenBy) { signalMiss(); return; } // already drawn: no need to ask the server
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
@@ -702,11 +708,15 @@ const Board = () => {
   const clearPreview = useCallback(() => setPreviewLine(null), []);
   const handleBoardClick = useCallback((e) => {
     setPreviewLine(null);
-    if (!canPlay || e.target.closest('[data-line]')) return; // direct hits are handled by the line itself
+    if (e.target.closest('[data-line]')) return; // direct hits are handled by the line itself
+    if (!canPlay) {
+      if (gameState && !gameState.gameOver && !isSpectator) signalMiss();
+      return;
+    }
     const hit = findNearestOpenLine(e.clientX, e.clientY);
     if (hit) handleLineClick(hit.type, hit.r, hit.c);
     else signalMiss();
-  }, [canPlay, findNearestOpenLine, handleLineClick, signalMiss]);
+  }, [canPlay, gameState, isSpectator, findNearestOpenLine, handleLineClick, signalMiss]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {
@@ -1141,11 +1151,12 @@ const Board = () => {
 
           />
 
-          <div className="flex gap-2">
+          {/* Phones: Rematch gets its own full-width row, Share + Leave share the row below */}
+          <div className="flex flex-wrap gap-2">
             {!isSpectator && (
               <button
                 onClick={handleShareResult}
-                className="py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+                className="flex-1 sm:flex-none min-h-[44px] py-2.5 px-3 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)' }}
                 aria-label="Share result"
               >
@@ -1156,7 +1167,7 @@ const Board = () => {
               <button
                 onClick={handlePlayAgain}
                 disabled={isCPUGame && rematchRequested}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                className={`flex-1 order-first basis-full sm:order-none sm:basis-0 min-h-[44px] py-2.5 rounded-xl font-bold text-sm transition-all ${
                   rematchRequested
                     ? 'active:scale-95'
                     : 'active:scale-95 hover:shadow-lg'
@@ -1200,7 +1211,7 @@ const Board = () => {
             )}
             <button
               onClick={tournamentId ? () => navigate('/tournament', { state: { tournament: tournamentSnapshot, tournamentId, username, avatar } }) : handleLeaveGame}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
+              className="flex-1 min-h-[44px] py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 postgame-btn"
               style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
             >
               {tournamentId ? '🏆 View Bracket' : '👋 Leave Game'}
@@ -1364,7 +1375,7 @@ const Board = () => {
       <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
 
         {/* ── Header: Room code + You are + Status ── */}
-        <div className="relative w-full max-w-2xl mb-2 sm:mb-3">
+        <div className="game-header relative w-full max-w-2xl mb-2 sm:mb-3">
           {/* Room code badge — always visible, copyable */}
           <div className="flex items-center justify-center gap-2 mb-1">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
@@ -1462,7 +1473,9 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
+        {/* No max-height here: useGridSizes already fits the board to the screen. A fixed
+            calc(100vh - 320px) collapsed this box to a sliver on short (landscape) screens. */}
+        <div className="game-board-wrap flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden' }}>
         <div
           ref={boardRef}
           data-testid="board-container"
@@ -1566,7 +1579,7 @@ const Board = () => {
           <button
             onClick={handleLeaveGame}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)', border: '1px solid var(--btn-danger-bg)', minHeight: '44px' }}
+            style={{ backgroundColor: 'transparent', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 55%, transparent)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>

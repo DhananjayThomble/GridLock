@@ -178,6 +178,26 @@ describe('Board', () => {
     }
   });
 
+  it('shows whose turn it is using the role the server just assigned', () => {
+    renderBoard(); // route state says player1, as WaitingRoom used to hand every guest
+    const onStarted = mockOn.mock.calls.find((c) => c[0] === 'game_started')?.[1];
+    const state = {
+      gridSize: 3,
+      horizontalLines: Array(4).fill(null).map(() => Array(3).fill(null)),
+      verticalLines: Array(3).fill(null).map(() => Array(4).fill(null)),
+      boxes: Array(3).fill(null).map(() => Array(3).fill(null)),
+      scores: { player1: 0, player2: 0, player3: 0 },
+      currentPlayer: 'player1',
+      gameOver: false,
+      player1Name: 'Aaa', player2Name: 'Bbb', player3Name: 'Ccc',
+      playerCount: 3,
+    };
+    // Server tells this client it is player2, while player1 holds the turn
+    act(() => onStarted({ gameId: 'ABC123', playerId: 'player2', playerCount: 3, gameState: state }));
+    expect(screen.queryByText(/Your turn/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Aaa's turn/)).toBeInTheDocument();
+  });
+
   // ── Tap assist (#590: G-01 / G-02) ─────────────────────────────────────────
   describe('tap assist', () => {
     const makeState = (over = {}) => ({
@@ -253,6 +273,13 @@ describe('Board', () => {
       load(makeState({ currentPlayer: 'player2' }));
       fireEvent.click(screen.getByTestId('board-container'), { clientX: 32, clientY: 17 });
       expect(moves()).toHaveLength(0);
+    });
+
+    it('shakes the board instead of staying silent when tapped out of turn', () => {
+      load(makeState({ currentPlayer: 'player2' }));
+      const board = screen.getByTestId('board-container');
+      fireEvent.click(board, { clientX: 32, clientY: 17 });
+      expect(board.className).toMatch(/board-miss/);
     });
 
     it('shows server errors as an overlay so the board does not move', () => {

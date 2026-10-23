@@ -15,10 +15,13 @@ export default function useGridSizes(gridSize) {
       const h = window.innerHeight;
       const cells = gridSize || 3;
 
+      // Phone in landscape: the board sits left of a ~240px info column (see index.css),
+      // so it is height-limited by little more than the fixed ScoreBar and some padding.
+      const landscapePhone = h <= 500 && w > h;
       // Horizontal: full width minus small padding (8px each side on mobile)
-      const reservedW = w < 640 ? 24 : w < 768 ? 48 : 64;
+      const reservedW = landscapePhone ? 280 : w < 640 ? 24 : w < 768 ? 48 : 64;
       // Vertical: nav(~56) + score(~80) + header(~100) + toolbar(~60) + padding + bottom nav
-      const reservedH = w < 640 ? 320 : w < 768 ? 300 : 300;
+      const reservedH = landscapePhone ? 96 : w < 640 ? 320 : w < 768 ? 300 : 300;
 
       const availW = w - reservedW;
       const availH = h - reservedH;

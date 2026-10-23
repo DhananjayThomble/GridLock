@@ -9,7 +9,7 @@ const GRID_OPTIONS = [
   { value: 6, label: '6×6', desc: 'Epic' },
 ];
 
-const GridSizeSelector = ({ gridSize, onSelect, label, accentColor = 'var(--player4-color)' }) => (
+const GridSizeSelector = ({ gridSize, onSelect, label, accentColor = 'var(--accent)' }) => (
   <div>
     <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 sm:mb-2" style={{ color: 'var(--label-color)' }}>
       {label || (

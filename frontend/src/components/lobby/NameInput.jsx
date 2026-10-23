@@ -2,11 +2,11 @@
 // Shared name input field used in both mobile and desktop Lobby layouts.
 import React from 'react';
 
-const NameInput = ({ inputRef, username, usernameError, highlighted, onChange, onKeyDown, placeholder = 'Enter your name…' }) => (
+const NameInput = ({ id = 'lobby-name-input', inputRef, username, usernameError, highlighted, onChange, onKeyDown, placeholder = 'Enter your name…' }) => (
   <div>
-    <label htmlFor="lobby-name-input" className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
+    <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--label-color)' }}>Your Name</label>
     <input
-      id="lobby-name-input"
+      id={id}
       ref={inputRef}
       type="text"
       value={username}
@@ -34,7 +34,7 @@ const NameInput = ({ inputRef, username, usernameError, highlighted, onChange, o
       {usernameError ? (
         <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>⚠️ {usernameError}</p>
       ) : !username.trim() ? (
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Enter a name to start playing</p>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Letters, numbers, _ and - only (2–16)</p>
       ) : <span />}
       <p className="text-xs" style={{ color: username.length >= 14 ? 'var(--warning)' : 'var(--text-muted)' }}>
         {username.length}/16

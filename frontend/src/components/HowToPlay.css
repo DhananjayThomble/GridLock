@@ -422,7 +422,8 @@
   font-weight: 500;
   color: var(--accent);
   text-decoration: none;
-  padding: 0.25rem 0;
+  min-height: 44px; /* comfortable thumb target */
+  padding: 0 0.25rem;
   transition: opacity 150ms ease;
 }
 
