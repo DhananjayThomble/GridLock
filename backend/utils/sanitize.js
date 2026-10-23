@@ -89,7 +89,11 @@ function sanitizeAvatar(input) {
     
     // Remove any HTML-like content (iterate to a fixed point — see sanitizeUsername)
     cleaned = stripTagsIteratively(cleaned);
-    
+
+    // If any angle bracket survives tag-stripping, the input was malformed/nested
+    // markup (e.g. "<scr<b>ipt>" -> "ipt>"). Reject it rather than keep residue.
+    if (cleaned.includes('<') || cleaned.includes('>')) return '👦';
+
     if (cleaned.length === 0 || cleaned.length > 8) return '👦';
     return cleaned;
 }

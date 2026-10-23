@@ -61,6 +61,13 @@ function createApp() {
 
 describe('Replay API', () => {
 
+  test('GET /api/games/:id/og rejects game IDs with unexpected characters', async () => {
+    const app = createApp();
+    const res = await request(app).get('/api/games/' + encodeURIComponent('AB"><svg') + '/og');
+
+    expect(res.status).toBe(400);
+  });
+
   test('GET /api/games/:id/replay returns move history for valid game', async () => {
     const app = createApp();
     const res = await request(app).get('/api/games/TESTGM/replay');
