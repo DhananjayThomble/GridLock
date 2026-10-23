@@ -1375,7 +1375,7 @@ const Board = () => {
       <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
 
         {/* ── Header: Room code + You are + Status ── */}
-        <div className="relative w-full max-w-2xl mb-2 sm:mb-3">
+        <div className="game-header relative w-full max-w-2xl mb-2 sm:mb-3">
           {/* Room code badge — always visible, copyable */}
           <div className="flex items-center justify-center gap-2 mb-1">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
@@ -1473,7 +1473,9 @@ const Board = () => {
         {renderScoreboard()}
 
         {/* ── Board ── */}
-        <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
+        {/* No max-height here: useGridSizes already fits the board to the screen. A fixed
+            calc(100vh - 320px) collapsed this box to a sliver on short (landscape) screens. */}
+        <div className="game-board-wrap flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden' }}>
         <div
           ref={boardRef}
           data-testid="board-container"
