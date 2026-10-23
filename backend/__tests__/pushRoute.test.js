@@ -281,4 +281,19 @@ describe('POST/DELETE /api/push/unsubscribe', () => {
         expect(res.status).toBe(500);
         expect(res.body.error).toMatch(/failed to remove subscription/i);
     });
+
+    test('rejects a non-string endpoint instead of treating it as a query operator', async () => {
+        const keep = await PushSubscription.create({
+            username: 'carol',
+            endpoint: 'https://push.example.com/keep',
+            keys: { p256dh: 'p', auth: 'a' },
+        });
+
+        const res = await request(app)
+            .post('/api/push/unsubscribe')
+            .send({ endpoint: { $ne: null } });
+
+        expect(res.status).toBe(400);
+        expect(await PushSubscription.findById(keep._id)).not.toBeNull();
+    });
 });

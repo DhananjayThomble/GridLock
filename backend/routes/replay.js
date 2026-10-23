@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const Game = require('../models/Game');
+const { sanitizeGameId } = require('../utils/sanitize');
 const log = require('../utils/logger');
 
 // Escape user-supplied strings for safe interpolation into HTML
@@ -25,10 +26,14 @@ function escapeHtml(str) {
 router.get('/:gameId/og', async (req, res) => {
     try {
         const { gameId } = req.params;
-        if (!gameId || typeof gameId !== 'string' || gameId.length > 12) {
+        // Strictly validate the game ID format (alphanumeric, 4-8 chars) before
+        // it is used in a query or reflected into the OG HTML. Rejects malformed
+        // IDs (e.g. markup-bearing values) with a 400 instead of redirecting.
+        const idCheck = sanitizeGameId(gameId);
+        if (!idCheck.valid) {
             return res.status(400).send('Invalid game ID');
         }
-        const cleanGameId = gameId.trim().toUpperCase();
+        const cleanGameId = idCheck.value;
         const game = await Game.findOne({ gameId: cleanGameId }).lean();
 
         const siteUrl = process.env.SITE_URL || 'https://gridlock.pro';

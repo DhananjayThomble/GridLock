@@ -110,7 +110,18 @@ describe('sanitizeUsername', () => {
   });
 });
 
+describe('sanitizeUsername nested tags', () => {
+  test('rejects input that leaves a tag behind after one stripping pass', () => {
+    expect(sanitizeUsername('<scr<b>ipt>alert(1)').valid).toBe(false);
+    expect(sanitizeUsername('<<b>script>x').valid).toBe(false);
+  });
+});
+
 describe('sanitizeAvatar', () => {
+  test('falls back to the default for nested tag input', () => {
+    expect(sanitizeAvatar('<scr<b>ipt>')).toBe('👦');
+  });
+
   test('returns default avatar for missing/non-string input', () => {
     expect(sanitizeAvatar()).toBe('👦');
     expect(sanitizeAvatar(null)).toBe('👦');
