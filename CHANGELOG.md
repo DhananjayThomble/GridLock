@@ -3,6 +3,19 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.2.2] — 2026-10-23
+
+### Security
+- Upgraded `mongoose` to 9.11.3 to fix a prototype-pollution advisory in update casting via `__proto__`-prefixed dotted paths (#576)
+- Resolved CodeQL code-scanning findings without changing behaviour: iterative HTML-tag stripping in input sanitization, NoSQL-injection guards on the daily, game-history and push routes, numeric coercion of the grid size reflected into replay OG tags, an explicit Content-Security-Policy via Helmet, and explicit auth-cookie security flags (#574)
+- Hardened `sanitizeAvatar` to fall back to the default avatar when nested/malformed markup leaves residual angle brackets, and tightened the replay OG endpoint to reject malformed game IDs (#579)
+
+### Added
+- Regression tests covering the sanitization, NoSQL-injection and replay input-validation fixes (#579)
+
+### Fixed
+- Backend test suite runs reliably under Jest with mongoose 9.7+/mongodb driver 7.x by supplying the driver's `os` runtime adapter, and a provided `MONGO_URI` is reused instead of spawning a per-suite in-memory MongoDB (#574, #576)
+
 ## [2.2.1] — 2026-10-22
 
 ### Security
