@@ -126,7 +126,10 @@ const WaitingRoom = () => {
         state: {
           username,
           gameId: data.gameId || gameId,
-          role: data.playerId || 'player1',
+          // The server also broadcasts an id-less game_started whenever someone else joins.
+          // Fall back to the role we were handed on entry, never to 'player1' (that mislabelled
+          // every guest as the host once a later player joined).
+          role: data.playerId || state.role || (isHost ? 'player1' : undefined),
           avatar,
           playerCount: data.playerCount || playerCount,
           gridSize: data.gridSize || gridSize,
@@ -180,7 +183,7 @@ const WaitingRoom = () => {
       }
       if (conflictRedirectRef.current) clearTimeout(conflictRedirectRef.current);
     };
-  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
+  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty, isHost, state.role]);
 
   // Disconnect countdown timers
   // Fix #10: Uses client clock vs server disconnectedAt — countdown may drift

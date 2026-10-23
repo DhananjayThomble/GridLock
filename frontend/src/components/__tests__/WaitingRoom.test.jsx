@@ -18,19 +18,19 @@ vi.mock('../../socket', () => ({
 
 // Mock react-router-dom
 const mockNavigate = vi.fn();
+const hostState = {
+  gameId: 'ABC123',
+  username: 'TestUser',
+  sessionToken: 'token123',
+  isHost: true,
+  gridSize: 3,
+  playerCount: 2,
+  avatar: '👦',
+};
+let mockRouteState = hostState;
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ gameId: 'ABC123' }),
-  useLocation: () => ({
-    state: {
-      gameId: 'ABC123',
-      username: 'TestUser',
-      sessionToken: 'token123',
-      isHost: true,
-      gridSize: 3,
-      playerCount: 2,
-      avatar: '👦',
-    },
-  }),
+  useLocation: () => ({ state: mockRouteState }),
   useNavigate: () => mockNavigate,
 }));
 
@@ -45,6 +45,7 @@ describe('WaitingRoom', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    mockRouteState = hostState;
   });
 
   it('renders the game ID', () => {
@@ -86,5 +87,37 @@ describe('WaitingRoom', () => {
   it('shows leave button', () => {
     render(<WaitingRoom />);
     expect(screen.getByText(/Leave Waiting Room/)).toBeInTheDocument();
+  });
+
+  // ── Role handed to the board (#590 follow-up: guests were labelled player1) ──
+  describe('navigating to the board on game_started', () => {
+    const guestState = { ...hostState, isHost: false, role: 'player2', username: 'Guest2', playerCount: 3 };
+
+    it('keeps a guest\'s own role when the server broadcasts game_started without a playerId', () => {
+      mockRouteState = guestState;
+      render(<WaitingRoom />);
+      // This is what the server sends to everyone already in the room when another player joins
+      socketHandlers.game_started({ gameId: 'ABC123', playerCount: 3, gridSize: 3 });
+      expect(mockNavigate).toHaveBeenCalledWith('/game', expect.objectContaining({
+        state: expect.objectContaining({ role: 'player2', username: 'Guest2' }),
+      }));
+    });
+
+    it('uses the playerId from a targeted game_started when present', () => {
+      mockRouteState = guestState;
+      render(<WaitingRoom />);
+      socketHandlers.game_started({ gameId: 'ABC123', playerId: 'player3', sessionToken: 'tok' });
+      expect(mockNavigate).toHaveBeenCalledWith('/game', expect.objectContaining({
+        state: expect.objectContaining({ role: 'player3', sessionToken: 'tok' }),
+      }));
+    });
+
+    it('falls back to player1 only for the host', () => {
+      render(<WaitingRoom />);
+      socketHandlers.game_started({ gameId: 'ABC123' });
+      expect(mockNavigate).toHaveBeenCalledWith('/game', expect.objectContaining({
+        state: expect.objectContaining({ role: 'player1' }),
+      }));
+    });
   });
 });

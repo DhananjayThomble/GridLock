@@ -176,11 +176,13 @@ const Board = () => {
     }
   }, [gameState?.currentPlayer, gameState?.gameOver, role, isSpectator]);
   // ── Status helper ────────────────────────────────────────────────────────────
-  const getStatusFromState = useCallback((gs) => {
+  // `forRole` lets a handler pass the role it has just been assigned: React state (and so
+  // `role` in this closure) is still the old value inside the same event.
+  const getStatusFromState = useCallback((gs, forRole = role) => {
     if (!gs) return 'Waiting…';
     const name = gs[`${gs.currentPlayer}Name`] || gs.currentPlayer;
-    if (role === 'spectator') return `👀 Spectating · ${name}'s turn`;
-    return gs.currentPlayer === role ? '⚡ Your turn!' : `⏳ ${name}'s turn`;
+    if (forRole === 'spectator') return `👀 Spectating · ${name}'s turn`;
+    return gs.currentPlayer === forRole ? '⚡ Your turn!' : `⏳ ${name}'s turn`;
   }, [role]);
 
   // ── Socket events ─────────────────────────────────────────────────────────────
@@ -254,7 +256,7 @@ const Board = () => {
         if (gs[`player${i}Name`] && !gs[`player${i}Name`].startsWith('Waiting')) filled++;
       }
       setWaitingCount(count - filled);
-      setStatus(filled < count ? `⏳ Waiting for ${count - filled} more player(s)…` : getStatusFromState(gs));
+      setStatus(filled < count ? `⏳ Waiting for ${count - filled} more player(s)…` : getStatusFromState(gs, data.playerId || roleRef.current));
     };
 
     const onAllJoined = () => {
@@ -680,7 +682,11 @@ const Board = () => {
 
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
-    if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
+    if (!gameState || isSpectator) return;
+    if (gameState.currentPlayer !== role) {
+      if (!gameState.gameOver) signalMiss(); // not your turn: say so instead of looking frozen
+      return;
+    }
     const takenBy = type === 'horizontal' ? gameState.horizontalLines[r]?.[c] : gameState.verticalLines[r]?.[c];
     if (takenBy) { signalMiss(); return; } // already drawn: no need to ask the server
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
@@ -702,11 +708,15 @@ const Board = () => {
   const clearPreview = useCallback(() => setPreviewLine(null), []);
   const handleBoardClick = useCallback((e) => {
     setPreviewLine(null);
-    if (!canPlay || e.target.closest('[data-line]')) return; // direct hits are handled by the line itself
+    if (e.target.closest('[data-line]')) return; // direct hits are handled by the line itself
+    if (!canPlay) {
+      if (gameState && !gameState.gameOver && !isSpectator) signalMiss();
+      return;
+    }
     const hit = findNearestOpenLine(e.clientX, e.clientY);
     if (hit) handleLineClick(hit.type, hit.r, hit.c);
     else signalMiss();
-  }, [canPlay, findNearestOpenLine, handleLineClick, signalMiss]);
+  }, [canPlay, gameState, isSpectator, findNearestOpenLine, handleLineClick, signalMiss]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {
