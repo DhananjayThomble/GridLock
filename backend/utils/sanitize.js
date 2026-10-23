@@ -4,6 +4,25 @@
 const validator = require('validator');
 
 /**
+ * Remove HTML-like tags repeatedly until the string is stable.
+ * A single pass of /<[^>]*>/g is insufficient: an attacker can nest or split
+ * markup (e.g. "<scr<script>ipt>") so that removing the inner match
+ * reconstitutes a new tag. Iterating to a fixed point closes that gap
+ * (CodeQL js/incomplete-multi-character-sanitization).
+ * @param {string} input
+ * @returns {string}
+ */
+function stripTagsIteratively(input) {
+    let prev;
+    let out = input;
+    do {
+        prev = out;
+        out = out.replace(/<[^>]*>/g, '');
+    } while (out !== prev);
+    return out;
+}
+
+/**
  * Sanitize a username string
  * - Trim whitespace
  * - Remove low/control characters and HTML-escape dangerous chars
@@ -27,8 +46,9 @@ function sanitizeUsername(input) {
         return { valid: false, value: '', error: 'Username cannot be empty' };
     }
 
-    // Strip ALL HTML tags BEFORE escaping — reject script/img/etc. entirely
-    cleaned = cleaned.replace(/<[^>]*>/g, '');
+    // Strip ALL HTML tags BEFORE escaping — reject script/img/etc. entirely.
+    // Iterate to a fixed point so nested/split tags cannot survive a single pass.
+    cleaned = stripTagsIteratively(cleaned);
 
     // If stripping tags left nothing, the input was purely malicious
     if (cleaned.length === 0) {
@@ -67,8 +87,8 @@ function sanitizeAvatar(input) {
     let cleaned = input.trim();
     cleaned = validator.stripLow(cleaned, false);
     
-    // Remove any HTML-like content
-    cleaned = cleaned.replace(/<[^>]*>/g, '');
+    // Remove any HTML-like content (iterate to a fixed point — see sanitizeUsername)
+    cleaned = stripTagsIteratively(cleaned);
     
     if (cleaned.length === 0 || cleaned.length > 8) return '👦';
     return cleaned;

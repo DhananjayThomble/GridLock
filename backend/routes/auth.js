@@ -71,7 +71,16 @@ const migrateGuestLimiter = rateLimit({
 
 // Cookie helper — spreads shared COOKIE_OPTIONS with optional maxAge override
 function cookieOpts(maxAge) {
-  const opts = { ...COOKIE_OPTIONS };
+  // Spread shared COOKIE_OPTIONS, then restate the security-critical flags
+  // explicitly at the call site. httpOnly is always true (blocks JS access to
+  // the auth cookie); secure follows COOKIE_OPTIONS (enabled in production,
+  // disabled for local http dev). Behaviour is identical to COOKIE_OPTIONS.
+  const opts = {
+    ...COOKIE_OPTIONS,
+    httpOnly: true,
+    secure: COOKIE_OPTIONS.secure,
+    sameSite: COOKIE_OPTIONS.sameSite || 'lax',
+  };
   if (maxAge !== undefined) {
     opts.maxAge = maxAge;
   }

@@ -46,8 +46,10 @@ router.get('/', async (req, res) => {
         const parsedLimit = Number.parseInt(req.query.limit, 10);
         const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 20;
 
-        // Build filter query
-        const query = { username };
+        // Build filter query. `username` is the sanitized value; String() makes
+        // the primitive-string type explicit so a crafted object can never be
+        // interpreted as a query operator (NoSQL injection defense).
+        const query = { username: String(username) };
 
         if (result && ['win', 'loss', 'draw'].includes(result)) {
             query.result = result;
@@ -83,7 +85,7 @@ router.get('/', async (req, res) => {
         // Stats aggregate: unfiltered for the player, includes streak computation
         // Only compute on first page load (skipStats=false) (#2)
         if (!shouldSkipStats) {
-            const statsQuery = { username };
+            const statsQuery = { username: String(username) };
             queries.push(
                 GameHistory.aggregate([
                     { $match: statsQuery },
