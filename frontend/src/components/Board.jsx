@@ -1047,7 +1047,7 @@ const Board = () => {
               style={{
                 backgroundColor: isCurrent ? `var(${cfg.bgVar})` : 'var(--bg-secondary)',
                 borderColor: isCurrent ? playerColor : 'var(--border-color)',
-                ...(isCurrent ? { boxShadow: `0 0 12px ${playerColor}30`, transform: 'scale(1.1)' } : {}),
+                ...(isCurrent ? { boxShadow: `0 0 12px ${playerColor}30`, transform: 'scale(1.03)' } : {}), // 1.1 made the active card overlap its neighbour
               }}
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
