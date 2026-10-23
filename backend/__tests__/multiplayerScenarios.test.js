@@ -409,3 +409,33 @@ describe('spectators', () => {
         await waitFor(mover, 'spectator_left', () => true, { from: mark });
     });
 });
+
+describe('ranked queue', () => {
+    const joinQueue = (c, name) => c.emit('ranked_queue_join', { username: name, avatar: '👦', gridSize: 3 });
+
+    test('two players in the queue are matched into one game', async () => {
+        const a = client('rq-a'); const b = client('rq-b');
+        await Promise.all([connected(a), connected(b)]);
+        joinQueue(a, 'RankedA'); joinQueue(b, 'RankedB');
+        const [ma, mb] = await Promise.all([waitFor(a, 'ranked_queue_matched', () => true, { ms: 15000 }), waitFor(b, 'ranked_queue_matched', () => true, { ms: 15000 })]);
+        expect(ma.gameId).toBe(mb.gameId);
+    });
+
+    test('a player who left the queue (cancel or closed tab) is never matched as a ghost', async () => {
+        const leaver = client('rq-leaver'); const dropper = client('rq-dropper'); const waiter = client('rq-waiter');
+        await Promise.all([leaver, dropper, waiter].map(connected));
+        // One at a time: two players in the queue together are matched at once, which is correct
+        joinQueue(leaver, 'RankedLeaver'); await waitFor(leaver, 'ranked_queue_status');
+        leaver.emit('ranked_queue_leave', {}); await waitFor(leaver, 'ranked_queue_left');
+        joinQueue(dropper, 'RankedDropper'); await waitFor(dropper, 'ranked_queue_status');
+        dropper.close();
+        await sleep(500);
+
+        const mark = waiter.log.length;
+        joinQueue(waiter, 'RankedWaiter');
+        await waitFor(waiter, 'ranked_queue_status', () => true, { from: mark });
+        await sleep(2500);
+        expect(eventsSince(waiter, mark)).not.toContain('ranked_queue_matched');
+        expect(eventsSince(leaver, 0)).not.toContain('ranked_queue_matched');
+    });
+});

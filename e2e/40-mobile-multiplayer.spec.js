@@ -39,7 +39,7 @@ async function guestJoin(page, name, code) {
 }
 
 /** Host + (players-1) guests, all on the board. Returns pages in join order. */
-async function startRoom(browser, players) {
+async function startRoom(browser, players) { // returns { pages, code }
   const pages = [];
   for (let i = 0; i < players; i++) pages.push(await newPhone(browser));
   const code = await hostCreate(pages[0], NAMES[0], players);
@@ -104,7 +104,7 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
   });
 
   test('a player closes their tab on their turn, the others are told, and they rejoin from the lobby banner', async ({ browser }) => {
-    const { pages, code } = await startRoom(browser, 3);
+    const { pages } = await startRoom(browser, 3);
     try {
       const [a, b, c] = pages;
       await tapLine(a, 0);
@@ -118,9 +118,7 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
       const b2 = await b.__ctx.newPage();
       await b2.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
       await expect(b2.getByText('You have an unfinished game')).toBeVisible();
-      await b2.getByRole('button', { name: /Rejoin Game/ }).click();
-      await expect(b2).toHaveURL(new RegExp(`/join/${code}`, 'i'));
-      await b2.getByRole('button', { name: /Join Game/ }).click();
+      await b2.getByRole('button', { name: /Rejoin Game/ }).click(); // one tap, no form
 
       // Back on the same board, still Bbb's turn, others' warning cleared
       await expect(b2.getByTestId('board-container')).toBeVisible({ timeout: 15_000 });
