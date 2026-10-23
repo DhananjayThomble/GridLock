@@ -352,7 +352,7 @@ describe('waiting room and joining', () => {
         expect(players).toHaveLength(2);
     });
 
-    test('the host leaving the waiting room closes it for everyone; a guest leaving just frees the seat', async () => {
+    test('a guest dropping out frees the seat for the next player', async () => {
         const host = client('host'); const g1 = client('g1'); const g2 = client('g2');
         await Promise.all([host, g1, g2].map(connected));
         host.emit('create_game', { username: 'H', avatar: '👦', gridSize: 3, playerCount: 3 });
@@ -365,13 +365,81 @@ describe('waiting room and joining', () => {
         const left = await waitFor(host, 'player_left', () => true, { from: markHost });
         expect(left.reason).toBe('disconnect_lobby');
 
-        g2.emit('join_game', { gameId: host.gameId, username: 'G2', avatar: '🧑' }); // seat is free again
+        g2.emit('join_game', { gameId: host.gameId, username: 'G2', avatar: '🧑' });
+        expect((await waitFor(g2, 'game_started', (d) => !!d.playerId)).playerId).toBe('player2');
+    });
+
+    test('a host whose connection drops keeps the waiting room open, and gets it back by returning in time', async () => {
+        const host = client('host'); const guest = client('guest'); const late = client('late');
+        await Promise.all([host, guest, late].map(connected));
+        host.emit('create_game', { username: 'H', avatar: '👦', gridSize: 3, playerCount: 3 });
+        await waitFor(host, 'game_started');
+        const { gameId, token } = host;
+        guest.emit('join_game', { gameId, username: 'G1', avatar: '👧' });
+        await waitFor(guest, 'game_started', (d) => !!d.playerId);
+
+        const mark = guest.log.length;
+        host.close(); // e.g. the phone switched to another app to share the invite link
+        await waitFor(guest, 'player_disconnected', () => true, { from: mark });
+        expect(eventsSince(guest, mark)).not.toContain('room_closed');
+
+        const back = await rejoin(gameId, 'H', token); // back before the window ends
+        expect(back.playerId).toBe('player1');
+        await waitFor(guest, 'player_reconnected', () => true, { from: mark });
+
+        await sleep(9500); // past the 8s test-env window: the room must still be there
+        expect(eventsSince(guest, mark)).not.toContain('room_closed');
+        late.emit('join_game', { gameId, username: 'G2', avatar: '🧑' });
+        expect((await waitFor(late, 'game_started', (d) => !!d.playerId)).playerId).toBe('player3');
+    });
+
+    test('a host who does not come back closes the waiting room for everyone after the window', async () => {
+        const host = client('host'); const guest = client('guest');
+        await Promise.all([host, guest].map(connected));
+        host.emit('create_game', { username: 'H', avatar: '👦', gridSize: 3, playerCount: 3 });
+        await waitFor(host, 'game_started');
+        guest.emit('join_game', { gameId: host.gameId, username: 'G1', avatar: '👧' });
+        await waitFor(guest, 'game_started', (d) => !!d.playerId);
+
+        const mark = guest.log.length;
+        host.close();
+        await waitFor(guest, 'player_disconnected', () => true, { from: mark });
+        const closed = await waitFor(guest, 'room_closed', () => true, { from: mark, ms: 15000 });
+        expect(closed.reason).toMatch(/host/i);
+
+        const late = client('late'); await connected(late);
+        late.emit('join_game', { gameId: host.gameId, username: 'G3', avatar: '🧑' });
+        expect(await waitFor(late, 'error')).toBe('Game not found');
+    });
+
+    test('leave_waiting_room: a guest frees their seat at once, the host closes the room for everyone', async () => {
+        const host = client('host'); const g1 = client('g1'); const g2 = client('g2');
+        await Promise.all([host, g1, g2].map(connected));
+        host.emit('create_game', { username: 'H', avatar: '👦', gridSize: 3, playerCount: 3 });
+        await waitFor(host, 'game_started');
+        const { gameId } = host;
+        g1.emit('join_game', { gameId, username: 'G1', avatar: '👧' });
+        await waitFor(g1, 'game_started', (d) => !!d.playerId);
+
+        const mark = host.log.length;
+        g1.emit('leave_waiting_room', { gameId }); // the socket stays connected, as it does in the real app
+        expect((await waitFor(host, 'player_left', () => true, { from: mark })).reason).toBe('left_lobby');
+
+        g2.emit('join_game', { gameId, username: 'G2', avatar: '🧑' }); // the freed seat is usable
         expect((await waitFor(g2, 'game_started', (d) => !!d.playerId)).playerId).toBe('player2');
 
         const markG2 = g2.log.length;
-        host.close();
-        const closed = await waitFor(g2, 'room_closed', () => true, { from: markG2 });
-        expect(closed.reason).toMatch(/host/i);
+        host.emit('leave_waiting_room', { gameId });
+        expect((await waitFor(g2, 'room_closed', () => true, { from: markG2 })).reason).toMatch(/host/i);
+    });
+
+    test('leave_waiting_room does nothing once the game has started', async () => {
+        const { players, gameId } = await newRoom(2);
+        const mark = players[0].log.length;
+        players[1].emit('leave_waiting_room', { gameId });
+        await sleep(400);
+        expect(eventsSince(players[0], mark)).not.toContain('player_left');
+        expect(players[0].state.winner).toBeFalsy();
     });
 
     test('opening the same game in a second tab hands the seat to the new tab and tells the old one', async () => {
@@ -407,5 +475,35 @@ describe('spectators', () => {
         const mark = mover.log.length;
         spectator.close();
         await waitFor(mover, 'spectator_left', () => true, { from: mark });
+    });
+});
+
+describe('ranked queue', () => {
+    const joinQueue = (c, name) => c.emit('ranked_queue_join', { username: name, avatar: '👦', gridSize: 3 });
+
+    test('two players in the queue are matched into one game', async () => {
+        const a = client('rq-a'); const b = client('rq-b');
+        await Promise.all([connected(a), connected(b)]);
+        joinQueue(a, 'RankedA'); joinQueue(b, 'RankedB');
+        const [ma, mb] = await Promise.all([waitFor(a, 'ranked_queue_matched', () => true, { ms: 15000 }), waitFor(b, 'ranked_queue_matched', () => true, { ms: 15000 })]);
+        expect(ma.gameId).toBe(mb.gameId);
+    });
+
+    test('a player who left the queue (cancel or closed tab) is never matched as a ghost', async () => {
+        const leaver = client('rq-leaver'); const dropper = client('rq-dropper'); const waiter = client('rq-waiter');
+        await Promise.all([leaver, dropper, waiter].map(connected));
+        // One at a time: two players in the queue together are matched at once, which is correct
+        joinQueue(leaver, 'RankedLeaver'); await waitFor(leaver, 'ranked_queue_status');
+        leaver.emit('ranked_queue_leave', {}); await waitFor(leaver, 'ranked_queue_left');
+        joinQueue(dropper, 'RankedDropper'); await waitFor(dropper, 'ranked_queue_status');
+        dropper.close();
+        await sleep(500);
+
+        const mark = waiter.log.length;
+        joinQueue(waiter, 'RankedWaiter');
+        await waitFor(waiter, 'ranked_queue_status', () => true, { from: mark });
+        await sleep(2500);
+        expect(eventsSince(waiter, mark)).not.toContain('ranked_queue_matched');
+        expect(eventsSince(leaver, 0)).not.toContain('ranked_queue_matched');
     });
 });

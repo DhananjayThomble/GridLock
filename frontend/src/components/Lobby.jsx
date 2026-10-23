@@ -831,7 +831,7 @@ const Lobby = () => {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                onClick={() => navigate(`/join/${activeGame.gameId}`)}
+                onClick={() => navigate(`/join/${activeGame.gameId}`, { state: { autoRejoin: true, username: activeGame.username, avatar: activeGame.avatar } })}
                 className="px-3 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all active:scale-95"
                 style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
               >

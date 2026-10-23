@@ -51,6 +51,8 @@ const PLAYER_COLORS = {
 const localTimers = new Map();
 const rematchTimers = new Map();
 const hostStartTimers = new Map();
+// gameId -> timer that closes a waiting room if its host does not come back (see disconnectHandler)
+const lobbyHostTimers = new Map();
 const activeDailyGames = new Map();
 
 // Ranked matchmaking state
@@ -566,6 +568,7 @@ module.exports = {
     localTimers,
     rematchTimers,
     hostStartTimers,
+    lobbyHostTimers,
     activeDailyGames,
     rankedQueue,
     rankedQueueIndex,

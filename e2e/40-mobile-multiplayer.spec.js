@@ -39,7 +39,7 @@ async function guestJoin(page, name, code) {
 }
 
 /** Host + (players-1) guests, all on the board. Returns pages in join order. */
-async function startRoom(browser, players) {
+async function startRoom(browser, players) { // returns { pages, code }
   const pages = [];
   for (let i = 0; i < players; i++) pages.push(await newPhone(browser));
   const code = await hostCreate(pages[0], NAMES[0], players);
@@ -104,7 +104,7 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
   });
 
   test('a player closes their tab on their turn, the others are told, and they rejoin from the lobby banner', async ({ browser }) => {
-    const { pages, code } = await startRoom(browser, 3);
+    const { pages } = await startRoom(browser, 3);
     try {
       const [a, b, c] = pages;
       await tapLine(a, 0);
@@ -118,9 +118,7 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
       const b2 = await b.__ctx.newPage();
       await b2.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
       await expect(b2.getByText('You have an unfinished game')).toBeVisible();
-      await b2.getByRole('button', { name: /Rejoin Game/ }).click();
-      await expect(b2).toHaveURL(new RegExp(`/join/${code}`, 'i'));
-      await b2.getByRole('button', { name: /Join Game/ }).click();
+      await b2.getByRole('button', { name: /Rejoin Game/ }).click(); // one tap, no form
 
       // Back on the same board, still Bbb's turn, others' warning cleared
       await expect(b2.getByTestId('board-container')).toBeVisible({ timeout: 15_000 });
@@ -175,6 +173,46 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
       await expect(a.getByText('You have an unfinished game')).toBeVisible();
       expect(await bodyText(a)).not.toContain('Start Game');
     } finally { await closeAll(pages); }
+  });
+
+  test('waiting room: the host and a guest can refresh the page and keep their seats', async ({ browser }) => {
+    const host = await newPhone(browser);
+    const guest = await newPhone(browser);
+    const third = await newPhone(browser);
+    try {
+      const code = await hostCreate(host, 'Aaa', 3);
+      await guestJoin(guest, 'Bbb', code);
+      await expect(guest.getByText(/Waiting for the host/)).toBeVisible();
+
+      await guest.reload({ waitUntil: 'domcontentloaded' });
+      await expect(guest.getByText('Bbb (you)')).toBeVisible({ timeout: 15_000 });
+      await expect(host.getByText('Bbb')).toBeVisible();
+
+      await host.reload({ waitUntil: 'domcontentloaded' });
+      await expect(host.getByText('Aaa (you)')).toBeVisible({ timeout: 15_000 });
+      await expect(host.getByText('Bbb')).toBeVisible();
+
+      await guestJoin(third, 'Ccc', code); // the room is still there for the last player
+      for (const p of [host, guest, third]) await expect(p.getByTestId('board-container')).toBeVisible({ timeout: 20_000 });
+    } finally { await closeAll([host, guest, third]); }
+  });
+
+  test('waiting room: leaving frees the seat at once so someone else can take it', async ({ browser }) => {
+    const second = await newPhone(browser);
+    const host3 = await newPhone(browser);
+    const g1 = await newPhone(browser);
+    try {
+      const code = await hostCreate(host3, 'Aaa', 3);
+      await guestJoin(g1, 'Bbb', code);
+      await expect(host3.getByText('Bbb')).toBeVisible();
+
+      await g1.getByRole('button', { name: /Leave Waiting Room/ }).click();
+      await expect(g1).toHaveURL(new RegExp(`${BASE_URL.replace(/\/$/, '')}/?$`));
+      await expect(host3.getByText('Bbb')).toHaveCount(0, { timeout: 10_000 });
+
+      await guestJoin(second, 'Ccc', code); // the freed seat is usable
+      await expect(host3.getByText('Ccc')).toBeVisible();
+    } finally { await closeAll([host3, g1, second]); }
   });
 
   test('tap assist: a tap beside a line snaps to it, a tap in the middle of a box does nothing, a taken line never reaches the server', async ({ browser }) => {
