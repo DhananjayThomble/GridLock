@@ -142,8 +142,13 @@ const Leaderboard = () => {
   }, []);
 
   const tableRows = useMemo(
-    () => (isMobile && rows.length >= 3 ? rows.slice(3) : rows),
+    () => (isMobile ? rows.slice(3) : rows), // the top-3 cards already show ranks 1-3, however few players there are
     [rows, isMobile],
+  );
+
+  const rankedTableRows = useMemo(
+    () => (isMobile ? rankedRows.slice(3) : rankedRows),
+    [rankedRows, isMobile],
   );
 
   const onLookup = async (event) => {
@@ -427,7 +432,7 @@ const Leaderboard = () => {
 
                 {/* Mobile card layout (#344) */}
                 <section className="leaderboard-mobile-cards">
-                  {rankedRows.map((entry) => (
+                  {rankedTableRows.map((entry) => (
                     <div key={entry.username} className="leaderboard-mobile-card">
                       <span className="leaderboard-mobile-card-rank">#{entry.rank}</span>
                       <div className="leaderboard-mobile-card-info">

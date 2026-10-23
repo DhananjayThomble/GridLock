@@ -124,4 +124,20 @@ describe('Leaderboard', () => {
       expect(screen.getByText(/No leaderboard|No ranked|No games|Be the first/i)).toBeInTheDocument();
     });
   });
+
+  it('on a phone, a short leaderboard lists each player once (podium cards only, no repeat in the list)', async () => {
+    window.matchMedia.mockImplementation((query) => ({
+      matches: /max-width:\s*767px/.test(query), media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }));
+    globalThis.fetch.mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: () => Promise.resolve(mockLeaderboardData),
+    });
+    renderLeaderboard();
+    await waitFor(() => expect(screen.getAllByText('TopPlayer').length).toBeGreaterThan(0));
+    expect(screen.getAllByText('TopPlayer')).toHaveLength(1);
+    expect(screen.getAllByText('SecondPlace')).toHaveLength(1);
+  });
 });

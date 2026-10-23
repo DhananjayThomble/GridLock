@@ -88,3 +88,17 @@ All incoming socket events are validated against Joi schemas in `backend/middlew
 ```js
 { gameId, winner, scores, gameState, ranked: { eloChanges } }
 ```
+
+## Waiting room lifecycle
+
+```
+Client                          Server
+  |-- lobby_state ------------->|  error "Not in this game" if the socket is not in the room
+  |-- join_game (+token) ------>|  re-registers after a refresh or reconnect (same name + token)
+  |-- leave_waiting_room ------>|  guest: seat freed, `player_left` (reason left_lobby)
+  |                             |  host: room closed, `room_closed` to everyone
+```
+
+- A guest whose socket drops is removed at once (`player_left`, reason `disconnect_lobby`) and can simply join again.
+- A **host** whose socket drops keeps the room for the reconnect window (`DISCONNECT_TIMEOUT_MS`; `player_disconnected` is broadcast). If the host rejoins with their session token the room carries on (`player_reconnected`); otherwise the room is closed (`room_closed`). If the room fills up while the host is away it is treated as a normal forfeit.
+- `game_started` is sent to everyone in the room whenever someone joins, and as the reply to a re-register. Clients must not treat it as the start of the game while seats are still empty (`players` shorter than `playerCount`).

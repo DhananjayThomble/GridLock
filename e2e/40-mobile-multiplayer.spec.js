@@ -175,6 +175,46 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
     } finally { await closeAll(pages); }
   });
 
+  test('waiting room: the host and a guest can refresh the page and keep their seats', async ({ browser }) => {
+    const host = await newPhone(browser);
+    const guest = await newPhone(browser);
+    const third = await newPhone(browser);
+    try {
+      const code = await hostCreate(host, 'Aaa', 3);
+      await guestJoin(guest, 'Bbb', code);
+      await expect(guest.getByText(/Waiting for the host/)).toBeVisible();
+
+      await guest.reload({ waitUntil: 'domcontentloaded' });
+      await expect(guest.getByText('Bbb (you)')).toBeVisible({ timeout: 15_000 });
+      await expect(host.getByText('Bbb')).toBeVisible();
+
+      await host.reload({ waitUntil: 'domcontentloaded' });
+      await expect(host.getByText('Aaa (you)')).toBeVisible({ timeout: 15_000 });
+      await expect(host.getByText('Bbb')).toBeVisible();
+
+      await guestJoin(third, 'Ccc', code); // the room is still there for the last player
+      for (const p of [host, guest, third]) await expect(p.getByTestId('board-container')).toBeVisible({ timeout: 20_000 });
+    } finally { await closeAll([host, guest, third]); }
+  });
+
+  test('waiting room: leaving frees the seat at once so someone else can take it', async ({ browser }) => {
+    const second = await newPhone(browser);
+    const host3 = await newPhone(browser);
+    const g1 = await newPhone(browser);
+    try {
+      const code = await hostCreate(host3, 'Aaa', 3);
+      await guestJoin(g1, 'Bbb', code);
+      await expect(host3.getByText('Bbb')).toBeVisible();
+
+      await g1.getByRole('button', { name: /Leave Waiting Room/ }).click();
+      await expect(g1).toHaveURL(new RegExp(`${BASE_URL.replace(/\/$/, '')}/?$`));
+      await expect(host3.getByText('Bbb')).toHaveCount(0, { timeout: 10_000 });
+
+      await guestJoin(second, 'Ccc', code); // the freed seat is usable
+      await expect(host3.getByText('Ccc')).toBeVisible();
+    } finally { await closeAll([host3, g1, second]); }
+  });
+
   test('tap assist: a tap beside a line snaps to it, a tap in the middle of a box does nothing, a taken line never reaches the server', async ({ browser }) => {
     const p = await newPhone(browser);
     try {
