@@ -3,6 +3,15 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.2.3] — 2026-10-23
+
+### Security
+- Resolved all remaining Dependabot dev-dependency advisories; backend and frontend `npm audit` both report zero vulnerabilities (`js-yaml`, `browserslist`, `form-data`, `@babel/*`, `follow-redirects`, `baseline-browser-mapping`, `ws`, `postcss-selector-parser`, and the `extract-zip`/`puppeteer` chain)
+
+### Changed
+- Updated backend runtime dependencies: `redis` to 6.3 and `google-auth-library` to 11.3
+- Updated frontend dependencies: `react`/`react-dom` to 19.3, `socket.io-client` to 4.8.4, and dev tooling (`vitest` 5, `jsdom` 30, `globals` 17, Playwright, Testing Library, `wrangler`)
+
 ## [2.2.2] — 2026-10-23
 
 ### Security
