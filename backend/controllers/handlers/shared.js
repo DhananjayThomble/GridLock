@@ -36,6 +36,8 @@ try { promMetrics = require('../../lib/metrics').metrics; } catch (err) {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const DISCONNECT_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 8_000 : 45_000;
+// How long the others wait when a player drops on their own turn before play moves on
+const TURN_SKIP_MS = process.env.NODE_ENV === 'test' ? 2_000 : 10_000;
 const REMATCH_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
 const CLEANUP_DELAY_MS = 60_000;
 const HOST_START_TIMEOUT_MS = process.env.NODE_ENV === 'test' ? 5_000 : 30_000;
@@ -558,6 +560,7 @@ function scheduleGameCleanup(gameId) {
 module.exports = {
     // Constants
     DISCONNECT_TIMEOUT_MS,
+    TURN_SKIP_MS,
     REMATCH_TIMEOUT_MS,
     CLEANUP_DELAY_MS,
     HOST_START_TIMEOUT_MS,

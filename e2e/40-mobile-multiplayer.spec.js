@@ -103,7 +103,7 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
     } finally { await closeAll(pages); }
   });
 
-  test('a player closes their tab on their turn, the others are told, and they rejoin from the lobby banner', async ({ browser }) => {
+  test('a player closes their tab on their turn: the others are told, play moves on, and the player rejoins from the lobby banner', async ({ browser }) => {
     const { pages } = await startRoom(browser, 3);
     try {
       const [a, b, c] = pages;
@@ -114,21 +114,29 @@ test.describe('Mobile multiplayer (phone-sized)', () => {
       await expect(a.getByText(/Bbb disconnected/)).toBeVisible({ timeout: 15_000 });
       await expect(c.getByText(/Bbb disconnected/)).toBeVisible();
 
-      // Same browser, new tab: the lobby offers the unfinished game
+      // After a short wait the turn passes to the next player instead of freezing everyone
+      await expect(c.getByText('Your turn!')).toBeVisible({ timeout: 15_000 });
+      await expect(a.getByText("Ccc's turn")).toBeVisible();
+      await tapLine(c, 4);
+      await expect(a.getByText('Your turn!')).toBeVisible({ timeout: 10_000 });
+
+      // Same browser, new tab: the lobby offers the unfinished game, one tap rejoins
       const b2 = await b.__ctx.newPage();
       await b2.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
       await expect(b2.getByText('You have an unfinished game')).toBeVisible();
-      await b2.getByRole('button', { name: /Rejoin Game/ }).click(); // one tap, no form
+      await b2.getByRole('button', { name: /Rejoin Game/ }).click();
 
-      // Back on the same board, still Bbb's turn, others' warning cleared
+      // Back on the same board with Bbb's seat intact; the turn is not Bbb's right now
       await expect(b2.getByTestId('board-container')).toBeVisible({ timeout: 15_000 });
-      await expect(b2.getByText('Your turn!')).toBeVisible();
       expect(await openLines(b2).count()).toBe(await openLines(a).count());
+      await expect(b2.getByText('Your turn!')).toHaveCount(0);
       await expect(a.getByText(/Bbb disconnected/)).toHaveCount(0, { timeout: 10_000 });
 
-      // ... and the rejoined player can move
+      // The turn comes round to Bbb like to anyone else
+      await tapLine(a, 0);
+      await expect(b2.getByText('Your turn!')).toBeVisible({ timeout: 10_000 });
       await tapLine(b2, 5);
-      await expect(c.getByText("Ccc's turn").or(c.getByText('Your turn!'))).toBeVisible();
+      await expect(c.getByText('Your turn!')).toBeVisible({ timeout: 10_000 });
     } finally { await closeAll(pages); }
   });
 
