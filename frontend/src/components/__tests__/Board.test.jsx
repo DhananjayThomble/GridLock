@@ -1,7 +1,7 @@
 // src/components/__tests__/Board.test.jsx
 import React, { act } from 'react';
-import { render, screen } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock matchMedia
@@ -55,7 +55,7 @@ vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 vi.mock('../../utils/sessionStats', () => ({ recordGame: vi.fn(), getStats: () => ({}) }));
 vi.mock('../../utils/recentOpponentsStore', () => ({ recordOpponent: vi.fn() }));
 vi.mock('../../utils/sounds', () => ({
-  initAudio: vi.fn(), toggleMute: vi.fn(), isMuted: () => false, isVibrationEnabled: () => false, sounds: {},
+  initAudio: vi.fn(), toggleMute: vi.fn(), isMuted: () => false, isVibrationEnabled: () => false, sounds: { linePlaced: vi.fn() },
 }));
 vi.mock('../../utils/shareResult', () => ({ generateShareText: vi.fn(), shareOrCopy: vi.fn() }));
 vi.mock('../../hooks/useThemeColors', () => ({ default: () => ({}) }));
@@ -176,5 +176,92 @@ describe('Board', () => {
       act(() => errorHandler({ message: 'Game not found' }));
       expect(screen.getByText(/Game not found/)).toBeInTheDocument();
     }
+  });
+
+  // ── Tap assist (#590: G-01 / G-02) ─────────────────────────────────────────
+  describe('tap assist', () => {
+    const makeState = (over = {}) => ({
+      gridSize: 3,
+      horizontalLines: Array(4).fill(null).map(() => Array(3).fill(null)),
+      verticalLines: Array(3).fill(null).map(() => Array(4).fill(null)),
+      boxes: Array(3).fill(null).map(() => Array(3).fill(null)),
+      scores: { player1: 0, player2: 0 },
+      currentPlayer: 'player1',
+      gameOver: false,
+      players: [
+        { id: 'player1', username: 'TestUser', avatar: '👦', color: '#6366f1' },
+        { id: 'player2', username: 'Opponent', avatar: '👧', color: '#f59e0b' },
+      ],
+      playerCount: 2,
+      ...over,
+    });
+
+    const load = (state) => {
+      renderBoard();
+      const handler = mockOn.mock.calls.find((c) => c[0] === 'game_update')?.[1];
+      act(() => handler({ gameState: state }));
+    };
+
+    // jsdom has no layout, so give every line a fixed rectangle: 40px long, 12px thick, 50px pitch
+    let realRect;
+    beforeAll(() => {
+      realRect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function () {
+        const t = this.dataset?.line;
+        if (!t) return realRect.call(this);
+        const r = Number(this.dataset.r); const c = Number(this.dataset.c);
+        const [left, top, width, height] = t === 'horizontal'
+          ? [c * 50 + 12, r * 50, 40, 12]
+          : [c * 50, r * 50 + 12, 12, 40];
+        return { left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON() {} };
+      };
+    });
+    afterAll(() => { Element.prototype.getBoundingClientRect = realRect; });
+
+    const moves = () => mockEmit.mock.calls.filter((c) => c[0] === 'make_move');
+
+    it('snaps a tap just beside a line to that line', () => {
+      load(makeState());
+      fireEvent.click(screen.getByTestId('board-container'), { clientX: 32, clientY: 17 });
+      expect(moves()).toHaveLength(1);
+      expect(moves()[0][1]).toMatchObject({ type: 'horizontal', r: 0, c: 0, playerId: 'player1' });
+    });
+
+    it('ignores a tap in the middle of a box (moves cannot be undone)', () => {
+      load(makeState());
+      fireEvent.click(screen.getByTestId('board-container'), { clientX: 32, clientY: 32 });
+      expect(moves()).toHaveLength(0);
+    });
+
+    it('never emits a move for a line that is already taken', () => {
+      const state = makeState();
+      state.horizontalLines[0][0] = 'player2';
+      load(state);
+      fireEvent.click(screen.getAllByTestId('board-hline')[0]);
+      expect(moves()).toHaveLength(0);
+    });
+
+    it('does not select a taken line when snapping from the gap beside it', () => {
+      const state = makeState();
+      state.horizontalLines[0][0] = 'player2';
+      load(state);
+      fireEvent.click(screen.getByTestId('board-container'), { clientX: 32, clientY: 17 });
+      expect(moves()).toHaveLength(0);
+    });
+
+    it('ignores taps when it is not my turn', () => {
+      load(makeState({ currentPlayer: 'player2' }));
+      fireEvent.click(screen.getByTestId('board-container'), { clientX: 32, clientY: 17 });
+      expect(moves()).toHaveLength(0);
+    });
+
+    it('shows server errors as an overlay so the board does not move', () => {
+      load(makeState());
+      const errorHandler = mockOn.mock.calls.find((c) => c[0] === 'error')?.[1];
+      act(() => errorHandler('Line already taken'));
+      const banner = screen.getByTestId('game-error');
+      expect(banner).toHaveTextContent('Line already taken');
+      expect(banner.className).toMatch(/\babsolute\b/);
+    });
   });
 });

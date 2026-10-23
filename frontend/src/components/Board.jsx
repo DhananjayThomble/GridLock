@@ -74,6 +74,10 @@ const Board = () => {
 
   const [gameState,      setGameState]      = useState(null);
   const [error,          setError]          = useState(null);
+  // Tap-assist: line the finger/cursor is currently closest to, and a brief "missed" flag
+  const [previewLine,    setPreviewLine]    = useState(null);
+  const [boardMiss,      setBoardMiss]      = useState(false);
+  const boardRef = useRef(null);
   const [status,         setStatus]         = useState('Connecting…');
   const [showWinner,     setShowWinner]     = useState(false);
   const [winnerData,     setWinnerData]     = useState(null);
@@ -646,13 +650,63 @@ const Board = () => {
   }, [winnerData]);
 
   // ── Move handler ──────────────────────────────────────────────────────────────
+  // Brief shake + haptic when a tap cannot select a line (taken line, or too far from any open one)
+  const signalMiss = useCallback(() => {
+    setBoardMiss(true);
+    setTimeout(() => setBoardMiss(false), 260);
+    if (isVibrationEnabled() && 'vibrate' in navigator) navigator.vibrate(20);
+  }, []);
+
+  // Closest open line to a screen point. Returns null when nothing open is near enough, so a
+  // tap in the middle of a box never picks an edge by accident (moves cannot be undone).
+  const findNearestOpenLine = useCallback((clientX, clientY) => {
+    const root = boardRef.current;
+    if (!root) return null;
+    const reach = Math.max(12, (sizes.line || 48) * 0.32);
+    let best = null;
+    root.querySelectorAll('[data-line][data-open="true"]').forEach((el) => {
+      const b = el.getBoundingClientRect();
+      const dx = Math.max(b.left - clientX, 0, clientX - b.right);
+      const dy = Math.max(b.top - clientY, 0, clientY - b.bottom);
+      const dist = Math.hypot(dx, dy);
+      if (dist > reach) return;
+      const centre = Math.hypot(clientX - (b.left + b.right) / 2, clientY - (b.top + b.bottom) / 2);
+      if (!best || dist < best.dist || (dist === best.dist && centre < best.centre)) {
+        best = { dist, centre, type: el.dataset.line, r: Number(el.dataset.r), c: Number(el.dataset.c) };
+      }
+    });
+    return best;
+  }, [sizes.line]);
+
   const handleLineClick = useCallback((type, r, c) => {
     initAudio(); // unlock AudioContext on first game interaction
     if (!gameState || isSpectator || gameState.currentPlayer !== role) return;
+    const takenBy = type === 'horizontal' ? gameState.horizontalLines[r]?.[c] : gameState.verticalLines[r]?.[c];
+    if (takenBy) { signalMiss(); return; } // already drawn: no need to ask the server
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
     addBreadcrumb({ category: 'game', message: 'Move made', level: 'info', data: { type, r, c, player: role } });
     sounds.linePlaced();
-  }, [gameState, role, gameId, sessionToken, isSpectator]);
+  }, [gameState, role, gameId, sessionToken, isSpectator, signalMiss]);
+
+  // ── Board-level tap assist ────────────────────────────────────────────────────
+  // Taps that land on a box, a dot or the gap beside a line snap to the nearest open line.
+  const canPlay = !!gameState && !gameState.gameOver && !isSpectator && gameState.currentPlayer === role;
+  const updatePreview = useCallback((e) => {
+    if (!canPlay) { setPreviewLine((p) => (p ? null : p)); return; }
+    const hit = findNearestOpenLine(e.clientX, e.clientY);
+    setPreviewLine((p) => {
+      if (!hit) return p ? null : p;
+      return p && p.type === hit.type && p.r === hit.r && p.c === hit.c ? p : { type: hit.type, r: hit.r, c: hit.c };
+    });
+  }, [canPlay, findNearestOpenLine]);
+  const clearPreview = useCallback(() => setPreviewLine(null), []);
+  const handleBoardClick = useCallback((e) => {
+    setPreviewLine(null);
+    if (!canPlay || e.target.closest('[data-line]')) return; // direct hits are handled by the line itself
+    const hit = findNearestOpenLine(e.clientX, e.clientY);
+    if (hit) handleLineClick(hit.type, hit.r, hit.c);
+    else signalMiss();
+  }, [canPlay, findNearestOpenLine, handleLineClick, signalMiss]);
 
   // ── Copy game ID ──────────────────────────────────────────────────────────────
   const handleCopyId = () => {
@@ -832,11 +886,16 @@ const Board = () => {
     const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
     const touchHandlers = makeTouchHandler('horizontal', r, c);
     const hLineHeight = sizes.dot;
+    const isPreview = isMyTurn && previewLine?.type === 'horizontal' && previewLine.r === r && previewLine.c === c;
 
     return (
       <div
         key={`h-${r}-${c}`}
         data-testid="board-hline"
+        data-line="horizontal"
+        data-r={r}
+        data-c={c}
+        data-open={!owner}
         onClick={() => handleLineClick('horizontal', r, c)}
         onTouchStart={touchHandlers.onTouchStart}
         onTouchEnd={touchHandlers.onTouchEnd}
@@ -854,8 +913,8 @@ const Board = () => {
           className="w-full"
           style={{
             height: gridTheme.lineThickness || sizes.lineThickness,
-            backgroundColor: lineColor || gridTheme.emptyLineColor || 'var(--line-empty)',
-            opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
+            backgroundColor: isPreview ? currentPlayerColor : (lineColor || gridTheme.emptyLineColor || 'var(--line-empty)'),
+            opacity: owner || isPreview ? 1 : isMyTurn ? 0.8 : 0.5,
             boxShadow: owner && ownerGlow && ownerGlow !== 'none' ? ownerGlow : (owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined)),
             transition: 'opacity 0.15s, background-color 0.15s',
             ...gridTheme.lineStyle,
@@ -873,11 +932,16 @@ const Board = () => {
     const ownerGlow = owner ? getPlayerLineGlow(owner) : null;
     const touchHandlers = makeTouchHandler('vertical', r, c);
     const vLineWidth = sizes.dot;
+    const isPreview = isMyTurn && previewLine?.type === 'vertical' && previewLine.r === r && previewLine.c === c;
 
     return (
       <div
         key={`v-${r}-${c}`}
         data-testid="board-vline"
+        data-line="vertical"
+        data-r={r}
+        data-c={c}
+        data-open={!owner}
         onClick={() => handleLineClick('vertical', r, c)}
         onTouchStart={touchHandlers.onTouchStart}
         onTouchEnd={touchHandlers.onTouchEnd}
@@ -895,8 +959,8 @@ const Board = () => {
           className="h-full"
           style={{
             width: gridTheme.lineThickness || sizes.lineThickness,
-            backgroundColor: lineColor || gridTheme.emptyLineColor || 'var(--line-empty)',
-            opacity: owner ? 1 : isMyTurn ? 0.8 : 0.5,
+            backgroundColor: isPreview ? currentPlayerColor : (lineColor || gridTheme.emptyLineColor || 'var(--line-empty)'),
+            opacity: owner || isPreview ? 1 : isMyTurn ? 0.8 : 0.5,
             boxShadow: owner && ownerGlow && ownerGlow !== 'none' ? ownerGlow : (owner && lineColor ? `0 0 6px ${lineColor}40` : (isMyTurn && currentPlayerColor ? `0 0 8px ${currentPlayerColor}30` : undefined)),
             transition: 'opacity 0.15s, background-color 0.15s',
             ...gridTheme.lineStyle,
@@ -1300,7 +1364,7 @@ const Board = () => {
       <div className="game-content w-full flex flex-col items-center flex-1 px-2 sm:px-6 pb-4">
 
         {/* ── Header: Room code + You are + Status ── */}
-        <div className="w-full max-w-2xl mb-2 sm:mb-3">
+        <div className="relative w-full max-w-2xl mb-2 sm:mb-3">
           {/* Room code badge — always visible, copyable */}
           <div className="flex items-center justify-center gap-2 mb-1">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Room</span>
@@ -1381,8 +1445,14 @@ const Board = () => {
             </div>
           )}
 
+          {/* Overlay (not in the flow) so showing/hiding a message never moves the board under a thumb */}
           {error && (
-            <div className="mt-2 rounded-lg px-4 py-2 text-xs" style={{ backgroundColor: `color-mix(in srgb, var(--danger) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
+            <div
+              role="alert"
+              data-testid="game-error"
+              className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg px-4 py-2 text-xs shadow-lg pointer-events-none"
+              style={{ backgroundColor: `color-mix(in srgb, var(--danger) 16%, var(--bg-secondary))`, border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)', color: 'var(--danger)' }}
+            >
               ⚠️ {error}
             </div>
           )}
@@ -1394,9 +1464,16 @@ const Board = () => {
         {/* ── Board ── */}
         <div className="flex flex-1 items-center justify-center w-full" style={{ overflow: 'hidden', maxHeight: 'calc(100vh - 320px)' }}>
         <div
+          ref={boardRef}
+          data-testid="board-container"
+          onClick={handleBoardClick}
+          onPointerDown={updatePreview}
+          onPointerMove={updatePreview}
+          onPointerLeave={clearPreview}
+          onPointerCancel={clearPreview}
           className={`relative rounded-2xl shadow-xl select-none board-container mx-auto transition-shadow duration-300 ${
             boardPulse ? 'board-glow' : ''
-          } ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
+          } ${boardMiss ? 'board-miss' : ''} ${gameState && !gameState.gameOver ? 'board-glow-active' : ''}`}
           style={{
             width: sizes.gridTotal || undefined,
             height: sizes.gridTotal || undefined,

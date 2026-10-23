@@ -918,3 +918,12 @@ button:active:not(:disabled) {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* Tap that could not select a line (taken line / too far from any open one) */
+@keyframes board-miss-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.board-miss { animation: board-miss-shake 0.26s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .board-miss { animation: none; } }
