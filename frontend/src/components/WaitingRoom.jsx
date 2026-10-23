@@ -136,6 +136,7 @@ const WaitingRoom = () => {
           sessionToken: data.sessionToken || sessionToken,
           cpuDifficulty: data.cpuDifficulty || cpuDifficulty,
         },
+        replace: true, // Back from the game must not land on a stale waiting room
       });
     };
 

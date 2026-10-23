@@ -88,7 +88,7 @@ test.describe('CPU Player Games', () => {
     await goToLobby(page);
     await page.fill('input[placeholder="Enter your name…"]:visible', 'DiffTester');
 
-    const cpuToggle = page.locator('button:has-text("Play vs CPU")');
+    const cpuToggle = page.locator('button[role="switch"][aria-label="Add CPU opponents"]:visible');
     await cpuToggle.click();
     await page.waitForTimeout(500);
 

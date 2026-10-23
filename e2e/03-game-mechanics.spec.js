@@ -51,7 +51,7 @@ test.describe('Game UI & Mechanics', () => {
 
   test('session stats button exists in settings', async ({ page }) => {
     await page.goto(`${BASE_URL}/settings`, { waitUntil: 'networkidle' });
-    await expect(page.locator('text=Your Stats')).toBeVisible();
+    await expect(page.getByText('Your Stats', { exact: true })).toBeVisible();
   });
 
   test('winner modal shows Rematch and Leave Game after game ends', async ({ browser }) => {
