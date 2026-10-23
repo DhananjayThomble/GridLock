@@ -29,7 +29,13 @@
 let realModule = null;
 function getReal() {
   if (!realModule) {
-    realModule = jest.requireActual('mongodb-memory-server');
+    // `jest.requireActual('mongodb-memory-server')` is still rewritten by this
+    // file's own moduleNameMapper entry, which would return this stub again and
+    // recurse infinitely. The package's entry simply re-exports
+    // `mongodb-memory-server-core`, which the mapper (anchored on the exact
+    // name) does not match — so requiring core directly loads the genuine
+    // implementation without the mapper or any recursion.
+    realModule = require('mongodb-memory-server-core');
   }
   return realModule;
 }

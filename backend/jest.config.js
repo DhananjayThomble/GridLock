@@ -20,6 +20,10 @@ module.exports = {
   moduleNameMapper: {
     '^mongodb-memory-server$': '<rootDir>/__tests__/setup/mongoTestServer.js',
   },
+  // Inject the MongoDB driver's `os` runtime adapter so mongoose.connect works
+  // under Jest's VM sandbox (mongoose >= 9.7 / mongodb driver 7.x). See
+  // __tests__/setup/mongoRuntimeAdapter.js for the full explanation.
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setup/mongoRuntimeAdapter.js'],
   // Only *.test.js files are suites; support helpers like __tests__/setup/*
   // must not be collected as (empty) test files.
   testMatch: ['**/__tests__/**/*.test.js'],
