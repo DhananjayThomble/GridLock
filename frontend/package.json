@@ -17,6 +17,9 @@
     "deploy": "npm run build && wrangler deploy",
     "preview:cf": "npm run build && wrangler dev"
   },
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
+  },
   "dependencies": {
     "@sentry/react": "^10.43.0",
     "axios": "^1.13.5",
