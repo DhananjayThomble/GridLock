@@ -3,18 +3,65 @@
 ## Database Mapping
 
 Each environment connects to its own MongoDB database to prevent cross-environment
-data contamination. The `MONGO_URI` is set via PM2's `ecosystem.config.js`.
+data contamination. On the server, MongoDB runs with **authentication enabled**
+(`/etc/mongod.conf` → `security.authorization: enabled`), so each environment's
+`MONGO_URI` **must include credentials** and is set in that environment's
+`backend/.env` (loaded by `dotenv`). Local dev / test / E2E run against a
+credential-less local MongoDB (or `mongodb-memory-server`), so their URIs have no
+user:pass.
 
-| Environment | Database           | MONGO_URI                                  | Set via              |
-|-------------|--------------------|--------------------------------------------|----------------------|
-| Production  | `gridlock`         | `mongodb://localhost:27017/gridlock`       | ecosystem.config.js  |
-| Beta        | `gridlock_beta`    | `mongodb://localhost:27017/gridlock_beta`  | ecosystem.config.js  |
-| Test (Jest) | `gridlock-test`    | `mongodb://localhost:27017/gridlock-test`  | Test setup / in-memory |
-| E2E         | `gridlock_e2e_local` | `mongodb://localhost:27017/gridlock_e2e_local` | E2E config       |
+| Environment | Database             | MONGO_URI (shape — no real secrets)                                         | Set via                |
+|-------------|----------------------|-----------------------------------------------------------------------------|------------------------|
+| Production  | `gridlock`           | `mongodb://gridlock:<pw>@127.0.0.1:27017/gridlock?authSource=gridlock`           | `GridLock-prod/backend/.env` |
+| Beta        | `gridlock_beta`      | `mongodb://gridlock_beta:<pw>@127.0.0.1:27017/gridlock_beta?authSource=gridlock_beta` | `GridLock-beta/backend/.env` |
+| Test (Jest) | `gridlock-test`      | `mongodb://localhost:27017/gridlock-test` (or `mongodb-memory-server`)      | Test setup / in-memory |
+| E2E         | `gridlock_e2e_local` | `mongodb://localhost:27017/gridlock_e2e_local`                              | E2E config             |
 
 > **Production safety:** If `NODE_ENV=production` and `MONGO_URI` is not set,
 > the server exits immediately with a FATAL error. This prevents production
 > from silently falling back to a default database.
+
+## MongoDB Authentication
+
+The server's MongoDB enforces auth (`security.authorization: enabled`). Each app
+connects with a **per-database user** whose `authSource` is that same database.
+Real passwords live only in each environment's `backend/.env` and in MongoDB — never
+in git.
+
+| Mongo user      | Password location                       | `authSource`   | Roles                                                     |
+|-----------------|-----------------------------------------|----------------|-----------------------------------------------------------|
+| `gridlock`      | `GridLock-prod/backend/.env` `MONGO_URI`| `gridlock`     | `readWrite` on `gridlock`                                 |
+| `gridlock_beta` | `GridLock-beta/backend/.env` `MONGO_URI`| `gridlock_beta`| `readWrite` on `gridlock_beta`                            |
+| `admin`         | your password manager (break-glass)     | `admin`        | `userAdminAnyDatabase`, `readWriteAnyDatabase`, `dbAdminAnyDatabase` |
+
+**Key points**
+- Each app user is scoped to a single database — a beta credential cannot touch
+  prod data and vice versa.
+- The `MONGO_URI` must set `authSource` to the user's own database (e.g.
+  `...gridlock_beta?authSource=gridlock_beta`). Omitting it makes the driver try to
+  authenticate against `admin` and fail with `requires authentication`.
+- A missing/credential-less `MONGO_URI` while auth is on produces a connection that
+  *pings* fine but fails every read/write — watch `GET /health/deep`
+  (`mongoRead: fail`) and PM2 restart loops.
+
+### Adding a new DB user (break-glass procedure)
+
+Requires the `admin` credential. If `admin` is lost, use the localhost exception:
+temporarily set `authorization: disabled` in `/etc/mongod.conf`, `sudo systemctl
+restart mongod`, recreate the admin user, then re-enable auth and restart. MongoDB
+is bound to `127.0.0.1` and 27017 is firewalled, so this is not internet-exposed,
+but it briefly removes DB auth — do it at low traffic.
+
+```bash
+# As the admin user (authSource=admin):
+mongosh "mongodb://admin:<pw>@127.0.0.1:27017/admin?authSource=admin" --eval '
+  db.getSiblingDB("gridlock_beta").createUser({
+    user: "gridlock_beta",
+    pwd: "<generated>",
+    roles: [ { role: "readWrite", db: "gridlock_beta" } ]
+  })'
+# Then set MONGO_URI in that env's backend/.env and: pm2 restart <app> --update-env
+```
 
 ## Directory Layout
 
