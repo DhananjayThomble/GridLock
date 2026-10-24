@@ -27,9 +27,12 @@ const {
     localTimers,
     rematchTimers,
     hostStartTimers,
+    lobbyHostTimers,
     activeDailyGames,
     rankedGameMap,
     DISCONNECT_TIMEOUT_MS,
+    TURN_SKIP_MS,
+    advanceTurnIfNeeded,
     CLEANUP_DELAY_MS,
     promMetrics,
     getNextActivePlayer,
@@ -49,6 +52,83 @@ function setScheduleCPUMove(fn) { scheduleCPUMove = fn; }
 function setHandleTournamentGameCompletion(fn) { handleTournamentGameCompletion = fn; }
 function setHandleRankedDisconnect(fn) { handleRankedDisconnect = fn; }
 function setRemoveFromRankedQueue(fn) { removeFromRankedQueue = fn; }
+
+/**
+ * Close a waiting room: tell everyone in it, free their sockets and delete the game.
+ */
+async function closeWaitingRoom(io, log, gameId, reason) {
+    log.info('Closing waiting room', { gameId, reason });
+    io.to(gameId).emit('room_closed', { reason, gameId });
+    const room = io.sockets.adapter.rooms?.get(gameId);
+    if (room) {
+        for (const sid of [...room]) {
+            const s = io.sockets.sockets.get(sid);
+            if (!s) continue;
+            // #8: Handle spectators in lobby cleanup
+            if (s.data.isSpectator) {
+                s.data.isSpectator = undefined;
+                s.data.spectatorUsername = undefined;
+            }
+            s.leave(gameId);
+            s.data.gameId = undefined;
+            s.data.playerId = undefined;
+            startLobbyTimer(s);
+        }
+    }
+    if (hostStartTimers.has(gameId)) {
+        clearTimeout(hostStartTimers.get(gameId));
+        hostStartTimers.delete(gameId);
+    }
+    if (lobbyHostTimers.has(gameId)) {
+        clearTimeout(lobbyHostTimers.get(gameId));
+        lobbyHostTimers.delete(gameId);
+    }
+    await disconnectStore.clearDisconnect(gameId, 'player1');
+    await gameStore.deleteGame(gameId);
+    await gameStore.deleteSpectatorCount(gameId);
+    await markGameFinished(gameId, 'host_left_lobby');
+}
+
+/**
+ * A player dropped while it was their turn. Rather than freezing everyone for the whole
+ * reconnect window, hand the turn to the next connected player after a short wait. The dropped
+ * player keeps their seat and can still rejoin until the reconnect window ends.
+ */
+function scheduleTurnSkip(io, log, gameId, playerId) {
+    setTimeout(async () => {
+        try {
+            const game = await gameStore.getGame(gameId);
+            if (!game || game.gameState?.winner) return;
+            const away = game.players[playerId];
+            if (!away || !away.disconnectedAt) return;              // came back in time
+            if (game.gameState.currentPlayer !== playerId) return;  // turn already moved on
+
+            // Only skip when another *human* is connected to play: if the rest are CPUs, a skip
+            // would let the CPUs play the whole game out before the player can return.
+            let humanLeft = false;
+            for (let i = 1; i <= game.playerCount; i++) {
+                const p = game.players[`player${i}`];
+                if (p && `player${i}` !== playerId && !p.isCPU && !p.disconnectedAt) humanLeft = true;
+            }
+            if (!humanLeft) return;
+
+            advanceTurnIfNeeded(game);
+            const next = game.gameState.currentPlayer;
+            if (next === playerId) return;
+
+            await gameStore.setGame(gameId, game);
+            io.to(gameId).emit('turn_skipped', { playerId, username: away.username, nextPlayer: next });
+            io.to(gameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+            log.info('Skipped the turn of a disconnected player', { gameId, playerId, next });
+
+            if (game.players[next]?.isCPU && scheduleCPUMove) {
+                scheduleCPUMove(io, log, gameId, CPU_DELAYS[game.cpuDifficulty] || 1200);
+            }
+        } catch (err) {
+            log.error('Turn skip error', { gameId, playerId, error: err.message });
+        }
+    }, TURN_SKIP_MS);
+}
 
 /**
  * Register disconnect/leave socket events.
@@ -211,6 +291,44 @@ function register(io, socket, log, rateLimited, validate) {
     });
 
     // ── disconnect ─────────────────────────────────────────────────────────
+    // ── leave_waiting_room — player backs out before the game has started ──
+    // (The client has always emitted this on leaving the waiting room; nothing listened, so the
+    // seat stayed taken until the socket itself closed.)
+    socket.on('leave_waiting_room', async (rawPayload) => {
+        try {
+            if (rateLimited('leave_waiting_room')) return;
+            const validated = validate('leave_waiting_room', rawPayload);
+            if (!validated) return;
+            const gidResult = sanitizeGameId(validated.gameId);
+            if (!gidResult.valid) return;
+            const cleanGameId = gidResult.value;
+
+            const game = await gameStore.getGame(cleanGameId);
+            if (!game || gameStatusFromPlayers(game) !== 'waiting') return; // only before the game starts
+
+            const playerId = findPlayerBySocket(game, socket.id);
+            if (!playerId) return;
+            const player = game.players[playerId];
+
+            if (playerId === 'player1') {
+                await closeWaitingRoom(io, log, cleanGameId, 'Host left');
+                return;
+            }
+
+            log.info('Player left waiting room', { gameId: cleanGameId, playerId, username: player.username });
+            delete game.players[playerId];
+            await gameStore.setGame(cleanGameId, game);
+            socket.leave(cleanGameId);
+            socket.data.gameId = undefined;
+            socket.data.playerId = undefined;
+            startLobbyTimer(socket);
+            io.to(cleanGameId).emit('player_left', { playerId, username: player.username, reason: 'left_lobby' });
+            io.to(cleanGameId).emit('game_update', { gameState: buildGameStateWithPlayers(game) });
+        } catch (error) {
+            log.error('Error leaving waiting room', { error: error.message });
+        }
+    });
+
     socket.on('disconnect', async () => {
         log.info('Client disconnected', { socketId: socket.id });
         socketLimiter.cleanup(socket.id);
@@ -238,37 +356,36 @@ function register(io, socket, log, rateLimited, validate) {
             const gameStatus = gameStatusFromPlayers(game);
             if (gameStatus === 'waiting') {
                 if (playerId === 'player1') {
-                    // Host/creator left the lobby — destroy room, notify everyone
-                    log.info('Host disconnected from waiting room, closing room', { gameId, playerId });
-                    io.to(gameId).emit('room_closed', {
-                        reason: 'Host disconnected',
-                        gameId,
+                    // The host's connection dropped. On a phone that is often just a switch to another
+                    // app (to share the invite link) or a refresh, so hold the room open for the
+                    // reconnect window instead of closing it on the spot.
+                    log.info('Host disconnected from waiting room, holding it open', { gameId, playerId });
+                    player.disconnectedAt = new Date();
+                    await disconnectStore.setDisconnect(gameId, playerId, socket.id, DISCONNECT_TIMEOUT_MS);
+                    await gameStore.setGame(gameId, game);
+                    io.to(gameId).emit('player_disconnected', {
+                        playerId,
+                        username: player.username,
+                        reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
                     });
-                    // Remove all players from socket room
-                    const room = io.sockets.adapter.rooms?.get(gameId);
-                    if (room) {
-                        for (const sid of room) {
-                            const s = io.sockets.sockets.get(sid);
-                            if (s) {
-                                // #8: Handle spectators in lobby cleanup
-                                if (s.data.isSpectator) {
-                                    s.data.isSpectator = undefined;
-                                    s.data.spectatorUsername = undefined;
-                                }
-                                s.leave(gameId);
-                                s.data.gameId = undefined;
-                                s.data.playerId = undefined;
-                                startLobbyTimer(s);
+
+                    if (lobbyHostTimers.has(gameId)) clearTimeout(lobbyHostTimers.get(gameId));
+                    lobbyHostTimers.set(gameId, setTimeout(async () => {
+                        lobbyHostTimers.delete(gameId);
+                        try {
+                            const g = await gameStore.getGame(gameId);
+                            const host = g?.players?.player1;
+                            if (!g || !host || !host.disconnectedAt) return; // came back, or room already gone
+                            if (gameStatusFromPlayers(g) === 'waiting') {
+                                await closeWaitingRoom(io, log, gameId, 'Host disconnected');
+                            } else {
+                                // the room filled up while the host was away: treat it as a normal forfeit
+                                await executeForfeit(io, log, gameId, 'player1');
                             }
+                        } catch (err) {
+                            log.error('Lobby host timer error', { gameId, error: err.message });
                         }
-                    }
-                    if (hostStartTimers.has(gameId)) {
-                        clearTimeout(hostStartTimers.get(gameId));
-                        hostStartTimers.delete(gameId);
-                    }
-                    await gameStore.deleteGame(gameId);
-                    await gameStore.deleteSpectatorCount(gameId);
-                    await markGameFinished(gameId, 'host_left_lobby');
+                    }, DISCONNECT_TIMEOUT_MS));
                 } else {
                     // Non-host player left the lobby — just remove them
                     log.info('Player disconnected from waiting room', { gameId, playerId, username: player.username });
@@ -328,6 +445,10 @@ function register(io, socket, log, rateLimited, validate) {
                 username: player.username,
                 reconnectWindowMs: DISCONNECT_TIMEOUT_MS,
             });
+
+            if (!game.gameState?.winner && game.gameState?.currentPlayer === playerId) {
+                scheduleTurnSkip(io, log, gameId, playerId);
+            }
 
             if (game.gameState?.winner) {
                 await rematchStore.removeVote(gameId, playerId);

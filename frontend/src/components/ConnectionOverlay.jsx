@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import socket from '../socket';
 
 const ConnectionOverlay = () => {
-  const [state, setState] = useState('connected'); // 'connected' | 'reconnecting' | 'failed'
+  // 'connected' | 'offline' | 'reconnecting' | 'failed'
+  const [state, setState] = useState(() => (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connected'));
   const [attempt, setAttempt] = useState(0);
   const retryBtnRef = useRef(null);
   const headingId = 'connection-overlay-heading';
@@ -39,6 +40,19 @@ const ConnectionOverlay = () => {
       setAttempt(0);
     };
 
+    // The browser knows the network is gone long before the socket's ping timeout does
+    // (~35s). Show it straight away so nobody keeps tapping a dead board, and reconnect the
+    // moment the network returns instead of waiting for the next backoff retry.
+    const onBrowserOffline = () => setState('offline');
+    const onBrowserOnline = () => {
+      if (socket.connected) { setState('connected'); return; }
+      setState('reconnecting');
+      setAttempt(0);
+      socket.connect();
+    };
+    window.addEventListener('offline', onBrowserOffline);
+    window.addEventListener('online', onBrowserOnline);
+
     socket.on('disconnect', onDisconnect);
     socket.io.on('reconnect_attempt', onReconnectAttempt);
     socket.io.on('reconnect', onReconnect);
@@ -46,6 +60,8 @@ const ConnectionOverlay = () => {
     socket.on('connect', onConnect);
 
     return () => {
+      window.removeEventListener('offline', onBrowserOffline);
+      window.removeEventListener('online', onBrowserOnline);
       socket.off('disconnect', onDisconnect);
       socket.io.off('reconnect_attempt', onReconnectAttempt);
       socket.io.off('reconnect', onReconnect);
@@ -98,7 +114,17 @@ const ConnectionOverlay = () => {
           margin: '0 1rem',
         }}
       >
-        {state === 'reconnecting' ? (
+        {state === 'offline' ? (
+          <>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }} aria-hidden="true">📡</div>
+            <h2 id={headingId} style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+              You're offline
+            </h2>
+            <p aria-live="assertive" style={{ color: 'var(--text-muted, #999)', fontSize: '0.9rem' }}>
+              Check your connection. We'll bring you back to your game as soon as it returns.
+            </p>
+          </>
+        ) : state === 'reconnecting' ? (
           <>
             <div
               className="connection-spinner"

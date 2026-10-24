@@ -83,6 +83,12 @@
   color: var(--text-primary);
 }
 
+/* Keep the bold title, text and emphasis in one flowing paragraph next to the number badge */
+.htp-rule-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .htp-rules-list li::before {
   content: counter(rules);
   flex-shrink: 0;
@@ -388,10 +394,6 @@
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
   margin-bottom: 2rem;
-  position: sticky;
-  top: 8px;
-  z-index: 10;
-  backdrop-filter: blur(8px);
 }
 
 .htp-toc-title {
@@ -420,7 +422,8 @@
   font-weight: 500;
   color: var(--accent);
   text-decoration: none;
-  padding: 0.25rem 0;
+  min-height: 44px; /* comfortable thumb target */
+  padding: 0 0.25rem;
   transition: opacity 150ms ease;
 }
 

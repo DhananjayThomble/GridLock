@@ -324,7 +324,7 @@ const GameHistory = () => {
                 <select
                   value={resultFilter}
                   onChange={(e) => setResultFilter(e.target.value)}
-                  className="rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  className="rounded-lg px-3 py-2 min-h-[44px] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                   aria-label="Filter by result"
                 >
@@ -340,7 +340,7 @@ const GameHistory = () => {
                 <select
                   value={playerCountFilter}
                   onChange={(e) => setPlayerCountFilter(e.target.value)}
-                  className="rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  className="rounded-lg px-3 py-2 min-h-[44px] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                   aria-label="Filter by player count"
                 >
@@ -356,7 +356,7 @@ const GameHistory = () => {
                 <select
                   value={gridSizeFilter}
                   onChange={(e) => setGridSizeFilter(e.target.value)}
-                  className="rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  className="rounded-lg px-3 py-2 min-h-[44px] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color-strong)', color: 'var(--text-primary)' }}
                   aria-label="Filter by grid size"
                 >

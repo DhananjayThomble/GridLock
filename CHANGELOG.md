@@ -3,6 +3,48 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.3.1] — 2026-10-24
+
+### Fixed
+- Google sign-in now shows a clear message when it fails or is cancelled, instead of silently returning to the home page (#604, #605)
+- Deploys now fail (and roll back, for production) when the backend's database is unreachable: the deploy health check uses `/health/deep`, which exercises MongoDB, instead of `/health`, which never touched the database (#603, #608)
+
+### Changed
+- The backend logs its MongoDB target (host, database, whether credentials and `authSource` are present) at startup, so a misconfigured connection string is obvious in the log (#603)
+
+### Docs
+- Documented MongoDB authentication and the per-environment database users in `INFRASTRUCTURE.md` (#607)
+
+## [2.3.0] — 2026-10-24
+
+Mobile, tablet and desktop QA release: phone-sized UI fixes, multiplayer reliability, and a real-server test suite for the multiplayer edge cases (#590-#599).
+
+### Added
+- Tap assist on the board: a tap near a line snaps to the nearest open line, with a press preview and a short shake/haptic on a miss. A tap in the middle of a box is ignored on purpose (#594)
+- When the player on the move drops, play moves on to the next connected player after about 10 seconds; the dropped player keeps their seat and can rejoin (#598)
+- An immediate "You're offline" notice and instant reconnect when the network returns (previously ~35s of a normal-looking board) (#595)
+- One-tap rejoin from the lobby's "unfinished game" banner (#596)
+- Landscape layout for phones: board on the left, game info on the right (#595)
+- Multiplayer scenario tests that start the real server and drive it with real socket clients (2/3/4 players, drops, rejoin, bad joins, waiting room, spectators, ranked queue), plus phone-sized and desktop/tablet Playwright specs (#595, #596, #598, #600)
+
+### Changed
+- The Rules page keeps each step as one flowing paragraph and its contents list is no longer a floating panel (#594)
+- Lobby secondary buttons meet 4.5:1 text contrast in dark mode; Create Game stays pinned on every screen size; one banner at a time; the phone name field opens, focuses and flags itself when a name is missing (#595, #600)
+- Browser Back from a running game goes to the lobby (with the rejoin banner) instead of a stale waiting room (#595)
+- On laptops (1280x720, 1366x768) the lobby fits without scrolling and a game never scrolls from 1280x720 up to 1920x1080 or on iPads (#600)
+
+### Fixed
+- In 3 and 4 player games every guest was labelled player 1 when a later player joined, so the wrong phone said "Your turn!" (#595)
+- Server errors no longer push the board down under a player's thumb; already-drawn lines are no longer sent to the server (#594)
+- A host's dropped connection (or switching apps to share the invite link) no longer destroys the waiting room at once: it is held for the reconnect window (#596)
+- Refreshing the waiting room left a ghost room; the page now re-joins by itself (#596)
+- "Leave Waiting Room" now frees the seat (the server had no handler for it), the host's screen drops a guest who left, and guests are told when the room closes (#596)
+- The waiting room share link used a hardcoded gridlock.pro address, so beta shared links to production (#596)
+- A 1-2 player leaderboard listed players twice on phones, and the Ranked tab repeated the top 3 (#596)
+- Phone lobby: duplicate `id` for the name input, and the collapsed profile panel's controls were still focusable (#595)
+- Active score card overlapped its neighbour; History filters and the tutorial link are 44px on tablets (#600)
+- Five stale CPU e2e specs and the Settings "Your Stats" spec (they matched labels that no longer exist) (#595)
+
 ## [2.2.3] — 2026-10-23
 
 ### Security

@@ -96,21 +96,29 @@ const HowToPlay = () => {
     <Section emoji="📏" title="GridLock Rules — How Dots & Boxes Works" id="rules">
       <ol className="htp-rules-list" role="list">
         <li>
+          <span className="htp-rule-body">
           <strong>Draw a line.</strong> Players take turns drawing a single line
           between two adjacent dots on the grid. In dots and boxes online, each
           move is synced in real-time.
+          </span>
         </li>
         <li>
+          <span className="htp-rule-body">
           <strong>Claim boxes.</strong> Complete the fourth side of a square to
           claim it — you earn a point and get an <em>extra turn</em>.
+          </span>
         </li>
         <li>
+          <span className="htp-rule-body">
           <strong>Chain reactions.</strong> Claiming one box can set up the next.
           Skilled players chain multiple captures in a single turn.
+          </span>
         </li>
         <li>
+          <span className="htp-rule-body">
           <strong>Most boxes wins.</strong> The game ends when every line is
           drawn. The player with the most boxes wins!
+          </span>
         </li>
       </ol>
     </Section>

@@ -53,14 +53,21 @@ deploy_backend_beta() {
     pm2 start "$BETA_DIR/backend/server.js" --name gridlock-beta-backend
   pm2 save --silent
 
-  local code=000
+  # Deep health check (#603): /health/deep exercises MongoDB and Socket.IO, so a
+  # broken DB connection (e.g. missing/invalid credentials) fails the deploy
+  # instead of reporting success. /health alone never touches the database.
+  local code=000 body=''
   for _ in 1 2 3 4 5; do
     sleep 2
-    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:5001/health || echo 000)
+    body=$(curl -s --max-time 5 http://localhost:5001/health/deep || echo '')
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:5001/health/deep || echo 000)
     [ "$code" = "200" ] && break
   done
-  [ "$code" = "200" ] || die "Beta backend health check failed (HTTP $code)"
-  log "✅ Beta backend deployed"
+  if [ "$code" != "200" ]; then
+    log "Beta deep health response: ${body:-<empty>}"
+    die "Beta backend deep health check failed (HTTP $code)"
+  fi
+  log "✅ Beta backend deployed (deep health OK)"
 }
 
 deploy_frontend() {

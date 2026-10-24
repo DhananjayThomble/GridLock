@@ -77,7 +77,14 @@ const WaitingRoom = () => {
   const navigatedRef = useRef(false);
   const conflictRedirectRef = useRef(null);
 
-  const shareUrl = `https://gridlock.pro/join/${gameId}`;
+  // Use the address this page is served from (beta, local, prod); a hardcoded prod URL sent
+  // beta players' friends to a site where the room does not exist.
+  const shareUrl = `${window.location.origin}/join/${gameId}`;
+
+  // Our seat can change underneath us (a refresh frees it, a re-join issues a new token)
+  const tokenRef = useRef(sessionToken);
+  const roleRef = useRef(state.role);
+  const reRegisteringRef = useRef(false);
 
   // Request lobby state on mount
   useEffect(() => {
@@ -115,24 +122,45 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
+    // A guest left or dropped: refresh the seats (they used to linger on the host's screen)
+    const onPlayerLeft = () => {
+      socket.emit('lobby_state', { gameId });
+    };
+
     const onPlayerReconnected = () => {
       socket.emit('lobby_state', { gameId });
     };
 
     const onGameStarted = (data) => {
+      if (data.sessionToken) tokenRef.current = data.sessionToken;
+      if (data.playerId) roleRef.current = data.playerId;
+      reRegisteringRef.current = false;
+
+      // The server also sends game_started to say "you are (back) in this room" and whenever
+      // someone joins. While seats are still empty that is not the start of the game: stay here.
+      const seated = data.players ? Object.values(data.players).filter(Boolean).length : null;
+      if (seated !== null && seated < (data.playerCount || playerCount)) {
+        socket.emit('lobby_state', { gameId });
+        return;
+      }
+
       if (navigatedRef.current) return;
       navigatedRef.current = true;
       navigate('/game', {
         state: {
           username,
           gameId: data.gameId || gameId,
-          role: data.playerId || 'player1',
+          // The server also broadcasts an id-less game_started whenever someone else joins.
+          // Fall back to the role we were handed on entry, never to 'player1' (that mislabelled
+          // every guest as the host once a later player joined).
+          role: data.playerId || roleRef.current || (isHost ? 'player1' : undefined),
           avatar,
           playerCount: data.playerCount || playerCount,
           gridSize: data.gridSize || gridSize,
-          sessionToken: data.sessionToken || sessionToken,
+          sessionToken: data.sessionToken || tokenRef.current,
           cpuDifficulty: data.cpuDifficulty || cpuDifficulty,
         },
+        replace: true, // Back from the game must not land on a stale waiting room
       });
     };
 
@@ -148,6 +176,37 @@ const WaitingRoom = () => {
       socket.emit('lobby_state', { gameId });
     };
 
+    // After a refresh or a dropped connection this socket is no longer in the room: put it back.
+    const onError = (msg) => {
+      const message = typeof msg === 'string' ? msg : '';
+      if (message === 'Not in this game') {
+        // Several lobby_state requests can be in flight (mount + reconnect): re-register once
+        if (username && !reRegisteringRef.current) {
+          reRegisteringRef.current = true;
+          socket.emit('join_game', {
+            gameId, username, avatar,
+            ...(tokenRef.current ? { sessionToken: tokenRef.current } : {}),
+          });
+        }
+      } else if (reRegisteringRef.current || /game not found|room not found/i.test(message)) {
+        reRegisteringRef.current = false;
+        setSessionConflictMessage(
+          /not found/i.test(message)
+            ? 'This room is gone. Redirecting to lobby…'
+            : `Could not rejoin this room: ${message || 'unknown error'}. Redirecting to lobby…`
+        );
+        conflictRedirectRef.current = setTimeout(() => navigate('/', { replace: true }), 3000);
+      }
+    };
+
+    const onRoomClosed = () => {
+      setSessionConflictMessage('The host left, so this room was closed. Redirecting to lobby…');
+      conflictRedirectRef.current = setTimeout(() => navigate('/', { replace: true }), 3000);
+    };
+
+    // Network came back: ask for the lobby again (answers with an error if we need to re-register)
+    const onConnect = () => socket.emit('lobby_state', { gameId });
+
     const onSessionConflict = () => {
       socket.io.opts.reconnection = false;
       socket.disconnect();
@@ -158,29 +217,35 @@ const WaitingRoom = () => {
     socket.on('lobby_state', onLobbyState);
     socket.on('player_joined', onPlayerJoined);
     socket.on('player_disconnected', onPlayerDisconnected);
+    socket.on('player_left', onPlayerLeft);
     socket.on('player_reconnected', onPlayerReconnected);
     socket.on('game_started', onGameStarted);
     socket.on('all_players_joined', onAllPlayersJoined);
     socket.on('room_full', onRoomFull);
     socket.on('session_conflict', onSessionConflict);
+    socket.on('error', onError);
+    socket.on('room_closed', onRoomClosed);
+    socket.on('connect', onConnect);
 
     return () => {
       socket.off('lobby_state', onLobbyState);
       socket.off('player_joined', onPlayerJoined);
       socket.off('player_disconnected', onPlayerDisconnected);
+      socket.off('player_left', onPlayerLeft);
       socket.off('player_reconnected', onPlayerReconnected);
       socket.off('game_started', onGameStarted);
       socket.off('all_players_joined', onAllPlayersJoined);
       socket.off('room_full', onRoomFull);
       socket.off('session_conflict', onSessionConflict);
+      socket.off('error', onError);
+      socket.off('room_closed', onRoomClosed);
+      socket.off('connect', onConnect);
 
-      // Fix #6: Leave the waiting room on unmount if we didn't navigate to game
-      if (!navigatedRef.current) {
-        socket.emit('leave_waiting_room', { gameId });
-      }
+      // (Leaving is explicit, see handleLeave. This cleanup also runs when the effect's
+      // dependencies change and twice in dev, so it must never give up the seat.)
       if (conflictRedirectRef.current) clearTimeout(conflictRedirectRef.current);
     };
-  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty]);
+  }, [gameId, navigate, username, avatar, playerCount, gridSize, sessionToken, cpuDifficulty, isHost, state.role]);
 
   // Disconnect countdown timers
   // Fix #10: Uses client clock vs server disconnectedAt — countdown may drift
@@ -272,8 +337,10 @@ const WaitingRoom = () => {
   }, [gameId, sessionToken, cpuDifficulty, roomFull]);
 
   const handleLeave = useCallback(() => {
+    socket.emit('leave_waiting_room', { gameId }); // free the seat now; the socket stays connected
+    navigatedRef.current = true;
     navigate('/', { replace: true });
-  }, [navigate]);
+  }, [navigate, gameId]);
 
   const canStart = isHost && filled >= 2;
   const allFilled = filled === playerCount;

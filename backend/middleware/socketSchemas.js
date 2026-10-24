@@ -111,6 +111,10 @@ const schemas = {
         gameId: gameIdField,
     }),
 
+    leave_waiting_room: Joi.object({
+        gameId: gameIdField,
+    }),
+
     // Ranked profile fetch (#365)
     get_ranked_profile: Joi.object({
         username: usernameField,

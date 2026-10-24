@@ -27,6 +27,7 @@ const {
     DISCONNECT_TIMEOUT_MS,
     HOST_START_TIMEOUT_MS,
     hostStartTimers,
+    lobbyHostTimers,
     localTimers,
     activeDailyGames,
     initializeGameState,
@@ -317,6 +318,12 @@ function register(io, socket, log, rateLimited, validate) {
                         log.info('Session conflict: old tab superseded', {
                             gameId: cleanGameId, playerId, oldSocketId: existingSocketId, newSocketId: socket.id
                         });
+                    }
+
+                    // A host who returns within the grace period keeps the waiting room open
+                    if (playerId === 'player1' && lobbyHostTimers.has(cleanGameId)) {
+                        clearTimeout(lobbyHostTimers.get(cleanGameId));
+                        lobbyHostTimers.delete(cleanGameId);
                     }
 
                     // Reassign IMMEDIATELY (synchronous, before any await)

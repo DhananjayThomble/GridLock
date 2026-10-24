@@ -2,7 +2,7 @@
 // Zero-friction invite link join page — /join/:gameId
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import socket from '../socket';
 import { initAudio } from '../utils/sounds';
 import { safeStorage } from '../utils/safeStorage';
@@ -16,8 +16,10 @@ const isValidRoomCode = (code) => ROOM_CODE_REGEX.test((code || '').toUpperCase(
 const JoinGame = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
-  const [username, setUsername] = useState(() => safeStorage.getItem('gridlock_username') || '');
-  const [selectedAvatar, setSelectedAvatar] = useState('👦');
+  // The lobby's "Rejoin Game" banner sends the player's own name/avatar and asks us to rejoin at once
+  const routeState = useLocation().state || {};
+  const [username, setUsername] = useState(() => routeState.username || safeStorage.getItem('gridlock_username') || '');
+  const [selectedAvatar, setSelectedAvatar] = useState(routeState.avatar || '👦');
   // #420: Validate room code format on mount
   const invalidCode = gameId ? !isValidRoomCode(gameId) : false;
   const [joining, setJoining] = useState(false);
@@ -88,6 +90,7 @@ const JoinGame = () => {
             sessionToken: data.sessionToken,
             isHost: false,
           },
+          replace: true, // Back should not return to the join form
         });
       } else {
         navigate('/game', {
@@ -100,6 +103,7 @@ const JoinGame = () => {
             gridSize: data.gridSize,
             sessionToken: data.sessionToken,
           },
+          replace: true, // Back should not return to the join form
         });
       }
     };
@@ -156,6 +160,16 @@ const JoinGame = () => {
   // Keep ref in sync for auto-retry
   useEffect(() => {
     handleJoinRef.current = handleJoin;
+  });
+
+  // One-tap rejoin: coming from the "unfinished game" banner with a stored session token, skip the
+  // form and rejoin straight away. Any failure leaves the form on screen with the error shown.
+  const autoRejoinedRef = useRef(false);
+  useEffect(() => {
+    if (autoRejoinedRef.current || !routeState.autoRejoin || invalidCode || !gameId || !username.trim()) return;
+    if (!safeStorage.getItem(`gridlock:session:${gameId.toUpperCase()}:${username.trim()}`)) return;
+    autoRejoinedRef.current = true;
+    handleJoinRef.current?.();
   });
 
   // Watch Game as spectator (#365)
