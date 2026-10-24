@@ -16,7 +16,9 @@ PROD_DIR="/home/ubuntu/projects/GridLock-prod"
 PM2_APP="gridlock-backend"
 DEPLOY_LOG="${PROD_DIR}/deploy.log"
 ROLLBACK_FILE="${PROD_DIR}/.last-good-commit"
-HEALTH_URL="http://localhost:5000/health"
+# #603: use /health/deep so a broken DB connection fails the deploy (and triggers
+# rollback) instead of reporting success. /health alone never touches MongoDB.
+HEALTH_URL="http://localhost:5000/health/deep"
 HEALTH_TIMEOUT=5
 LOCKFILE="/tmp/gridlock-deploy.lock"
 DRY_RUN=false
@@ -44,7 +46,7 @@ health_check_retry() {
     local url="${1:-$HEALTH_URL}"
     local max_attempts=5
     local delay=2
-    local attempt code
+    local attempt code body
     for (( attempt=1; attempt<=max_attempts; attempt++ )); do
         sleep "$delay"
         code=$(health_check "$url")
@@ -52,7 +54,9 @@ health_check_retry() {
             echo "$code"
             return 0
         fi
-        log "Health check attempt $attempt/$max_attempts: HTTP $code"
+        # Log the deep-health body so a failing DB/Socket check is visible in deploy.log (#603)
+        body=$(curl -s --max-time "$HEALTH_TIMEOUT" "$url" 2>/dev/null || echo "")
+        log "Health check attempt $attempt/$max_attempts: HTTP $code ${body:+— $body}"
     done
     echo "$code"
     return 1
