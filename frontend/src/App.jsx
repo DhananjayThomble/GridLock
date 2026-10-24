@@ -16,6 +16,7 @@ import Lobby from './components/Lobby';
 import Board from './components/Board';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
+import AuthRedirectNotice from './components/AuthRedirectNotice';
 import BottomNav from './components/BottomNav';
 import PageSeo from './components/PageSeo';
 import ScrollToTop from './components/ScrollToTop';
@@ -381,6 +382,7 @@ function App() {
             <AuthProvider>
               <ScrollToTop />
               <ConnectionOverlay />
+              <AuthRedirectNotice />
               <AppLayout />
             </AuthProvider>
           </Router>
