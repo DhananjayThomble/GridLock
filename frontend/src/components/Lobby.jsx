@@ -859,7 +859,7 @@ const Lobby = () => {
             style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
           >
             <div className="flex justify-between items-center">
-              <Link to="/how-to-play" className="no-underline flex-1 min-h-[44px] flex flex-col justify-center sm:block sm:min-h-0">
+              <Link to="/how-to-play" className="no-underline flex-1 min-h-[44px] flex flex-col justify-center sm:flex-row sm:items-center sm:gap-2">
                 <span className="text-sm font-semibold block sm:inline" style={{ color: 'var(--text-primary)' }}>New to GridLock?</span>
                 <span className="text-[13px] sm:ml-2 block sm:inline" style={{ color: 'var(--text-secondary)' }}>Learn the rules in 2 minutes →</span>
               </Link>
@@ -880,7 +880,7 @@ const Lobby = () => {
 
 
         {/* ── Title (desktop only — mobile gets compact bar inside card) ── */}
-        <div className="text-center mb-3 sm:mb-6 hidden sm:block">
+        <div className="lobby-hero text-center mb-3 sm:mb-6 hidden sm:block">
           <h1
             className="gradient-title text-5xl sm:text-6xl font-extrabold bg-clip-text text-transparent leading-tight"
           >
@@ -1186,12 +1186,12 @@ const Lobby = () => {
               </div>
             )}
 
-            {/* Create Game — PRIMARY action (top, bold accent). On phones it stays pinned above
-                the tab bar while the CPU settings panel is open, so it is never off screen. */}
+            {/* Create Game — PRIMARY action (top, bold accent). It stays pinned (above the tab bar on
+                phones and small tablets) so it is never off screen: below the fold on 1366x768 and
+                1280x720 laptops, or pushed down by the CPU settings panel. */}
             <div
-              className="sticky z-10 -mx-4 px-4 pt-2 pb-2 -my-2 sm:static sm:mx-0 sm:px-0 sm:py-0 sm:my-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
+              className="lobby-cta-bar sticky z-10 -mx-4 px-4 pt-2 pb-2 -my-2 sm:-mx-5 sm:px-5 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] min-[769px]:bottom-3"
               data-testid="create-game-cta"
-              style={{ background: 'linear-gradient(to top, var(--bg-card-hover) 65%, transparent)' }}
             >
             <button
               onClick={handleCreate}
