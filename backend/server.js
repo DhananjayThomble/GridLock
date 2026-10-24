@@ -99,6 +99,22 @@ if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
   console.error('FATAL: MONGO_URI must be set in production. Set it in ecosystem.config.js.');
   process.exit(1);
 }
+// #603: log which database this process picked up, and whether it has credentials,
+// so a misconfigured MONGO_URI (e.g. missing user:pass while Mongo requires auth) is
+// obvious from the startup log rather than only surfacing as failing queries later.
+(() => {
+  try {
+    const u = new URL(MONGO_URI);
+    log.info('MongoDB target', {
+      host: u.host,
+      db: (u.pathname || '/').slice(1) || '(default)',
+      hasCredentials: Boolean(u.username),
+      authSource: u.searchParams.get('authSource') || '(none)',
+    });
+  } catch {
+    log.info('MongoDB target', { uri: MONGO_URI.replace(/\/\/.*@/, '//<credentials>@') });
+  }
+})();
 mongoose.connect(MONGO_URI)
 .then(() => log.info('MongoDB connected to', MONGO_URI.replace(/\/\/.*@/, '//<credentials>@')))
 .catch(err => log.error('MongoDB connection error:', err));
