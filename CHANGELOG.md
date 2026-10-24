@@ -3,6 +3,18 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.3.1] — 2026-10-24
+
+### Fixed
+- Google sign-in now shows a clear message when it fails or is cancelled, instead of silently returning to the home page (#604, #605)
+- Deploys now fail (and roll back, for production) when the backend's database is unreachable: the deploy health check uses `/health/deep`, which exercises MongoDB, instead of `/health`, which never touched the database (#603, #608)
+
+### Changed
+- The backend logs its MongoDB target (host, database, whether credentials and `authSource` are present) at startup, so a misconfigured connection string is obvious in the log (#603)
+
+### Docs
+- Documented MongoDB authentication and the per-environment database users in `INFRASTRUCTURE.md` (#607)
+
 ## [2.3.0] — 2026-10-24
 
 Mobile, tablet and desktop QA release: phone-sized UI fixes, multiplayer reliability, and a real-server test suite for the multiplayer edge cases (#590-#599).
