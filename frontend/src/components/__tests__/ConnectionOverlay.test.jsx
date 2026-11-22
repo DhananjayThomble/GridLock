@@ -13,6 +13,7 @@ vi.mock('../../socket', () => ({
     off: vi.fn(),
     connect: (...a) => mockConnect(...a),
     io: {
+      opts: { reconnection: false },
       on: (event, fn) => { ioHandlers[event] = fn; },
       off: vi.fn(),
     },
@@ -37,6 +38,22 @@ describe('ConnectionOverlay', () => {
     render(<ConnectionOverlay />);
     act(() => { socketHandlers.disconnect?.('transport close'); });
     expect(screen.getByText('Reconnecting…')).toBeInTheDocument();
+  });
+
+  it('keeps the replay usable while tracking the connection for live routes', () => {
+    const { rerender } = render(<ConnectionOverlay enabled={false} />);
+    act(() => { socketHandlers.disconnect('transport close'); });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    rerender(<ConnectionOverlay enabled />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('offers a retry after an intentional idle disconnect', () => {
+    render(<ConnectionOverlay />);
+    act(() => { socketHandlers.disconnect('io client disconnect'); });
+    expect(screen.getByText('Session paused')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Retry Connection'));
+    expect(mockConnect).toHaveBeenCalled();
   });
 
   it('shows attempt count during reconnection', () => {

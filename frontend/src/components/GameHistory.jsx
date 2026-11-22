@@ -60,6 +60,7 @@ const GameHistory = () => {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalCount: 0 });
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState('');
 
   // Filters
@@ -229,7 +230,7 @@ const GameHistory = () => {
       className="min-h-screen px-3 py-5 sm:px-6 sm:py-8"
       style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
     >
-      <div className="mx-auto w-full max-w-5xl">
+      <div className="mx-auto flex w-full max-w-5xl flex-col sm:block">
         {/* Header */}
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-4xl font-extrabold sm:text-5xl" style={{ color: 'var(--text-primary)' }}>
@@ -276,7 +277,7 @@ const GameHistory = () => {
         {/* Stats Summary — uses optional chaining for null safety (#9) */}
         {stats && !error && (
           <section
-            className="mb-4 rounded-2xl p-4 backdrop-blur-md sm:p-5"
+            className="order-last mt-4 mb-4 sm:mt-0 rounded-2xl p-4 backdrop-blur-md sm:p-5"
             style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color-strong)' }}
             aria-label="Game statistics summary"
           >
@@ -316,9 +317,13 @@ const GameHistory = () => {
             aria-label="Filter games"
           >
             <h2 className="mb-3 text-left text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--label-color)' }}>
-              Filters
+              <span className="hidden sm:inline">Filters</span>
+              <button className="w-full text-left sm:hidden" aria-expanded={showFilters}
+                onClick={() => setShowFilters(value => !value)}>
+                Filters {showFilters ? '▴' : '▾'}
+              </button>
             </h2>
-            <div className="flex flex-wrap gap-3">
+            <div className={`${showFilters ? 'flex' : 'hidden'} flex-wrap gap-3 sm:flex`}>
               <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 Result
                 <select
@@ -427,6 +432,7 @@ const GameHistory = () => {
                     <Link
                       key={game.gameId}
                       to={`/replay/${game.gameId}`}
+                      state={{ historySearch: searchParams.toString() }}
                       className="block rounded-2xl p-4 transition-transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                       style={{
                         background: 'var(--bg-card-hover)',

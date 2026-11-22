@@ -145,6 +145,16 @@ function gameStatusFromPlayers(game) {
     return filled >= game.playerCount ? 'playing' : 'waiting';
 }
 
+// Measure active play from accepted moves, excluding time in the waiting room.
+function matchDurationSeconds(game) {
+    const moves = game.moveHistory;
+    const first = moves?.[0]?.timestamp;
+    const last = moves?.at(-1)?.timestamp;
+    if (!first || !last) return null;
+    const seconds = Math.round((new Date(last) - new Date(first)) / 1000);
+    return Number.isFinite(seconds) ? Math.max(0, seconds) : null;
+}
+
 function buildGameStateWithPlayers(game) {
     const state = { ...game.gameState };
     let hasCPU = false;
@@ -170,6 +180,7 @@ function buildGameStateWithPlayers(game) {
         }
     }
     state.gameOver = !!state.winner;
+    if (state.gameOver) state.durationSeconds = matchDurationSeconds(game);
     state.hasCPU = hasCPU;
     if (game.cpuDifficulty) state.cpuDifficulty = game.cpuDifficulty;
     return state;
@@ -473,7 +484,7 @@ async function recordGameHistory(game, winner, log) {
         if (humanEntries.length === 0) return;
 
         const scores = game.gameState?.scores || {};
-        const gameDuration = game.createdAt ? Math.round((Date.now() - game.createdAt) / 1000) : null;
+        const gameDuration = matchDurationSeconds(game);
         const now = new Date();
 
         const docs = humanEntries.map(({ pid, username }) => {
