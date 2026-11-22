@@ -3,6 +3,16 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.4.0] — 2026-11-22
+
+### Added
+- Internal admin panel for operational metrics, account and game lookup, reversible account sign-in suspension, room chat moderation, and a persistent audit log (#624).
+- First-time guests can choose a CPU match or invite a friend. Live scoreboards now show box counts (#622).
+
+### Fixed
+- Match results and History show the same duration. On mobile, History puts matches ahead of the stats summary and collapses filters (#622).
+- Replay links return to the originating History filters, and loaded replays stay usable when the live socket disconnects (#622).
+
 ## [2.3.1] — 2026-10-24
 
 ### Fixed
