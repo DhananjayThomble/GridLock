@@ -77,17 +77,14 @@ describe('GameDemo', () => {
     expect(boxes.length).toBe(4);
   });
 
-  it('animates first move shortly after mount', () => {
+  it('draws the first scheduled line', () => {
     act(() => root.render(<GameDemo />));
+    const firstLine = container.querySelector('[data-testid="demo-h-0-0"]');
+    expect(firstLine).toHaveStyle({ opacity: '0.2' });
 
-    // Initially no lines should be "active"
-    const activeBefore = container.querySelectorAll('.demo-line-active');
-    expect(activeBefore.length).toBe(0);
+    act(() => vi.advanceTimersByTime(500));
 
-    // First move is at delay 0 → fires via setTimeout(0). Advance 100ms.
-    act(() => vi.advanceTimersByTime(100));
-    const activeAfter = container.querySelectorAll('.demo-line-active');
-    expect(activeAfter.length).toBeGreaterThanOrEqual(1);
+    expect(firstLine).toHaveStyle({ opacity: '1' });
   });
 
   it('cleans up all timers on unmount (no memory leaks)', () => {
@@ -107,14 +104,17 @@ describe('GameDemo', () => {
     clearIntervalSpy.mockRestore();
   });
 
-  it('shows score "1-0" after box capture at ~2600ms', () => {
+  it('shows the first captured box and awards the point to the player', () => {
     act(() => root.render(<GameDemo />));
-
-    act(() => vi.advanceTimersByTime(3000));
-
+    const box = container.querySelector('[data-testid="demo-box-0-0"]');
     const score = container.querySelector('[data-testid="demo-score"]');
-    expect(score).toBeTruthy();
-    expect(score.textContent).toContain('1');
-    expect(score.textContent).toContain('0');
+    expect(box).toHaveStyle({ transform: 'scale(0)' });
+
+    // The demo captures the first box 300 ms after drawing its last side at 10.1 s.
+    act(() => vi.advanceTimersByTime(10_400));
+
+    expect(box).toHaveStyle({ transform: 'scale(1)' });
+    expect(score).toHaveTextContent('You 1');
+    expect(score).toHaveTextContent('Alex 0');
   });
 });
