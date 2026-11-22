@@ -120,6 +120,8 @@ const AppLayout = () => {
   return (
     <>
       <AuthSetupRedirect />
+      <ConnectionOverlay enabled={['/', '/game', '/daily', '/tournament'].includes(location.pathname)
+        || /^\/(waiting|join|play)\//.test(location.pathname)} />
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>
@@ -381,7 +383,6 @@ function App() {
           <Router basename={basePath}>
             <AuthProvider>
               <ScrollToTop />
-              <ConnectionOverlay />
               <AuthRedirectNotice />
               <AppLayout />
             </AuthProvider>

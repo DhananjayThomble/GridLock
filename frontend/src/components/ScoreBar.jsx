@@ -64,7 +64,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                         )}
                       </span>
                       <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
-                        {percentage.toFixed(0)}%
+                        {score} {score === 1 ? 'box' : 'boxes'} <small>{percentage.toFixed(0)}%</small>
                       </span>
                     </div>
                     <div className="score-progress-thin rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--progress-track)' }}>
@@ -151,9 +151,9 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                   </div>
 
                   {/* Percentage */}
-                  <div className="flex-shrink-0 w-10 sm:w-12 text-right">
+                  <div className="flex-shrink-0 text-right">
                     <span className="text-xs font-extrabold" style={{ color: player.color }}>
-                      {percentage.toFixed(0)}%
+                      {score} {score === 1 ? 'box' : 'boxes'} <small>{percentage.toFixed(0)}%</small>
                     </span>
                   </div>
                 </div>

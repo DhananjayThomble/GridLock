@@ -168,7 +168,7 @@ router.get('/', async (req, res) => {
                 losses: agg.losses,
                 draws: agg.draws,
                 winRate,
-                avgDuration: agg.avgDuration ? Math.round(agg.avgDuration) : null,
+                avgDuration: agg.avgDuration != null ? Math.round(agg.avgDuration) : null,
                 currentStreak,
             };
         }
