@@ -1,5 +1,4 @@
 const express = require('express');
-const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const request = require('supertest');
@@ -8,20 +7,25 @@ const User = require('../models/User');
 const Game = require('../models/Game');
 const AdminAction = require('../models/AdminAction');
 const { requireAuth } = require('../middleware/auth');
+const { httpLimiter } = require('../middleware/rateLimiter');
 const adminRoutes = require('../routes/admin');
 
 const app = express();
-app.use(express.json(), cookieParser());
+app.use(express.json(), (req, _res, next) => {
+    // Supply the fixture session using the same request shape as cookie-parser.
+    req.cookies = { gridlock_token: req.get('X-Test-Session') };
+    next();
+});
 app.use('/admin', adminRoutes);
-app.get('/signed-in', requireAuth, (_req, res) => res.sendStatus(204));
+app.get('/signed-in', httpLimiter, requireAuth, (_req, res) => res.sendStatus(204));
 
 let database;
 let operator;
 let player;
 const secret = 'gridlock-admin-test';
-const cookie = user => `gridlock_token=${jwt.sign({ sub: String(user._id) }, secret)}`;
+const session = user => jwt.sign({ sub: String(user._id) }, secret);
 const moderate = body => request(app).post('/admin/moderation')
-    .set('Cookie', cookie(operator)).set('X-Requested-With', 'XMLHttpRequest').send(body);
+    .set('X-Test-Session', session(operator)).set('X-Requested-With', 'XMLHttpRequest').send(body);
 
 beforeAll(async () => {
     process.env.ADMIN_GOOGLE_IDS = 'operator-sub';
@@ -43,8 +47,8 @@ afterAll(async () => {
 
 test('only an allowlisted signed-in operator can read the console', async () => {
     await request(app).get('/admin/accounts').expect(401);
-    await request(app).get('/admin/accounts').set('Cookie', cookie(player)).expect(403);
-    const response = await request(app).get('/admin/accounts?search=player').set('Cookie', cookie(operator)).expect(200);
+    await request(app).get('/admin/accounts').set('X-Test-Session', session(player)).expect(403);
+    const response = await request(app).get('/admin/accounts?search=player').set('X-Test-Session', session(operator)).expect(200);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0]).toMatchObject({ username: 'player', suspended: false });
@@ -53,14 +57,14 @@ test('only an allowlisted signed-in operator can read the console', async () => 
 
 test('requires CSRF and reason, protects operators, and applies audited suspension and restoration', async () => {
     const action = { kind: 'account', target: String(player._id), blocked: true, reason: 'Support review' };
-    await request(app).post('/admin/moderation').set('Cookie', cookie(operator)).send(action).expect(403);
+    await request(app).post('/admin/moderation').set('X-Test-Session', session(operator)).send(action).expect(403);
     await moderate({ ...action, reason: ' ' }).expect(400);
     await moderate({ ...action, target: String(operator._id) }).expect(403);
     await moderate(action).expect(201);
-    await request(app).get('/signed-in').set('Cookie', cookie(player)).expect(403);
+    await request(app).get('/signed-in').set('X-Test-Session', session(player)).expect(403);
     await moderate({ ...action, blocked: false }).expect(201);
-    await request(app).get('/signed-in').set('Cookie', cookie(player)).expect(204);
-    const audit = await request(app).get('/admin/audit').set('Cookie', cookie(operator)).expect(200);
+    await request(app).get('/signed-in').set('X-Test-Session', session(player)).expect(204);
+    const audit = await request(app).get('/admin/audit').set('X-Test-Session', session(operator)).expect(200);
     expect(audit.body.items.map(item => item.blocked)).toEqual([false, true]);
 });
 
@@ -72,10 +76,16 @@ test('room listing omits seat credentials and reflects chat moderation', async (
     });
     await moderate({ kind: 'room-chat', target: 'troom1', blocked: true, reason: 'Room review' }).expect(201);
     expect(await AdminAction.isBlocked('room-chat', 'TROOM1')).toBe(true);
-    const response = await request(app).get('/admin/games?search=troom1&status=playing').set('Cookie', cookie(operator)).expect(200);
+    const response = await request(app).get('/admin/games?search=troom1&status=playing').set('X-Test-Session', session(operator)).expect(200);
     expect(response.body.items[0]).toMatchObject({
         gameId: 'TROOM1', chatMuted: true, players: { player1: { username: 'player' } },
     });
     expect(response.body.items[0].players.player1).not.toHaveProperty('token');
     expect(response.body.items[0].players.player1).not.toHaveProperty('id');
+
+    const filteredOut = await request(app).get('/admin/games?search=troom1&status=finished')
+        .set('X-Test-Session', session(operator)).expect(200);
+    expect(filteredOut.body.items).toEqual([]);
+    await request(app).get('/admin/games?search=troom1&status=invalid')
+        .set('X-Test-Session', session(operator)).expect(400);
 });

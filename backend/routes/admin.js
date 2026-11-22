@@ -89,12 +89,12 @@ router.get('/games', async (req, res) => {
     const filter = {};
     if (req.query.status) {
         if (!GAME_STATUSES.includes(req.query.status)) return res.status(400).json({ error: 'Invalid game status' });
-        filter.status = req.query.status;
+        filter.status = { $eq: req.query.status };
     }
     if (req.query.search) {
         const id = sanitizeGameId(req.query.search);
         if (!id.valid) return res.status(400).json({ error: id.error });
-        filter.gameId = id.value;
+        filter.gameId = { $eq: id.value };
     }
     const result = await paginate(Game.find(filter).select(gameFields), pageNumber(req.query), { lastActivityAt: -1, _id: -1 });
     const blocked = await AdminAction.blockedTargets('room-chat', result.items.map(game => game.gameId));
