@@ -6,6 +6,7 @@ const { OAuth2Client } = require('google-auth-library');
 const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 
+const AdminAction = require('../models/AdminAction');
 const User = require('../models/User');
 const Leaderboard = require('../models/Leaderboard');
 const RankedProfile = require('../models/RankedProfile');
@@ -165,6 +166,10 @@ router.get('/google/callback', oauthCallbackLimiter, async (req, res) => {
     let isNewUser = false;
 
     if (user) {
+      if (await AdminAction.isBlocked('account', String(user._id))) {
+        res.clearCookie('gridlock_token', CLEAR_COOKIE_OPTS);
+        return res.redirect(`${FRONTEND_URL}/?auth=suspended`);
+      }
       // Update last login, profile info, and access token
       user.lastLoginAt = new Date();
       user.displayName = name;

@@ -237,6 +237,7 @@ app.use('/api/daily', dailyRoutes);
 
 // Auth API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', require('./routes/admin'));
 
 // Deep health check (post-deploy verification) — mounted before the lightweight
 // /health GET and any catch-all routes to ensure /health/deep is always reachable.

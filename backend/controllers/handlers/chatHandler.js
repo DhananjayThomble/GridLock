@@ -2,6 +2,7 @@
  * In-game chat and emoji reaction handlers.
  * Handles: game_chat
  */
+const AdminAction = require('../../models/AdminAction');
 const {
     gameStore,
     sanitizeGameId,
@@ -56,6 +57,11 @@ function register(io, socket, log, rateLimited, validate) {
 
             if (!chatRateLimiter.allow(socket.id)) {
                 socket.emit('error', 'Chat rate limited. Please slow down.');
+                return;
+            }
+
+            if (await AdminAction.isBlocked('room-chat', cleanGameId)) {
+                socket.emit('error', 'Chat has been muted in this room');
                 return;
             }
 
