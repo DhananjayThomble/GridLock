@@ -36,6 +36,7 @@ const HowToPlay = lazy(() => import('./components/HowToPlay'));
 const Settings = lazy(() => import('./components/Settings'));
 const WaitingRoom = lazy(() => import('./components/WaitingRoom'));
 const ChallengePage = lazy(() => import('./components/ChallengePage'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const AuthSetup = lazy(() => import('./components/AuthSetup'));
 
 // Support /beta sub-path deployment via Vite's BASE_URL
@@ -109,7 +110,7 @@ const AuthSetupRedirect = () => {
 const AppLayout = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const hideNav = location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
+  const hideNav = location.pathname === '/admin' || location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   // Block layout rendering while auth setup redirect is pending (#6 Copilot review)
   const needsSetupRedirect = !loading && user && !user.usernameSetupComplete && location.pathname !== '/auth/setup';
@@ -366,6 +367,7 @@ const AppLayout = () => {
                 </ErrorBoundary>
               )}
             />
+            <Route path="/admin" element={withPageSeo(<AdminPanel />, { title: 'Admin — GridLock', noindex: true })} />
             {/* Catch-all: show toast and redirect unknown routes to lobby (#418) */}
             <Route path="*" element={<NotFoundRedirect />} />
           </Routes>

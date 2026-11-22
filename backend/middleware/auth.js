@@ -1,6 +1,7 @@
 // middleware/auth.js
 
 const jwt = require('jsonwebtoken');
+const AdminAction = require('../models/AdminAction');
 const User = require('../models/User');
 const { COOKIE_OPTIONS, CLEAR_COOKIE_OPTS } = require('../config/authConfig');
 
@@ -15,7 +16,7 @@ async function optionalAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(payload.sub).lean();
-    if (user) {
+    if (user && !await AdminAction.isBlocked('account', String(user._id))) {
       req.user = user;
     } else {
       // Fix #5: User deleted — clear stale cookie to avoid repeated
@@ -44,6 +45,10 @@ async function requireAuth(req, res, next) {
     if (!user) {
       res.clearCookie('gridlock_token', CLEAR_COOKIE_OPTS);
       return res.status(401).json({ success: false, error: 'Account not found' });
+    }
+    if (await AdminAction.isBlocked('account', String(user._id))) {
+      res.clearCookie('gridlock_token', CLEAR_COOKIE_OPTS);
+      return res.status(403).json({ success: false, error: 'Account suspended' });
     }
     req.user = user;
     next();

@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 
 const MESSAGES = {
+  suspended: { text: 'Your GridLock account has been suspended.', type: 'error' },
   error: { text: "Sign-in didn't complete. Please try again in a moment.", type: 'error' },
   cancelled: { text: 'Sign-in cancelled.', type: 'info' },
 };
