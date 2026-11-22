@@ -440,7 +440,6 @@ const GameHistory = () => {
                         textDecoration: 'none',
                         color: 'var(--text-primary)',
                       }}
-                      aria-label={`Game on ${formatDate(game.playedAt)} — ${RESULT_LABELS[game.result] || game.result} against ${game.opponents.join(', ') || 'unknown'}`}
                     >
                       {/* Top row: result badge + date */}
                       <div className="flex items-center justify-between mb-2">

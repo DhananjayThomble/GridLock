@@ -73,9 +73,8 @@ describe('GameHistory', () => {
 
     renderHistory('/history?player=TestUser');
 
-    await waitFor(() => {
-      expect(screen.getByText(/Win|🏆/)).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('link', { name: /Win.*vs Rival1.*Score: 6–3/i }))
+      .toHaveAttribute('href', '/replay/G001');
   });
 
   it('shows loss entries', async () => {

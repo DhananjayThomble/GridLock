@@ -63,7 +63,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
                           <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>(left)</span>
                         )}
                       </span>
-                      <span className="text-xs font-extrabold flex-shrink-0" style={{ color: player.color }}>
+                      <span className="text-xs font-extrabold flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
                         {score} {score === 1 ? 'box' : 'boxes'} <small>{percentage.toFixed(0)}%</small>
                       </span>
                     </div>
@@ -152,7 +152,7 @@ const ScoreBar = React.memo(({ players, scores, gridSize, currentPlayer, spectat
 
                   {/* Percentage */}
                   <div className="flex-shrink-0 text-right">
-                    <span className="text-xs font-extrabold" style={{ color: player.color }}>
+                    <span className="text-xs font-extrabold" style={{ color: 'var(--text-primary)' }}>
                       {score} {score === 1 ? 'box' : 'boxes'} <small>{percentage.toFixed(0)}%</small>
                     </span>
                   </div>
