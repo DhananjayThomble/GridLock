@@ -2,10 +2,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { isFirstTime, markPlayed, PLAYED_KEY } from '../onboarding';
+import { safeStorage } from '../safeStorage';
 
 describe('onboarding utils', () => {
   beforeEach(() => {
-    localStorage.clear();
+    safeStorage.removeItem(PLAYED_KEY);
   });
 
   describe('isFirstTime()', () => {
@@ -43,12 +44,15 @@ describe('onboarding utils', () => {
     });
 
     it('handles localStorage errors gracefully (no throw)', () => {
-      const originalSetItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = vi.fn(() => {
-        throw new DOMException('QuotaExceededError');
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+        throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
       });
-      expect(() => markPlayed()).not.toThrow();
-      Storage.prototype.setItem = originalSetItem;
+      try {
+        expect(() => markPlayed()).not.toThrow();
+        expect(sessionStorage.getItem(PLAYED_KEY)).toBe('true');
+      } finally {
+        setItem.mockRestore();
+      }
     });
   });
 
@@ -56,7 +60,6 @@ describe('onboarding utils', () => {
     it('new user starts as first-time, becomes returning after markPlayed', () => {
       expect(isFirstTime()).toBe(true);
       markPlayed();
-      expect(isFirstTime()).toBe(false);
       expect(isFirstTime()).toBe(false);
     });
   });
