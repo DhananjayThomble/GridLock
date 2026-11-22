@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import socket from '../socket';
 
-const ConnectionOverlay = () => {
-  // 'connected' | 'offline' | 'reconnecting' | 'failed'
+const ConnectionOverlay = ({ enabled = true }) => {
+  // 'connected' | 'offline' | 'reconnecting' | 'failed' | 'idle'
   const [state, setState] = useState(() => (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connected'));
   const [attempt, setAttempt] = useState(0);
   const retryBtnRef = useRef(null);
@@ -13,7 +13,9 @@ const ConnectionOverlay = () => {
   useEffect(() => {
     const onDisconnect = (reason) => {
       // io server disconnect = server forcefully disconnected, don't auto-reconnect
-      if (reason === 'io server disconnect') {
+      if (reason === 'io client disconnect' && socket.io.opts?.reconnection === false) {
+        setState('idle');
+      } else if (reason === 'io server disconnect') {
         setState('failed');
       } else {
         setState('reconnecting');
@@ -72,10 +74,10 @@ const ConnectionOverlay = () => {
 
   // Auto-focus retry button when entering failed state
   useEffect(() => {
-    if (state === 'failed' && retryBtnRef.current) {
+    if (enabled && (state === 'failed' || state === 'idle') && retryBtnRef.current) {
       retryBtnRef.current.focus();
     }
-  }, [state]);
+  }, [enabled, state]);
 
   const handleRetry = useCallback(() => {
     setState('reconnecting');
@@ -83,7 +85,7 @@ const ConnectionOverlay = () => {
     socket.connect();
   }, []);
 
-  if (state === 'connected') return null;
+  if (!enabled || state === 'connected') return null;
 
   return (
     <div
@@ -149,10 +151,10 @@ const ConnectionOverlay = () => {
           <>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚡</div>
             <h2 id={headingId} style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-              Connection Lost
+              {state === 'idle' ? 'Session paused' : 'Connection Lost'}
             </h2>
             <p aria-live="assertive" style={{ color: 'var(--text-muted, #999)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-              Unable to reach the server. Check your connection and try again.
+              {state === 'idle' ? 'Your session was paused after inactivity.' : 'Unable to reach the server. Check your connection and try again.'}
             </p>
             <button
               ref={retryBtnRef}

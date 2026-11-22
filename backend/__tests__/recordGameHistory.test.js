@@ -29,6 +29,7 @@ function makeGame(overrides = {}) {
     },
     gameState: { scores: { player1: 5, player2: 3 } },
     createdAt: Date.now() - 60_000, // 60 seconds ago
+    moveHistory: [{ timestamp: new Date(1000) }, { timestamp: new Date(13000) }],
     ...overrides,
   };
 }
@@ -58,7 +59,7 @@ describe('recordGameHistory', () => {
     expect(aliceDoc.playerCount).toBe(2);
     expect(aliceDoc.scores.player).toBe(5);
     expect(aliceDoc.scores.opponent).toBe(3);
-    expect(typeof aliceDoc.duration).toBe('number');
+    expect(aliceDoc.duration).toBe(12);
     expect(aliceDoc.playedAt).toBeInstanceOf(Date);
 
     expect(bobDoc.result).toBe('loss');
@@ -148,9 +149,9 @@ describe('recordGameHistory', () => {
     expect(docs[0].scores.opponent).toBe(0);
   });
 
-  test('handles missing createdAt (null duration)', async () => {
+  test('handles missing move history (null duration)', async () => {
     const log = createLog();
-    const game = makeGame({ createdAt: null });
+    const game = makeGame({ moveHistory: [] });
 
     await recordGameHistory(game, 'player1', log);
 

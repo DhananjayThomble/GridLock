@@ -927,7 +927,7 @@ const Lobby = () => {
                   type="text"
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setUsernameError(''); }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleOnboardingPlayNow()}
+                  onKeyDown={(e) => e.key === 'Enter' && !creating && !challengeCreating && handleOnboardingPlayNow()}
                   placeholder="Enter your name"
                   maxLength={16}
                   autoComplete="off"
@@ -943,7 +943,7 @@ const Lobby = () => {
                 <button
                   data-testid="onboarding-play-now"
                   onClick={handleOnboardingPlayNow}
-                  disabled={creating}
+                  disabled={creating || challengeCreating}
                   className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                   style={{
                     background: creating ? 'var(--bg-surface)' : 'var(--accent)',
@@ -959,10 +959,16 @@ const Lobby = () => {
                       Starting…
                     </span>
                   ) : (
-                    '▶ Play Now'
+                    'Play vs CPU'
                   )}
                 </button>
               </div>
+
+              <button type="button" onClick={handleCreateChallenge}
+                disabled={creating || challengeCreating}
+                className="rounded-xl px-5 py-3 font-semibold" style={secondaryStyle(creating || challengeCreating)}>
+                {challengeCreating ? 'Creating…' : 'Play with a friend'}
+              </button>
 
               {usernameError && (
                 <p className="text-xs" style={{ color: 'var(--danger)' }}>{usernameError}</p>

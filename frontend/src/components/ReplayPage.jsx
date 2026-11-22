@@ -3,7 +3,7 @@
 // Uses shared useGridSizes hook + grid theme support (matching Board.jsx patterns)
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import useThemeColors from '../hooks/useThemeColors';
 import useGridSizes from '../hooks/useGridSizes';
@@ -127,6 +127,7 @@ function applyMove(state, gridSize, move) {
 const ReplayPage = () => {
     const { gameId } = useParams();
     const navigate = useNavigate();
+    const historySearch = useLocation().state?.historySearch;
     const themeColors = useThemeColors();
     const getCSSVar = (varName) => themeColors[varName] || '';
     const { theme: gridTheme } = useGridTheme();
@@ -471,9 +472,9 @@ const ReplayPage = () => {
             {/* Header — compact on mobile */}
             <div className="w-full max-w-2xl px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
                 <div className="flex items-center justify-between mb-2 gap-2">
-                    <Link to="/" className="text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg transition-all active:scale-95 shrink-0"
+                    <Link to={historySearch != null ? `/history?${historySearch}` : '/'} className="text-xs sm:text-sm font-semibold px-2 sm:px-3 py-1.5 rounded-lg transition-all active:scale-95 shrink-0"
                         style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
-                        ← Back
+                        {historySearch != null ? '← Back to history' : '← Lobby'}
                     </Link>
                     <h1 className="text-base sm:text-lg font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                         🎬 Game Replay

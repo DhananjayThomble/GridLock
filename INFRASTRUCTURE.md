@@ -337,3 +337,16 @@ Both run on GitHub-hosted runners (free for public repos). Server paths are
 hardcoded in `scripts/server-deploy.sh`, `deploy-backend.sh` and
 `ecosystem.config.js`; if the server layout changes, update them and
 re-install `server-deploy.sh`.
+
+## Admin panel
+
+Set `ADMIN_GOOGLE_IDS` in the backend environment to the comma-separated
+`User.googleId` values of approved operators in that environment. Use the
+Google OAuth subject ID from the operator's existing account. Access is denied
+when the allowlist is empty. Sign in with Google and open `/admin`.
+
+The panel shows deployment activity, accounts and recent matches, game rooms,
+and an audit log. Operators can suspend and restore account sign-in and mute
+and unmute chat in an active room. Each change requires a reason. Suspension
+blocks authenticated sessions and Google sign-in for that account. Guest play
+is available without an account, and room chat controls apply to guests as well.

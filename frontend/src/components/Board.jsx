@@ -105,7 +105,6 @@ const Board = () => {
   const [moveCount, setMoveCount] = useState({});
   const [gameDuration, setGameDuration] = useState(null);
   const prevLineCountRef = useRef(0);
-  const gameStartTimeRef = useRef(null);
 
   // ── Turn indicator state ──────────────────────────────────────────────────────
   const [boardPulse, setBoardPulse] = useState(false);
@@ -203,7 +202,6 @@ const Board = () => {
       setRematchCount({ count: 0, total: 0 });
       confettiFiredRef.current = false;
       gameStarted.current = false;
-      gameStartTimeRef.current = null;
       prevLineCountRef.current = 0;
       setMoveCount({});
       setGameDuration(null);
@@ -261,12 +259,6 @@ const Board = () => {
 
     const onAllJoined = () => {
       setWaitingCount(0);
-      // #421: Record game start time when all players join — this ensures
-      // duration is always available regardless of how many lines the first
-      // game_update carries (fixes '—' duration on 5×5 2P games).
-      if (!gameStartTimeRef.current) {
-        gameStartTimeRef.current = Date.now();
-      }
       // Game start sound — once
       if (!gameStarted.current) {
         gameStarted.current = true;
@@ -289,22 +281,13 @@ const Board = () => {
         });
       }
 
-      // ── Track moves per player & game start time ────────────────────────────
+      // ── Track moves per player ────────────────────────────
       const currentLineCount = countLines(gs);
       if (currentLineCount > prevLineCountRef.current) {
         const lineOwners = {};
         if (gs.horizontalLines) gs.horizontalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
         if (gs.verticalLines) gs.verticalLines.forEach(row => row.forEach(v => { if (v) lineOwners[v] = (lineOwners[v] || 0) + 1; }));
         setMoveCount(lineOwners);
-        if (prevLineCountRef.current === 0 && currentLineCount > 0) {
-          // Set game start time on first move if not already set by all_players_joined.
-          // For reconnection mid-game (currentLineCount >> 1 on first update with no
-          // prior gameStartTimeRef), leave it null so duration shows "—" rather than
-          // an incorrect value — unless all_players_joined already set it (#421).
-          if (!gameStartTimeRef.current && currentLineCount === 1) {
-            gameStartTimeRef.current = Date.now();
-          }
-        }
       }
       // Opponent move sound: plays when a line was placed by opponent without capturing
       // Only triggers when: line count increased + no capture happened + it's now our turn
@@ -339,7 +322,7 @@ const Board = () => {
         // Mark first game as played (for onboarding flow — #455)
         markPlayed();
 
-        setGameDuration(prev => prev || (gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null));
+        setGameDuration(gs.durationSeconds ?? null);
         const winner = gs.winner;
 
         // Record session stats exactly once (guard against reconnect re-fires)
@@ -376,7 +359,7 @@ const Board = () => {
           capture('game_completed', {
             gridSize: gridSize || 3,
             playerCount: gs.playerCount || 2,
-            duration: gameStartTimeRef.current ? Math.round((Date.now() - gameStartTimeRef.current) / 1000) : null,
+            duration: gs.durationSeconds ?? null,
             winner: winner === role ? 'self' : winner === 'draw' ? 'draw' : 'opponent',
           });
 
