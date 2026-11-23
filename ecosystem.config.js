@@ -24,6 +24,7 @@ module.exports = {
       // No secrets in this file — it's tracked by git
       instances: 1,
       autorestart: true,
+      kill_timeout: 12000, // Allow the server to drain and flush Sentry before PM2 sends SIGKILL.
       max_memory_restart: '512M',
       error_file: '/home/ubuntu/.pm2/logs/gridlock-backend-error.log',
       out_file: '/home/ubuntu/.pm2/logs/gridlock-backend-out.log',
@@ -37,6 +38,7 @@ module.exports = {
       // Beta uses NODE_ENV=development for verbose logging, detailed errors
       instances: 1,
       autorestart: true,
+      kill_timeout: 12000, // Allow the server to drain and flush Sentry before PM2 sends SIGKILL.
       max_memory_restart: '512M',
       error_file: '/home/ubuntu/.pm2/logs/gridlock-beta-backend-error.log',
       out_file: '/home/ubuntu/.pm2/logs/gridlock-beta-backend-out.log',

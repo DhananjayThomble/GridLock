@@ -2,6 +2,7 @@
  * Game creation, joining, lobby state, and game start handlers.
  * Handles: create_game, join_game, lobby_state, replace_with_cpu, start_game_early, start_game
  */
+const { captureOperationalFailure } = require('../../lib/sentry');
 const {
     gameStore,
     rematchStore,
@@ -212,6 +213,7 @@ function register(io, socket, log, rateLimited, validate) {
             if (callback) callback({ gameId, playerId: 'player1', sessionToken });
         } catch (error) {
             log.error('Error creating game', { error: error.message, stack: error.stack });
+            captureOperationalFailure(error, 'game.create');
             socket.emit('error', 'Failed to create game');
         }
     });
@@ -476,6 +478,7 @@ function register(io, socket, log, rateLimited, validate) {
             }
         } catch (error) {
             log.error('Error joining game', { error: error.message, stack: error.stack });
+            captureOperationalFailure(error, 'game.join');
             socket.emit('error', 'Failed to join game');
         }
     });
@@ -767,6 +770,7 @@ function register(io, socket, log, rateLimited, validate) {
             log.info('Game started by host', { gameId: cleanGameId, playerCount: game.playerCount });
         } catch (error) {
             log.error('Error starting game', { error: error.message });
+            captureOperationalFailure(error, 'game.start');
             socket.emit('error', 'Failed to start game');
         }
     });
