@@ -21,7 +21,7 @@ import { safeStorage } from '../utils/safeStorage';
 
 import { countLines } from '../utils/postGameUtils';
 import { capture } from '../lib/posthog';
-import { addBreadcrumb, setTag, setUser } from '../lib/sentry';
+import { addBreadcrumb, setTag } from '../lib/sentry';
 import { useToast } from '../contexts/ToastContext';
 import { useGridTheme } from '../contexts/GridThemeContext';
 import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
@@ -236,8 +236,6 @@ const Board = () => {
       }
 
       // ── Sentry context: game started / player joined ──────────────────────
-      setUser({ username, id: username });
-      setTag('gameId', gameId);
       setTag('gridSize', gridSize);
       setTag('playerCount', data.playerCount || 2);
       addBreadcrumb({
