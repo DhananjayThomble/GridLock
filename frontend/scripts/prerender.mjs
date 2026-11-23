@@ -128,9 +128,10 @@ async function prerender() {
   let failed = false;
 
   for (const route of ROUTES) {
+    let page;
     try {
       console.log(`Prerendering ${route} ...`);
-      const page = await browser.newPage();
+      page = await browser.newPage();
 
       // Block analytics / tracking to keep prerendered HTML clean
       await page.setRequestInterception(true);
@@ -160,7 +161,8 @@ async function prerender() {
       });
 
       await page.goto(`http://localhost:${PREVIEW_PORT}${route}`, {
-        waitUntil: 'networkidle0',
+        // The SPA can keep API requests open while its SEO metadata is already ready.
+        waitUntil: 'domcontentloaded',
         timeout: 20000,
       });
 
@@ -198,10 +200,11 @@ async function prerender() {
       mkdirSync(dirname(outPath), { recursive: true });
       writeFileSync(outPath, html, 'utf-8');
       console.log(`  ✅ ${outPath}`);
-      await page.close();
     } catch (err) {
       console.error(`  ❌ Failed to prerender ${route}:`, err.message);
       failed = true;
+    } finally {
+      await page?.close();
     }
   }
 
