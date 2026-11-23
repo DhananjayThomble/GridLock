@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -14,7 +14,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@sentry/node": "^10.43.0",
+    "@sentry/node": "^11.9.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -37,5 +37,11 @@
     "mongodb-memory-server": "^11.0.1",
     "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2"
+  },
+  "overrides": {
+    "glob": "^14.0.2",
+    "test-exclude": {
+      "minimatch": "^11.0.1"
+    }
   }
 }
