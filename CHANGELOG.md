@@ -3,6 +3,18 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.4.1] — 2026-11-23
+
+### Security
+- Patch all 13 open Dependabot alerts affecting Joi, Mongoose, follow-redirects, undici, and minimatch. Also patch the backend glob advisory found by npm audit (#631).
+
+### Changed
+- Consolidate the frontend and backend dependency updates, including the backend Sentry SDK upgrade to v11 (#631).
+- Run frontend unit tests in pull request and deployment CI (#628).
+
+### Fixed
+- Improve mobile scoreboard and game badge contrast. Include the visible room code and match details in accessible button and replay link names (#630).
+
 ## [2.4.0] — 2026-11-22
 
 ### Added
