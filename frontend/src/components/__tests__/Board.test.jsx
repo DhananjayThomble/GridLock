@@ -79,12 +79,10 @@ vi.mock('../../contexts/GridThemeContext', () => ({
       lineStyle: { borderRadius: '3px' },
       players: { p1: { lineColor: '#6366f1', boxBg: 'rgba(99,102,241,0.12)' }, p2: { lineColor: '#f59e0b', boxBg: 'rgba(245,158,11,0.12)' } },
     },
-    checkAndUnlockThemes: vi.fn(),
   }),
 }));
 vi.mock('../../themes/gridThemes', () => ({
   playerKeyFromRole: (id) => id === 'player1' ? 'p1' : 'p2',
-  GRID_THEMES: [],
 }));
 vi.mock('../../hooks/useGridSizes', () => ({
   default: () => ({ dot: 12, visualDot: 10, line: 40, gap: 0 }),

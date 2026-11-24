@@ -41,7 +41,6 @@ const GRID_SIZES = [3, 4, 5, 6];
 // localStorage keys used by the app
 const THEME_KEY = 'gridlock_theme';        // dark/light mode
 const GRID_THEME_KEY = 'gridlock_grid_theme'; // visual grid theme
-const UNLOCKED_KEY = 'gridlock_unlocked_themes';
 
 /**
  * Set up localStorage for mode + theme before navigating.
@@ -50,14 +49,12 @@ const UNLOCKED_KEY = 'gridlock_unlocked_themes';
 async function applyPreferences(page, baseUrl, mode, theme) {
   // Navigate to a blank-ish page first to set localStorage on the correct origin
   await page.goto(baseUrl + '/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.evaluate(({ mode, theme, THEME_KEY, GRID_THEME_KEY, UNLOCKED_KEY }) => {
+  await page.evaluate(({ mode, theme, THEME_KEY, GRID_THEME_KEY }) => {
     localStorage.setItem(THEME_KEY, mode);
     localStorage.setItem(GRID_THEME_KEY, theme);
-    // Unlock all themes so any theme can be selected
-    localStorage.setItem(UNLOCKED_KEY, JSON.stringify(['clean', 'classic', 'minimal', 'neon', 'glass']));
     // Set a player name so CPU games can start (required by the lobby)
     localStorage.setItem('gridlock_username', 'QA-Bot');
-  }, { mode, theme, THEME_KEY, GRID_THEME_KEY, UNLOCKED_KEY });
+  }, { mode, theme, THEME_KEY, GRID_THEME_KEY });
 }
 
 // ─── Test matrix ────────────────────────────────────────────────────────────

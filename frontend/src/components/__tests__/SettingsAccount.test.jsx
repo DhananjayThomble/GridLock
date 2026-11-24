@@ -19,7 +19,7 @@ vi.mock('../../contexts/ThemeContext', () => ({
 }));
 
 vi.mock('../../contexts/GridThemeContext', () => ({
-  useGridTheme: () => ({ themeId: 'classic', setTheme: vi.fn(), unlockedThemes: ['classic'] }),
+  useGridTheme: () => ({ themeId: 'classic', setTheme: vi.fn() }),
 }));
 
 vi.mock('../../utils/sounds', () => ({
@@ -46,7 +46,6 @@ vi.mock('../../hooks/usePwaInstall', () => ({
 vi.mock('../../themes/gridThemes', () => ({
   GRID_THEMES: { classic: { name: 'Classic', dotColor: '#fff', emptyLineColor: '#ccc', lineThickness: 2, visualDotSize: 6, players: { p1: { lineColor: '#00f', boxBg: '#00f' }, p2: { lineColor: '#f00', boxBg: '#f00' } } } },
   THEME_IDS: ['classic'],
-  UNLOCK_CONDITIONS: {},
 }));
 
 vi.mock('../../socket', () => ({ default: { id: 'test-socket' } }));

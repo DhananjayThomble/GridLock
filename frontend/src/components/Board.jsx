@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
 import confetti from 'canvas-confetti';
-import { recordGame, getStats } from '../utils/sessionStats';
+import { recordGame } from '../utils/sessionStats';
 import { recordOpponent } from '../utils/recentOpponentsStore';
 import ScoreBar from './ScoreBar';
 import { initAudio, toggleMute, isMuted, isVibrationEnabled, sounds } from '../utils/sounds';
@@ -24,7 +24,7 @@ import { capture } from '../lib/posthog';
 import { addBreadcrumb, setTag } from '../lib/sentry';
 import { useToast } from '../contexts/ToastContext';
 import { useGridTheme } from '../contexts/GridThemeContext';
-import { playerKeyFromRole, GRID_THEMES } from '../themes/gridThemes';
+import { playerKeyFromRole } from '../themes/gridThemes';
 import useGridSizes from '../hooks/useGridSizes';
 import { markPlayed } from '../utils/onboarding';
 import { initTabSync, cleanup as cleanupTabSync } from '../utils/tabSync';
@@ -48,7 +48,7 @@ const Board = () => {
   const navigate  = useNavigate();
   const themeColors = useThemeColors();
   const { showToast } = useToast();
-  const { theme: gridTheme, checkAndUnlockThemes } = useGridTheme();
+  const { theme: gridTheme } = useGridTheme();
   const getCSSVar = (varName) => themeColors[varName] || '';
   const {
     username,
@@ -337,27 +337,6 @@ const Board = () => {
           const territoryPct = totalBoxes > 0 ? Math.round((myScore / totalBoxes) * 100) : 0;
           const outcome = winner === 'draw' ? 'draw' : winner === role ? 'win' : 'loss';
           recordGame(outcome, territoryPct, gs.playerCount || 2, gridSize || 3);
-
-          // Check grid theme unlocks after recording game stats
-          const updatedStats = getStats();
-          if (tournamentId && winner === role) {
-            try {
-              const twKey = 'gridlock_tournament_wins';
-              const tw = parseInt(safeStorage.getItem(twKey) || '0', 10) + 1;
-              safeStorage.setItem(twKey, String(tw));
-              updatedStats.tournamentWins = tw;
-            } catch { /* ignore */ }
-          } else {
-            try {
-              updatedStats.tournamentWins = parseInt(safeStorage.getItem('gridlock_tournament_wins') || '0', 10);
-            } catch { updatedStats.tournamentWins = 0; }
-          }
-          const newUnlocked = checkAndUnlockThemes(updatedStats);
-          if (newUnlocked.length > 0) {
-            newUnlocked.forEach((id) => {
-              showToast(`🎨 New theme unlocked: ${GRID_THEMES[id]?.name || id}!`, { type: 'success', duration: 5000 });
-            });
-          }
 
           // Analytics: game completed
           capture('game_completed', {
