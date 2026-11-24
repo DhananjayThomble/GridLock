@@ -3,6 +3,20 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.5.0] — 2026-11-24
+
+### Added
+
+- Share a completed match as a score and a playable GridLock link. Supported browsers open the native share sheet, with clipboard sharing available as a fallback.
+- Added a contributor walkthrough that follows a Dots & Boxes match from move validation to replay.
+- Added desktop and mobile browser smoke tests for real multiplayer matches, sharing, replay, and rematch.
+
+### Improved
+
+- Updated the game’s search metadata, sitemap, and social artwork. Production pages keep their metadata while loading, and beta pages ask crawlers to skip indexing.
+- Loaded the live board only when a player opens a match, reducing the initial lobby bundle.
+- Simplified local browser test setup and documented how to run it with an isolated backend.
+
 ## [2.4.1] — 2026-11-23
 
 ### Security
