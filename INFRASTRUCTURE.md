@@ -152,8 +152,8 @@ required by the old deploy scripts).
 
 ### Production Sentry
 
-The production API and frontend deploy build use the public GridLock DSN in
-`config/sentry.json`. The API loads `backend/.env` before initializing the SDK.
+The official production API checkout and GitHub Actions deployment use the
+public GridLock DSN in `config/sentry.json`. Forks must supply their own DSNs. The API loads `backend/.env` before initializing the SDK.
 An explicit backend `SENTRY_DSN=` disables reporting. To enable beta separately,
 set `SENTRY_ENVIRONMENT=beta` alongside the beta API DSN, and set
 `VITE_SENTRY_DSN` in the GitHub Actions `beta` environment. Frontend events from

@@ -10,7 +10,7 @@
  */
 
 import puppeteer from 'puppeteer';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { preview } from 'vite';
@@ -18,7 +18,7 @@ import { preview } from 'vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, '..', 'dist');
 // Public, indexable pages only (keep in sync with scripts/generate-sitemap.mjs)
-const ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily'];
+const ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily', '/privacy'];
 const PREVIEW_PORT = 4174;
 
 // Detect system Chromium (snap or apt)
@@ -54,6 +54,29 @@ async function prerender() {
     executablePath,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
   });
+
+  // Build a separate SPA shell for utility routes from the unrendered entry.
+  const shellPage = await browser.newPage();
+  try {
+    const entry = readFileSync(join(DIST_DIR, 'index.html'), 'utf8');
+    const appShell = await shellPage.evaluate((html) => {
+      const shell = new DOMParser().parseFromString(html, 'text/html');
+      shell.querySelectorAll('[data-static-seo], script[type="application/ld+json"]').forEach((node) => node.remove());
+
+      const title = shell.createElement('title');
+      title.textContent = 'GridLock';
+      title.setAttribute('data-static-seo', '');
+      const robots = shell.createElement('meta');
+      robots.name = 'robots';
+      robots.content = 'noindex, nofollow';
+      robots.setAttribute('data-static-seo', '');
+      shell.head.append(title, robots);
+      return '<!doctype html>\n' + shell.documentElement.outerHTML;
+    }, entry);
+    writeFileSync(join(DIST_DIR, 'app.html'), appShell);
+  } finally {
+    await shellPage.close();
+  }
 
   let failed = false;
 

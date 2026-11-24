@@ -6,8 +6,20 @@ const { execFileSync } = require('node:child_process');
 const { version } = require('../package.json');
 const { productionDsn } = require('../../config/sentry.json');
 
+function isOfficialCheckout() {
+  try {
+    const origin = execFileSync('git', ['config', '--get', 'remote.origin.url'], {
+      cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 1000,
+    }).trim();
+    return /^(?:https:\/\/github\.com\/|git@github\.com:|ssh:\/\/git@github\.com\/)DhananjayThomble\/GridLock(?:\.git)?$/i.test(origin);
+  } catch {
+    return false;
+  }
+}
+
 const environment = process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development';
-const dsn = process.env.SENTRY_DSN ?? (environment === 'production' ? productionDsn : '');
+const dsn = process.env.SENTRY_DSN
+  ?? (environment === 'production' && isOfficialCheckout() ? productionDsn : '');
 const initialized = Boolean(dsn) && process.env.NODE_ENV !== 'test';
 
 function release() {

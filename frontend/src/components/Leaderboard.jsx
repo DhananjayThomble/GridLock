@@ -203,7 +203,7 @@ const Leaderboard = () => {
       <div className="mx-auto w-full max-w-5xl">
         <header className="mb-6 text-center sm:mb-8">
           <h1 className="text-4xl font-extrabold sm:text-5xl" style={{ color: 'var(--text-primary)' }}>🏆 Leaderboard</h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--label-color)' }}>Top GridLock players by wins, win rate, then ELO</p>
+          <p className="mt-2 text-sm" style={{ color: 'var(--label-color)' }}>Compare wins and win rates in classic play, or see current-season Elo standings in Ranked.</p>
 
           {/* Tab Switcher */}
           <div className="flex justify-center gap-2 mt-4">

@@ -1039,12 +1039,12 @@ const Board = () => {
             >
               <span className="text-2xl leading-none">{waiting ? '⏳' : av}</span>
               <div className="min-w-0 flex-1">
-                <div className="font-bold truncate" style={{ color: isCurrent ? playerColor : 'var(--text-primary)', fontSize: count >= 4 ? 'clamp(0.55rem, 2vw, 0.875rem)' : '0.75rem' }}>
+                <div className="font-bold truncate" style={{ color: 'var(--text-primary)', fontSize: count >= 4 ? 'clamp(0.55rem, 2vw, 0.875rem)' : '0.75rem' }}>
                   {waiting ? `P${pid.slice(6)} waiting…` : name}
                   {isCPU && <span className="ml-1">🤖</span>}
                   {isMe && <span className="ml-1" style={{ color: 'var(--text-muted)' }}>(you)</span>}
                 </div>
-                <div className="text-lg font-extrabold leading-none" style={{ color: playerColor }}>
+                <div className="text-lg font-extrabold leading-none" style={{ color: 'var(--text-primary)' }}>
                   {score}
                 </div>
               </div>
@@ -1127,7 +1127,7 @@ const Board = () => {
                     {!isCPU && isWin && ' 🏆'}
                     {!isCPU && isTied && <span aria-label="Tied"> 🤝</span>}
                   </span>
-                  <span className="font-extrabold text-base" style={{ color: playerColor }}>{score}</span>
+                  <span className="font-extrabold text-base" style={{ color: 'var(--text-primary)' }}>{score}</span>
                 </div>
               );
             })}
