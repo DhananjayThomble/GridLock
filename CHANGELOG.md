@@ -3,6 +3,13 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.7.0] — 2026-11-24
+
+### Changed
+
+- All five grid themes are selectable from Settings without win requirements. Existing theme selections carry over.
+- Crawlers can read the noindex directives on game and invite URLs.
+
 ## [2.6.0] — 2026-11-24
 
 ### Added

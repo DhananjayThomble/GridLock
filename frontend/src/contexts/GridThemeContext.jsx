@@ -1,108 +1,35 @@
-// src/contexts/GridThemeContext.jsx
-// Grid theme context — manages active grid visual theme and unlock state.
-// Persists to localStorage. Does NOT affect layout sizing.
+// Grid theme selection persists locally and does not affect board sizing.
 /* eslint-disable react-refresh/only-export-components */
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { getGridTheme, THEME_IDS, checkUnlockCondition, GRID_THEMES } from '../themes/gridThemes';
-import { getStats } from '../utils/sessionStats';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { getGridTheme, GRID_THEMES } from '../themes/gridThemes';
 import { safeStorage } from '../utils/safeStorage';
 
 const THEME_KEY = 'gridlock_grid_theme';
-const UNLOCKED_KEY = 'gridlock_unlocked_themes';
-const DEFAULT_UNLOCKED = ['clean', 'classic'];
-
 const GridThemeContext = createContext(null);
 
-/**
- * Hook to access grid theme state.
- * @returns {{ theme: object, themeId: string, setTheme: (id: string) => void, unlockedThemes: string[], checkAndUnlockThemes: (stats?: object) => string[] }}
- */
 export const useGridTheme = () => {
   const ctx = useContext(GridThemeContext);
   if (!ctx) throw new Error('useGridTheme must be used within <GridThemeProvider>');
   return ctx;
 };
 
-function loadUnlocked() {
-  try {
-    const raw = safeStorage.getItem(UNLOCKED_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const merged = new Set([...DEFAULT_UNLOCKED, ...parsed]);
-      return [...merged];
-    }
-  } catch { /* ignore */ }
-  return [...DEFAULT_UNLOCKED];
-}
-
 function loadThemeId() {
-  try {
-    const id = safeStorage.getItem(THEME_KEY);
-    if (id && GRID_THEMES[id]) return id;
-  } catch { /* ignore */ }
-  return 'clean';
+  const id = safeStorage.getItem(THEME_KEY);
+  return Object.hasOwn(GRID_THEMES, id) ? id : 'clean';
 }
 
 export const GridThemeProvider = ({ children }) => {
   const [themeId, setThemeId] = useState(loadThemeId);
-  const [unlockedThemes, setUnlockedThemes] = useState(() => {
-    // On mount, check unlocks against current stats and merge
-    const base = loadUnlocked();
-    const stats = getStats();
-    try {
-      stats.tournamentWins = parseInt(safeStorage.getItem('gridlock_tournament_wins') || '0', 10);
-    } catch { stats.tournamentWins = 0; }
-    const updated = [...base];
-    for (const id of THEME_IDS) {
-      if (!updated.includes(id) && checkUnlockCondition(id, stats)) {
-        updated.push(id);
-      }
-    }
-    if (updated.length !== base.length) {
-      try { safeStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
-    }
-    return updated;
-  });
-
-  // Ref tracks current unlocked themes so checkAndUnlockThemes can read synchronously
-  const unlockedRef = useRef(unlockedThemes);
-
-  const theme = getGridTheme(themeId);
 
   const setTheme = useCallback((id) => {
-    if (!GRID_THEMES[id]) return;
-    if (!unlockedRef.current.includes(id)) return;
+    if (!Object.hasOwn(GRID_THEMES, id)) return;
     setThemeId(id);
-    try { safeStorage.setItem(THEME_KEY, id); } catch { /* ignore */ }
-  }, []);
-
-  // Check and unlock themes based on current stats.
-  // Returns array of newly unlocked theme ids (empty if none).
-  // Uses ref to read current state synchronously — avoids React 18 batching closure bug.
-  const checkAndUnlockThemes = useCallback((statsOverride) => {
-    const stats = statsOverride || getStats();
-    const current = unlockedRef.current;
-    const newlyUnlocked = [];
-
-    for (const id of THEME_IDS) {
-      if (!current.includes(id) && checkUnlockCondition(id, stats)) {
-        newlyUnlocked.push(id);
-      }
-    }
-
-    if (newlyUnlocked.length > 0) {
-      const updated = [...new Set([...current, ...newlyUnlocked])];
-      unlockedRef.current = updated;
-      setUnlockedThemes(updated);
-      try { safeStorage.setItem(UNLOCKED_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
-    }
-
-    return newlyUnlocked;
+    safeStorage.setItem(THEME_KEY, id);
   }, []);
 
   return (
-    <GridThemeContext.Provider value={{ theme, themeId, setTheme, unlockedThemes, checkAndUnlockThemes }}>
+    <GridThemeContext.Provider value={{ theme: getGridTheme(themeId), themeId, setTheme }}>
       {children}
     </GridThemeContext.Provider>
   );
