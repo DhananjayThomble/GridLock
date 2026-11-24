@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**[Play GridLock](https://gridlock.pro/)** · [How to play](https://gridlock.pro/how-to-play) · [Learn how it’s built](LEARN.md) · [Find an issue](https://github.com/DhananjayThomble/GridLock/issues?q=is%3Aissue+is%3Aopen)
+**[Play GridLock](https://gridlock.pro/)** · [How to play](https://gridlock.pro/how-to-play) · [Learn how it’s built](LEARN.md) · [Find a good first issue](https://github.com/DhananjayThomble/GridLock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 [![Play GridLock, the online Dots & Boxes game](frontend/public/og-image-v2.jpg)](https://gridlock.pro/)
 
@@ -113,7 +113,9 @@ GitHub Actions builds and tests off-box, then ships to a small server over an SS
 
 Try the game and [star the repository](https://github.com/DhananjayThomble/GridLock) if you’d like to follow its development. Contributions are welcome, from typo fixes to new features. Read [CONTRIBUTING.md](CONTRIBUTING.md) first (branch from `develop`, Conventional Commits, tests for new behavior) and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Release history is in [CHANGELOG.md](CHANGELOG.md).
 
-## Security
+## Privacy and security
+
+See [Privacy on GridLock](https://gridlock.pro/privacy/) for the hosted game’s data practices and account deletion.
 
 Found a vulnerability? Please report it privately. See [SECURITY.md](SECURITY.md).
 

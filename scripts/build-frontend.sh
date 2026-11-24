@@ -29,8 +29,10 @@ case "$TARGET" in
     export VITE_SOCKET_URL="${VITE_SOCKET_URL:-https://api.gridlock.pro}"
     export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.gridlock.pro}"
     export VITE_SITE_URL="${VITE_SITE_URL:-https://gridlock.pro}"
-    default_dsn=$(node -p 'require(process.argv[1]).productionDsn' "$REPO_DIR/config/sentry.json")
-    export VITE_SENTRY_DSN="${VITE_SENTRY_DSN-$default_dsn}"
+    if [[ "${GITHUB_ACTIONS:-}" == true && "${GITHUB_REPOSITORY:-}" == DhananjayThomble/GridLock ]]; then
+      default_dsn=$(node -p 'require(process.argv[1]).productionDsn' "$REPO_DIR/config/sentry.json")
+      export VITE_SENTRY_DSN="${VITE_SENTRY_DSN-$default_dsn}"
+    fi
     export VITE_SENTRY_ENVIRONMENT=production
     ;;
   beta)

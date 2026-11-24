@@ -10,7 +10,7 @@
  */
 
 import puppeteer from 'puppeteer';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { preview } from 'vite';
@@ -18,7 +18,7 @@ import { preview } from 'vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, '..', 'dist');
 // Public, indexable pages only (keep in sync with scripts/generate-sitemap.mjs)
-const ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily'];
+const ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily', '/privacy'];
 const PREVIEW_PORT = 4174;
 
 // Detect system Chromium (snap or apt)
@@ -39,6 +39,15 @@ async function prerender() {
     console.error('❌ dist/ not found — run `vite build` first.');
     process.exit(1);
   }
+
+  // Utility routes reuse the SPA shell without inheriting the lobby’s public metadata.
+  const entry = readFileSync(join(DIST_DIR, 'index.html'), 'utf8');
+  const appShell = entry
+    .replace(/<(?:meta|link)\b[^>]*\bdata-static-seo\b[^>]*>/gi, '')
+    .replace(/<title\b[^>]*\bdata-static-seo\b[^>]*>[^<]*<\/title>/gi, '')
+    .replace(/<script\b[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace('</head>', '<title data-static-seo>GridLock</title>\n<meta name="robots" content="noindex, nofollow" data-static-seo>\n</head>');
+  writeFileSync(join(DIST_DIR, 'app.html'), appShell);
 
   // Start Vite preview server on the built dist/
   const server = await preview({

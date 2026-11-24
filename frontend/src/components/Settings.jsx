@@ -2,6 +2,7 @@
 // Polished iOS-style settings page with grouped sections
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getSoundSettings, saveSoundSettings } from '../utils/sounds';
@@ -562,7 +563,7 @@ const Settings = () => {
               <SettingsRow
                 icon="🗑️"
                 label="Delete Account"
-                subtitle="Permanently remove your account and data"
+                subtitle="Remove your account and disconnect it from game records"
                 right={
                   <button
                     onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
@@ -590,6 +591,8 @@ const Settings = () => {
             </>
           )}
         </SectionCard>
+
+        <Link to="/privacy" className="inline-block py-3 text-sm underline" style={{ color: 'var(--text-primary)' }}>Privacy on GridLock</Link>
 
         {/* ─── PREFERENCES ─── */}
         <SectionHeader title="Preferences" />

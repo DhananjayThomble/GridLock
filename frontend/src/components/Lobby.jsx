@@ -1464,7 +1464,7 @@ const Lobby = () => {
           </>)}
         </div>
 
-        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" className="inline-block px-2 py-3.5 -my-3.5" style={{ color: "var(--accent)", textDecoration: "none" }}>DJ</a></p>
+        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" className="inline-block px-2 py-3.5 -my-3.5" style={{ color: "var(--accent)", textDecoration: "none" }}>DJ</a> · <Link to="/privacy" className="underline">Privacy</Link></p>
 
         {/* ── Recent Opponents ── */}
         <RecentOpponents

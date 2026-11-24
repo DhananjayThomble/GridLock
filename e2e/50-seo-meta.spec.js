@@ -39,6 +39,12 @@ const PAGE_META = [
     descKeywords: ['daily', 'challenge', 'puzzle', 'leaderboard'],
   },
   {
+    name: 'Privacy',
+    path: '/privacy',
+    titleKeywords: ['Privacy', 'GridLock'],
+    descKeywords: ['guest play', 'chat', 'telemetry', 'account deletion'],
+  },
+  {
     name: 'Game History',
     path: '/history',
     titleKeywords: ['Game History', 'GridLock'],
@@ -205,4 +211,12 @@ test.describe('SEO Structured Data — JSON-LD', () => {
       expect(hasWebPage).toBe(true);
     }
   });
+});
+
+test('privacy is reachable from the guest lobby and links to account settings', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('gridlock_has_played', 'true'));
+  await loadSeo(page, '/');
+  await page.getByRole('link', { name: 'Privacy', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Privacy on GridLock' })).toBeVisible();
+  await expect(page.getByRole('article').getByRole('link', { name: 'Settings' })).toHaveAttribute('href', /\/settings$/);
 });
