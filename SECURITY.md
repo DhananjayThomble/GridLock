@@ -27,7 +27,7 @@ social engineering, and findings in third-party services.
 
 ## Note on Client-Side Keys
 
-Sentry and PostHog are optional and off by default. If you enable them, the
+Sentry and PostHog are optional for forks and local development. When enabled, the
 frontend Sentry DSN and PostHog project key are compiled into the browser
 bundle by design — they are client-side identifiers, not secrets. Never put
 `SENTRY_AUTH_TOKEN` or other server credentials in `VITE_*` variables.

@@ -47,3 +47,22 @@ real_ip_header CF-Connecting-IP;
 ```
 
 Without this, `X-Real-IP` will contain Cloudflare's IP, making both the application-level `/metrics` IP check and per-IP rate limiting ineffective.
+
+## Frontend route status and robots directives
+
+After publishing a frontend built with `npm run build:seo`, check that the
+web root contains `app.html` and `404.html`. In the frontend Nginx server block,
+replace the catch-all SPA `location /` with an include for
+[`infra/nginx/frontend-routes.conf`](../infra/nginx/frontend-routes.conf).
+Keep existing headers, API and Socket.IO locations, and any exact share-card
+proxy routes. Check for duplicate locations or `error_page 404` directives
+when integrating the include.
+
+Run `sudo nginx -t` before reloading. Verify that the lobby and prerendered
+pages return 200, direct links to a valid game or replay still load the
+SPA with a `noindex` robots tag, and an unrecognized path returns 404 with a
+link back to the lobby. Verify requests to the existing share-card endpoints
+still reach their proxy. Restore the previous server configuration if
+these checks fail. Once the utility routes serve the noindex shell at the
+edge, remove the legacy `/game` and `/join/` disallows from production
+`robots.txt` so crawlers can read their noindex directive.

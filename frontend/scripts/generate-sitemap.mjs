@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, '..', 'dist');
 
 // Keep in sync with ROUTES in scripts/prerender.mjs
-const PUBLIC_ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily'];
+const PUBLIC_ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily', '/privacy'];
 
 const siteUrl = (process.env.VITE_SITE_URL || 'https://gridlock.pro').replace(/\/+$/, '');
 if (process.env.VITE_ROBOTS?.split(',').some((rule) => rule.trim() === 'noindex')) {
