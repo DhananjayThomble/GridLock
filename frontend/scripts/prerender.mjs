@@ -40,15 +40,6 @@ async function prerender() {
     process.exit(1);
   }
 
-  // Utility routes reuse the SPA shell without inheriting the lobby’s public metadata.
-  const entry = readFileSync(join(DIST_DIR, 'index.html'), 'utf8');
-  const appShell = entry
-    .replace(/<(?:meta|link)\b[^>]*\bdata-static-seo\b[^>]*>/gi, '')
-    .replace(/<title\b[^>]*\bdata-static-seo\b[^>]*>[^<]*<\/title>/gi, '')
-    .replace(/<script\b[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace('</head>', '<title data-static-seo>GridLock</title>\n<meta name="robots" content="noindex, nofollow" data-static-seo>\n</head>');
-  writeFileSync(join(DIST_DIR, 'app.html'), appShell);
-
   // Start Vite preview server on the built dist/
   const server = await preview({
     preview: { port: PREVIEW_PORT, strictPort: true },
@@ -63,6 +54,29 @@ async function prerender() {
     executablePath,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
   });
+
+  // Build a separate SPA shell for utility routes from the unrendered entry.
+  const shellPage = await browser.newPage();
+  try {
+    const entry = readFileSync(join(DIST_DIR, 'index.html'), 'utf8');
+    const appShell = await shellPage.evaluate((html) => {
+      const shell = new DOMParser().parseFromString(html, 'text/html');
+      shell.querySelectorAll('[data-static-seo], script[type="application/ld+json"]').forEach((node) => node.remove());
+
+      const title = shell.createElement('title');
+      title.textContent = 'GridLock';
+      title.setAttribute('data-static-seo', '');
+      const robots = shell.createElement('meta');
+      robots.name = 'robots';
+      robots.content = 'noindex, nofollow';
+      robots.setAttribute('data-static-seo', '');
+      shell.head.append(title, robots);
+      return '<!doctype html>\n' + shell.documentElement.outerHTML;
+    }, entry);
+    writeFileSync(join(DIST_DIR, 'app.html'), appShell);
+  } finally {
+    await shellPage.close();
+  }
 
   let failed = false;
 
