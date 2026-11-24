@@ -1,7 +1,7 @@
 // src/socket.js
 // Singleton socket instance shared across all components
 import io from 'socket.io-client';
-import { addBreadcrumb, captureException, setTag } from './lib/sentry';
+import { addBreadcrumb, captureException, logSentryWarning, setTag } from './lib/sentry';
 import log from './lib/logger';
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL ||
@@ -70,12 +70,11 @@ socket.on('disconnect', (reason) => {
   });
 });
 
-socket.on('connect_error', (error) => {
+socket.on('connect_error', () => {
   addBreadcrumb({
     category: 'socket',
-    message: `Socket connect_error: ${error.message}`,
+    message: 'Socket connection failed',
     level: 'error',
-    data: { message: error.message },
   });
 });
 
@@ -89,6 +88,7 @@ socket.io.on('reconnect', (attemptNumber) => {
 });
 
 socket.io.on('reconnect_failed', () => {
+  logSentryWarning('Socket reconnection exhausted', { component: 'socket.io' });
   addBreadcrumb({
     category: 'socket',
     message: 'Socket reconnection failed (exhausted attempts)',
