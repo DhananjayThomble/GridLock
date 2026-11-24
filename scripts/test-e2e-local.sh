@@ -1,79 +1,55 @@
 #!/usr/bin/env bash
-# scripts/test-e2e-local.sh
-#
-# Run Playwright E2E tests locally WITHOUT touching the PM2/production server.
-#
-# PROBLEM: PM2 already owns port 5000. If the test backend tries to bind there,
-# it crashes silently — and the frontend ends up talking to stale PM2 game state.
-# Spectator/multiplayer tests then fail because games already have wrong players.
-#
-# SOLUTION: Use isolated ports (5105 backend, 4175 frontend preview) that never
-# conflict with PM2. Uses a dedicated local MongoDB test database name.
-#
-# Usage:
-#   ./scripts/test-e2e-local.sh                   # run all tests
-#   ./scripts/test-e2e-local.sh e2e/08-spectator-mode.spec.js
-#   ./scripts/test-e2e-local.sh --grep "spectator"
+# Run Playwright against a dedicated database and local ports.
+# Usage: npm run test:e2e:local -- e2e/11-share-result.spec.js
 
 set -euo pipefail
 
-BACKEND_PORT=5105
-FRONTEND_PORT=4175
-MONGO_URI="mongodb://127.0.0.1:27017/gridlock_e2e_local"
+BACKEND_PORT="${TEST_BACKEND_PORT:-5105}"
+FRONTEND_PORT="${TEST_FRONTEND_PORT:-4175}"
+MONGO_URI="${TEST_MONGO_URI:-mongodb://127.0.0.1:27017/gridlock_e2e_local}"
+BACKEND_URL="http://127.0.0.1:$BACKEND_PORT"
+FRONTEND_URL="http://127.0.0.1:$FRONTEND_PORT"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
+LOG_DIR="$(mktemp -d)"
 cd "$ROOT_DIR"
 
-# Kill stale processes from previous runs
-kill $(lsof -ti :$BACKEND_PORT) 2>/dev/null || true
-kill $(lsof -ti :$FRONTEND_PORT) 2>/dev/null || true
-sleep 1
-
-echo "▶  Starting isolated test backend on port $BACKEND_PORT..."
-PORT=$BACKEND_PORT NODE_ENV=test MONGO_URI="$MONGO_URI" node backend/server.js \
-  > /tmp/gridlock_e2e_backend.log 2>&1 &
-BACKEND_PID=$!
-
-# Kill both servers on exit, regardless of success/failure
 cleanup() {
-  echo "▶  Cleaning up background processes..."
-  kill "$BACKEND_PID" "${FRONTEND_PID:-}" 2>/dev/null || true
+  if [[ -n "${BACKEND_PID:-}" ]]; then kill "$BACKEND_PID" 2>/dev/null || true; fi
+  if [[ -n "${FRONTEND_PID:-}" ]]; then kill "$FRONTEND_PID" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
 
-# Wait for backend to be ready (up to 30s)
-echo "▶  Waiting for backend health..."
-for i in $(seq 1 30); do
-  if curl -sf "http://127.0.0.1:$BACKEND_PORT/health" > /dev/null; then
-    echo "   ✓ Backend ready"
-    break
+wait_for_server() {
+  local url="$1" pid="$2" log="$3"
+  for ((attempt = 0; attempt < 30; attempt++)); do
+    if ! kill -0 "$pid" 2>/dev/null; then break; fi
+    if curl -fsS --max-time 1 "$url" >/dev/null 2>&1; then return 0; fi
+    sleep 1
+  done
+  echo "Server did not start at $url. See $log" >&2
+  tail -n 15 "$log" >&2
+  return 1
+}
+
+for url in "$BACKEND_URL" "$FRONTEND_URL"; do
+  if curl -sS --max-time 1 -o /dev/null "$url" 2>/dev/null; then
+    echo "A server is already listening at $url. Set TEST_BACKEND_PORT or TEST_FRONTEND_PORT to use another port." >&2
+    exit 1
   fi
-  [ "$i" -eq 30 ] && { echo "✘ Backend failed to start. Check /tmp/gridlock_e2e_backend.log"; exit 1; }
-  sleep 1
 done
 
-echo "▶  Building frontend (socket/api → localhost:$BACKEND_PORT)..."
+PORT="$BACKEND_PORT" NODE_ENV=test MONGO_URI="$MONGO_URI" CORS_ORIGIN="$FRONTEND_URL" \
+  node backend/server.js >"$LOG_DIR/backend.log" 2>&1 &
+BACKEND_PID=$!
+wait_for_server "$BACKEND_URL/health" "$BACKEND_PID" "$LOG_DIR/backend.log"
+
+VITE_SOCKET_URL="$BACKEND_URL" VITE_API_BASE_URL="$BACKEND_URL" npm --prefix frontend run build
 (
   cd frontend
-  VITE_SOCKET_URL="http://127.0.0.1:$BACKEND_PORT" VITE_API_BASE_URL="http://127.0.0.1:$BACKEND_PORT" npm run build --silent
-)
-echo "   ✓ Frontend built"
-
-echo "▶  Starting Vite preview on port $FRONTEND_PORT..."
-cd frontend && npx vite preview --port "$FRONTEND_PORT" --base=/ \
-  > /tmp/gridlock_e2e_frontend.log 2>&1 &
+  exec ./node_modules/.bin/vite preview --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort --base=/
+) >"$LOG_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
+wait_for_server "$FRONTEND_URL/" "$FRONTEND_PID" "$LOG_DIR/frontend.log"
 
-# Wait for frontend preview to be ready
-for i in $(seq 1 20); do
-  if curl -sf "http://127.0.0.1:$FRONTEND_PORT/" > /dev/null; then
-    echo "   ✓ Frontend ready"
-    break
-  fi
-  [ "$i" -eq 20 ] && { echo "✘ Frontend failed to start. Check /tmp/gridlock_e2e_frontend.log"; exit 1; }
-  sleep 1
-done
-
-echo "▶  Running Playwright tests..."
-TEST_BASE_URL="http://127.0.0.1:$FRONTEND_PORT" TEST_API_URL="http://127.0.0.1:$BACKEND_PORT" npx playwright test \
+TEST_BASE_URL="$FRONTEND_URL" TEST_API_URL="$BACKEND_URL" npx --no-install playwright test \
   --config=playwright.config.js "$@"

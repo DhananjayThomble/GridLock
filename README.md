@@ -2,14 +2,15 @@
 
 # GridLock
 
-**Real-time multiplayer Dots & Boxes.** Draw lines, close boxes, steal turns.
-Play 2–4 players, vs. the CPU, or climb the ranked ladder.
+**Free online Dots & Boxes for 2–4 players.** Challenge friends in a private room, practice against the CPU, or try the daily puzzle in your browser.
 
 [![CI](https://github.com/DhananjayThomble/GridLock/actions/workflows/ci.yml/badge.svg)](https://github.com/DhananjayThomble/GridLock/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-### [▶ Play now at gridlock.pro](https://gridlock.pro)
+**[Play GridLock](https://gridlock.pro/)** · [How to play](https://gridlock.pro/how-to-play) · [Learn how it’s built](LEARN.md) · [Find an issue](https://github.com/DhananjayThomble/GridLock/issues?q=is%3Aissue+is%3Aopen)
+
+[![Play GridLock, the online Dots & Boxes game](frontend/public/og-image-v2.jpg)](https://gridlock.pro/)
 
 </div>
 
@@ -19,7 +20,7 @@ Play 2–4 players, vs. the CPU, or climb the ranked ladder.
 
 Dots & Boxes is the classic pen-and-paper game: take turns drawing a line between two dots. Close the fourth side of a box and you claim it **and move again**. Most boxes wins.
 
-GridLock is a fast, installable web version where the server owns the game state, so every client stays in sync and nobody can cheat.
+GridLock is an installable browser game. The server validates each move and publishes the updated board, turn, and score to everyone in the room.
 
 ## Features
 
@@ -52,13 +53,13 @@ cd GridLock
 
 # Backend (http://localhost:5000)
 cd backend
-npm install
+npm ci
 cp .env.example .env      # set MONGO_URI at minimum
 npm start
 
 # Frontend (http://localhost:5173), in a second terminal
 cd frontend
-npm install
+npm ci
 cp .env.example .env      # the defaults work for local dev
 npm run dev
 ```
@@ -84,13 +85,15 @@ See [`backend/.env.example`](backend/.env.example) and [`frontend/.env.example`]
 ## Testing
 
 ```bash
-cd backend  && npm test         # Jest, needs MongoDB
-cd frontend && npm test         # Vitest
-cd frontend && npm run lint
-npm run test:e2e:local          # Playwright, from the repo root
+npm ci                                  # root Playwright dependencies
+npm --prefix backend test                # Jest
+npm --prefix frontend test               # Vitest
+npm --prefix frontend run lint
+npx playwright install chromium
+npm run test:e2e:local -- e2e/11-share-result.spec.js
 ```
 
-CI runs backend tests, frontend lint and the production build on every pull request.
+The local browser suite needs MongoDB on port 27017. CI runs backend and frontend tests, lint, the production build, and a desktop and mobile gameplay smoke test on pull requests into `develop` or `main`.
 
 ## Project layout
 
@@ -108,7 +111,7 @@ GitHub Actions builds and tests off-box, then ships to a small server over an SS
 
 ## Contributing
 
-Contributions are welcome, from typo fixes to new features. Read [CONTRIBUTING.md](CONTRIBUTING.md) first (branch from `develop`, Conventional Commits, tests for new behavior) and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Release history is in [CHANGELOG.md](CHANGELOG.md).
+Try the game and [star the repository](https://github.com/DhananjayThomble/GridLock) if you’d like to follow its development. Contributions are welcome, from typo fixes to new features. Read [CONTRIBUTING.md](CONTRIBUTING.md) first (branch from `develop`, Conventional Commits, tests for new behavior) and follow the [Code of Conduct](CODE_OF_CONDUCT.md). Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Security
 

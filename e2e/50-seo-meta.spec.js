@@ -1,6 +1,14 @@
 const { test, expect } = require('@playwright/test');
 const { BASE_URL } = require('./helpers');
 
+async function loadSeo(page, path = '') {
+  await page.goto(`${BASE_URL}${path}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('link[rel="canonical"][data-route-seo]').waitFor({
+    state: 'attached',
+    timeout: 10_000,
+  });
+}
+
 /**
  * SEO Meta Tags + Structured Data — E2E tests (#455)
  */
@@ -10,7 +18,7 @@ const PAGE_META = [
     name: 'Lobby',
     path: '/',
     titleKeywords: ['GridLock', 'Dots', 'Boxes', 'Online', 'Multiplayer'],
-    descKeywords: ['dots and boxes', 'strategy', 'multiplayer'],
+    descKeywords: ['dots & boxes', 'free', 'friends', 'daily puzzle'],
   },
   {
     name: 'How to Play',
@@ -48,7 +56,7 @@ test.describe('SEO Meta Tags — Per-Page', () => {
   for (const pageMeta of PAGE_META) {
     test.describe(pageMeta.name, () => {
       test(`has correct document.title`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const title = await page.title();
         for (const keyword of pageMeta.titleKeywords) {
           expect(title.toLowerCase()).toContain(keyword.toLowerCase());
@@ -56,7 +64,7 @@ test.describe('SEO Meta Tags — Per-Page', () => {
       });
 
       test(`has non-empty meta description`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const desc = await page.getAttribute('meta[name="description"]', 'content');
         expect(desc).toBeTruthy();
         expect(desc.length).toBeGreaterThan(20);
@@ -66,7 +74,7 @@ test.describe('SEO Meta Tags — Per-Page', () => {
       });
 
       test(`has og:title matching page title`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const title = await page.title();
         const ogTitle = await page.getAttribute('meta[property="og:title"]', 'content');
         expect(ogTitle).toBeTruthy();
@@ -74,21 +82,21 @@ test.describe('SEO Meta Tags — Per-Page', () => {
       });
 
       test(`has og:description`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const ogDesc = await page.getAttribute('meta[property="og:description"]', 'content');
         expect(ogDesc).toBeTruthy();
         expect(ogDesc.length).toBeGreaterThan(20);
       });
 
       test(`has og:image set`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const ogImage = await page.getAttribute('meta[property="og:image"]', 'content');
         expect(ogImage).toBeTruthy();
-        expect(ogImage).toContain('og-image');
+        expect(new URL(ogImage).pathname).toBe('/og-image-v2.jpg');
       });
 
       test(`has og:url set`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const ogUrl = await page.getAttribute('meta[property="og:url"]', 'content');
         expect(ogUrl).toBeTruthy();
         if (pageMeta.path !== '/') {
@@ -97,21 +105,34 @@ test.describe('SEO Meta Tags — Per-Page', () => {
       });
 
       test(`has twitter:card meta tag`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const twitterCard = await page.getAttribute('meta[name="twitter:card"]', 'content');
         expect(twitterCard).toBe('summary_large_image');
       });
 
       test(`has no duplicate title tags`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const titleCount = await page.locator('title').count();
         expect(titleCount).toBe(1);
       });
 
       test(`has no duplicate meta description tags`, async ({ page }) => {
-        await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+        await loadSeo(page, pageMeta.path);
         const descCount = await page.locator('meta[name="description"]').count();
         expect(descCount).toBe(1);
+      });
+
+      test('has one canonical URL and robots directive', async ({ page }) => {
+        await loadSeo(page, pageMeta.path);
+        const canonical = page.locator('link[rel="canonical"]');
+        const robots = page.locator('meta[name="robots"]');
+        const path = pageMeta.path === '/' ? '/' : `${pageMeta.path}/`;
+        await expect(canonical).toHaveCount(1);
+        await expect(robots).toHaveCount(1);
+        expect(new URL(await canonical.getAttribute('href')).pathname).toBe(path);
+        if (['/history', '/settings'].includes(pageMeta.path)) {
+          await expect(robots).toHaveAttribute('content', 'noindex, nofollow');
+        }
       });
     });
   }
@@ -119,7 +140,7 @@ test.describe('SEO Meta Tags — Per-Page', () => {
 
 test.describe('SEO Structured Data — JSON-LD', () => {
   test('homepage has VideoGame JSON-LD schema', async ({ page }) => {
-    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await loadSeo(page);
     const scripts = await page.locator('script[type="application/ld+json"]').allInnerTexts();
     expect(scripts.length).toBeGreaterThan(0);
 
@@ -146,7 +167,7 @@ test.describe('SEO Structured Data — JSON-LD', () => {
   });
 
   test('homepage has FAQPage JSON-LD schema', async ({ page }) => {
-    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await loadSeo(page);
     const scripts = await page.locator('script[type="application/ld+json"]').allInnerTexts();
 
     let foundFAQ = false;
@@ -171,7 +192,7 @@ test.describe('SEO Structured Data — JSON-LD', () => {
 
   test('each page has WebPage JSON-LD schema', async ({ page }) => {
     for (const pageMeta of PAGE_META) {
-      await page.goto(`${BASE_URL}${pageMeta.path}`, { waitUntil: 'networkidle' });
+      await loadSeo(page, pageMeta.path);
       const scripts = await page.locator('script[type="application/ld+json"]').allInnerTexts();
       const hasWebPage = scripts.some((s) => {
         try {

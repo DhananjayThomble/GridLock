@@ -44,7 +44,10 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || undefined,
+      },
       testIgnore: /\/(27|28|29)-.*\.spec\.js$/,
     },
     {
@@ -66,7 +69,7 @@ module.exports = defineConfig({
 
   // In CI: start vite preview before tests, kill after.
   // The build is run as a prior CI step so dist/ is ready.
-  webServer: process.env.CI ? {
+  webServer: process.env.CI && !process.env.TEST_BASE_URL ? {
     command: 'cd frontend && npx vite preview --port 4173 --base=/',
     url: 'http://localhost:4173',
     reuseExistingServer: false,

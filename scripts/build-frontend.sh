@@ -38,6 +38,7 @@ case "$TARGET" in
     export VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://beta-api.gridlock.pro}"
     export VITE_SITE_URL="${VITE_SITE_URL:-https://beta.gridlock.pro}"
     export VITE_SENTRY_ENVIRONMENT=beta
+    export VITE_ROBOTS="noindex, follow"
     ;;
   *)
     echo "Usage: $0 [prod|beta]"; exit 1 ;;

@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 
 const DEFAULT_SITE_NAME = 'GridLock';
-const DEFAULT_DESCRIPTION = 'GridLock is a real-time multiplayer Dots & Boxes game where strategy and speed decide every match.';
-const DEFAULT_OG_IMAGE = '/og-image.png';
+const DEFAULT_DESCRIPTION = 'Play Dots & Boxes online for free. Challenge up to three friends, practice against the CPU, or try the daily puzzle in your browser.';
+const DEFAULT_OG_IMAGE = '/og-image-v2.jpg';
 
 function buildAbsoluteUrl(pathname) {
   const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
@@ -16,7 +16,12 @@ export default function PageSeo({
   pathname = window.location.pathname,
   noindex = false,
 }) {
-  const canonicalUrl = buildAbsoluteUrl(pathname);
+  useLayoutEffect(() => {
+    // Keep the built metadata in place until this route's tags have mounted.
+    document.querySelectorAll('[data-static-seo]').forEach((tag) => tag.remove());
+  }, []);
+
+  const canonicalUrl = buildAbsoluteUrl(pathname.replace(/\/+$/, '') + '/');
   const imageUrl = buildAbsoluteUrl(DEFAULT_OG_IMAGE);
   const pageTitle = title ? `${title} | ${DEFAULT_SITE_NAME}` : DEFAULT_SITE_NAME;
   const structuredData = {
@@ -34,19 +39,19 @@ export default function PageSeo({
 
   return (
     <Helmet>
-      <title>{pageTitle}</title>
-      <link rel="canonical" href={canonicalUrl} />
-      <meta name="description" content={description} />
-      {noindex && <meta name="robots" content="noindex, nofollow" />}
-      <meta property="og:title" content={pageTitle} />
-      <meta property="og:description" content={description} />
-      <meta property="og:url" content={canonicalUrl} />
-      <meta property="og:image" content={imageUrl} />
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={pageTitle} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={imageUrl} />
-      <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
+      <title data-route-seo="">{pageTitle}</title>
+      <link data-route-seo="" rel="canonical" href={canonicalUrl} />
+      <meta data-route-seo="" name="description" content={description} />
+      <meta data-route-seo="" name="robots" content={noindex ? 'noindex, nofollow' : import.meta.env.VITE_ROBOTS} />
+      <meta data-route-seo="" property="og:title" content={pageTitle} />
+      <meta data-route-seo="" property="og:description" content={description} />
+      <meta data-route-seo="" property="og:url" content={canonicalUrl} />
+      <meta data-route-seo="" property="og:image" content={imageUrl} />
+      <meta data-route-seo="" name="twitter:card" content="summary_large_image" />
+      <meta data-route-seo="" name="twitter:title" content={pageTitle} />
+      <meta data-route-seo="" name="twitter:description" content={description} />
+      <meta data-route-seo="" name="twitter:image" content={imageUrl} />
+      <script data-route-seo="" type="application/ld+json">{JSON.stringify(structuredData)}</script>
     </Helmet>
   );
 }

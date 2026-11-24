@@ -33,13 +33,13 @@ cd GridLock
 
 # Backend (Express + Socket.IO on http://localhost:5000)
 cd backend
-npm install
+npm ci
 cp .env.example .env
 npm start
 
 # Frontend (Vite on http://localhost:5173, proxies /api and /socket.io to :5000)
 cd ../frontend
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```
@@ -86,16 +86,29 @@ More detailed architecture notes are in [`.kiro/steering/`](.kiro/steering/)
 
 ### Checks to run before opening a PR
 
+From the repository root:
+
 ```bash
-cd backend && npm test          # Jest (needs MongoDB on localhost:27017)
-cd ../frontend && npm run lint  # ESLint
-cd ../frontend && npm run build # Production build
+npm --prefix backend test
+npm --prefix frontend test
+npm --prefix frontend run lint
+npm --prefix frontend run build
 ```
 
-The same checks run automatically on every pull request
-([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). Playwright E2E tests
-(`npm run test:e2e:local` from the repo root) are optional for most changes,
-but appreciated for UI and gameplay changes.
+For gameplay changes, start MongoDB and run the same browser smoke test used
+in [CI](.github/workflows/ci.yml):
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:e2e:local -- e2e/11-share-result.spec.js --project=chromium
+```
+
+The runner starts its own backend and production frontend preview on ports
+5105 and 4175, using the local `gridlock_e2e_local` database. Set
+`TEST_BACKEND_PORT` or `TEST_FRONTEND_PORT` if either port is occupied. Use
+`TEST_MONGO_URI` to point to a separate test database. For search or preview
+changes, run `npm --prefix frontend run build:seo` and inspect the generated HTML.
 
 ### Commit messages
 
