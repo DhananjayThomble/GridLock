@@ -150,17 +150,45 @@ required by the old deploy scripts).
 | `DEPLOY_SSH_KEY` | Private key from step 3 |
 | `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan` line from step 3 |
 
-**Optional — error tracking & analytics.** Sentry and PostHog are wired in
-but **off by default** (not currently used). To turn them on, add these as
-Actions *variables* (per environment, so prod and beta can differ) and redeploy:
+### Production Sentry
 
-| Variable / secret | Enables |
-|-------------------|---------|
-| `VITE_SENTRY_DSN` (variable) | Frontend error tracking |
-| `VITE_POSTHOG_KEY` + `VITE_POSTHOG_HOST` (variables) | Product analytics |
-| `SENTRY_AUTH_TOKEN` (secret) + `SENTRY_URL` (variable) | Source map upload |
+The production API and frontend deploy build use the public GridLock DSN in
+`config/sentry.json`. The API loads `backend/.env` before initializing the SDK.
+An explicit backend `SENTRY_DSN=` disables reporting. To enable beta separately,
+set `SENTRY_ENVIRONMENT=beta` alongside the beta API DSN, and set
+`VITE_SENTRY_DSN` in the GitHub Actions `beta` environment. Frontend events from
+loopback and backend test runs are excluded.
 
-For backend error tracking, set `SENTRY_DSN` in the server's `backend/.env`.
+| Setting | Where | Purpose |
+|---------|-------|---------|
+| `SENTRY_ORG`, `SENTRY_PROJECT` | Actions environment variables | Sentry Cloud organization and project slugs for the frontend DSN |
+| `SENTRY_AUTH_TOKEN` | Actions environment secret | Minimally scoped organizational token with source-map upload permissions |
+| `SENTRY_URL` | Optional Actions environment variable | Sentry API base URL, defaults to `https://sentry.io` |
+| `SENTRY_TRACES_SAMPLE_RATE` | Backend `.env` | Server trace sampling, defaults to 0.1 |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Actions environment variable | Browser trace sampling, defaults to 0.1 |
+| `VITE_SENTRY_REPLAY_ON_ERROR_RATE` | Actions environment variable | Optional masked error replays, defaults to 0 |
+
+Set up the source-map variables and token together. The deploy injects debug
+IDs and uploads hidden maps against `gridlock@<commit>`, then removes the maps
+from the public artifact. The backend derives its release from its checked-out commit.
+
+If the frontend reverse proxy sets CSP, keep its existing policy and allow
+`https://o4512362646142976.ingest.us.sentry.io` in `connect-src`. If it constrains
+CORS request headers, allow `sentry-trace` and `baggage` for the existing frontend
+origins. For Replay, validate the masked payloads and applicable consent
+requirements before enabling it, and allow its worker in CSP if required.
+
+On existing PM2 installs, reload the production app once using
+`pm2 reload ecosystem.config.js --only gridlock-backend --update-env` from the
+production checkout and run `pm2 save` so PM2 applies the shutdown timeout.
+
+After deploying, exercise a page navigation and an API call. In Sentry, filter
+to `production` and confirm browser and server spans connect on a sampled
+request. Confirm backend lifecycle entries in Logs and CPU, memory, event-loop
+delay and uptime in Metrics. Verify source-map resolution on a controlled
+frontend error, and set issue and latency alerts with the team's notification
+destination. Use a separate beta DSN when testing telemetry. PostHog remains
+optional through the `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` Actions variables.
 
 Optional but recommended: Settings → Environments → `production` → restrict
 deployment branches to `main` (and `beta` to `develop`), and move the secrets

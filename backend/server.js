@@ -12,7 +12,6 @@ const { Server } = require('socket.io');
 const helmet = require('helmet');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
-require('dotenv').config();
 const { metricsMiddleware, metricsEndpoint, metrics } = require('./lib/metrics');
 
 const socketHandlers = require('./controllers/socketHandlers');
@@ -116,8 +115,14 @@ if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
   }
 })();
 mongoose.connect(MONGO_URI)
-.then(() => log.info('MongoDB connected to', MONGO_URI.replace(/\/\/.*@/, '//<credentials>@')))
-.catch(err => log.error('MongoDB connection error:', err));
+.then(() => {
+    log.info('MongoDB connected');
+    sentry.operationalLog('info', 'MongoDB connected', { component: 'mongodb' });
+})
+.catch(err => {
+    log.error('MongoDB connection error:', err);
+    sentry.captureOperationalFailure(err, 'mongodb.connect');
+});
 
 // Socket.io Setup
 // Express CORS uses a callback to allow null/undefined origins (server-to-server
@@ -188,8 +193,10 @@ async function setupRedisAdapter() {
         io.adapter(createAdapter(redisPubClient, redisSubClient));
         redisEnabled = true;
         log.info('Socket.IO Redis adapter enabled');
+        sentry.operationalLog('info', 'Redis adapter ready', { component: 'redis' });
     } catch (err) {
         log.error('Failed to enable Redis adapter; continuing in single-instance mode', { error: err.message });
+        sentry.captureOperationalFailure(err, 'redis.adapter.initialize');
         redisPubClient = null;
         redisSubClient = null;
     }
@@ -310,7 +317,7 @@ app.get('/metrics', healthLimiter, async (req, res) => {
 });
 
 // Sentry error handler — must be after all routes, before any other error middleware
-app.use(sentry.errorHandler());
+sentry.registerExpressErrorHandler(app);
 
 // Generic error handler — catch-all for unhandled errors (CORS rejections, etc.)
 // eslint-disable-next-line no-unused-vars
@@ -327,6 +334,7 @@ app.use((err, req, res, _next) => {
 
     if (status >= 500) {
         log.error('Unhandled error:', { error: err.message, stack: err.stack, path: req.path });
+        sentry.operationalLog('error', 'HTTP request failed', { component: 'http', method: req.method, status });
     }
 
     res.status(status).json({ error: message });
@@ -336,6 +344,7 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     log.info(`Server running on port ${PORT}`);
+    sentry.operationalLog('info', 'Backend listening', { component: 'http', port: Number(PORT) });
     log.info('Environment:', process.env.NODE_ENV || 'development');
     log.info('Log level:', process.env.LOG_LEVEL || 'DEBUG');
 });
@@ -386,6 +395,7 @@ async function gracefulShutdown(signal) {
         log.error('Error closing MongoDB:', err.message);
     }
 
+    sentry.operationalLog('info', 'Backend shutdown complete', { component: 'lifecycle', signal });
     // Flush Sentry events
     if (sentry.initialized) {
         await sentry.Sentry.close(2000);

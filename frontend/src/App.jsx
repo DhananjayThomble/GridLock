@@ -4,7 +4,6 @@ import {
   BrowserRouter as Router,
   NavLink,
   Route,
-  Routes,
   Navigate,
   useLocation,
   useNavigate,
@@ -22,6 +21,7 @@ import PageSeo from './components/PageSeo';
 import ScrollToTop from './components/ScrollToTop';
 import AuthAvatar from './components/AuthAvatar';
 import ToastProvider, { useToast } from './contexts/ToastContext';
+import { SentryRoutes } from './lib/sentry';
 import './App.css';
 
 // Lazy-loaded route components — split into separate chunks to reduce initial bundle
@@ -159,7 +159,7 @@ const AppLayout = () => {
 
       <main className={hideNav ? '' : 'app-content-with-nav'}>
         <Suspense fallback={<RouteLoader />}>
-          <Routes>
+          <SentryRoutes>
             <Route
               path="/"
               element={(
@@ -370,7 +370,7 @@ const AppLayout = () => {
             <Route path="/admin" element={withPageSeo(<AdminPanel />, { title: 'Admin — GridLock', noindex: true })} />
             {/* Catch-all: show toast and redirect unknown routes to lobby (#418) */}
             <Route path="*" element={<NotFoundRedirect />} />
-          </Routes>
+          </SentryRoutes>
         </Suspense>
       </main>
     </>

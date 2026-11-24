@@ -1,65 +1,21 @@
 #!/usr/bin/env bash
-# Upload source maps to Sentry after a frontend build (optional — skipped
-# when SENTRY_AUTH_TOKEN isn't set).
-# Usage: bash scripts/upload-sourcemaps.sh [project] [org]
-#
-# Requires:
-#   - SENTRY_AUTH_TOKEN env var or ~/.sentry-token file
-#   - sentry-cli (via npx @sentry/cli)
-#   - Frontend built with SENTRY_SOURCEMAPS=1 (hidden source maps)
-#
-# The vite plugin's chunk-upload hits 413 on self-hosted Sentry's relay,
-# so we use sentry-cli's file-by-file upload instead.
 set -euo pipefail
 
-PROJECT="${1:-gridlock-prod}"
-ORG="${2:-sentry}"
-# Point SENTRY_URL at your Sentry instance (GitHub Actions: SENTRY_URL variable)
-SENTRY_URL="${SENTRY_URL:-http://localhost:9000}"
-DIST_DIR="frontend/dist/assets"
-RELEASE="gridlock-frontend@$(jq -r '.version' package.json)"
+# Run from the repository root after building frontend with SENTRY_SOURCEMAPS=1.
+project="${1:?Sentry project slug is required}"
+org="${2:?Sentry organization slug is required}"
+: "${SENTRY_AUTH_TOKEN:?A Sentry source-map upload token is required}"
+: "${VITE_SENTRY_RELEASE:?The release must match the frontend build}"
+export SENTRY_URL="${SENTRY_URL:-https://sentry.io}"
 
-# Resolve auth token — Sentry is optional; skip silently if not configured
-if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
-  if [ -f "$HOME/.sentry-token" ]; then
-    SENTRY_AUTH_TOKEN="$(cat "$HOME/.sentry-token")"
-    export SENTRY_AUTH_TOKEN
-  else
-    echo "⚠️  No SENTRY_AUTH_TOKEN set and ~/.sentry-token not found — skipping source map upload"
-    exit 0
-  fi
-fi
-
-export SENTRY_URL
-
-# Check source maps exist
-if ! ls "$DIST_DIR"/*.map &>/dev/null; then
-  echo "⚠️  No .map files in $DIST_DIR — build with SENTRY_SOURCEMAPS=1"
-  exit 0
-fi
-
-echo "📦 Uploading source maps to Sentry..."
-echo "   Org: $ORG | Project: $PROJECT"
-echo "   Release: $RELEASE"
-echo "   URL: $SENTRY_URL"
-
-# Use repo-pinned sentry-cli to avoid fetching from registry at deploy time
-SENTRY_CLI="$(command -v sentry-cli 2>/dev/null || echo "")"
-if [ -z "$SENTRY_CLI" ] && [ -x "./frontend/node_modules/.bin/sentry-cli" ]; then
-  SENTRY_CLI="./frontend/node_modules/.bin/sentry-cli"
-elif [ -z "$SENTRY_CLI" ]; then
-  echo "❌ sentry-cli not found. Install it: cd frontend && npm install @sentry/cli"
+dist=frontend/dist/assets
+cli=frontend/node_modules/.bin/sentry-cli
+if ! compgen -G "$dist/*.map" >/dev/null; then
+  echo "No frontend source maps found in $dist" >&2
   exit 1
 fi
 
-$SENTRY_CLI sourcemaps upload \
-  --org "$ORG" \
-  --project "$PROJECT" \
-  --release "$RELEASE" \
-  --url-prefix '~/assets' \
-  "$DIST_DIR"
-
-echo "🗑️  Removing .map files from build output..."
-rm -f "$DIST_DIR"/*.map
-
-echo "✅ Source maps uploaded and cleaned up."
+"$cli" sourcemaps inject "$dist"
+"$cli" sourcemaps upload --org "$org" --project "$project" \
+  --release "$VITE_SENTRY_RELEASE" --url-prefix '~/assets' --wait-for 60 "$dist"
+rm -f "$dist"/*.map

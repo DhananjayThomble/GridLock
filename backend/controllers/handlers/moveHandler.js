@@ -2,6 +2,7 @@
  * Move processing, turn logic, scoring, and CPU move scheduling.
  * Handles: make_move
  */
+const { captureOperationalFailure } = require('../../lib/sentry');
 const { calculateNewState } = require('../../utils/gameLogic');
 const {
     gameStore,
@@ -260,6 +261,7 @@ function register(io, socket, log, rateLimited, validate) {
             }
         } catch (error) {
             log.error('Error processing move', { error: error.message, stack: error.stack });
+            captureOperationalFailure(error, 'game.move');
             socket.emit('error', 'Invalid move');
         }
     });
@@ -380,6 +382,7 @@ function register(io, socket, log, rateLimited, validate) {
             }
         } catch (error) {
             log.error('Error processing rematch request', { error: error.message, stack: error.stack });
+            captureOperationalFailure(error, 'game.rematch');
             socket.emit('error', 'Failed to process rematch request');
         }
     });
