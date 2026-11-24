@@ -125,22 +125,3 @@ export const getGridTheme = (id) => {
 
 /** All theme ids */
 export const THEME_IDS = Object.keys(GRID_THEMES);
-
-/** Unlock conditions */
-export const UNLOCK_CONDITIONS = {
-  clean: { unlocked: true, label: 'Free' },
-  classic: { unlocked: true, label: 'Free' },
-  minimal: { winsRequired: 10, label: 'Win 10 games' },
-  neon: { winsRequired: 25, label: 'Win 25 games' },
-  glass: { tournamentWin: true, label: 'Win a tournament' },
-};
-
-/** Check if a theme should be unlocked based on stats */
-export const checkUnlockCondition = (themeId, stats) => {
-  const condition = UNLOCK_CONDITIONS[themeId];
-  if (!condition) return false;
-  if (condition.unlocked) return true;
-  if (condition.winsRequired && stats.wins >= condition.winsRequired) return true;
-  if (condition.tournamentWin && stats.tournamentWins > 0) return true;
-  return false;
-};

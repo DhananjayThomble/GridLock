@@ -10,8 +10,7 @@ import { subscribeToPush, unsubscribeFromPush } from '../utils/pushManager';
 import { getStats, getWinRate, getAvgTerritory, resetStats } from '../utils/sessionStats';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 import { useGridTheme } from '../contexts/GridThemeContext';
-import { GRID_THEMES, THEME_IDS, UNLOCK_CONDITIONS } from '../themes/gridThemes';
-import { getStats as getSessionStats } from '../utils/sessionStats';
+import { GRID_THEMES, THEME_IDS } from '../themes/gridThemes';
 import axios from 'axios';
 import socket from '../socket';
 import { API_BASE as AUTH_API_BASE } from '../config';
@@ -308,10 +307,11 @@ const StatsPanel = ({ stats, onReset }) => (
 );
 
 /* ─── Grid Theme Picker ─── */
-const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, unlockProgress, onClick }) => (
+const ThemePreview = ({ theme, isActive, onClick }) => (
   <button
     onClick={onClick}
-    disabled={isLocked}
+    aria-label={theme.name}
+    aria-pressed={isActive}
     style={{
       display: 'flex',
       flexDirection: 'column',
@@ -321,8 +321,7 @@ const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, unlockProgress, 
       borderRadius: '12px',
       border: isActive ? '2px solid var(--accent)' : '2px solid var(--border-color)',
       backgroundColor: isActive ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-card))' : 'var(--bg-card)',
-      cursor: isLocked ? 'not-allowed' : 'pointer',
-      opacity: isLocked ? 0.6 : 1,
+      cursor: 'pointer',
       transition: 'all 200ms ease',
       position: 'relative',
       width: '100%',
@@ -358,28 +357,11 @@ const ThemePreview = ({ theme, isActive, isLocked, unlockLabel, unlockProgress, 
     </div>
 
     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'center' }}>
-      {isLocked && '🔒 '}{theme.name}
+      {theme.name}
     </div>
     <div style={{ fontSize: '12px', color: isActive ? 'var(--accent)' : 'var(--text-muted)', textAlign: 'center' }}>
-      {isActive ? '✓ Active' : isLocked ? unlockLabel : 'Tap to apply'}
+      {isActive ? '✓ Active' : 'Tap to apply'}
     </div>
-    {/* Unlock progress indicator (#518) */}
-    {isLocked && unlockProgress && (
-      <div style={{ width: '100%', marginTop: '4px' }}>
-        <div style={{ width: '100%', height: '4px', borderRadius: '2px', backgroundColor: 'var(--bg-surface, var(--border-color))' }}>
-          <div style={{
-            width: `${Math.min(unlockProgress.pct, 100)}%`,
-            height: '100%',
-            borderRadius: '2px',
-            backgroundColor: 'var(--accent)',
-            transition: 'width 300ms ease',
-          }} />
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2px' }}>
-          {unlockProgress.label}
-        </div>
-      </div>
-    )}
   </button>
 );
 
@@ -391,7 +373,7 @@ const Settings = () => {
 
   const [pushEnabled, setPushEnabled] = useState(() => safeStorage.getItem('gridlock_push') === 'true');
   const { canInstall, install: handleInstall } = usePwaInstall();
-  const { themeId: activeGridTheme, setTheme: setGridTheme, unlockedThemes } = useGridTheme();
+  const { themeId: activeGridTheme, setTheme: setGridTheme } = useGridTheme();
   const [showSoundDetails, setShowSoundDetails] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(getStats);
@@ -644,40 +626,17 @@ const Settings = () => {
         <SectionCard>
           <div style={{ padding: '12px 16px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              Customize how the game board looks. Unlock new themes by playing!
+              Choose how your game board looks.
             </div>
             <div className="settings-theme-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-              {THEME_IDS.map((id) => {
-                const thm = GRID_THEMES[id];
-                const isActive = id === activeGridTheme;
-                const isLocked = !unlockedThemes.includes(id);
-                const condition = UNLOCK_CONDITIONS[id];
-                // Compute unlock progress for locked themes (#518)
-                let unlockProgress = null;
-                if (isLocked && condition) {
-                  const sessionStats = getSessionStats();
-                  // TODO: Backend should expose lifetime win count via user profile API.
-                  // Currently using session stats as best-effort approximation.
-                  if (condition.winsRequired) {
-                    const current = sessionStats.wins || 0;
-                    const pct = (current / condition.winsRequired) * 100;
-                    unlockProgress = { pct, label: `${current}/${condition.winsRequired} wins` };
-                  } else if (condition.tournamentWin) {
-                    unlockProgress = { pct: 0, label: '0 tournament wins' };
-                  }
-                }
-                return (
-                  <ThemePreview
-                    key={id}
-                    theme={thm}
-                    isActive={isActive}
-                    isLocked={isLocked}
-                    unlockLabel={condition?.label || ''}
-                    unlockProgress={unlockProgress}
-                    onClick={() => !isLocked && setGridTheme(id)}
-                  />
-                );
-              })}
+              {THEME_IDS.map((id) => (
+                <ThemePreview
+                  key={id}
+                  theme={GRID_THEMES[id]}
+                  isActive={id === activeGridTheme}
+                  onClick={() => setGridTheme(id)}
+                />
+              ))}
             </div>
           </div>
         </SectionCard>

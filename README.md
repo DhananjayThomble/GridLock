@@ -28,7 +28,7 @@ GridLock is an installable browser game. The server validates each move and publ
 - **Play your way:** private rooms, quick play, CPU opponents (easy to hard), ranked matchmaking with Elo, tournaments and a daily challenge.
 - **Server-authoritative:** move validation, turn order and scoring all run on the backend.
 - **Accounts or guests:** optional Google sign-in; guest progress carries over when you sign up.
-- **Progression:** leaderboard, profile, game history with replays, unlockable grid themes.
+- **Progression:** leaderboard, profile, game history with replays, five selectable grid themes.
 - **Polished UX:** responsive and touch-friendly, in-game chat, sound, light/dark mode.
 - **PWA:** installable, with optional Web Push turn notifications.
 - **Scales out:** optional Redis adapter for multiple server instances.
