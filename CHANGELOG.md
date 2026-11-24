@@ -3,6 +3,19 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.6.0] — 2026-11-24
+
+### Added
+
+- A privacy page linked from the lobby and Settings, with information about guest play, chat, telemetry, and account deletion.
+- Beginner-friendly contributor issues for MongoDB setup and a worked scoring exercise.
+
+### Improved
+
+- Improved score contrast in light and dark themes on phone and desktop.
+- Added static leaderboard guidance and prepared Nginx routing for genuine 404s and utility pages that ask crawlers to skip indexing.
+- Made Sentry opt-in for forks while keeping the official deployment configured.
+
 ## [2.5.0] — 2026-11-24
 
 ### Added
