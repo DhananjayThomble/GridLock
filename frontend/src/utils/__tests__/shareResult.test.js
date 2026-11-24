@@ -1,191 +1,63 @@
-// Unit tests for shareResult.js
-import { describe, it, expect } from 'vitest';
-import { generateShareText } from '../shareResult';
+import { describe, expect, it, vi, afterEach } from 'vitest';
+import { generateShareText, shareOrCopy } from '../shareResult';
 
 describe('generateShareText', () => {
-  it('should generate correct text for 3x3 game with player1 winning', () => {
-    const gameState = {
-      boxes: [
-        ['player1', 'player1', 'player1'],
-        ['player1', 'player1', 'player2'],
-        ['player2', 'player2', 'player2'],
-      ],
-      scores: { player1: 5, player2: 4 },
-      winner: 'player1',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 3, 2, 'player1');
-    const lines = result.split('\n');
-    expect(lines[0]).toContain('GridLock');
-    expect(lines[0]).toContain('3×3');
-    expect(lines[0]).toContain('2P');
-    expect(lines[1]).toBe('🟦🟦🟦');
-    expect(lines[2]).toBe('🟦🟦🟥');
-    expect(lines[3]).toBe('🟥🟥🟥');
-    expect(result).toContain('5-4');
-    expect(result).toContain('Won');
-    expect(result).toContain('🏆');
-    expect(result).toContain('gridlock.pro');
+  it('shares the winner, board size, final score and playable URL', () => {
+    const state = { winner: 'player1', scores: { player1: 5, player2: 4 } };
+    expect(generateShareText(state, 3, 2, 'player1')).toBe([
+      'I won in GridLock! 3×3 · 2 players',
+      'Score: 5–4 boxes',
+      'Play Dots & Boxes: https://gridlock.pro/',
+    ].join('\n'));
   });
 
-  it('should generate correct text for 4x4 game with player2 winning', () => {
-    const boxes = Array.from({ length: 4 }, () => Array(4).fill('player2'));
-    boxes[0][0] = 'player1';
-    boxes[0][1] = 'player1';
-    const gameState = {
-      boxes,
-      scores: { player1: 2, player2: 14 },
-      winner: 'player2',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 4, 2, 'player2');
-    expect(result).toContain('4×4');
-    expect(result).toContain('Won');
-    expect(result).toContain('🏆');
-    expect(result).toContain('2-14');
-    expect(result).toContain('gridlock.pro');
-    const lines = result.split('\n');
-    const gridLine1 = lines.find(l => l.startsWith('🟦'));
-    expect(gridLine1).toBe('🟦🟦🟥🟥');
+  it('formats a loss against the CPU', () => {
+    const state = { hasCPU: true, winner: 'player2', scores: { player1: 0, player2: 9 } };
+    expect(generateShareText(state, 3, 2, 'player1')).toContain('I lost in GridLock! 3×3 · vs CPU\nScore: 0–9 boxes');
   });
 
-  it('should show Lost with correct emoji for the losing player', () => {
-    const boxes = Array.from({ length: 4 }, () => Array(4).fill('player2'));
-    boxes[0][0] = 'player1';
-    const gameState = {
-      boxes,
-      scores: { player1: 1, player2: 15 },
-      winner: 'player2',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 4, 2, 'player1');
-    expect(result).toContain('Lost');
-    expect(result).toContain('💔');
-    expect(result).not.toContain('🏆');
+  it('puts the sharing player’s score first', () => {
+    const state = { winner: 'player2', scores: { player1: 4, player2: 5 } };
+    expect(generateShareText(state, 3, 2, 'player2')).toContain('Score: 5–4 boxes');
   });
 
-  it('should handle draw scenario correctly', () => {
-    const gameState = {
-      boxes: [
-        ['player1', 'player2', 'player1'],
-        ['player2', 'player1', 'player2'],
-        ['player1', 'player2', 'player1'],
-      ],
-      scores: { player1: 5, player2: 4 },
-      winner: 'draw',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 3, 2, 'player1');
-    expect(result).toContain('Draw');
-    expect(result).toContain('🤝');
-    expect(result).not.toContain('🏆');
-    expect(result).not.toContain('💔');
-    expect(result).toContain('gridlock.pro');
+  it.each([3, 4])('keeps all scores for a %i-player draw', (playerCount) => {
+    const state = { winner: 'draw', playerCount, scores: { player1: 4, player2: 4, player3: 1 } };
+    const result = generateShareText(state, 3, undefined, 'player2', { tournamentRound: true });
+    expect(result).toContain('Draw in GridLock! 3×3 · Tournament');
+    expect(result).toContain(playerCount === 3 ? '4–4–1 boxes' : '4–4–1–0 boxes');
   });
 
-  it('should handle 3-player game correctly', () => {
-    const gameState = {
-      boxes: [
-        ['player1', 'player2', 'player3'],
-        ['player1', 'player3', 'player2'],
-        ['player3', 'player1', 'player2'],
-      ],
-      scores: { player1: 3, player2: 3, player3: 3 },
-      winner: 'draw',
-      playerCount: 3,
-    };
-    const result = generateShareText(gameState, 3, 3, 'player1');
-    expect(result).toContain('3P');
-    expect(result).toContain('3×3');
-    expect(result).toContain('🟩');
-    expect(result).toContain('🤝');
+  it.each([null, undefined, {}])('returns no result for an unfinished game', (state) => {
+    expect(generateShareText(state, 3, 2, 'player1')).toBe('');
+  });
+});
+
+describe('shareOrCopy', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('opens native share without writing to the clipboard', async () => {
+    const share = vi.fn().mockResolvedValue();
+    const writeText = vi.fn();
+    vi.stubGlobal('navigator', { share, clipboard: { writeText } });
+    expect(await shareOrCopy('result')).toBe('shared');
+    expect(share).toHaveBeenCalledWith({ text: 'result' });
+    expect(writeText).not.toHaveBeenCalled();
   });
 
-  it('should handle 4-player game correctly', () => {
-    const gameState = {
-      boxes: [
-        ['player1', 'player2', 'player3', 'player4'],
-        ['player4', 'player3', 'player2', 'player1'],
-        ['player1', 'player2', 'player3', 'player4'],
-        ['player4', 'player3', 'player2', 'player1'],
-      ],
-      scores: { player1: 4, player2: 4, player3: 4, player4: 4 },
-      winner: 'player1',
-      playerCount: 4,
-    };
-    const result = generateShareText(gameState, 4, 4, 'player1');
-    expect(result).toContain('4P');
-    expect(result).toContain('4×4');
-    expect(result).toContain('🟦');
-    expect(result).toContain('🟥');
-    expect(result).toContain('🟩');
-    expect(result).toContain('🟨');
-    expect(result).toContain('gridlock.pro');
+  it('copies the result if native share fails', async () => {
+    const share = vi.fn().mockRejectedValue(new Error('Share failed'));
+    const writeText = vi.fn().mockResolvedValue();
+    vi.stubGlobal('navigator', { share, clipboard: { writeText } });
+    expect(await shareOrCopy('result')).toBe('copied');
+    expect(writeText).toHaveBeenCalledWith('result');
   });
 
-  it('should show unclaimed boxes with black square emoji', () => {
-    const gameState = {
-      boxes: [
-        ['player1', null, null],
-        [null, 'player2', null],
-        [null, null, null],
-      ],
-      scores: { player1: 1, player2: 1 },
-      winner: 'draw',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 3, 2, 'player1');
-    expect(result).toContain('⬛');
-  });
-
-  it('should handle fully claimed board with no unclaimed boxes', () => {
-    const gameState = {
-      boxes: [
-        ['player1', 'player1', 'player2'],
-        ['player2', 'player1', 'player2'],
-        ['player1', 'player2', 'player1'],
-      ],
-      scores: { player1: 5, player2: 4 },
-      winner: 'player1',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 3, 2, 'player1');
-    expect(result).not.toContain('⬛');
-  });
-
-  it('should return empty string for null game state', () => {
-    expect(generateShareText(null, 3, 2, 'player1')).toBe('');
-  });
-
-  it('should return empty string for game state without boxes', () => {
-    expect(generateShareText({}, 3, 2, 'player1')).toBe('');
-  });
-
-  it('should return empty string for undefined game state', () => {
-    expect(generateShareText(undefined, 3, 2, 'player1')).toBe('');
-  });
-
-  it('should include score line with Score: prefix', () => {
-    const gameState = {
-      boxes: [['player1', 'player1'], ['player2', 'player2']],
-      scores: { player1: 2, player2: 2 },
-      winner: 'draw',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 2, 2, 'player1');
-    expect(result).toMatch(/Score: \d+-\d+/);
-  });
-
-  it('should have correct header format', () => {
-    const gameState = {
-      boxes: [['player1', 'player2'], ['player2', 'player1']],
-      scores: { player1: 2, player2: 2 },
-      winner: 'draw',
-      playerCount: 2,
-    };
-    const result = generateShareText(gameState, 2, 2, 'player1');
-    const firstLine = result.split('\n')[0];
-    expect(firstLine).toContain('GridLock');
-    expect(firstLine).toContain('2P');
+  it('leaves the clipboard alone when sharing is cancelled', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('Cancelled', 'AbortError'));
+    const writeText = vi.fn();
+    vi.stubGlobal('navigator', { share, clipboard: { writeText } });
+    expect(await shareOrCopy('result')).toBeNull();
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

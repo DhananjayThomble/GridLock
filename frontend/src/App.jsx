@@ -12,7 +12,6 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { GridThemeProvider } from './contexts/GridThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Lobby from './components/Lobby';
-import Board from './components/Board';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import AuthRedirectNotice from './components/AuthRedirectNotice';
@@ -25,6 +24,7 @@ import { SentryRoutes } from './lib/sentry';
 import './App.css';
 
 // Lazy-loaded route components — split into separate chunks to reduce initial bundle
+const Board = lazy(() => import('./components/Board'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const Profile = lazy(() => import('./components/Profile'));
 const TournamentLobby = lazy(() => import('./components/TournamentLobby'));
@@ -168,7 +168,7 @@ const AppLayout = () => {
                     <Lobby />,
                     {
                       title: 'Play Dots & Boxes Online Free | Multiplayer',
-                      description: 'Challenge friends to the classic dots and boxes strategy game. 2-4 players, real-time multiplayer, tournaments, daily challenges. Free, no download.',
+                      description: 'Play Dots & Boxes online for free. Challenge up to three friends, practice against the CPU, or try the daily puzzle in your browser.',
                     },
                   )}
                 </ErrorBoundary>

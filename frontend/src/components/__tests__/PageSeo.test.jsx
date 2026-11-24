@@ -14,10 +14,25 @@ const renderSeo = (props) =>
 const robotsMeta = () => document.head.querySelector('meta[name="robots"]');
 
 describe('PageSeo', () => {
-  it('does not add a robots meta tag for indexable pages', async () => {
+  it('uses the deployment robots directive for public pages', async () => {
     renderSeo({ title: 'How to Play' });
     await waitFor(() => expect(document.title).toBe('How to Play | GridLock'));
-    expect(robotsMeta()).toBeNull();
+    expect(robotsMeta().getAttribute('content')).toBe(import.meta.env.VITE_ROBOTS);
+  });
+
+  it('replaces the built tags with the mounted route metadata', async () => {
+    const fallback = document.createElement('link');
+    fallback.rel = 'canonical';
+    fallback.href = 'https://gridlock.pro/';
+    fallback.setAttribute('data-static-seo', '');
+    document.head.append(fallback);
+
+    renderSeo({ title: 'How to Play', pathname: '/how-to-play' });
+    await waitFor(() => expect(document.title).toBe('How to Play | GridLock'));
+    expect(fallback.isConnected).toBe(false);
+    const links = document.head.querySelectorAll('link[rel="canonical"]');
+    expect(links).toHaveLength(1);
+    expect(new URL(links[0].href).pathname).toBe('/how-to-play/');
   });
 
   it('adds noindex, nofollow for private pages', async () => {

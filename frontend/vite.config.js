@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Only load Cloudflare plugin when CF_PAGES is set (Cloudflare Pages build environment)
@@ -6,7 +6,10 @@ import react from '@vitejs/plugin-react'
 const plugins = [react()];
 
 // https://vite.dev/config/
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
+  const env = loadEnv(mode, process.cwd());
+  const siteUrl = (env.VITE_SITE_URL || 'https://gridlock.pro').replace(/\/+$/, '');
+  const robots = env.VITE_ROBOTS || 'index, follow, max-image-preview:large';
   if (process.env.CF_PAGES) {
     try {
       const { cloudflare } = await import("@cloudflare/vite-plugin");
@@ -33,7 +36,20 @@ export default defineConfig(async () => {
     //   - Custom domain deploy: set to '/'
     //   - E2E / local dev: leave unset (defaults to '/')
     base: process.env.VITE_BASE_PATH || '/',
-    plugins,
+    plugins: [
+      ...plugins,
+      {
+        name: 'gridlock-seo-defaults',
+        transformIndexHtml: {
+          order: 'pre',
+          handler: (html) => html.replaceAll('%VITE_SITE_URL%', siteUrl).replaceAll('%VITE_ROBOTS%', robots),
+        },
+      },
+    ],
+    define: {
+      'import.meta.env.VITE_SITE_URL': JSON.stringify(siteUrl),
+      'import.meta.env.VITE_ROBOTS': JSON.stringify(robots),
+    },
     build: {
       // Generate hidden source maps for Sentry upload during deploys.
       // Upload is handled by sentry-cli in deploy scripts (not vite plugin —

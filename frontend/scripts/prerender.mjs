@@ -34,76 +34,6 @@ function findChromium() {
   return undefined; // let Puppeteer use its bundled one
 }
 
-/**
- * Clean up duplicate tags left by react-helmet-async.
- *
- * Helmet prepends its <title> (so the first <title> is the correct one)
- * and appends its <meta>/<link> tags (so the last occurrence of each
- * property/name is the correct one). We deduplicate accordingly.
- */
-function cleanHtml(html) {
-  // 1. Keep only the FIRST <title> tag (Helmet prepends the most recent)
-  let titleCount = 0;
-  html = html.replace(/<title>[\s\S]*?<\/title>/gi, (match) => {
-    titleCount++;
-    return titleCount === 1 ? match : '';
-  });
-
-  // 2. For <meta> tags with property or name, keep only the LAST occurrence
-  //    of each unique property/name value (Helmet appends at end of <head>)
-  const metaRegex = /<meta\s+[^>]*(?:property|name)="([^"]+)"[^>]*>/gi;
-  const metaOccurrences = new Map(); // key -> array of { match, index }
-  let match;
-  let allMatches = [];
-
-  // Collect all meta tags
-  while ((match = metaRegex.exec(html)) !== null) {
-    const key = match[1].toLowerCase();
-    if (!metaOccurrences.has(key)) metaOccurrences.set(key, []);
-    metaOccurrences.get(key).push({ full: match[0], index: match.index });
-    allMatches.push({ full: match[0], index: match.index, key });
-  }
-
-  // Build set of meta tags to remove (all but last for each key)
-  const toRemove = new Set();
-  for (const [, occurrences] of metaOccurrences) {
-    if (occurrences.length > 1) {
-      // Keep only the last one, remove all others
-      for (let i = 0; i < occurrences.length - 1; i++) {
-        toRemove.add(occurrences[i].full + '|' + occurrences[i].index);
-      }
-    }
-  }
-
-  if (toRemove.size > 0) {
-    // Remove duplicates by replacing from end to start (to preserve indices)
-    const removals = [...toRemove].map((r) => {
-      const pipeIdx = r.lastIndexOf('|');
-      return { full: r.slice(0, pipeIdx), index: parseInt(r.slice(pipeIdx + 1)) };
-    }).sort((a, b) => b.index - a.index);
-
-    for (const { full, index } of removals) {
-      html = html.slice(0, index) + html.slice(index + full.length);
-    }
-  }
-
-  // 3. For <link rel="canonical">, keep only the last one
-  const canonicalRegex = /<link\s+rel="canonical"[^>]*>/gi;
-  const canonicals = [];
-  while ((match = canonicalRegex.exec(html)) !== null) {
-    canonicals.push({ full: match[0], index: match.index });
-  }
-  if (canonicals.length > 1) {
-    // Remove all but last, from end to start
-    for (let i = canonicals.length - 2; i >= 0; i--) {
-      const { full, index } = canonicals[i];
-      html = html.slice(0, index) + html.slice(index + full.length);
-    }
-  }
-
-  return html;
-}
-
 async function prerender() {
   if (!existsSync(DIST_DIR)) {
     console.error('❌ dist/ not found — run `vite build` first.');
@@ -166,24 +96,28 @@ async function prerender() {
         timeout: 20000,
       });
 
-      // Give react-helmet-async a moment to inject tags
+      // Wait for route-specific metadata. The initial HTML always has a homepage title.
       await page.waitForFunction(
-        () => {
-          const title = document.title;
-          return title && title !== 'GridLock' && title.length > 0;
+        (expectedPath) => {
+          const canonical = document.head.querySelector('link[rel="canonical"][data-route-seo]');
+          const hasPageSchema = document.querySelector('script[data-route-seo]');
+          return canonical
+            && new URL(canonical.href).pathname === expectedPath
+            && hasPageSchema
+            && !document.querySelector('[data-static-seo]');
         },
         { timeout: 8000 },
-      ).catch(() => {
-        // Homepage might keep default title pattern — that's OK
-        if (route !== '/') {
-          console.warn(`  ⚠ Title didn't change from default for ${route}`);
-        }
+        route === '/' ? route : `${route}/`,
+      );
+
+      // On the next app mount, the generated tags are replaced by React's fresh tags.
+      await page.evaluate(() => {
+        document.querySelectorAll('[data-route-seo]').forEach((tag) => {
+          tag.removeAttribute('data-route-seo');
+          tag.setAttribute('data-static-seo', '');
+        });
       });
-
       let html = await page.content();
-
-      // Clean up duplicate tags from react-helmet-async
-      html = cleanHtml(html);
 
       // Add a marker comment so we can verify prerendering worked
       html = html.replace(

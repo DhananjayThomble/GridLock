@@ -4,17 +4,16 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="GridLock is a real-time multiplayer Dots &amp; Boxes game where strategy and speed decide every match." data-rh="true" />
+    <meta name="description" content="Play Dots &amp; Boxes online for free. Challenge up to three friends, practice against the CPU, or try the daily puzzle in your browser." data-static-seo />
     <meta name="author" content="Dhananjay Thomble">
-    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-    <meta name="keywords" content="dots and boxes, dots and boxes online, multiplayer board game, free online game, strategy game, gridlock game, play dots and boxes, browser game, no download" />
+    <meta name="robots" content="%VITE_ROBOTS%" data-static-seo />
     <meta name="theme-color" content="#0F172A" />
-    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <link rel="canonical" href="%VITE_SITE_URL%/" data-static-seo />
 
-    <meta property="og:title" content="GridLock — Play Dots &amp; Boxes Online Multiplayer" data-rh="true" />
-    <meta property="og:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." data-rh="true" />
-    <meta property="og:url" content="%VITE_SITE_URL%/" data-rh="true" />
-    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" data-rh="true" />
+    <meta property="og:title" content="Play Dots &amp; Boxes Online Free | Multiplayer | GridLock" data-static-seo />
+    <meta property="og:description" content="Play Dots &amp; Boxes online for free. Challenge up to three friends, practice against the CPU, or try the daily puzzle in your browser." data-static-seo />
+    <meta property="og:url" content="%VITE_SITE_URL%/" data-static-seo />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image-v2.jpg" data-static-seo />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:site_name" content="GridLock" />
@@ -22,10 +21,10 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="GridLock – Multiplayer Dots &amp; Boxes game board" />
 
-    <meta name="twitter:card" content="summary_large_image" data-rh="true" />
-    <meta name="twitter:title" content="GridLock — Play Dots &amp; Boxes Online Multiplayer" data-rh="true" />
-    <meta name="twitter:description" content="Play GridLock, a real-time multiplayer Dots &amp; Boxes game built for competitive online matches." data-rh="true" />
-    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" data-rh="true" />
+    <meta name="twitter:card" content="summary_large_image" data-static-seo />
+    <meta name="twitter:title" content="Play Dots &amp; Boxes Online Free | Multiplayer | GridLock" data-static-seo />
+    <meta name="twitter:description" content="Play Dots &amp; Boxes online for free. Challenge up to three friends, practice against the CPU, or try the daily puzzle in your browser." data-static-seo />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image-v2.jpg" data-static-seo />
 
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -33,11 +32,12 @@
     <meta name="apple-mobile-web-app-title" content="GridLock" />
     <link rel="manifest" href="%BASE_URL%manifest.json" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/icon-192.png" />
-    <title data-rh="true">GridLock</title>
+    <title data-static-seo>Play Dots &amp; Boxes Online Free | Multiplayer | GridLock</title>
     <script>
       // Apply theme immediately to prevent flash of wrong theme
       (function () {
-        var stored = localStorage.getItem('gridlock_theme');
+        var stored;
+        try { stored = localStorage.getItem('gridlock_theme'); } catch {}
         var theme = (stored === 'dark' || stored === 'light') ? stored
           : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', theme);
@@ -82,7 +82,7 @@
         "@type": "Person",
         "name": "Dhananjay Thomble"
       },
-      "screenshot": "%VITE_SITE_URL%/og-image.png"
+      "screenshot": "%VITE_SITE_URL%/og-image-v2.jpg"
     }
     </script>
     <script type="application/ld+json">

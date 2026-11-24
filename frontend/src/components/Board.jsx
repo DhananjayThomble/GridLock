@@ -87,7 +87,12 @@ const Board = () => {
   const [rematchRequested, setRematchRequested] = useState(false);
   const [rematchCount, setRematchCount] = useState({ count: 0, total: 0 });
   const [rematchFailed, setRematchFailed] = useState(null); // null or reason string
-  const [shareStatus, setShareStatus] = useState(null); // null | 'copied' | 'shared'
+  const [shareStatus, setShareStatus] = useState(null);
+  const shareFeedback = {
+    copied: 'Result copied.',
+    shared: 'Result shared.',
+    error: 'Could not share or copy the result.',
+  }[shareStatus];
   const [roomNotFound, setRoomNotFound] = useState(false);
   const shareTimeoutRef = useRef(null);
   const [tournamentSnapshot, setTournamentSnapshot] = useState(null);
@@ -197,6 +202,7 @@ const Board = () => {
       // doesn't leave stale winner overlay or "Starting rematch…" stuck.
       setShowWinner(false);
       setWinnerData(null);
+      setShareStatus(null);
       setRematchRequested(false);
       setRematchFailed(null);
       setRematchCount({ count: 0, total: 0 });
@@ -788,11 +794,11 @@ const Board = () => {
       role,
       { tournamentRound: !!tournamentId }
     );
+    if (!text) return;
     try {
-      const result = await shareOrCopy(text);
-      setShareStatus(result === 'shared' ? 'shared' : 'copied');
+      setShareStatus(await shareOrCopy(text));
     } catch {
-      setShareStatus(null);
+      setShareStatus('error');
     }
     if (shareTimeoutRef.current) clearTimeout(shareTimeoutRef.current);
     shareTimeoutRef.current = setTimeout(() => setShareStatus(null), 2000);
@@ -1140,6 +1146,9 @@ const Board = () => {
 
           />
 
+          <p role="status" className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {shareFeedback}
+          </p>
           {/* Phones: Rematch gets its own full-width row, Share + Leave share the row below */}
           <div className="flex flex-wrap gap-2">
             {!isSpectator && (
@@ -1149,7 +1158,7 @@ const Board = () => {
                 style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--success)' }}
                 aria-label="Share result"
               >
-                {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share'}
+                {shareStatus === 'copied' ? '✅ Copied!' : shareStatus === 'shared' ? '✅ Shared!' : '📤 Share result'}
               </button>
             )}
             {!isSpectator && !tournamentId && !rematchFailed && (
@@ -1390,6 +1399,12 @@ const Board = () => {
               </button>
             )}
           </div>
+
+          {!showWinner && (
+            <p role="status" className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {shareFeedback}
+            </p>
+          )}
 
           {/* You are */}
           <p className="text-xs text-center mb-1" style={{ color: 'var(--text-muted)' }}>
