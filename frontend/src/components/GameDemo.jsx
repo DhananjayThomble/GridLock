@@ -177,14 +177,14 @@ export default function GameDemo() {
       {/* Turn / Result indicator */}
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', minHeight: 20, transition: 'all .3s' }}>
         {phase === 'result' ? (
-          <span style={{ color: p1.lineColor, fontWeight: 700 }}>🏆 You win!</span>
+          <span style={{ color: 'var(--player1-color)', fontWeight: 700 }}>🏆 You win!</span>
         ) : (
           <span>
             {currentPlayer === 1 ? (
-              <span style={{ color: pColor(1), fontWeight: 700 }}>Your turn</span>
+              <span style={{ color: 'var(--player1-color)', fontWeight: 700 }}>Your turn</span>
             ) : (
               <span>
-                <span style={{ color: pColor(2), fontWeight: 700 }}>{alexName}</span>
+                <span style={{ color: 'var(--player2-color)', fontWeight: 700 }}>{alexName}</span>
                 {"'s turn"}
               </span>
             )}
@@ -199,9 +199,9 @@ export default function GameDemo() {
       <div data-testid="demo-score" style={{
         display: 'flex', alignItems: 'center', gap: 14, fontSize: 15, fontWeight: 700
       }}>
-        <span style={{ color: p1.lineColor }}>{youName} {score[0]}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 12, opacity: 0.6 }}>vs</span>
-        <span style={{ color: p2.lineColor }}>{alexName} {score[1]}</span>
+        <span style={{ color: 'var(--player1-color)' }}>{youName} {score[0]}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>vs</span>
+        <span style={{ color: 'var(--player2-color)' }}>{alexName} {score[1]}</span>
       </div>
     </div>
   );

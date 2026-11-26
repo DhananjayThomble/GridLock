@@ -1126,7 +1126,7 @@ const Lobby = () => {
                 onClick={() => setCpuEnabled(!cpuEnabled)}
                 className="w-full py-3 sm:py-4 px-4 sm:px-5 rounded-xl text-left transition-all active:scale-[0.98] flex items-center justify-between gap-3"
                 style={cpuEnabled
-                  ? { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 18%, transparent), color-mix(in srgb, var(--warning) 10%, transparent))', border: '2px solid color-mix(in srgb, var(--warning) 50%, transparent)', color: 'var(--warning)' }
+                  ? { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 18%, transparent), color-mix(in srgb, var(--warning) 10%, transparent))', border: '2px solid color-mix(in srgb, var(--warning) 50%, transparent)', color: 'var(--text-warning)' }
                   : { background: 'linear-gradient(135deg, color-mix(in srgb, var(--warning) 8%, var(--bg-card)), var(--bg-card))', border: '2px dashed color-mix(in srgb, var(--warning) 30%, var(--border-color-strong))', color: 'var(--text-secondary)' }}
               >
                 <span className="flex items-center gap-3 min-w-0">
@@ -1139,7 +1139,7 @@ const Lobby = () => {
                     🤖
                   </span>
                   <span className="min-w-0">
-                    <span className="text-sm sm:text-base font-bold block" style={{ color: cpuEnabled ? 'var(--warning)' : 'var(--text-primary)' }}>
+                    <span className="text-sm sm:text-base font-bold block" style={{ color: cpuEnabled ? 'var(--text-warning)' : 'var(--text-primary)' }}>
                       {cpuEnabled ? (
                         <>
                           <span className="sm:hidden">CPU On · {cpuCount} × {cpuDifficulty.charAt(0).toUpperCase() + cpuDifficulty.slice(1)}</span>
@@ -1149,7 +1149,7 @@ const Lobby = () => {
                         'Add CPU Opponents'
                       )}
                     </span>
-                    <span className="text-xs block mt-0.5" style={{ color: cpuEnabled ? 'color-mix(in srgb, var(--warning) 80%, var(--text-secondary))' : 'var(--text-muted)' }}>
+                    <span className="text-xs block mt-0.5" style={{ color: cpuEnabled ? 'var(--text-warning)' : 'var(--text-muted)' }}>
                       {cpuEnabled ? 'AI opponents enabled — configure below' : 'Play solo against AI opponents'}
                     </span>
                   </span>
@@ -1479,7 +1479,7 @@ const Lobby = () => {
           </>)}
         </div>
 
-        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" className="inline-block px-2 py-3.5 -my-3.5" style={{ color: "var(--accent)", textDecoration: "none" }}>DJ</a> · <Link to="/privacy" className="underline">Privacy</Link></p>
+        <p className="text-center text-xs mt-2 mb-1" style={{ color: 'var(--text-secondary)' }}>GridLock · Made with ❤️ by <a href="https://github.com/DhananjayThomble" target="_blank" rel="noopener noreferrer" className="inline-block px-2 py-3.5 -my-3.5" style={{ color: "var(--text-accent)", textDecoration: "none" }}>DJ</a> · <Link to="/privacy" className="underline">Privacy</Link></p>
 
         {/* ── Recent Opponents ── */}
         <RecentOpponents
@@ -1523,8 +1523,8 @@ const Lobby = () => {
         <div
           className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 animate-slide-up"
           style={{
-            background: toast.type === 'error' ? 'var(--danger)' : 'var(--warning)',
-            color: '#fff',
+            background: toast.type === 'error' ? 'var(--btn-danger-bg)' : 'var(--warning)',
+            color: toast.type === 'error' ? 'var(--btn-danger-text)' : 'var(--text-on-warning)',
             maxWidth: '90vw',
           }}
           role="alert"
