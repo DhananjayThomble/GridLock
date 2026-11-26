@@ -102,6 +102,7 @@ const schemas = {
 
     // In-game quick chat (#216)
     game_chat: Joi.object({
+        kind: Joi.string().valid('text').optional(),
         gameId: gameIdField,
         content: Joi.string().trim().min(1).max(50).required(),
     }),

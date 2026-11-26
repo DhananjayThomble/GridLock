@@ -371,6 +371,11 @@ const Settings = () => {
   const { user, login, logout } = useAuth();
   const isDark = theme === 'dark';
 
+  const [chatPrefs, setChatPrefs] = useState(() => ({
+    chat: safeStorage.getItem('gridlock_chat') !== 'off',
+    emoji: safeStorage.getItem('gridlock_emoji') !== 'off',
+  }));
+  const [pushNotice, setPushNotice] = useState('');
   const [pushEnabled, setPushEnabled] = useState(() => safeStorage.getItem('gridlock_push') === 'true');
   const { canInstall, install: handleInstall } = usePwaInstall();
   const { themeId: activeGridTheme, setTheme: setGridTheme } = useGridTheme();
@@ -421,17 +426,19 @@ const Settings = () => {
 
 
   const handlePushToggle = async () => {
+    setPushNotice('');
     if (!pushEnabled) {
-      const username = safeStorage.getItem('gridlock_username') || '';
+      const username = user?.username || safeStorage.getItem('gridlock_username') || '';
       if (!username.trim()) return;
       try {
         const sub = await subscribeToPush(username.trim(), socket.id);
         if (sub) { setPushEnabled(true); safeStorage.setItem('gridlock_push', 'true'); }
-      } catch { /* push subscribe failed */ }
+        else setPushNotice('Open device notification settings to allow GridLock notifications, or check server push configuration.');
+      } catch { setPushNotice('Could not enable notifications. Try again.'); }
     } else {
       try { await unsubscribeFromPush(); } catch { /* ignore */ }
       setPushEnabled(false);
-      safeStorage.removeItem('gridlock_push');
+      safeStorage.setItem('gridlock_push', 'false');
     }
   };
 
@@ -444,7 +451,7 @@ const Settings = () => {
   }, []);
 
   const isMuted = soundSettings.masterMute;
-  const hasUsername = !!safeStorage.getItem('gridlock_username');
+  const hasUsername = !!(user?.username || safeStorage.getItem('gridlock_username'));
 
   return (
     <div
@@ -595,16 +602,26 @@ const Settings = () => {
             expanded={showSoundDetails}
             showDivider={!showSoundDetails}
           />
+          {Object.entries(chatPrefs).map(([key, enabled]) => {
+            const label = key === 'chat' ? 'Room chat' : 'Emoji reactions';
+            return <SettingsRow key={key} icon={key === 'chat' ? '💬' : '😀'} label={label}
+              subtitle={enabled ? 'Send and receive during games' : 'Off on this device'}
+              right={<ToggleSwitch label={label} checked={enabled} onChange={() => {
+                safeStorage.setItem('gridlock_' + key, enabled ? 'off' : 'on');
+                setChatPrefs(prev => ({ ...prev, [key]: !enabled }));
+              }} />} />;
+          })}
           {showSoundDetails && (
             <SoundDetails settings={soundSettings} onUpdate={updateSound} muted={isMuted} />
           )}
           <SettingsRow
             icon="🔔"
             label="Push Notifications"
-            subtitle={hasUsername ? "Get notified when it's your turn" : 'Set a username in the lobby first'}
+            subtitle={hasUsername ? 'Game invites and turn reminders' : 'Set a username in the lobby first'}
             right={<ToggleSwitch checked={pushEnabled} onChange={handlePushToggle} disabled={!hasUsername} label="Push notifications" />}
             showDivider={false}
           />
+          {pushNotice && <p role="status" className="px-4 text-sm">{pushNotice}</p>}
           {/* Push notification explanation (#518) */}
           <div style={{ padding: '0 16px 12px 52px', fontSize: '12px', lineHeight: '16px', color: 'var(--text-muted)' }}>
             Enable browser notifications for game invites and turn reminders. Requires browser permission.

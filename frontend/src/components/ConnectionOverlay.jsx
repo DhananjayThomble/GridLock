@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import socket from '../socket';
 
-const ConnectionOverlay = ({ enabled = true }) => {
+const ConnectionOverlay = ({ enabled = true, inline = false }) => {
   // 'connected' | 'offline' | 'reconnecting' | 'failed' | 'idle'
   const [state, setState] = useState(() => (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connected'));
   const [attempt, setAttempt] = useState(0);
@@ -48,6 +48,7 @@ const ConnectionOverlay = ({ enabled = true }) => {
     const onBrowserOffline = () => setState('offline');
     const onBrowserOnline = () => {
       if (socket.connected) { setState('connected'); return; }
+      if (!enabled && !socket.active) { setState('connected'); return; }
       setState('reconnecting');
       setAttempt(0);
       socket.connect();
@@ -70,7 +71,7 @@ const ConnectionOverlay = ({ enabled = true }) => {
       socket.io.off('reconnect_failed', onReconnectFailed);
       socket.off('connect', onConnect);
     };
-  }, []);
+  }, [enabled]);
 
   // Auto-focus retry button when entering failed state
   useEffect(() => {
@@ -85,10 +86,18 @@ const ConnectionOverlay = ({ enabled = true }) => {
     socket.connect();
   }, []);
 
-  if (!enabled || state === 'connected') return null;
+  if (state === 'connected') return null;
+  if (inline) {
+    return <div role="status" data-nosnippet="" className="text-center p-2">
+      {state === 'offline' ? 'You’re offline.' : 'Game server connection interrupted.'}
+      {' '}<button type="button" onClick={handleRetry}>Retry connection</button>
+    </div>;
+  }
+  if (!enabled) return null;
 
   return (
     <div
+      data-nosnippet=""
       role="dialog"
       aria-modal="true"
       aria-labelledby={headingId}

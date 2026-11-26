@@ -13,6 +13,7 @@ import { GridThemeProvider } from './contexts/GridThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Lobby from './components/Lobby';
 import ErrorBoundary from './components/ErrorBoundary';
+import socket from './socket';
 import ConnectionOverlay from './components/ConnectionOverlay';
 import AuthRedirectNotice from './components/AuthRedirectNotice';
 import BottomNav from './components/BottomNav';
@@ -111,6 +112,11 @@ const AuthSetupRedirect = () => {
 const AppLayout = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const path = location.pathname.replace(/\/$/, '') || '/';
+  const inSession = ['/game', '/tournament'].includes(path) || /^\/(waiting|join|play)\//.test(path);
+  useEffect(() => {
+    if (inSession || path === '/settings') socket.connect();
+  }, [inSession, path]);
   const hideNav = location.pathname === '/admin' || location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   // Block layout rendering while auth setup redirect is pending (#6 Copilot review)
@@ -122,8 +128,7 @@ const AppLayout = () => {
   return (
     <>
       <AuthSetupRedirect />
-      <ConnectionOverlay enabled={['/', '/game', '/daily', '/tournament'].includes(location.pathname)
-        || /^\/(waiting|join|play)\//.test(location.pathname)} />
+      <ConnectionOverlay enabled={inSession} inline={path === '/' || path === '/daily'} />
       {!hideNav && (
         <nav className="app-nav" aria-label="Main navigation">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link top-nav-hide-mobile ${isActive ? 'active' : ''}`}>

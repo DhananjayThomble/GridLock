@@ -4,8 +4,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QUICK_MESSAGES, EMOJIS } from './chatConstants';
 
-const ChatPanel = ({ onSend, onClose }) => {
-  const [tab, setTab] = useState('chat');
+const ChatPanel = ({ onSend, onClose, allowChat = true, allowEmoji = true }) => {
+  const [tab, setTab] = useState(allowChat ? 'chat' : 'emoji');
+  const [draft, setDraft] = useState('');
   const panelRef = useRef(null);
 
   // Focus the panel when it opens
@@ -45,7 +46,7 @@ const ChatPanel = ({ onSend, onClose }) => {
         onKeyDown={handleKeyDown}
         className="chat-panel fixed bottom-0 left-0 right-0 z-50 mx-auto rounded-t-2xl shadow-2xl outline-none"
         style={{
-          maxWidth: '400px',
+          maxWidth: '400px', maxHeight: '80dvh', overflowY: 'auto', paddingBottom: 'env(safe-area-inset-bottom)',
           backgroundColor: 'var(--bg-tertiary)',
           border: '1px solid var(--border-color)',
           borderBottom: 'none',
@@ -64,7 +65,7 @@ const ChatPanel = ({ onSend, onClose }) => {
 
         {/* Tabs */}
         <div className="flex gap-1 px-3 pb-2">
-          <button
+          {allowChat && <button
             onClick={() => setTab('chat')}
             className="chat-panel-tab flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors"
             style={{
@@ -73,8 +74,8 @@ const ChatPanel = ({ onSend, onClose }) => {
             }}
           >
             💬 Chat
-          </button>
-          <button
+          </button>}
+          {allowEmoji && <button
             onClick={() => setTab('emoji')}
             className="chat-panel-tab flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors"
             style={{
@@ -83,9 +84,16 @@ const ChatPanel = ({ onSend, onClose }) => {
             }}
           >
             😀 Emoji
-          </button>
+          </button>}
         </div>
 
+        {tab === 'chat' && <form className="flex gap-2 px-3 pb-2" onSubmit={e => {
+          e.preventDefault();
+          if (draft.trim()) onSend(draft.trim(), 'text');
+        }}>
+          <input className="min-w-0 flex-1 rounded-lg border px-2 text-base" aria-label="Message" placeholder="Message the room" value={draft} maxLength={50} onChange={e => setDraft(e.target.value)} />
+          <button className="min-h-11 px-3 font-semibold" disabled={!draft.trim()}>Send</button>
+        </form>}
         {/* Content */}
         <div className="px-3 pb-4 overflow-y-auto" style={{ maxHeight: '280px' }}>
           {tab === 'chat' ? (

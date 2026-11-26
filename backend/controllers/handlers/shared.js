@@ -391,6 +391,7 @@ async function submitDailyChallengeResult(game, log) {
         }
 
         await DailyResult.create({
+            gameId: game.id,
             date: today,
             username,
             score,

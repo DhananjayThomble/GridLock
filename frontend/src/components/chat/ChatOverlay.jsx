@@ -15,7 +15,7 @@ const PLAYER_POSITIONS = [
   { bottom: '140px', right: '8px' },// player4 — bottom-right
 ];
 
-const ChatOverlay = ({ socket, gameId }) => {
+const ChatOverlay = ({ socket, gameId, allowChat = true, allowEmoji = true }) => {
   const [bubbles, setBubbles] = useState([]);
   const idCounter = useRef(0);
 
@@ -31,6 +31,7 @@ const ChatOverlay = ({ socket, gameId }) => {
     const currentGameId = gameId;
 
     const onChatReceived = (data) => {
+      if (data.type === 'emoji' ? !allowEmoji : !allowChat) return;
       const newBubble = {
         ...data,
         id: `chat-${++idCounter.current}`,
@@ -56,7 +57,7 @@ const ChatOverlay = ({ socket, gameId }) => {
     return () => {
       socket.off('game_chat_received', onChatReceived);
     };
-  }, [socket, gameId]);
+  }, [socket, gameId, allowChat, allowEmoji]);
 
   // Filter to only show bubbles for the current game
   const activeBubbles = bubbles.filter((b) => b.gameId === gameId);

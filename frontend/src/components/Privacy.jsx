@@ -18,7 +18,7 @@ export default function Privacy() {
 
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Rooms, chat, and notifications</h2>
-        <p>Chat messages are sent to other people in the room. People who have a room or replay link may be able to view the game. Keep personal information out of player names and chat. If you enable turn notifications, GridLock stores a browser push subscription to deliver them. You can turn notifications off in Settings or in your browser.</p>
+        <p>Chat messages are sent to other people in the room. People who have a room or replay link may be able to view the game. Keep personal information out of player names and chat. GridLock stores friend requests and accepted friendships for signed-in players. Accepted friends can invite each other to a room. If you enable notifications, GridLock stores a browser push subscription to deliver invites and turn reminders. You can turn notifications off in Settings or in your browser.</p>
       </section>
 
       <section className="space-y-2">

@@ -40,9 +40,20 @@ router.get('/vapid-public-key', (req, res) => {
     res.json({ publicKey: key });
 });
 
+// Bind an already subscribed device when its owner signs in (including older subscriptions).
+const { csrfHeader, requireAuth } = require('../middleware/auth');
+router.post('/device-account', csrfHeader, requireAuth, async (req, res) => {
+    const { endpoint, auth, unlink } = req.body;
+    if (typeof endpoint !== 'string' || typeof auth !== 'string') return res.sendStatus(400);
+    const filter = { endpoint, 'keys.auth': auth };
+    if (unlink) filter.accountId = req.user._id;
+    await PushSubscription.updateOne(filter, { $set: { accountId: unlink ? null : req.user._id } });
+    res.sendStatus(204);
+});
+
 // POST /api/push/subscribe — upsert subscription by endpoint
 // Fix #6: Rate limited + basic socket-based ownership validation
-router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
+router.post('/subscribe', pushEndpointLimiter, require('../middleware/auth').optionalAuth, async (req, res) => {
     try {
         const { username, subscription, socketId } = req.body;
         if (!username || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
@@ -62,7 +73,8 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
         const cleanUsername = san.value;
 
         // Fix #6: Verify socket ownership if io is available
-        if (req.app.locals.io && socketId) {
+        const needsSocketCheck = req.app.locals.io && req.user?.username !== cleanUsername;
+        if (needsSocketCheck && socketId) {
             const connectedSocket = req.app.locals.io.sockets.sockets.get(socketId);
             if (!connectedSocket) {
                 return res.status(403).json({ error: 'Invalid socket ID — not connected' });
@@ -71,7 +83,7 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
             if (connectedSocket.data.username && connectedSocket.data.username !== cleanUsername) {
                 return res.status(403).json({ error: 'Socket identity mismatch' });
             }
-        } else if (req.app.locals.io && !socketId) {
+        } else if (needsSocketCheck) {
             // io is available but no socketId provided — reject
             return res.status(400).json({ error: 'socketId is required for subscription verification' });
         }
@@ -79,6 +91,7 @@ router.post('/subscribe', pushEndpointLimiter, async (req, res) => {
         await PushSubscription.findOneAndUpdate(
             { endpoint: { $eq: subscription.endpoint } },
             {
+                accountId: req.user?._id || null,
                 username: cleanUsername,
                 endpoint: subscription.endpoint,
                 keys: {
