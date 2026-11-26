@@ -1,14 +1,5 @@
-const webpush = require('web-push');
+const { sendNotification } = require('../lib/webPushClient');
 const PushSubscription = require('../models/PushSubscription');
-
-// Configure VAPID keys
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-        process.env.VAPID_EMAIL || 'mailto:noreply@gridlock.app',
-        process.env.VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-    );
-}
 
 // Debounce: track last push timestamp per username
 const lastPushTimestamps = new Map();
@@ -82,7 +73,9 @@ function isUserOnlineInGame(io, username, gameId, game) {
  * Rate limited: max HOURLY_LIMIT pushes per user per hour.
  */
 async function sendPushToUser(username, payload, subscriptionFilter = { username }) {
-    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return; // Push not configured
+    const { VAPID_PUBLIC_KEY: publicKey, VAPID_PRIVATE_KEY: privateKey, VAPID_EMAIL } = process.env;
+    if (!publicKey || !privateKey) return;
+    const vapidDetails = { subject: VAPID_EMAIL || 'mailto:noreply@gridlock.app', publicKey, privateKey };
 
     // Debounce check
     const now = Date.now();
@@ -102,12 +95,13 @@ async function sendPushToUser(username, payload, subscriptionFilter = { username
     const results = await Promise.allSettled(
         subscriptions.map(async (sub) => {
             try {
-                await webpush.sendNotification(
+                await sendNotification(
                     {
                         endpoint: sub.endpoint,
                         keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
                     },
-                    payloadStr
+                    payloadStr,
+                    { vapidDetails }
                 );
             } catch (err) {
                 // 410 Gone or 404 — subscription expired, clean up
