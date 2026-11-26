@@ -1,6 +1,5 @@
-// Mock web-push before requiring pushService
-jest.mock('web-push', () => ({
-    setVapidDetails: jest.fn(),
+// Mock the Web Push client before requiring pushService
+jest.mock('../lib/webPushClient', () => ({
     sendNotification: jest.fn(),
 }));
 
@@ -21,7 +20,7 @@ process.env.VAPID_PUBLIC_KEY = 'test-public-key';
 process.env.VAPID_PRIVATE_KEY = 'test-private-key';
 process.env.VAPID_EMAIL = 'mailto:test@test.com';
 
-const webpush = require('web-push');
+const webpush = require('../lib/webPushClient');
 const PushSubscription = require('../models/PushSubscription');
 const { sendPushToUser, isUserOnlineInGame, _internal } = require('../services/pushService');
 
@@ -44,6 +43,11 @@ describe('sendPushToUser', () => {
 
         expect(PushSubscription.find).toHaveBeenCalledWith({ username: 'alice' });
         expect(webpush.sendNotification).toHaveBeenCalledTimes(2);
+        expect(webpush.sendNotification).toHaveBeenCalledWith(
+            { endpoint: subs[0].endpoint, keys: subs[0].keys },
+            JSON.stringify({ title: 'Test', body: 'Hello' }),
+            { vapidDetails: { subject: 'mailto:test@test.com', publicKey: 'test-public-key', privateKey: 'test-private-key' } }
+        );
         expect(results).toHaveLength(2);
         expect(results[0].status).toBe('fulfilled');
     });

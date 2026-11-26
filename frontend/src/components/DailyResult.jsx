@@ -2,12 +2,14 @@
 // Results page after completing daily challenge — score, rank, percentile, share, leaderboard
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { DAILY_PLAY_URL, shareOrCopy } from '../utils/shareResult';
 import { apiUrl, formatCountdown, getStars, formatDuration } from '../utils/daily';
 
 const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, countdownTarget: initialTarget, onBack }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [userPosition, setUserPosition] = useState(null);
+  const [shareError, setShareError] = useState('');
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState(initialCountdown || 0);
   // Issue #10: use target time for drift-free countdown
@@ -58,22 +60,17 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, c
 
   // Issue #14: share text format — "GridLock Daily #N: X/Y boxes in Z moves ⭐⭐⭐"
   const handleShare = async () => {
-    const text = `GridLock Daily #${dayNumber}: ${result.score}/${totalBoxes} boxes in ${result.moves} moves ${starStr}\n\ngridlock.pro`;
+    const text = `GridLock Daily #${dayNumber}: ${result.score}/${totalBoxes} boxes in ${result.moves} moves ${starStr}\nCan you beat my score today?\n${DAILY_PLAY_URL}`;
 
+    const replay = result.gameId ? new URL(import.meta.env.BASE_URL + 'replay/' + encodeURIComponent(result.gameId), window.location.origin).href : '';
+    setShareError('');
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
+      if (await shareOrCopy(replay ? text + '\nWatch the game: ' + replay : text) === 'copied') {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }
+    } catch { setShareError('Sharing is unavailable. Copy the link below.'); }
 
-      if (navigator.share) {
-        await navigator.share({ text });
-        return;
-      }
-    } catch {
-      // Fallback handled by clipboard
-    }
   };
 
   const percentile = userPosition?.percentile ?? result.percentile ?? null;
@@ -98,6 +95,7 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, c
           </p>
         </div>
 
+        {shareError && <p role="status">{shareError} <a href={DAILY_PLAY_URL}>Daily challenge</a></p>}
         {/* Result Card */}
         <div
           className="backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl"

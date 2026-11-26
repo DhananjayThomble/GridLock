@@ -2,6 +2,7 @@
 // Production-ready Board for GridLock - supports 2-4 players
 // Adaptive layout: mobile / tablet / desktop
 
+import Friends from './Friends';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import socket from '../socket';
@@ -81,6 +82,7 @@ const Board = () => {
   const [status,         setStatus]         = useState('Connecting…');
   const [showWinner,     setShowWinner]     = useState(false);
   const [winnerData,     setWinnerData]     = useState(null);
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const [waitingCount,   setWaitingCount]   = useState(0);
   const [showCopied,     setShowCopied]     = useState(false);
   const [muted,          setMuted]          = useState(() => isMuted());
@@ -102,6 +104,8 @@ const Board = () => {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // ── Quick chat state (#216) ───────────────────────────────────────────────────
+  const allowChat = safeStorage.getItem('gridlock_chat') !== 'off';
+  const allowEmoji = safeStorage.getItem('gridlock_emoji') !== 'off';
   const [chatOpen, setChatOpen] = useState(false);
   const [chatCooldown, setChatCooldown] = useState(false);
   const chatCooldownRef = useRef(null);
@@ -122,6 +126,8 @@ const Board = () => {
   // Prevent double-recording stats on reconnect (game_update can re-fire with gameOver: true)
   const gameOverRecorded = useRef(false);
   const confettiFiredRef = useRef(false);
+  const pendingFirstMove = useRef(null);
+  const measuredGame = useRef(null);
   const gameStarted      = useRef(false);
   // Prevent duplicate join emits for the same room/user tuple.
   const lastJoinKeyRef   = useRef(null);
@@ -273,6 +279,16 @@ const Board = () => {
 
     const onGameUpdate = (data) => {
       const gs = data.gameState;
+
+      const move = pendingFirstMove.current;
+      if (move && move.gameId === gameId && measuredGame.current !== gameId) {
+        const lines = move.type === 'horizontal' ? gs.horizontalLines : gs.verticalLines;
+        if (lines?.[move.r]?.[move.c] === roleRef.current) {
+          capture('first_move_confirmed', { gridSize, playerCount });
+          measuredGame.current = gameId;
+          pendingFirstMove.current = null;
+        }
+      }
 
       // Tile capture sounds: compare score deltas outside React state updater.
       const prevScores = prevScoresRef.current || {};
@@ -663,6 +679,7 @@ const Board = () => {
     }
     const takenBy = type === 'horizontal' ? gameState.horizontalLines[r]?.[c] : gameState.verticalLines[r]?.[c];
     if (takenBy) { signalMiss(); return; } // already drawn: no need to ask the server
+    if (measuredGame.current !== gameId) pendingFirstMove.current = { gameId, type, r, c };
     socket.emit('make_move', { gameId, playerId: role, sessionToken, type, r, c });
     addBreadcrumb({ category: 'game', message: 'Move made', level: 'info', data: { type, r, c, player: role } });
     sounds.linePlaced();
@@ -703,6 +720,8 @@ const Board = () => {
 
   // ── Rematch handlers ──────────────────────────────────────────────────────────
   const isCPUGame = gameState?.hasCPU;
+  const hasHumanOpponent = !isCPUGame || Array.from({ length: playerCount }, (_, i) => 'player' + (i + 1))
+    .some(id => id !== role && gameState?.[id + 'Name'] && !gameState[id + 'IsCPU']);
 
   const handlePlayAgain = () => {
     initAudio();
@@ -747,9 +766,9 @@ const Board = () => {
   };
 
   // ── Quick chat handler (#216) ───────────────────────────────────────────────
-  const handleChatSend = useCallback((content) => {
+  const handleChatSend = useCallback((content, kind) => {
     if (chatCooldown || isSpectator || !gameState || gameState.gameOver) return;
-    socket.emit('game_chat', { gameId, content });
+    socket.emit('game_chat', { gameId, content, ...(kind ? { kind } : {}) });
     setChatOpen(false);
     setChatCooldown(true);
     if (chatCooldownRef.current) clearTimeout(chatCooldownRef.current);
@@ -771,7 +790,7 @@ const Board = () => {
       gridSize || 3,
       gameState.playerCount || playerCount || 2,
       role,
-      { tournamentRound: !!tournamentId }
+      { replayUrl: new URL(import.meta.env.BASE_URL + 'replay/' + encodeURIComponent(gameId), window.location.origin).href, tournamentRound: !!tournamentId, dailyChallenge: location.state?.dailyChallenge }
     );
     if (!text) return;
     try {
@@ -1422,20 +1441,19 @@ const Board = () => {
               ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
               Share the room code: <strong>{gameId}</strong>
               <button
-                onClick={() => {
-                  const url = `https://gridlock.pro/join/${gameId}`;
-                  navigator.clipboard?.writeText(url).then(() => {
-                    setShowCopied(true);
-                    setTimeout(() => setShowCopied(false), 2000);
-                  });
-                }}
+                onClick={() => setFriendsOpen(!friendsOpen)}
+                aria-expanded={friendsOpen}
                 className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
                 style={{ backgroundColor: `color-mix(in srgb, var(--warning) 20%, transparent)`, color: 'var(--warning)' }}
-                title="Copy invite link"
-                aria-label="Copy invite link"
+                title="Invite friends"
+                aria-label="Invite friends"
               >
-                📎 Copy Invite Link
+                Invite friends
               </button>
+              {friendsOpen && <Friends gameId={gameId} sessionToken={sessionToken} onShare={async () => {
+                try { await shareOrCopy(new URL(import.meta.env.BASE_URL + 'join/' + gameId, window.location.origin).href); }
+                catch { showToast('Share this room code: ' + gameId); }
+              }} />}
             </div>
           )}
 
@@ -1514,13 +1532,13 @@ const Board = () => {
         </div>
 
         {/* ── Quick Chat (#216) ── */}
-        {chatOpen && (
-          <ChatPanel
+        {chatOpen && (allowEmoji || allowChat) && (
+          <ChatPanel allowChat={allowChat} allowEmoji={allowEmoji}
             onSend={handleChatSend}
             onClose={() => setChatOpen(false)}
           />
         )}
-        <ChatOverlay socket={socket} gameId={gameId} />
+        <ChatOverlay allowChat={allowChat} allowEmoji={allowEmoji} socket={socket} gameId={gameId} />
 
         {/* ── Bottom toolbar: Mute + Chat + Leave Game (on same row on mobile) ── */}
         <div className="game-toolbar mt-4 flex items-center justify-between w-full max-w-xs gap-3">
@@ -1537,7 +1555,7 @@ const Board = () => {
           </button>
 
           {/* Chat button — inline in toolbar (#216), hidden in CPU games (#275) */}
-          {gameState && !gameState.gameOver && !isSpectator && !isCPUGame && (
+          {gameState && !gameState.gameOver && !isSpectator && hasHumanOpponent && (allowChat || allowEmoji) && (
             <button
               onClick={() => setChatOpen((prev) => !prev)}
               disabled={chatCooldown}

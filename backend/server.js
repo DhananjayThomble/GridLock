@@ -228,6 +228,8 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/profile', profileRoutes);
 
 // Push notification API routes
+app.locals.gameStore = gameStore;
+app.use('/api/friends', require('./routes/friends'));
 app.use('/api/push', pushRoutes);
 
 // Game history API routes (must be before /api/games to avoid :gameId collision)

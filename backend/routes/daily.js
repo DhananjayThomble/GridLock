@@ -113,6 +113,7 @@ router.get('/today', async (req, res) => {
       alreadyPlayed,
       existingResult: existingResult
         ? {
+            gameId: existingResult.gameId,
             score: existingResult.score,
             moves: existingResult.moves,
             duration: existingResult.duration,

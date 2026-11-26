@@ -186,6 +186,9 @@ const HowToPlay = () => {
           <span className="htp-tip-number">3</span>
           <div>
             <h3>Think Ahead</h3>
+            <pre aria-label="Two adjacent boxes with top and bottom edges drawn and only the left edge closed">{'●──●──●\n│      \n●──●──●'}</pre>
+            <p>Draw the middle vertical line to claim the left box. You get another turn,
+              so draw the right edge to claim the second box too.</p>
             <p>
               Every line you draw changes the board. Avoid completing the third
               side of a box — you're handing your opponent a free capture.

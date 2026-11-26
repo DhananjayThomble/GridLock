@@ -1,6 +1,8 @@
 // src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { safeStorage } from '../utils/safeStorage';
+import { subscribeToPush } from '../utils/pushManager';
 import { API_BASE } from '../config';
 
 // Set withCredentials globally — all axios requests include cookies
@@ -16,6 +18,19 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be within AuthProvider');
   return ctx;
+}
+
+async function bindDevice(unlink = false, username) {
+  const reg = await navigator.serviceWorker?.getRegistration();
+  const subscription = await reg?.pushManager?.getSubscription();
+  if (!subscription && !unlink && username && window.Notification?.permission === 'granted' &&
+      safeStorage.getItem('gridlock_push') !== 'false' && import.meta.env.PROD) {
+    if (await subscribeToPush(username)) safeStorage.setItem('gridlock_push', 'true');
+    return;
+  }
+  if (subscription) await axios.post(API_BASE + '/api/push/device-account', {
+    endpoint: subscription.endpoint, auth: subscription.toJSON().keys.auth, unlink,
+  });
 }
 
 export function AuthProvider({ children }) {
@@ -37,6 +52,10 @@ export function AuthProvider({ children }) {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    if (user?.usernameSetupComplete) bindDevice(false, user.username).catch(() => {});
+  }, [user]);
+
   const login = useCallback(() => {
     const returnTo = encodeURIComponent(window.location.pathname);
     window.location.href = `${API_BASE}/api/auth/google?returnTo=${returnTo}`;
@@ -44,6 +63,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
+      await bindDevice(true).catch(() => {});
       await axios.post(`${API_BASE}/api/auth/logout`);
     } catch {
       // Ignore errors — clear user either way

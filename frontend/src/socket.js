@@ -15,6 +15,7 @@ const socketUrl = import.meta.env.VITE_SOCKET_URL ||
 // the player's seat. This is intentional — game state is component-driven,
 // not transport-driven.
 const socket = io(socketUrl, {
+  autoConnect: false,
   path: '/socket.io/',
   // Start with polling, then upgrade to WebSocket. This is the Socket.IO
   // recommended order: polling always succeeds (plain HTTP), and the client
