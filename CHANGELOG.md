@@ -3,6 +3,19 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.8.0] — 2026-11-26
+
+### Added
+
+- Add friends by username, accept requests, and invite friends to rooms. Invites appear in the lobby and can arrive by push on subscribed devices.
+- Send typed or preset room chat and emoji reactions. Settings lets players turn each off independently.
+- Share a final score and replay link after a match.
+
+### Improved
+
+- Keep the homepage usable when the game connection is down. Prerender clearer game copy and a strategy example, and track the first confirmed move.
+- Combine seven Dependabot updates and migrate the Tailwind PostCSS configuration.
+
 ## [2.7.0] — 2026-11-24
 
 ### Changed
