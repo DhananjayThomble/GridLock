@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 
 const DailyResultSchema = new mongoose.Schema(
   {
+    gameId: String,
     date: {
       type: String, // YYYY-MM-DD format
       required: true,

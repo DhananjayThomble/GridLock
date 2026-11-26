@@ -11,6 +11,8 @@ const User = require('../models/User');
 const Leaderboard = require('../models/Leaderboard');
 const RankedProfile = require('../models/RankedProfile');
 const GameHistory = require('../models/GameHistory');
+const Friendship = require('../models/Friendship');
+const PushSubscription = require('../models/PushSubscription');
 const DailyResult = require('../models/DailyResult');
 const { optionalAuth, requireAuth, csrfHeader } = require('../middleware/auth');
 const { GOOGLE_CONFIG, JWT_CONFIG, RESERVED_USERNAMES, validateReturnTo, COOKIE_OPTIONS, CLEAR_COOKIE_OPTS } = require('../config/authConfig');
@@ -416,6 +418,8 @@ router.delete('/account', deleteAccountLimiter, csrfHeader, requireAuth, async (
   try {
     const runDeletion = async (sess) => {
       const opt = sess ? { session: sess } : {};
+      await Friendship.deleteMany({ members: userId }, opt);
+      await PushSubscription.deleteMany({ accountId: userId }, opt);
       // Nullify userId on associated records (data becomes anonymous/guest again)
       await Leaderboard.updateMany({ userId }, { $set: { userId: null } }, opt);
       await RankedProfile.updateMany({ userId }, { $set: { userId: null } }, opt);

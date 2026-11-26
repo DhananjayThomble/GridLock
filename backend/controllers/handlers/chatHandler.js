@@ -28,7 +28,7 @@ function register(io, socket, log, rateLimited, validate) {
             if (!gidResult.valid) { socket.emit('error', gidResult.error); return; }
             const cleanGameId = gidResult.value;
 
-            if (!ALLOWED_CHAT_CONTENT.has(content)) {
+            if (validated.kind !== 'text' && !ALLOWED_CHAT_CONTENT.has(content)) {
                 socket.emit('error', 'Invalid chat message');
                 return;
             }
@@ -67,7 +67,7 @@ function register(io, socket, log, rateLimited, validate) {
 
             const player = game.players[playerId];
             const playerIndex = parseInt(playerId.replace('player', ''), 10) - 1;
-            const type = ALLOWED_EMOJIS.includes(content) ? 'emoji' : 'quick';
+            const type = ALLOWED_EMOJIS.includes(content) ? 'emoji' : validated.kind === 'text' ? 'text' : 'quick';
 
             io.to(cleanGameId).emit('game_chat_received', {
                 playerId,

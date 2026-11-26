@@ -11,6 +11,13 @@ describe('generateShareText', () => {
     ].join('\n'));
   });
 
+  it('shares the daily score and a direct link to the challenge', () => {
+    const state = { winner: 'player2', scores: { player1: 4, player2: 5 } };
+    const text = generateShareText(state, 3, 2, 'player1', { dailyChallenge: true });
+    expect(text).toContain('4/9 boxes');
+    expect(text).toContain('https://gridlock.pro/daily/');
+  });
+
   it('formats a loss against the CPU', () => {
     const state = { hasCPU: true, winner: 'player2', scores: { player1: 0, player2: 9 } };
     expect(generateShareText(state, 3, 2, 'player1')).toContain('I lost in GridLock! 3×3 · vs CPU\nScore: 0–9 boxes');

@@ -44,6 +44,12 @@ for (const layout of ['desktop', 'phone']) {
       await expect(playerPage).toHaveURL(/\/game/, { timeout: 15_000 });
       await expect(opponentPage).toHaveURL(/\/game/, { timeout: 15_000 });
 
+      if (layout === 'phone') {
+        await playerPage.getByRole('button', { name: 'Quick chat', exact: true }).tap();
+        await playerPage.getByRole('textbox', { name: 'Message', exact: true }).fill('Ready for a rematch?');
+        await playerPage.getByRole('button', { name: 'Send', exact: true }).tap();
+        await expect(opponentPage.getByText('Ready for a rematch?', { exact: true })).toBeVisible();
+      }
       const shareButton = playerPage.getByRole('button', { name: 'Share result', exact: true });
       for (let move = 0; move < 24; move++) {
         await expect.poll(async () => {
@@ -78,7 +84,9 @@ for (const layout of ['desktop', 'phone']) {
       expect(shareText).not.toMatch(/[🟦🟥🟩🟨⬛]/u);
 
       const replay = await context.newPage();
-      await replay.goto(`${BASE_URL}/replay/${roomCode}`);
+      const replayUrl = shareText.split('\n').find(line => line.startsWith('Watch the game: ')).slice('Watch the game: '.length);
+      expect(replayUrl).toBe(`${BASE_URL}/replay/${roomCode}`);
+      await replay.goto(replayUrl);
       await expect(replay.getByRole('heading', { name: /Game Replay/ })).toBeVisible({ timeout: 10_000 });
       await expect(replay.getByText(/Move \d+ \/ 24/)).toBeVisible({ timeout: 5_000 });
       await replay.close();

@@ -52,6 +52,7 @@ const ChatBubble = ({ message, onExpire }) => {
         border: `1.5px solid ${playerColor}`,
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
+        overflowWrap: 'anywhere',
         maxWidth: isEmoji ? '56px' : '180px',
         textAlign: 'center',
         marginBottom: '4px',

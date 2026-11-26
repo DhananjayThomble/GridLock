@@ -81,7 +81,7 @@ function isUserOnlineInGame(io, username, gameId, game) {
  * Debounces: max 1 push per user per DEBOUNCE_MS.
  * Rate limited: max HOURLY_LIMIT pushes per user per hour.
  */
-async function sendPushToUser(username, payload) {
+async function sendPushToUser(username, payload, subscriptionFilter = { username }) {
     if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return; // Push not configured
 
     // Debounce check
@@ -92,7 +92,7 @@ async function sendPushToUser(username, payload) {
     // Hourly rate limit check
     if (!checkHourlyLimit(username)) return;
 
-    const subscriptions = await PushSubscription.find({ username });
+    const subscriptions = await PushSubscription.find(subscriptionFilter);
     if (!subscriptions.length) return;
     lastPushTimestamps.set(username, now);
     recordHourlySend(username);

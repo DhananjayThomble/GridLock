@@ -1,6 +1,7 @@
 // src/components/WaitingRoom.jsx
 // Real-time waiting room — shows player slots, share link, admin controls
 
+import Friends from './Friends';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -64,6 +65,7 @@ const WaitingRoom = () => {
   const [filled, setFilled] = useState(0);
   const [cpuDifficulty, setCpuDifficulty] = useState(state.cpuDifficulty || 'medium');
   const [copied, setCopied] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const [shared, setShared] = useState(false);
   const [starting, setStarting] = useState(false);
   const [roomFull, setRoomFull] = useState(false);
@@ -79,7 +81,7 @@ const WaitingRoom = () => {
 
   // Use the address this page is served from (beta, local, prod); a hardcoded prod URL sent
   // beta players' friends to a site where the room does not exist.
-  const shareUrl = `${window.location.origin}/join/${gameId}`;
+  const shareUrl = new URL(import.meta.env.BASE_URL + 'join/' + gameId, window.location.origin).href;
 
   // Our seat can change underneath us (a refresh frees it, a re-join issues a new token)
   const tokenRef = useRef(sessionToken);
@@ -419,7 +421,7 @@ const WaitingRoom = () => {
                 color: 'var(--text-on-accent)',
               }}
             >
-              {shared ? '✅ Shared!' : (<><ShareIcon size={16} /><span className="hidden sm:inline">Share Invite Link</span><span className="sm:hidden">Share</span></>)}
+              {shared ? '✅ Shared!' : (<><ShareIcon size={16} /><span className="hidden sm:inline">Share invite link</span><span className="sm:hidden">Share</span></>)}
             </button>
             <button
               onClick={handleCopyCode}
@@ -435,6 +437,8 @@ const WaitingRoom = () => {
             </button>
           </div>
 
+          <button className="min-h-11 w-full px-4 font-semibold" aria-expanded={friendsOpen} onClick={() => setFriendsOpen(!friendsOpen)}>Invite friends</button>
+          {friendsOpen && <Friends gameId={gameId} getSessionToken={() => tokenRef.current} />}
           {/* QR Code Section — only render when gameId is available */}
           {gameId && (
           <div className="p-4 text-center" style={{ borderBottom: '1px solid var(--border-color)' }}>

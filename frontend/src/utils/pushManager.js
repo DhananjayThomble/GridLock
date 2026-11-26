@@ -24,13 +24,13 @@ async function getVapidPublicKey() {
 }
 
 export async function subscribeToPush(username, socketId) {
-    const key = await getVapidPublicKey();
-    if (!key) return null;
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
 
-    const permission = await Notification.requestPermission();
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
     if (permission !== 'granted') return null;
 
+    const key = await getVapidPublicKey();
+    if (!key) return null;
     const reg = await navigator.serviceWorker.ready;
     let subscription = await reg.pushManager.getSubscription();
 
@@ -43,6 +43,7 @@ export async function subscribeToPush(username, socketId) {
 
     const res = await fetch(`${API_BASE}/api/push/subscribe`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, subscription: subscription.toJSON(), socketId }),
     });

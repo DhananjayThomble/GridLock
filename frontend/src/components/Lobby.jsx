@@ -1,6 +1,7 @@
 // src/components/Lobby.jsx
 // Production-ready lobby — mobile-first, fully adaptive
 
+import Friends from './Friends';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { initAudio } from '../utils/sounds';
@@ -44,6 +45,7 @@ const validateUsername = (raw) => {
 
 const Lobby = () => {
   const { user } = useAuth();
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const [username,      setUsername]      = useState(() => {
     const saved = safeStorage.getItem('gridlock_username');
     if (saved) return saved;
@@ -179,6 +181,7 @@ const Lobby = () => {
       return;
     }
     let cancelled = false;
+    socket.connect();
     socket.emit('validate_rejoin', { gameId, sessionToken }, (response) => {
       if (cancelled) return;
       if (!response || !response.valid) {
@@ -373,9 +376,14 @@ const Lobby = () => {
   // Fetch ranked profile on mount and when username changes (#374 review)
   useEffect(() => {
     const name = username.trim();
-    if (name && name.length >= 2 && socket.connected) {
-      socket.emit('get_ranked_profile', { username: name });
+    if (name.length < 2) return;
+    const fetchProfile = () => socket.emit('get_ranked_profile', { username: name });
+    if (socket.connected) fetchProfile();
+    else {
+      socket.once('connect', fetchProfile);
+      if (safeStorage.getItem('gridlock_username') === name) socket.connect();
     }
+    return () => socket.off('connect', fetchProfile);
   }, [username]);
 
   // ── Ref for unmount cleanup (captures latest quickPlaying value) ──────────
@@ -817,6 +825,9 @@ const Lobby = () => {
     >
       <div className="w-full max-w-lg md:max-w-[720px] lg:max-w-[960px]">
 
+        <button className="min-h-11 px-4 font-semibold" aria-expanded={friendsOpen} onClick={() => setFriendsOpen(!friendsOpen)}>Friends &amp; invites</button>
+        {(user || friendsOpen) && <Friends collapsed={!friendsOpen} />}
+
         {/* ── Active Game Rejoin Banner (#365) ── */}
         {activeGame && (
           <div
@@ -906,6 +917,10 @@ const Lobby = () => {
               GridLock
             </h1>
           </div>
+
+          <p className="px-4 pt-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Play Dots and Boxes online with up to three friends, or practice against the computer.
+          </p>
 
           {/* ── First-Time Onboarding View ── */}
           {showOnboarding && (
