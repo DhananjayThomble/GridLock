@@ -642,7 +642,7 @@ const ReplayPage = () => {
                     <button
                         onClick={() => setSpeedIdx(i => (i + 1) % SPEEDS.length)}
                         className="px-2.5 sm:px-3 py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
-                        style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--accent)', border: '1px solid var(--border-color)' }}
+                        style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-accent)', border: '1px solid var(--border-color)' }}
                         aria-label={`Speed: ${SPEEDS[speedIdx].label}`}
                     >
                         {SPEEDS[speedIdx].label}

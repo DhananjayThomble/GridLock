@@ -210,7 +210,7 @@ const Profile = () => {
         style={{ background: 'linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))' }}
       >
         <p className="text-lg" style={{ color: 'var(--danger)' }}>{error}</p>
-        <Link to="/leaderboard" className="text-sm hover:underline" style={{ color: 'var(--accent)' }}>← Back to Leaderboard</Link>
+        <Link to="/leaderboard" className="text-sm hover:underline" style={{ color: 'var(--text-accent)' }}>← Back to Leaderboard</Link>
       </div>
     );
   }

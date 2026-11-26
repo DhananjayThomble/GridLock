@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
-/* ── Body background matches theme to prevent white flash/gap ────────────── */
+/* Default page colors follow the active theme, including inherited controls. */
 body {
   background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 /* ── Theme Variables ───────────────────────────────────────────────────────── */
@@ -17,8 +18,11 @@ body {
   --bg-surface:       #21262d;
 
   --text-primary:     #e6edf3;
-  --text-secondary:   #8b949e;
-  --text-muted:       #848d97;
+  --text-accent:      #79bcff;
+  --text-danger:      #ff928c;
+  --text-warning:     #edbc65;
+  --text-secondary:   #aab4bf;
+  --text-muted:       #a1acb7;
   /* --text-subtle: opaque for WCAG AA — 5.12:1 on #0d1117, 4.12:1 on #21262d */
   --text-subtle:      #7d868f;
 
@@ -29,13 +33,15 @@ body {
   --accent:           #2a6fa0;
   /* --accent-hover: 6.94:1 vs white text */
   --accent-hover:     #245e87;
+  --accent-gradient-end: #7544b5;
   --accent-secondary: #4d8fcc;
-  --label-color:      #8b949e;
+  --label-color:      var(--text-secondary);
   --success:          #3fb950;
+  --text-on-success:  #0d1117;
   --danger:           #f85149;
-  /* --warning: darkened from #d29922 (2.52:1 vs white) to achieve ≥3:1 vs white (3.91:1) */
+  /* Warning fills use dark text for 4.83:1 contrast. */
   --warning:          #a87818;
-  --text-on-warning:  #ffffff;
+  --text-on-warning:  #0d1117;
 
   --gradient-from:    #0d1117;
   --gradient-via:     #0d1b2a;
@@ -93,6 +99,9 @@ body {
   --bg-surface:       #f0f3f6;
 
   --text-primary:     #1f2328;
+  --text-accent:      var(--accent);
+  --text-danger:      var(--danger);
+  --text-warning:     var(--warning);
   --text-secondary:   #656d76;
   --text-muted:       #57606a;
   /* --text-subtle: opaque for WCAG AA — 4.59:1 on white */
@@ -103,9 +112,11 @@ body {
 
   --accent:           #0969da;
   --accent-hover:     #0550ae;
+  --accent-gradient-end: var(--player4-color);
   --accent-secondary: #0550ae;
   --label-color:      #656d76;
   --success:          #1a7f37;
+  --text-on-success:  #ffffff;
   --danger:           #cf222e;
   --warning:          #9a6700;
   --text-on-warning:  #ffffff; /* 4.87:1 vs #9a6700 — passes WCAG AA */
@@ -588,7 +599,7 @@ a {
   }
 
   .leaderboard-mobile-card-name a {
-    color: var(--accent);
+    color: var(--text-accent);
     text-decoration: none;
     display: inline-flex;
     align-items: center;

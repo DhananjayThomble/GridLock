@@ -117,7 +117,7 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, c
             <div className="px-5 py-3 flex items-center justify-center gap-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
               {rank && (
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                  <div className="text-2xl font-bold" style={{ color: 'var(--text-accent)' }}>
                     #{rank}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Rank</div>
@@ -223,7 +223,7 @@ const DailyResult = ({ result, challenge, streak, countdown: initialCountdown, c
             <div className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--label-color)' }}>
               Next Challenge In
             </div>
-            <div className="text-2xl font-mono font-bold" style={{ color: 'var(--accent)' }}>
+            <div className="text-2xl font-mono font-bold" style={{ color: 'var(--text-accent)' }}>
               {formatCountdown(countdown)}
             </div>
           </div>

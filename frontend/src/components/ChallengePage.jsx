@@ -123,7 +123,7 @@ const ChallengePage = () => {
             You've Been Challenged!
           </h1>
           <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
-            <span className="font-bold" style={{ color: 'var(--accent)' }}>{challengerUsername}</span> wants to play GridLock with you
+            <span className="font-bold" style={{ color: 'var(--text-accent)' }}>{challengerUsername}</span> wants to play GridLock with you
           </p>
         </div>
 

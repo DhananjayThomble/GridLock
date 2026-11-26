@@ -404,7 +404,7 @@ const WaitingRoom = () => {
               style={{
                 background: copied ? 'var(--success)' : 'var(--bg-card)',
                 border: '1px solid var(--border-color-strong)',
-                color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
+                color: copied ? 'var(--text-on-success)' : 'var(--text-secondary)',
               }}
             >
               {copied ? '✅ Copied!' : (<><ClipboardIcon size={14} /> Copy Code</>)}
@@ -417,8 +417,8 @@ const WaitingRoom = () => {
               onClick={handleShare}
               className="flex-1 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
               style={{
-                background: shared ? 'var(--success)' : 'linear-gradient(135deg, var(--accent), var(--player4-color))',
-                color: 'var(--text-on-accent)',
+                background: shared ? 'var(--success)' : 'linear-gradient(135deg, var(--accent), var(--accent-gradient-end))',
+                color: shared ? 'var(--text-on-success)' : 'var(--text-on-accent)',
               }}
             >
               {shared ? '✅ Shared!' : (<><ShareIcon size={16} /><span className="hidden sm:inline">Share invite link</span><span className="sm:hidden">Share</span></>)}
@@ -430,7 +430,7 @@ const WaitingRoom = () => {
               style={{
                 background: copied ? 'var(--success)' : 'var(--bg-card)',
                 border: '1px solid var(--border-color-strong)',
-                color: copied ? 'var(--text-on-accent)' : 'var(--text-secondary)',
+                color: copied ? 'var(--text-on-success)' : 'var(--text-secondary)',
               }}
             >
               {copied ? '✅' : <ClipboardIcon size={16} />}
@@ -475,7 +475,7 @@ const WaitingRoom = () => {
                   />
                 </div>
                 <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                  Scan to join · <span className="font-mono" style={{ color: 'var(--accent)' }}>{gameId}</span>
+                  Scan to join · <span className="font-mono" style={{ color: 'var(--text-accent)' }}>{gameId}</span>
                 </p>
               </div>
             )}
@@ -527,7 +527,7 @@ const WaitingRoom = () => {
                     </span>
                   </div>
                   {slot.isHost && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Host</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-accent)' }}>Host</span>
                   )}
                   {slot.username && !slot.isCPU && !slot.connected && disconnectTimers[slot.slot] !== undefined && (
                     <span className="text-[10px] font-semibold" style={{ color: 'var(--danger)' }}>
@@ -555,7 +555,7 @@ const WaitingRoom = () => {
                       style={{
                         background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
                         border: '1px solid color-mix(in srgb, var(--warning) 40%, transparent)',
-                        color: 'var(--warning)',
+                        color: 'var(--text-warning)',
                         minHeight: '44px',
                         minWidth: '44px',
                       }}
@@ -583,7 +583,7 @@ const WaitingRoom = () => {
                     {i === 0 ? `${username} (you)` : 'Waiting for player\u2026'}
                   </span>
                   {i === 0 && (
-                    <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Host</span>
+                    <span className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-accent)' }}>Host</span>
                   )}
                 </div>
                 <span className="text-sm">{i === 0 ? '✅' : '⏳'}</span>

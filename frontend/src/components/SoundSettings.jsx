@@ -135,7 +135,7 @@ const SoundSettings = () => {
               </div>
               <span
                 className="text-sm font-bold tabular-nums"
-                style={{ color: 'var(--accent)' }}
+                style={{ color: 'var(--text-accent)' }}
                 data-testid="volume-display"
               >
                 {settings.volume}%

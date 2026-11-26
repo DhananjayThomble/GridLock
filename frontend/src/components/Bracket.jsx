@@ -82,7 +82,7 @@ const Bracket = ({ rounds = [], participants = [], champion }) => {
       <div className="flex gap-6 sm:gap-10 min-w-max px-2 items-center">
         {rounds.map((round, roundIndex) => (
           <div key={roundIndex} className="flex flex-col items-center gap-2">
-            <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--accent)' }}>
+            <div className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-accent)' }}>
               {getRoundLabel(roundIndex, rounds.length)}
             </div>
             <div className="flex flex-col gap-4 justify-center" style={{ minHeight: roundIndex === 0 ? 'auto' : undefined }}>

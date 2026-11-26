@@ -24,7 +24,7 @@
 }
 
 .htp-brand {
-  color: var(--accent);
+  color: var(--text-accent);
 }
 
 .htp-hero-subtitle {
@@ -184,7 +184,7 @@
   height: 2rem;
   border-radius: 50%;
   background: color-mix(in srgb, var(--accent) 20%, transparent);
-  color: var(--accent);
+  color: var(--text-accent);
   font-weight: 800;
   font-size: 0.9rem;
 }
@@ -209,7 +209,7 @@
   display: block;
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--text-accent);
   margin-bottom: 0.25rem;
 }
 
@@ -420,7 +420,7 @@
   gap: 0.35rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--text-accent);
   text-decoration: none;
   min-height: 44px; /* comfortable thumb target */
   padding: 0 0.25rem;

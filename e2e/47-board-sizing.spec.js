@@ -11,27 +11,23 @@ const { goToLobby } = require('./helpers');
 async function createCpuGameMobile(page, { username = 'MobileUser', gridSize = '3×3', playerCount = 2 } = {}) {
   await goToLobby(page);
 
-  // Fill the name input (mobile has only one visible input)
-  const nameInput = page.locator('input[placeholder="Enter your name…"]:visible').first();
-  await nameInput.fill(username);
+  const profile = page.getByRole('button', { name: 'Edit profile' });
+  await profile.click();
+  await page.getByRole('textbox', { name: 'Your Name' }).fill(username);
+  await profile.click();
 
   // Mobile uses compact pill buttons: "2P" / "3P" / "4P"
   await page.getByRole('radio', { name: `${playerCount}P` }).click();
 
   // Grid size — use the radio button
-  await page.getByRole('radio', { name: gridSize }).click({ timeout: 3000 }).catch(() => {});
+  await page.getByRole('radio', { name: gridSize, exact: true }).click();
 
-  // Toggle CPU on — check if already enabled via localStorage
-  const cpuAlreadyOn = await page.evaluate(() => localStorage.getItem('gridlock-cpuEnabled') === 'true');
-  if (!cpuAlreadyOn) {
-    await page.locator('button:has-text("Play vs CPU"):visible').first().click();
-    await page.waitForTimeout(300);
-  }
+  const cpu = page.getByRole('switch', { name: 'Add CPU opponents' });
+  if (await cpu.getAttribute('aria-checked') !== 'true') await cpu.click();
 
-  // Create the game
-  await page.locator('button:has-text("Create Game"):visible').first().click();
+  await page.getByRole('button', { name: 'Create Game — start a new game room' }).click();
   await page.waitForURL(/\/game/, { timeout: 15_000 });
-  await page.waitForFunction(() => /turn/i.test(document.body.innerText), { timeout: 20_000 });
+  await expect(page.locator('[data-line]').first()).toBeVisible({ timeout: 20_000 });
 }
 
 test.describe('Board Sizing on Mobile', () => {
