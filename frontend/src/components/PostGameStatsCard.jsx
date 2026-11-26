@@ -210,7 +210,7 @@ const PostGameStatsCard = ({
           <button
             onClick={onShare}
             className="text-xs font-medium min-h-[44px] flex items-center px-2 hover:opacity-80 transition-opacity"
-            style={{ color: 'var(--accent)' }}
+            style={{ color: 'var(--text-accent)' }}
             aria-label="Share game result"
             data-testid="stats-share-btn"
           >
@@ -222,7 +222,7 @@ const PostGameStatsCard = ({
           const isCPU = !!gameState?.[`${pid}IsCPU`];
           if (isCPU) return null;
           return (
-            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline min-h-[44px] flex items-center px-2" style={{ color: 'var(--accent)' }} data-testid={`profile-link-${pid}`}>
+            <Link key={`profile-${pid}`} to={`/profile/${encodeURIComponent(name)}`} className="text-xs font-medium hover:underline min-h-[44px] flex items-center px-2" style={{ color: 'var(--text-accent)' }} data-testid={`profile-link-${pid}`}>
               👤 {name}
             </Link>
           );

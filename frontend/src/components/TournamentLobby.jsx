@@ -219,7 +219,7 @@ const TournamentLobby = () => {
                   ? { backgroundColor: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
                   : completed
                   ? { backgroundColor: 'color-mix(in srgb, var(--success) 15%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
-                  : { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)' }
+                  : { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--text-accent)', border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)' }
                 }>
                 {isWaiting ? `⏳ ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : completed ? '🏆 Complete' : '🎮 In Progress'}
               </div>
@@ -243,7 +243,7 @@ const TournamentLobby = () => {
                   <div className="text-2xl mb-1">{p.avatar}</div>
                   <div className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{p.username}</div>
                   {p.username === username && (
-                    <div className="text-xs mt-0.5" style={{ color: 'var(--accent)' }}>You</div>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-accent)' }}>You</div>
                   )}
                 </div>
               ))}

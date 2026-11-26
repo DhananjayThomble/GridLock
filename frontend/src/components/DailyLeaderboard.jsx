@@ -150,7 +150,7 @@ const DailyLeaderboard = ({ date, username, gridSize, alreadyPlayed }) => {
                 >
                   #{userResult.rank}
                 </span>
-                <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-accent)' }}>
                   {userResult.username}
                   <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
                     (you)

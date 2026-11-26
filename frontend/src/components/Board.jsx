@@ -1194,13 +1194,13 @@ const Board = () => {
               <button
                 onClick={handleLeaveGame}
                 className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95"
-                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--warning)', border: '1px solid var(--border-color)' }}
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-warning)', border: '1px solid var(--border-color)' }}
               >
                 🏠 Back to Lobby
               </button>
             )}
             {tournamentId && (
-              <div className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center" style={{ color: 'var(--warning)', backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)` }}>
+              <div className="flex-1 py-2.5 rounded-xl font-bold text-sm text-center" style={{ color: 'var(--text-warning)', backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)` }}>
                 <span className="w-4 h-4 border-2 border-current border-t-current rounded-full animate-spin inline-block mr-2 align-middle" style={{ borderColor: 'color-mix(in srgb, currentColor 40%, transparent)', borderTopColor: 'var(--warning)' }} />
                 Next match loading…
               </div>
@@ -1216,7 +1216,7 @@ const Board = () => {
 
           {/* Rematch status messages */}
           {rematchFailed && (
-            <div className="mt-3 text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+            <div className="mt-3 text-sm font-semibold" style={{ color: 'var(--text-danger)' }}>
               {rematchFailed}
             </div>
           )}
@@ -1437,14 +1437,14 @@ const Board = () => {
 
           {/* Waiting banner */}
           {waitingCount > 0 && (
-            <div className="mt-2 rounded-lg px-4 py-2 text-xs text-center" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)', color: 'var(--warning)' }}>
+            <div className="mt-2 rounded-lg px-4 py-2 text-xs text-center" style={{ backgroundColor: `color-mix(in srgb, var(--warning) 10%, transparent)`, border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)', color: 'var(--text-warning)' }}>
               ⏳ Waiting for <strong>{waitingCount}</strong> more player(s) to join.
               Share the room code: <strong>{gameId}</strong>
               <button
                 onClick={() => setFriendsOpen(!friendsOpen)}
                 aria-expanded={friendsOpen}
                 className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
-                style={{ backgroundColor: `color-mix(in srgb, var(--warning) 20%, transparent)`, color: 'var(--warning)' }}
+                style={{ backgroundColor: `color-mix(in srgb, var(--warning) 20%, transparent)`, color: 'var(--text-warning)' }}
                 title="Invite friends"
                 aria-label="Invite friends"
               >
@@ -1463,7 +1463,7 @@ const Board = () => {
               role="alert"
               data-testid="game-error"
               className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg px-4 py-2 text-xs shadow-lg pointer-events-none"
-              style={{ backgroundColor: `color-mix(in srgb, var(--danger) 16%, var(--bg-secondary))`, border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)', color: 'var(--danger)' }}
+              style={{ backgroundColor: `color-mix(in srgb, var(--danger) 16%, var(--bg-secondary))`, border: '1px solid color-mix(in srgb, var(--danger) 40%, transparent)', color: 'var(--text-danger)' }}
             >
               ⚠️ {error}
             </div>
@@ -1580,7 +1580,7 @@ const Board = () => {
           <button
             onClick={handleLeaveGame}
             className="flex-1 px-5 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-            style={{ backgroundColor: 'transparent', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 55%, transparent)', minHeight: '44px' }}
+            style={{ backgroundColor: 'transparent', color: 'var(--text-danger)', border: '1px solid color-mix(in srgb, var(--danger) 55%, transparent)', minHeight: '44px' }}
           >
             ← Leave Game
           </button>

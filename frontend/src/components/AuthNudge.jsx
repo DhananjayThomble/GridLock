@@ -82,7 +82,7 @@ const styles = {
     padding: 0,
     fontSize: '13px',
     fontWeight: 600,
-    color: 'var(--accent)',
+    color: 'var(--text-accent)',
     cursor: 'pointer',
     textDecoration: 'underline',
   },

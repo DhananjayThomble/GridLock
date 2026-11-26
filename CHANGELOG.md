@@ -3,6 +3,13 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.8.1] — 2026-11-26
+
+### Fixed
+
+- Make Friends & invites readable on the dark homepage and improve dark-mode contrast across the lobby, Settings, rules, waiting room, and replays.
+- Add mobile contrast regression checks for both themes and update the board-sizing tests to use the current lobby controls.
+
 ## [2.8.0] — 2026-11-26
 
 ### Added

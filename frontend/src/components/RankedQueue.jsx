@@ -87,7 +87,7 @@ const RankedQueue = ({ elo, tier, tierIcon, queueSize, placementProgress, cooldo
               border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
             }}
           >
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-accent)' }}>
               Placement: {placementProgress}
             </p>
           </div>

@@ -163,7 +163,7 @@ const HeroBanner = ({ onPlayNow }) => {
               }}
               className="px-8 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--player4-color))',
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-gradient-end))',
                 color: 'var(--text-on-accent)',
                 boxShadow: '0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent)',
               }}

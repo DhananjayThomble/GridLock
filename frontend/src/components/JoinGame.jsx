@@ -276,7 +276,7 @@ const JoinGame = () => {
 
             {/* Error */}
             {error && (
-              <div className="rounded-xl px-4 py-2.5 text-sm text-center" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--danger)' }}>
+              <div className="rounded-xl px-4 py-2.5 text-sm text-center" style={{ backgroundColor: 'color-mix(in srgb, var(--danger) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)', color: 'var(--text-danger)' }}>
                 {error}
                 {retryCountdown > 0 && (
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
@@ -324,7 +324,7 @@ const JoinGame = () => {
                   <button
                     onClick={() => navigate('/')}
                     className="block mx-auto mt-2 text-xs underline"
-                    style={{ color: 'var(--accent)' }}
+                    style={{ color: 'var(--text-accent)' }}
                   >
                     Go to Lobby
                   </button>

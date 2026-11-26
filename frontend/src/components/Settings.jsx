@@ -171,7 +171,7 @@ const SoundDetails = ({ settings, onUpdate, muted }) => (
           <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>🔉</span>
           <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Volume</span>
         </div>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-accent)', fontVariantNumeric: 'tabular-nums' }}>
           {settings.volume}%
         </span>
       </div>
@@ -251,7 +251,7 @@ const StatsPanel = ({ stats, onReset }) => (
         </div>
 
         {stats.currentStreak > 0 && (
-          <div style={{ textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--warning)' }}>
+          <div style={{ textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--text-warning)' }}>
             🔥 {stats.currentStreak} game win streak!
           </div>
         )}
@@ -273,7 +273,7 @@ const StatsPanel = ({ stats, onReset }) => (
                     ...(g.outcome === 'win'
                       ? { backgroundColor: 'color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', border: '1px solid color-mix(in srgb, var(--success) 30%, transparent)' }
                       : g.outcome === 'draw'
-                      ? { backgroundColor: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
+                      ? { backgroundColor: 'color-mix(in srgb, var(--warning) 25%, transparent)', color: 'var(--text-warning)', border: '1px solid color-mix(in srgb, var(--warning) 30%, transparent)' }
                       : { backgroundColor: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)' }),
                   }}
                   title={`${g.gridSize}×${g.gridSize} · ${g.players}P`}
@@ -359,7 +359,7 @@ const ThemePreview = ({ theme, isActive, onClick }) => (
     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', textAlign: 'center' }}>
       {theme.name}
     </div>
-    <div style={{ fontSize: '12px', color: isActive ? 'var(--accent)' : 'var(--text-muted)', textAlign: 'center' }}>
+    <div style={{ fontSize: '12px', color: isActive ? 'var(--text-accent)' : 'var(--text-muted)', textAlign: 'center' }}>
       {isActive ? '✓ Active' : 'Tap to apply'}
     </div>
   </button>
@@ -626,7 +626,7 @@ const Settings = () => {
           <div style={{ padding: '0 16px 12px 52px', fontSize: '12px', lineHeight: '16px', color: 'var(--text-muted)' }}>
             Enable browser notifications for game invites and turn reminders. Requires browser permission.
             {!hasUsername && (
-              <span style={{ display: 'block', marginTop: '4px', color: 'var(--warning)' }}>
+              <span style={{ display: 'block', marginTop: '4px', color: 'var(--text-warning)' }}>
                 ⚠️ Sign in or set a username in the lobby to enable notifications.
               </span>
             )}
@@ -759,7 +759,7 @@ const Settings = () => {
                   data-testid="delete-confirm-button"
                   style={{
                     flex: 1, padding: '10px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                    backgroundColor: 'var(--danger)', color: 'var(--text-on-accent)',
+                    backgroundColor: 'var(--btn-danger-bg)', color: 'var(--btn-danger-text)',
                     border: 'none', cursor: deleting ? 'not-allowed' : 'pointer',
                     opacity: deleting ? 0.5 : 1, minHeight: '44px',
                   }}

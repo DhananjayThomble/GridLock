@@ -26,3 +26,20 @@ test('keeps the saved theme from before the unlock requirements were removed', a
   await neon.click();
   await expect(neon).toHaveAttribute('aria-pressed', 'true');
 });
+
+for (const [theme, textColor] of [
+  ['dark', 'rgb(230, 237, 243)'],
+  ['light', 'rgb(31, 35, 40)'],
+]) {
+  test(`the mobile friends control uses readable text in ${theme} mode`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.emulateMedia({ colorScheme: theme });
+    await page.goto('/');
+
+    const friends = page.getByRole('button', { name: 'Friends & invites' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expect(friends).toHaveCSS('color', textColor);
+    await friends.click();
+    await expect(page.getByRole('button', { name: 'Sign in to add and invite friends' })).toHaveCSS('color', textColor);
+  });
+}
