@@ -25,6 +25,7 @@ const replayRoutes = require('./routes/replay');
 const gameHistoryRoutes = require('./routes/gameHistory');
 const rankedRoutes = require('./routes/ranked');
 const dailyRoutes = require('./routes/daily');
+const challengeRoutes = require('./routes/challenge');
 const healthcheckRoutes = require('./routes/healthcheck');
 const authRoutes = require('./routes/auth');
 
@@ -243,6 +244,7 @@ app.use('/api/ranked', rankedRoutes);
 
 // Daily challenge API routes
 app.use('/api/daily', dailyRoutes);
+app.use('/api/challenge', challengeRoutes);
 
 // Auth API routes
 app.use('/api/auth', authRoutes);

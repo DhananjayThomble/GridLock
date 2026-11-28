@@ -37,6 +37,7 @@ const HowToPlay = lazy(() => import('./components/HowToPlay'));
 const Settings = lazy(() => import('./components/Settings'));
 const WaitingRoom = lazy(() => import('./components/WaitingRoom'));
 const ChallengePage = lazy(() => import('./components/ChallengePage'));
+const EndgameChallenge = lazy(() => import('./components/EndgameChallenge'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
 const AuthSetup = lazy(() => import('./components/AuthSetup'));
 const Privacy = lazy(() => import('./components/Privacy'));
@@ -93,7 +94,8 @@ const AuthSetupRedirect = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const shouldRedirect = !loading && user && !user.usernameSetupComplete && !['/auth/setup', '/privacy'].includes(location.pathname);
+  const path = location.pathname.replace(/\/$/, '');
+  const shouldRedirect = !loading && user && !user.usernameSetupComplete && !['/auth/setup', '/privacy', '/challenge'].includes(path);
 
   useEffect(() => {
     if (shouldRedirect) {
@@ -117,10 +119,10 @@ const AppLayout = () => {
   useEffect(() => {
     if (inSession || path === '/settings') socket.connect();
   }, [inSession, path]);
-  const hideNav = location.pathname === '/admin' || location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
+  const hideNav = path === '/challenge' || location.pathname === '/admin' || location.pathname === '/game' || location.pathname === '/tournament' || location.pathname.startsWith('/join/') || location.pathname.startsWith('/replay/') || location.pathname.startsWith('/waiting/');
 
   // Block layout rendering while auth setup redirect is pending (#6 Copilot review)
-  const needsSetupRedirect = !loading && user && !user.usernameSetupComplete && !['/auth/setup', '/privacy'].includes(location.pathname);
+  const needsSetupRedirect = !loading && user && !user.usernameSetupComplete && !['/auth/setup', '/privacy', '/challenge'].includes(path);
   if (needsSetupRedirect) {
     return <AuthSetupRedirect />;
   }
@@ -233,6 +235,20 @@ const AppLayout = () => {
                     {
                       title: 'Daily GridLock Challenge — Today\'s Puzzle',
                       description: "Play today's GridLock challenge. Same puzzle for everyone. Compare your score on the daily leaderboard.",
+                    },
+                  )}
+                </ErrorBoundary>
+              )}
+            />
+            <Route
+              path="/challenge"
+              element={(
+                <ErrorBoundary>
+                  {withPageSeo(
+                    <EndgameChallenge key={location.search} />,
+                    {
+                      title: 'Can You Beat My Score? — Dots & Boxes Challenge',
+                      description: 'Play the last moves of a Dots & Boxes board, beat your friend’s score, and send them your result. Play in about a minute, no sign-up.',
                     },
                   )}
                 </ErrorBoundary>

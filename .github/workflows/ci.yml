@@ -85,4 +85,4 @@ jobs:
       - run: npm ci --prefix backend
       - run: npm ci --prefix frontend
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e:local -- e2e/11-share-result.spec.js e2e/51-grid-themes.spec.js --project=chromium --reporter=list --global-timeout=240000
+      - run: npm run test:e2e:local -- e2e/11-share-result.spec.js e2e/51-grid-themes.spec.js e2e/53-endgame-challenge.spec.js --project=chromium --reporter=list --global-timeout=240000

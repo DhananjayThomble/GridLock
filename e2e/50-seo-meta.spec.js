@@ -39,6 +39,12 @@ const PAGE_META = [
     descKeywords: ['daily', 'challenge', 'puzzle', 'leaderboard'],
   },
   {
+    name: 'One-minute challenge',
+    path: '/challenge',
+    titleKeywords: ['GridLock', 'Beat My Score', 'Dots', 'Boxes', 'Challenge'],
+    descKeywords: ['dots & boxes', 'score', 'no sign-up'],
+  },
+  {
     name: 'Privacy',
     path: '/privacy',
     titleKeywords: ['Privacy', 'GridLock'],

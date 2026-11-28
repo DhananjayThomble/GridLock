@@ -921,6 +921,16 @@ const Lobby = () => {
           <p className="px-4 pt-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Play Dots and Boxes online with up to three friends, or practice against the computer.
           </p>
+          <Link
+            to="/challenge/"
+            className="mx-4 mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-color-strong)] bg-[var(--bg-card)] px-4 py-2 text-[var(--text-primary)] no-underline hover:border-[var(--accent)]"
+          >
+            <span>
+              <span className="block font-bold">Play the one-minute challenge</span>
+              <span className="block text-sm text-[var(--text-secondary)]">Finish the board and dare a friend to beat your score.</span>
+            </span>
+            <span aria-hidden="true">→</span>
+          </Link>
 
           {/* ── First-Time Onboarding View ── */}
           {showOnboarding && (

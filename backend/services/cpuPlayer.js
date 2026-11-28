@@ -172,7 +172,7 @@ function chooseMediumMove(gameState) {
  * @param {Object} gameState
  * @returns {{r: number, c: number, type: string}|null}
  */
-function chooseHardMove(gameState) {
+function chooseHardMove(gameState, random) {
     const moves = getValidMoves(gameState);
     if (moves.length === 0) return null;
 
@@ -208,7 +208,7 @@ function chooseHardMove(gameState) {
     if (safe.length > 0) {
         // Among safe moves, pick one at random. (No additional heuristic
         // between different safe moves is applied.)
-        return safe[Math.floor(Math.random() * safe.length)];
+        return safe[Math.floor(random() * safe.length)];
     }
 
     // All moves are dangerous — sacrifice the shortest chain
@@ -279,14 +279,15 @@ function countChainLength(gameState, move) {
  * Choose a CPU move based on difficulty level.
  * @param {Object} gameState - The current game state
  * @param {string} difficulty - 'easy' | 'medium' | 'hard'
+ * @param {() => number} random - Tie breaker for safe moves on hard
  * @returns {{r: number, c: number, type: string}|null}
  */
-function chooseCPUMove(gameState, difficulty = 'medium') {
+function chooseCPUMove(gameState, difficulty = 'medium', random = Math.random) {
     switch (difficulty) {
     case 'easy':
         return chooseEasyMove(gameState);
     case 'hard':
-        return chooseHardMove(gameState);
+        return chooseHardMove(gameState, random);
     case 'medium':
     default:
         return chooseMediumMove(gameState);
