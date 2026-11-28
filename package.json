@@ -1,6 +1,6 @@
 {
   "name": "gridlock",
-  "version": "2.8.1",
+  "version": "2.9.0",
   "description": "GridLock — multiplayer territory game",
   "private": true,
   "license": "MIT",

@@ -3,6 +3,13 @@
 All notable changes to GridLock are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [2.9.0] — 2026-11-28
+
+### Added
+
+- Play a one-minute Dots & Boxes endgame at `/challenge/` without signing in. Share a score and let friends play the same board against the same bot.
+- Compare your score with the friend who sent the challenge, then send your own result onward.
+
 ## [2.8.1] — 2026-11-26
 
 ### Fixed
