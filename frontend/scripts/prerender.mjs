@@ -18,7 +18,7 @@ import { preview } from 'vite';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = join(__dirname, '..', 'dist');
 // Public, indexable pages only (keep in sync with scripts/generate-sitemap.mjs)
-const ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily', '/privacy'];
+const ROUTES = ['/', '/how-to-play', '/leaderboard', '/daily', '/challenge', '/privacy'];
 const PREVIEW_PORT = 4174;
 
 // Detect system Chromium (snap or apt)
